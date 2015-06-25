@@ -1,73 +1,16 @@
-/* Tiny display-an-image demo program. 
- *
- * This is not supposed to be a complete image viewer, it's just to 
- * show how to display a VIPS image (or the result of a VIPS computation) in a
- * window.
- *
- * Compile with:
-
-	cc -g -Wall `pkg-config vips gtk+-3.0 --cflags --libs` \
-		vipsdisp.c -o vipsdisp
-
+/* Display an image with gtk3 and libvips. 
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <gtk/gtk.h>
+
 #include <vips/vips.h>
 
-/* Just to demo progress feedback. This should be used to update a widget
- * somewhere.
- */
-static void
-vipsdisp_preeval( VipsImage *image, 
-	VipsProgress *progress, const char *filename )
-{
-	printf( "load starting for %s ...\n", filename );
-}
+#include "disp.h"
 
-static void
-vipsdisp_eval( VipsImage *image, 
-	VipsProgress *progress, const char *filename )
-{
-	static int previous_precent = -1;
-
-	if( progress->percent != previous_precent ) {
-		printf( "%s %s: %d%% complete\r", 
-			g_get_prgname(), filename, progress->percent );
-		previous_precent = progress->percent;
-	}
-}
-
-static void
-vipsdisp_posteval( VipsImage *image, 
-	VipsProgress *progress, const char *filename )
-{
-	printf( "\nload done in %g seconds\n", 
-		g_timer_elapsed( progress->start, NULL ) );
-}
-
-static VipsImage *
-vipsdisp_load( const char *filename )
-{
-	VipsImage *image;
-
-	if( !(image = vips_image_new_from_file( filename, NULL ))) 
-		return NULL;
-
-	/* Attach an eval callback: this will tick down if we open this image
-	 * via a temp file.
-	 */
-	vips_image_set_progress( image, TRUE ); 
-	g_signal_connect( image, "preeval",
-		G_CALLBACK( vipsdisp_preeval ), (void *) filename);
-	g_signal_connect( image, "eval",
-		G_CALLBACK( vipsdisp_eval ), (void *) filename);
-	g_signal_connect( image, "posteval",
-		G_CALLBACK( vipsdisp_posteval ), (void *) filename);
-
-	return image;
-}
+G_DEFINE_TYPE( Disp, disp, GTK_TYPE_APPLICATION );
 
 typedef struct _Update {
 	GtkWidget *drawing_area;
@@ -111,7 +54,7 @@ render_notify( VipsImage *image, VipsRect *rect, void *client )
  * to 8-bit RGB would be a good idea.
  */
 static VipsImage *
-vipsdisp_display_image( VipsImage *in, GtkWidget *drawing_area )
+disp_display_image( VipsImage *in, GtkWidget *drawing_area )
 {
 	VipsImage *image;
 	VipsImage *x;
@@ -179,7 +122,7 @@ vipsdisp_display_image( VipsImage *in, GtkWidget *drawing_area )
 }
 
 static void
-vipsdisp_draw_rect( GtkWidget *drawing_area, 
+disp_draw_rect( GtkWidget *drawing_area, 
 	cairo_t *cr, VipsRegion *region, VipsRect *expose )
 {
 	VipsRect image;
@@ -188,7 +131,7 @@ vipsdisp_draw_rect( GtkWidget *drawing_area,
 	int x, y;
 	cairo_surface_t *surface;
 
-	printf( "vipsdisp_draw_rect: "
+	printf( "disp_draw_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
@@ -238,12 +181,12 @@ vipsdisp_draw_rect( GtkWidget *drawing_area,
 }
 
 static void
-vipsdisp_draw( GtkWidget *drawing_area, cairo_t *cr, VipsRegion *region )
+disp_draw( GtkWidget *drawing_area, cairo_t *cr, VipsRegion *region )
 {
 	cairo_rectangle_list_t *rectangle_list = 
 		cairo_copy_clip_rectangle_list( cr );
 
-	printf( "vipsdisp_draw:\n" ); 
+	printf( "disp_draw:\n" ); 
 
 	if( rectangle_list->status == CAIRO_STATUS_SUCCESS ) { 
 		int i;
@@ -256,59 +199,67 @@ vipsdisp_draw( GtkWidget *drawing_area, cairo_t *cr, VipsRegion *region )
 			expose.width = rectangle_list->rectangles[i].width;
 			expose.height = rectangle_list->rectangles[i].height;
 
-			vipsdisp_draw_rect( drawing_area, cr, region, &expose );
+			disp_draw_rect( drawing_area, cr, region, &expose );
 		}
 	}
 
 	cairo_rectangle_list_destroy( rectangle_list );
 }
 
+
+
+
+static void
+disp_init( Disp *disp )
+{
+}
+
+static void
+disp_class_init( DispClass *class )
+{
+	GObjectClass *object_class = G_OBJECT_CLASS( class );
+	GApplicationClass *application_class = G_APPLICATION_CLASS( class );
+
+	object_class->finalize = bloat_pad_finalize;
+
+	application_class->startup = disp_startup;
+	application_class->shutdown = disp_shutdown;
+	application_class->activate = disp_activate;
+	application_class->open = disp_open;
+}
+
+Disp *
+disp_new( void )
+{
+	Disp *disp;
+
+	g_set_application_name( "vipsdisp" );
+
+	disp = g_object_new( disp_get_type(),
+		"application-id", "vips.vipsdisp",
+		"flags", G_APPLICATION_HANDLES_OPEN,
+		"inactivity-timeout", 30000,
+		"register-session", TRUE,
+		NULL );
+
+	return( disp ); 
+}
+
 int
 main( int argc, char **argv )
 {
-	VipsImage *image;
-	VipsImage *display;
-	VipsRegion *region;
+	Disp *disp;
+	int status;
+	const gchar *accels[] = { "F11", NULL };
 
-	GtkWidget *window;
-	GtkWidget *scrolled_window;
-	GtkWidget *drawing_area;
+	disp = disp_new();
 
-	if( VIPS_INIT( argv[0] ) )
-		vips_error_exit( "unable to start VIPS" );
-	gtk_init( &argc, &argv );
+	gtk_application_set_accels_for_action( GTK_APPLICATION( disp ),
+		"win.fullscreen", accels );
 
-	if( argc != 2 )
-		vips_error_exit( "usage: %s <filename>", argv[0] );
+	status = g_application_run( G_APPLICATION( disp ), argc, argv );
 
-	if( !(image = vipsdisp_load( argv[1] )) )
-		vips_error_exit( "unable to load %s", argv[1] );
+	g_object_unref( disp );
 
-	window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
-	g_signal_connect( window, "destroy", 
-		G_CALLBACK( gtk_main_quit ), NULL );
-
-	scrolled_window = gtk_scrolled_window_new( NULL, NULL );
-	gtk_container_add( GTK_CONTAINER( window ), scrolled_window );
-
-	drawing_area = gtk_drawing_area_new();
-	if( !(display = vipsdisp_display_image( image, drawing_area )) ||
-		!(region = vips_region_new( display )) )
-		vips_error_exit( "unable to build display image" );
-	g_signal_connect( drawing_area, "draw", 
-		G_CALLBACK( vipsdisp_draw ), region );
-	gtk_widget_set_size_request( drawing_area, 
-		display->Xsize, display->Ysize );
-	gtk_container_add( GTK_CONTAINER( scrolled_window ), drawing_area );
-
-	gtk_window_set_default_size( GTK_WINDOW( window ), 250, 250 );
-	gtk_widget_show_all( window );
-
-	gtk_main();
-
-	g_object_unref( region ); 
-	g_object_unref( display ); 
-	g_object_unref( image ); 
-
-	return( 0 );
+	return( status );
 }
