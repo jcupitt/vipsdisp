@@ -3,6 +3,7 @@ SUBDIRS = bp
 bin_PROGRAMS = vipsdisp
 
 vipsdisp_SOURCES = \
+	disp-gresources.c \
 	disp.c \
 	disp.h \
 	window.c \

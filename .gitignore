@@ -1,6 +1,7 @@
 test-driver
 vipsdisp
 vipsdisp-*.tar.gz
+disp-gresources.c
 .deps
 */.deps
 */.libs
