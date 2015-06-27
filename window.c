@@ -34,6 +34,10 @@ window_destroy( GtkWidget *widget )
 		window->image = NULL;
 	}
 
+	g_object_set( window,
+		"application", NULL,
+		NULL );
+
 	GTK_WIDGET_CLASS( window_parent_class )->destroy( widget );
 }
 

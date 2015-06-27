@@ -73,28 +73,21 @@ static void
 disp_shutdown( GApplication *application )
 {
 	Disp *disp = (Disp *) application;
+	GList *windows;
 
 	printf( "disp_shutdown:\n" ); 
 
-	while( disp->windows ) {
-		Window *window = (Window *) disp->windows->data;
+	/* Force down all our windows ... this will not happen automatically
+	 * on _quit().
+	 */
+	while( (windows = gtk_application_get_windows( 
+		GTK_APPLICATION( application ) )) ) {
+		Window *window = (Window *) windows->data;
 
-		g_object_unref( window );
-		disp->windows = g_slist_remove( disp->windows, window );
+		gtk_widget_destroy( GTK_WIDGET( window ) );
 	}
 
 	G_APPLICATION_CLASS( disp_parent_class )->shutdown( application );
-}
-
-static void
-disp_window_new( GtkApplication *application, GFile *file )
-{
-	Disp *disp = (Disp *) application;
-
-	Window *window;
-
-	window = window_new( GTK_APPLICATION( application ), file );
-	disp->windows = g_slist_prepend( disp->windows, window );
 }
 
 static void
@@ -102,7 +95,7 @@ disp_activate( GApplication *application )
 {
 	printf( "disp_activate:\n" ); 
 
-	disp_window_new( GTK_APPLICATION( application ), NULL );
+	window_new( GTK_APPLICATION( application ), NULL );
 }
 
 static void
@@ -114,7 +107,7 @@ disp_open( GApplication *application,
 	printf( "disp_open:\n" ); 
 
 	for( i = 0; i < n_files; i++ )
-		disp_window_new( GTK_APPLICATION( application ), files[i] );
+		window_new( GTK_APPLICATION( application ), files[i] );
 }
 
 static void
