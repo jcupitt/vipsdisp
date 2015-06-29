@@ -314,7 +314,6 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	imagepresent = g_object_new( imagepresent_get_type(),
 		"application", application,
 		NULL );
-	gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 640, 480);
 	g_action_map_add_action_entries( G_ACTION_MAP( imagepresent ), 
 		imagepresent_entries, G_N_ELEMENTS( imagepresent_entries ), 
 		imagepresent );
@@ -400,7 +399,19 @@ imagepresent_new( GtkApplication *application, GFile *file )
 			imagepresent->display->Ysize );
 	}
 
-	gtk_widget_show_all( GTK_WIDGET( imagepresent ) );
+	gtk_widget_show_all( grid );
+
+	/* 49 is a magic number for the height of the toolbar and top menu
+	 * bar on my laptop. 
+	 *
+	 * To fix this, maybe subclass drawingarea, implement
+	 * scrollable and get it to tell scrolledwindow what size it likes.
+	 */
+	gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 
+		VIPS_MIN( 800, imagepresent->display->Xsize ),
+		VIPS_MIN( 800, imagepresent->display->Ysize + 49 ) ); 
+
+	gtk_widget_show( GTK_WIDGET( imagepresent ) );
 
 	return( imagepresent ); 
 }
