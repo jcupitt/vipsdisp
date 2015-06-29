@@ -7,7 +7,9 @@ vipsdisp_SOURCES = \
 	disp.c \
 	disp.h \
 	imagepresent.c \
-	imagepresent.h
+	imagepresent.h \
+	imagedisplay.c \
+	imagedisplay.h
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@

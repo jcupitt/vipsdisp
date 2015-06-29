@@ -4,11 +4,7 @@ typedef struct _Imagepresent {
 
 	Disp *disp;
 
-	VipsImage *image;
-	VipsImage *display;
-	VipsRegion *region;
-
-	GtkWidget *drawing_area;
+	Imagedisplay *imagedisplay;
 } Imagepresent;
 
 typedef GtkApplicationWindowClass ImagepresentClass;

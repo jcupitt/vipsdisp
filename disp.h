@@ -6,4 +6,5 @@ typedef struct _Disp {
 
 typedef GtkApplicationClass DispClass;
 
+#include "imagedisplay.h"
 #include "imagepresent.h"
