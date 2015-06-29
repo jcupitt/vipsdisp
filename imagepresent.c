@@ -21,8 +21,6 @@ imagepresent_init( Imagepresent *Imagepresent )
 static void
 imagepresent_class_init( ImagepresentClass *class )
 {
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
-
 	printf( "imagepresent_class_init:\n" ); 
 }
 
@@ -67,6 +65,8 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	Disp *disp = (Disp *) application;
 	Imagepresent *imagepresent;
 
+	GtkWidget *header;
+	GtkWidget *open;
 	GtkWidget *grid, *scrolled;
 	GtkWidget *toolbar;
 	GtkToolItem *button;
@@ -84,6 +84,17 @@ imagepresent_new( GtkApplication *application, GFile *file )
 
 	imagepresent->disp = disp;
 
+	header = gtk_header_bar_new(); 
+	gtk_header_bar_set_title( GTK_HEADER_BAR( header ), "hello there!" );
+	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), header ); 
+	gtk_header_bar_set_show_close_button( GTK_HEADER_BAR( header ), TRUE );
+	open = gtk_button_new_with_label( "Open" );
+	gtk_header_bar_pack_start( GTK_HEADER_BAR( header ), open ); 
+	open = gtk_button_new_from_icon_name( "format-justify-fill",
+		GTK_ICON_SIZE_SMALL_TOOLBAR );
+	gtk_header_bar_pack_end( GTK_HEADER_BAR( header ), open ); 
+	gtk_widget_show_all( header );
+
 	grid = gtk_grid_new();
 	gtk_container_add( GTK_CONTAINER( imagepresent ), grid );
 
@@ -92,7 +103,7 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	button = gtk_separator_tool_item_new();
 	gtk_separator_tool_item_set_draw( GTK_SEPARATOR_TOOL_ITEM( button ), 
 		FALSE );
-	gtk_tool_item_set_expand( GTK_TOOL_ITEM( button), TRUE );
+	gtk_tool_item_set_expand( GTK_TOOL_ITEM( button ), TRUE );
 	gtk_container_add( GTK_CONTAINER( toolbar ), GTK_WIDGET( button ) );
 
 	button = gtk_tool_item_new();
