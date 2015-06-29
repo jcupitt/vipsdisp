@@ -6,8 +6,8 @@ vipsdisp_SOURCES = \
 	disp-gresources.c \
 	disp.c \
 	disp.h \
-	window.c \
-	window.h
+	imagepresent.c \
+	imagepresent.h
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@

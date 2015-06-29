@@ -10,66 +10,66 @@
 
 #include "disp.h"
 
-G_DEFINE_TYPE( Window, window, GTK_TYPE_APPLICATION_WINDOW );
+G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_APPLICATION_WINDOW );
 
 static void
-window_destroy( GtkWidget *widget )
+imagepresent_destroy( GtkWidget *widget )
 {
-	Window *window = (Window *) widget;
+	Imagepresent *imagepresent = (Imagepresent *) widget;
 
-	printf( "window_destroy:\n" ); 
+	printf( "imagepresent_destroy:\n" ); 
 
-	if( window->region ) {
-		g_object_unref( window->region );
-		window->region = NULL;
+	if( imagepresent->region ) {
+		g_object_unref( imagepresent->region );
+		imagepresent->region = NULL;
 	}
 
-	if( window->display ) {
-		g_object_unref( window->display );
-		window->display = NULL;
+	if( imagepresent->display ) {
+		g_object_unref( imagepresent->display );
+		imagepresent->display = NULL;
 	}
 
-	if( window->image ) {
-		g_object_unref( window->image );
-		window->image = NULL;
+	if( imagepresent->image ) {
+		g_object_unref( imagepresent->image );
+		imagepresent->image = NULL;
 	}
 
-	g_object_set( window,
+	g_object_set( imagepresent,
 		"application", NULL,
 		NULL );
 
-	GTK_WIDGET_CLASS( window_parent_class )->destroy( widget );
+	GTK_WIDGET_CLASS( imagepresent_parent_class )->destroy( widget );
 }
 
 static void
-window_init( Window *disp )
+imagepresent_init( Imagepresent *Imagepresent )
 {
-	printf( "window_init:\n" ); 
+	printf( "imagepresent_init:\n" ); 
 }
 
 static void
-window_class_init( WindowClass *class )
+imagepresent_class_init( ImagepresentClass *class )
 {
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
-	printf( "window_class_init:\n" ); 
+	printf( "imagepresent_class_init:\n" ); 
 
-	widget_class->destroy = window_destroy;
+	widget_class->destroy = imagepresent_destroy;
 
 }
 
-typedef struct _WindowUpdate {
-	Window *window;
+typedef struct _ImagepresentUpdate {
+	Imagepresent *imagepresent;
 	VipsRect rect;
-} WindowUpdate;
+} ImagepresentUpdate;
 
 /* The main GUI thread runs this when it's idle and there are tiles that need
  * painting. 
  */
 static gboolean
-window_render_cb( WindowUpdate *update )
+imagepresent_render_cb( ImagepresentUpdate *update )
 {
-	gtk_widget_queue_draw_area( update->window->drawing_area,
+	gtk_widget_queue_draw_area( update->imagepresent->drawing_area,
 		update->rect.left, update->rect.top,
 		update->rect.width, update->rect.height );
 
@@ -84,15 +84,15 @@ window_render_cb( WindowUpdate *update )
  * run by the main GUI thread when it next hits the mainloop.
  */
 static void
-window_render_notify( VipsImage *image, VipsRect *rect, void *client )
+imagepresent_render_notify( VipsImage *image, VipsRect *rect, void *client )
 {
-	Window *window = (Window *) client;
-	WindowUpdate *update = g_new( WindowUpdate, 1 );
+	Imagepresent *imagepresent = (Imagepresent *) client;
+	ImagepresentUpdate *update = g_new( ImagepresentUpdate, 1 );
 
-	update->window = window;
+	update->imagepresent = imagepresent;
 	update->rect = *rect;
 
-	g_idle_add( (GSourceFunc) window_render_cb, update );
+	g_idle_add( (GSourceFunc) imagepresent_render_cb, update );
 }
 
 /* Make the image for display from the raw disc image. Could do
@@ -100,7 +100,7 @@ window_render_notify( VipsImage *image, VipsRect *rect, void *client )
  * to 8-bit RGB would be a good idea.
  */
 static VipsImage *
-window_display_image( Window *window, VipsImage *in )
+imagepresent_display_image( Imagepresent *imagepresent, VipsImage *in )
 {
 	VipsImage *image;
 	VipsImage *x;
@@ -156,7 +156,7 @@ window_display_image( Window *window, VipsImage *in )
 
 	x = vips_image_new();
 	if( vips_sink_screen( image, x, NULL, 128, 128, 400, 0, 
-		window_render_notify, window ) ) {
+		imagepresent_render_notify, imagepresent ) ) {
 		g_object_unref( image );
 		g_object_unref( x );
 		return( NULL );
@@ -168,7 +168,8 @@ window_display_image( Window *window, VipsImage *in )
 }
 
 static void
-window_draw_rect( Window *window, cairo_t *cr, VipsRect *expose )
+imagepresent_draw_rect( Imagepresent *imagepresent, 
+	cairo_t *cr, VipsRect *expose )
 {
 	VipsRect image;
 	VipsRect clip;
@@ -177,7 +178,7 @@ window_draw_rect( Window *window, cairo_t *cr, VipsRect *expose )
 	cairo_surface_t *surface;
 
 	/*
-	printf( "window_draw_rect: "
+	printf( "imagepresent_draw_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
@@ -188,11 +189,11 @@ window_draw_rect( Window *window, cairo_t *cr, VipsRect *expose )
 	 */
 	image.left = 0;
 	image.top = 0;
-	image.width = window->region->im->Xsize;
-	image.height = window->region->im->Ysize;
+	image.width = imagepresent->region->im->Xsize;
+	image.height = imagepresent->region->im->Ysize;
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) ||
-		vips_region_prepare( window->region, &clip ) )
+		vips_region_prepare( imagepresent->region, &clip ) )
 		return;
 
 	/* libvips is RGB, cairo is ARGB, we have to repack the data.
@@ -200,7 +201,7 @@ window_draw_rect( Window *window, cairo_t *cr, VipsRect *expose )
 	cairo_buffer = g_malloc( clip.width * clip.height * 4 );
 
 	for( y = 0; y < clip.height; y++ ) {
-		VipsPel *p = VIPS_REGION_ADDR( window->region, 
+		VipsPel *p = VIPS_REGION_ADDR( imagepresent->region, 
 			clip.left, clip.top + y );
 		unsigned char *q = cairo_buffer + clip.width * 4 * y;
 
@@ -228,12 +229,12 @@ window_draw_rect( Window *window, cairo_t *cr, VipsRect *expose )
 }
 
 static void
-window_draw( GtkWidget *drawing_area, cairo_t *cr, Window *window )
+imagepresent_draw( GtkWidget *drawing_area, cairo_t *cr, Imagepresent *imagepresent )
 {
 	cairo_rectangle_list_t *rectangle_list = 
 		cairo_copy_clip_rectangle_list( cr );
 
-	if( !window->region )
+	if( !imagepresent->region )
 		return;
 
 	//printf( "disp_draw:\n" ); 
@@ -249,7 +250,7 @@ window_draw( GtkWidget *drawing_area, cairo_t *cr, Window *window )
 			expose.width = rectangle_list->rectangles[i].width;
 			expose.height = rectangle_list->rectangles[i].height;
 
-			window_draw_rect( window, cr, &expose );
+			imagepresent_draw_rect( imagepresent, cr, &expose );
 		}
 	}
 
@@ -257,12 +258,12 @@ window_draw( GtkWidget *drawing_area, cairo_t *cr, Window *window )
 }
 
 static void
-window_activate_toggle( GSimpleAction *action, 
+imagepresent_activate_toggle( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
 	GVariant *state;
 
-	printf( "window_activate_toggle:\n" ); 
+	printf( "imagepresent_activate_toggle:\n" ); 
 
 	state = g_action_get_state( G_ACTION( action ) );
 	g_action_change_state( G_ACTION( action ), 
@@ -271,58 +272,58 @@ window_activate_toggle( GSimpleAction *action,
 }
 
 static void
-window_change_fullscreen_state( GSimpleAction *action, 
+imagepresent_change_fullscreen_state( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
-	Window *window = (Window *) user_data;
+	Imagepresent *imagepresent = (Imagepresent *) user_data;
 
-	printf( "window_change_fullscreen_state:\n" ); 
+	printf( "imagepresent_change_fullscreen_state:\n" ); 
 
 	if( g_variant_get_boolean( state ) )
-		gtk_window_fullscreen( GTK_WINDOW( window ) );
+		gtk_window_fullscreen( GTK_WINDOW( imagepresent ) );
 	else
-		gtk_window_unfullscreen( GTK_WINDOW( window ) );
+		gtk_window_unfullscreen( GTK_WINDOW( imagepresent ) );
 
 	g_simple_action_set_state( action, state );
 }
 
-static GActionEntry window_entries[] = {
-	{ "fullscreen", window_activate_toggle, NULL, "false", 
-		window_change_fullscreen_state }
+static GActionEntry imagepresent_entries[] = {
+	{ "fullscreen", imagepresent_activate_toggle, NULL, "false", 
+		imagepresent_change_fullscreen_state }
 };
 
 static void
-window_close_memory( VipsImage *image, gpointer contents )
+imagepresent_close_memory( VipsImage *image, gpointer contents )
 {
 	g_free( contents );
 }
 
-Window *
-window_new( GtkApplication *application, GFile *file )
+Imagepresent *
+imagepresent_new( GtkApplication *application, GFile *file )
 {
 	Disp *disp = (Disp *) application;
-	Window *window;
+	Imagepresent *imagepresent;
 
 	GtkWidget *grid, *scrolled;
 	GtkWidget *toolbar;
 	GtkToolItem *button;
 	GtkWidget *sw, *box, *label;
 
-	printf( "window_new: file = %p\n", file ); 
+	printf( "imagepresent_new: file = %p\n", file ); 
 
-	window = g_object_new( window_get_type(),
+	imagepresent = g_object_new( imagepresent_get_type(),
 		"application", application,
 		NULL );
-	gtk_window_set_default_size( GTK_WINDOW( window ), 640, 480);
-	g_action_map_add_action_entries( G_ACTION_MAP( window ), 
-		window_entries, G_N_ELEMENTS( window_entries ), 
-		window );
-	gtk_window_set_title( GTK_WINDOW( window ), "vipsdisp" );
+	gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 640, 480);
+	g_action_map_add_action_entries( G_ACTION_MAP( imagepresent ), 
+		imagepresent_entries, G_N_ELEMENTS( imagepresent_entries ), 
+		imagepresent );
+	gtk_window_set_title( GTK_WINDOW( imagepresent ), "vipsdisp" );
 
-	window->disp = disp;
+	imagepresent->disp = disp;
 
 	grid = gtk_grid_new();
-	gtk_container_add( GTK_CONTAINER( window ), grid );
+	gtk_container_add( GTK_CONTAINER( imagepresent ), grid );
 
 	toolbar = gtk_toolbar_new();
 
@@ -349,10 +350,11 @@ window_new( GtkApplication *application, GFile *file )
 	gtk_widget_set_hexpand( scrolled, TRUE );
 	gtk_widget_set_vexpand( scrolled, TRUE );
 
-	window->drawing_area = gtk_drawing_area_new();
-	g_signal_connect( window->drawing_area, "draw", 
-		G_CALLBACK( window_draw ), window );
-	gtk_container_add( GTK_CONTAINER( scrolled ), window->drawing_area );
+	imagepresent->drawing_area = gtk_drawing_area_new();
+	g_signal_connect( imagepresent->drawing_area, "draw", 
+		G_CALLBACK( imagepresent_draw ), imagepresent );
+	gtk_container_add( GTK_CONTAINER( scrolled ), 
+		imagepresent->drawing_area );
 
 	gtk_grid_attach( GTK_GRID( grid ), scrolled, 0, 1, 1, 1 );
 
@@ -362,7 +364,7 @@ window_new( GtkApplication *application, GFile *file )
 		gsize length;
 
 		if( (path = g_file_get_path( file )) ) {
-			if( !(window->image = 
+			if( !(imagepresent->image = 
 				vips_image_new_from_file( path, NULL )) )
 				vips_error_exit( NULL );
 
@@ -370,13 +372,13 @@ window_new( GtkApplication *application, GFile *file )
 		}
 		else if( g_file_load_contents( file, NULL, 
 			&contents, &length, NULL, NULL ) ) {
-			if( !(window->image =
+			if( !(imagepresent->image =
 				vips_image_new_from_buffer( contents, length, 
 					"", NULL )) )
 				vips_error_exit( NULL );
 
-			g_signal_connect( window->image, "close",
-				G_CALLBACK( window_close_memory ), 
+			g_signal_connect( imagepresent->image, "close",
+				G_CALLBACK( imagepresent_close_memory ), 
 				contents );
 		}
 		else {
@@ -384,18 +386,21 @@ window_new( GtkApplication *application, GFile *file )
 		}
 	}
 
-	if( window->image ) { 
-		if( !(window->display = window_display_image( window, 
-			window->image )) ) 
+	if( imagepresent->image ) { 
+		if( !(imagepresent->display = 
+			imagepresent_display_image( imagepresent, 
+				imagepresent->image )) ) 
 			vips_error_exit( NULL ); 
-		if( !(window->region = vips_region_new( window->display )) )
+		if( !(imagepresent->region = 
+			vips_region_new( imagepresent->display )) )
 			vips_error_exit( "unable to build display image" );
 
-		gtk_widget_set_size_request( window->drawing_area, 
-			window->display->Xsize, window->display->Ysize );
+		gtk_widget_set_size_request( imagepresent->drawing_area, 
+			imagepresent->display->Xsize, 
+			imagepresent->display->Ysize );
 	}
 
-	gtk_widget_show_all( GTK_WIDGET( window ) );
+	gtk_widget_show_all( GTK_WIDGET( imagepresent ) );
 
-	return( window ); 
+	return( imagepresent ); 
 }
