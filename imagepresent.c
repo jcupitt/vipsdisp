@@ -67,10 +67,10 @@ imagepresent_new( GtkApplication *application, GFile *file )
 
 	GtkWidget *header;
 	GtkWidget *open;
-	GtkWidget *grid, *scrolled;
-	GtkWidget *toolbar;
-	GtkToolItem *button;
-	GtkWidget *sw, *box, *label;
+	GtkWidget *menu_button;
+	GtkBuilder *builder;
+	GMenuModel *menu;
+	GtkWidget *scrolled;
 
 	printf( "imagepresent_new: file = %p\n", file ); 
 
@@ -90,34 +90,17 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	gtk_header_bar_set_show_close_button( GTK_HEADER_BAR( header ), TRUE );
 	open = gtk_button_new_with_label( "Open" );
 	gtk_header_bar_pack_start( GTK_HEADER_BAR( header ), open ); 
-	open = gtk_button_new_from_icon_name( "format-justify-fill",
-		GTK_ICON_SIZE_SMALL_TOOLBAR );
-	gtk_header_bar_pack_end( GTK_HEADER_BAR( header ), open ); 
+	menu_button = gtk_menu_button_new();
+	gtk_header_bar_pack_end( GTK_HEADER_BAR( header ), menu_button ); 
+
+	builder = gtk_builder_new_from_resource( 
+			"/vips/disp/gtk/imagepresent-popover.ui" ); 
+	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
+			"imagepresent-popover-menu" ) );
+	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
+	g_object_unref( builder );
+
 	gtk_widget_show_all( header );
-
-	grid = gtk_grid_new();
-	gtk_container_add( GTK_CONTAINER( imagepresent ), grid );
-
-	toolbar = gtk_toolbar_new();
-
-	button = gtk_separator_tool_item_new();
-	gtk_separator_tool_item_set_draw( GTK_SEPARATOR_TOOL_ITEM( button ), 
-		FALSE );
-	gtk_tool_item_set_expand( GTK_TOOL_ITEM( button ), TRUE );
-	gtk_container_add( GTK_CONTAINER( toolbar ), GTK_WIDGET( button ) );
-
-	button = gtk_tool_item_new();
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 6 );
-	gtk_container_add( GTK_CONTAINER( button ), box );
-	label = gtk_label_new( "Fullscreen:" );
-	gtk_container_add( GTK_CONTAINER( box ), label );
-	sw = gtk_switch_new();
-	gtk_actionable_set_action_name( GTK_ACTIONABLE( sw ), 
-		"win.fullscreen" );
-	gtk_container_add( GTK_CONTAINER( box ), sw );
-	gtk_container_add( GTK_CONTAINER( toolbar ), GTK_WIDGET( button ) );
-
-	gtk_grid_attach( GTK_GRID( grid ), toolbar, 0, 0, 1, 1 );
 
 	scrolled = gtk_scrolled_window_new( NULL, NULL );
 	gtk_widget_set_hexpand( scrolled, TRUE );
@@ -127,21 +110,16 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	gtk_container_add( GTK_CONTAINER( scrolled ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
 
-	gtk_grid_attach( GTK_GRID( grid ), scrolled, 0, 1, 1, 1 );
+	gtk_container_add( GTK_CONTAINER( imagepresent ), scrolled );
 
-	gtk_widget_show_all( grid );
-
-	/* 49 is a magic number for the height of the toolbar and top menu
+	/* 83 is a magic number for the height of the top 
 	 * bar on my laptop. 
-	 *
-	 * To fix this, maybe subclass drawingarea, implement
-	 * scrollable and get it to tell scrolledwindow what size it likes.
 	 */
 	gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 
 		VIPS_MIN( 800, imagepresent->imagedisplay->display->Xsize ),
-		VIPS_MIN( 800, imagepresent->imagedisplay->display->Ysize + 49 ) ); 
+		VIPS_MIN( 800, imagepresent->imagedisplay->display->Ysize + 83 ) ); 
 
-	gtk_widget_show( GTK_WIDGET( imagepresent ) );
+	gtk_widget_show_all( GTK_WIDGET( imagepresent ) );
 
 	return( imagepresent ); 
 }

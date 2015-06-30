@@ -17,6 +17,7 @@ AM_LDFLAGS = @LDFLAGS@
 
 resource_files = \
 	disp.gresources.xml \
+	gtk/imagepresent-popover.ui \
 	gtk/menus.ui
 
 disp-gresources.c: $(resource_files)
