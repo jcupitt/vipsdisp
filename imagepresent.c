@@ -115,9 +115,13 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	/* 83 is a magic number for the height of the top 
 	 * bar on my laptop. 
 	 */
-	gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 
-		VIPS_MIN( 800, imagepresent->imagedisplay->display->Xsize ),
-		VIPS_MIN( 800, imagepresent->imagedisplay->display->Ysize + 83 ) ); 
+	if( imagepresent->imagedisplay->display ) { 
+		VipsImage *display = imagepresent->imagedisplay->display;
+
+		gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 
+			VIPS_MIN( 800, display->Xsize ),
+			VIPS_MIN( 800, display->Ysize + 83 ) ); 
+	}
 
 	gtk_widget_show_all( GTK_WIDGET( imagepresent ) );
 
