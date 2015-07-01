@@ -59,11 +59,43 @@ static GActionEntry imagepresent_entries[] = {
 		imagepresent_change_fullscreen_state }
 };
 
+int
+imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
+{
+	char *path;
+
+	VIPS_UNREF( imagepresent->file );
+
+	imagepresent->file = file;
+	g_object_ref( file ); 
+
+	if( imagedisplay_set_file( imagepresent->imagedisplay, 
+		imagepresent->file ) )
+	       return( -1 ); 	
+
+	if( imagepresent->file && 
+		(path = g_file_get_path( imagepresent->file )) ) {
+		char *basename;
+
+		basename = g_path_get_basename( path );
+		g_free( path ); 
+		gtk_header_bar_set_title( 
+			GTK_HEADER_BAR( imagepresent->header_bar ), basename );
+		g_free( basename ); 
+	}
+	else 
+		gtk_header_bar_set_title( 
+			GTK_HEADER_BAR( imagepresent->header_bar ), 
+			"vipsdisp" );
+
+	return( 0 );
+}
 
 static void
 imagepresent_open_clicked( GtkWidget *button, Imagepresent *imagepresent )
 {
 	GtkWidget *dialog;
+	char *path;
 	int result;
 
 	dialog = gtk_file_chooser_dialog_new( "Select a file",
@@ -73,21 +105,24 @@ imagepresent_open_clicked( GtkWidget *button, Imagepresent *imagepresent )
 		"_Open", GTK_RESPONSE_ACCEPT,
 		NULL );
 
-	if( imagepresent->imagedisplay->image ) {
-		const char *existing_filename = 
-			imagepresent->imagedisplay->image->filename;
-
+	if( imagepresent->file && 
+		(path = g_file_get_path( imagepresent->file )) ) {
 		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
-			existing_filename);
+			path );
+		g_free( path ); 
 	}
 
 	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
 	if( result == GTK_RESPONSE_ACCEPT ) {
-		char *filename;
+		char *path;
+		GFile *file;
 
-		filename = gtk_file_chooser_get_filename( 
+		path = gtk_file_chooser_get_filename( 
 			GTK_FILE_CHOOSER( dialog ) );
-		g_free( filename );
+		file = g_file_new_for_path( path );
+		g_free( path );
+		imagepresent_set_file( imagepresent, file ); 
+		g_object_unref( file ); 
 	}
 
 	gtk_widget_destroy( dialog );
@@ -99,8 +134,6 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	Disp *disp = (Disp *) application;
 
 	Imagepresent *imagepresent;
-	char *path;
-	GtkWidget *header;
 	GtkWidget *open;
 	GtkWidget *menu_button;
 	GtkBuilder *builder;
@@ -118,48 +151,41 @@ imagepresent_new( GtkApplication *application, GFile *file )
 
 	imagepresent->disp = disp;
 
-	header = gtk_header_bar_new(); 
+	imagepresent->header_bar = gtk_header_bar_new(); 
 
-	if( file && 
-		(path = g_file_get_path( file )) ) {
-		char *basename;
-
-		basename = g_path_get_basename( path );
-		gtk_header_bar_set_title( GTK_HEADER_BAR( header ), basename );
-		g_free( basename ); 
-		g_free( path ); 
-	}
-	else 
-		gtk_header_bar_set_title( GTK_HEADER_BAR( header ), 
-			"vipsdisp" );
-
-	gtk_header_bar_set_show_close_button( GTK_HEADER_BAR( header ), TRUE );
+	gtk_header_bar_set_show_close_button( 
+		GTK_HEADER_BAR( imagepresent->header_bar ), TRUE );
 
 	open = gtk_button_new_with_label( "Open" );
-	gtk_header_bar_pack_start( GTK_HEADER_BAR( header ), open ); 
+	gtk_header_bar_pack_start( 
+		GTK_HEADER_BAR( imagepresent->header_bar ), open ); 
 	g_signal_connect( open, "clicked", 
 		G_CALLBACK( imagepresent_open_clicked ), imagepresent );
 
 	menu_button = gtk_menu_button_new();
-	gtk_header_bar_pack_end( GTK_HEADER_BAR( header ), menu_button ); 
+	gtk_header_bar_pack_end( 
+		GTK_HEADER_BAR( imagepresent->header_bar ), menu_button ); 
 	builder = gtk_builder_new_from_resource( 
-			"/vips/disp/gtk/imagepresent-popover.ui" ); 
+		"/vips/disp/gtk/imagepresent-popover.ui" ); 
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
-			"imagepresent-popover-menu" ) );
+		"imagepresent-popover-menu" ) );
 	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
 	g_object_unref( builder );
 
-	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), header ); 
+	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), 
+		imagepresent->header_bar ); 
 
 	scrolled = gtk_scrolled_window_new( NULL, NULL );
 	gtk_widget_set_hexpand( scrolled, TRUE );
 	gtk_widget_set_vexpand( scrolled, TRUE );
 
-	imagepresent->imagedisplay = imagedisplay_new( file );
+	imagepresent->imagedisplay = imagedisplay_new();
 	gtk_container_add( GTK_CONTAINER( scrolled ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
 
 	gtk_container_add( GTK_CONTAINER( imagepresent ), scrolled );
+
+	imagepresent_set_file( imagepresent, file ); 
 
 	/* 83 is a magic number for the height of the top 
 	 * bar on my laptop. 

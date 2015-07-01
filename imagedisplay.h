@@ -9,4 +9,5 @@ typedef struct _Imagedisplay {
 
 typedef GtkDrawingAreaClass ImagedisplayClass;
 
-Imagedisplay *imagedisplay_new( GFile *file );
+int imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file );
+Imagedisplay *imagedisplay_new( void ); 

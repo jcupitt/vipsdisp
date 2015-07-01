@@ -13,12 +13,8 @@
 G_DEFINE_TYPE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA );
 
 static void
-imagedisplay_destroy( GtkWidget *widget )
+imagedisplay_empty( Imagedisplay *imagedisplay )
 {
-	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-
-	printf( "imagedisplay_destroy:\n" ); 
-
 	if( imagedisplay->region ) {
 		g_object_unref( imagedisplay->region );
 		imagedisplay->region = NULL;
@@ -33,6 +29,16 @@ imagedisplay_destroy( GtkWidget *widget )
 		g_object_unref( imagedisplay->image );
 		imagedisplay->image = NULL;
 	}
+}
+
+static void
+imagedisplay_destroy( GtkWidget *widget )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
+
+	printf( "imagedisplay_destroy:\n" ); 
+
+	imagedisplay_empty( imagedisplay );
 
 	GTK_WIDGET_CLASS( imagedisplay_parent_class )->destroy( widget );
 }
@@ -265,15 +271,10 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 	return( image );
 }
 
-Imagedisplay *
-imagedisplay_new( GFile *file )
+int
+imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
 {
-	Imagedisplay *imagedisplay;
-
-	printf( "imagedisplay_new: file = %p\n", file ); 
-
-	imagedisplay = g_object_new( imagedisplay_get_type(),
-		NULL );
+	imagedisplay_empty( imagedisplay );
 
 	if( file != NULL ) {
 		gchar *path;
@@ -282,8 +283,10 @@ imagedisplay_new( GFile *file )
 
 		if( (path = g_file_get_path( file )) ) {
 			if( !(imagedisplay->image = 
-				vips_image_new_from_file( path, NULL )) )
-				vips_error_exit( NULL );
+				vips_image_new_from_file( path, NULL )) ) {
+				g_free( path ); 
+				return( -1 );
+			}
 
 			g_free( path ); 
 		}
@@ -291,15 +294,19 @@ imagedisplay_new( GFile *file )
 			&contents, &length, NULL, NULL ) ) {
 			if( !(imagedisplay->image =
 				vips_image_new_from_buffer( contents, length, 
-					"", NULL )) )
-				vips_error_exit( NULL );
+					"", NULL )) ) {
+				g_free( contents );
+				return( -1 ); 
+			}
 
 			g_signal_connect( imagedisplay->image, "close",
 				G_CALLBACK( imagedisplay_close_memory ), 
 				contents );
 		}
 		else {
-			vips_error_exit( "unable to load GFile object" );
+			vips_error( "imagedisplay", 
+				"unable to load GFile object" );
+			return( -1 );
 		}
 	}
 
@@ -307,15 +314,29 @@ imagedisplay_new( GFile *file )
 		if( !(imagedisplay->display = 
 			imagedisplay_display_image( imagedisplay, 
 				imagedisplay->image )) ) 
-			vips_error_exit( NULL ); 
+			return( -1 ); 
 		if( !(imagedisplay->region = 
 			vips_region_new( imagedisplay->display )) )
-			vips_error_exit( "unable to build display image" );
+			return( -1 ); 
 
 		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
 			imagedisplay->display->Xsize, 
 			imagedisplay->display->Ysize );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 	}
+
+	return( 0 );
+}
+
+Imagedisplay *
+imagedisplay_new( void ) 
+{
+	Imagedisplay *imagedisplay;
+
+	printf( "imagedisplay_new:\n" ); 
+
+	imagedisplay = g_object_new( imagedisplay_get_type(),
+		NULL );
 
 	return( imagedisplay ); 
 }
