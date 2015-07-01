@@ -59,12 +59,47 @@ static GActionEntry imagepresent_entries[] = {
 		imagepresent_change_fullscreen_state }
 };
 
+
+static void
+imagepresent_open_clicked( GtkWidget *button, Imagepresent *imagepresent )
+{
+	GtkWidget *dialog;
+	int result;
+
+	dialog = gtk_file_chooser_dialog_new( "Select a file",
+		GTK_WINDOW( imagepresent ) , 
+		GTK_FILE_CHOOSER_ACTION_OPEN,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Open", GTK_RESPONSE_ACCEPT,
+		NULL );
+
+	if( imagepresent->imagedisplay->image ) {
+		const char *existing_filename = 
+			imagepresent->imagedisplay->image->filename;
+
+		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
+			existing_filename);
+	}
+
+	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
+	if( result == GTK_RESPONSE_ACCEPT ) {
+		char *filename;
+
+		filename = gtk_file_chooser_get_filename( 
+			GTK_FILE_CHOOSER( dialog ) );
+		g_free( filename );
+	}
+
+	gtk_widget_destroy( dialog );
+}
+
 Imagepresent *
 imagepresent_new( GtkApplication *application, GFile *file )
 {
 	Disp *disp = (Disp *) application;
-	Imagepresent *imagepresent;
 
+	Imagepresent *imagepresent;
+	char *path;
 	GtkWidget *header;
 	GtkWidget *open;
 	GtkWidget *menu_button;
@@ -80,19 +115,33 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	g_action_map_add_action_entries( G_ACTION_MAP( imagepresent ), 
 		imagepresent_entries, G_N_ELEMENTS( imagepresent_entries ), 
 		imagepresent );
-	gtk_window_set_title( GTK_WINDOW( imagepresent ), "vipsdisp" );
 
 	imagepresent->disp = disp;
 
 	header = gtk_header_bar_new(); 
-	gtk_header_bar_set_title( GTK_HEADER_BAR( header ), "hello there!" );
-	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), header ); 
+
+	if( file && 
+		(path = g_file_get_path( file )) ) {
+		char *basename;
+
+		basename = g_path_get_basename( path );
+		gtk_header_bar_set_title( GTK_HEADER_BAR( header ), basename );
+		g_free( basename ); 
+		g_free( path ); 
+	}
+	else 
+		gtk_header_bar_set_title( GTK_HEADER_BAR( header ), 
+			"vipsdisp" );
+
 	gtk_header_bar_set_show_close_button( GTK_HEADER_BAR( header ), TRUE );
+
 	open = gtk_button_new_with_label( "Open" );
 	gtk_header_bar_pack_start( GTK_HEADER_BAR( header ), open ); 
+	g_signal_connect( open, "clicked", 
+		G_CALLBACK( imagepresent_open_clicked ), imagepresent );
+
 	menu_button = gtk_menu_button_new();
 	gtk_header_bar_pack_end( GTK_HEADER_BAR( header ), menu_button ); 
-
 	builder = gtk_builder_new_from_resource( 
 			"/vips/disp/gtk/imagepresent-popover.ui" ); 
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
@@ -100,7 +149,7 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
 	g_object_unref( builder );
 
-	gtk_widget_show_all( header );
+	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), header ); 
 
 	scrolled = gtk_scrolled_window_new( NULL, NULL );
 	gtk_widget_set_hexpand( scrolled, TRUE );
