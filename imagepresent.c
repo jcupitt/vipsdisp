@@ -62,6 +62,8 @@ imagepresent_magin( GSimpleAction *action,
 	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
 	int mag = imagedisplay_get_mag( imagedisplay );
 
+	printf( "imagepresent_magin:\n" ); 
+
 	if( mag <= 0 )  {
 		if( mag >= -2 )
 			imagedisplay_set_mag( imagedisplay, 1 );
@@ -80,6 +82,8 @@ imagepresent_magout( GSimpleAction *action,
 	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
 	int mag = imagedisplay_get_mag( imagedisplay );
 
+	printf( "imagepresent_magout:\n" ); 
+
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
 			imagedisplay_set_mag( imagedisplay, -2 );
@@ -90,9 +94,70 @@ imagepresent_magout( GSimpleAction *action,
 		imagedisplay_set_mag( imagedisplay, mag * 2 );
 }
 
+static void
+imagepresent_normal( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	Imagepresent *imagepresent = (Imagepresent *) user_data;
+	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
+
+	printf( "imagepresent_normal:\n" ); 
+
+	imagedisplay_set_mag( imagedisplay, 1 );
+}
+
+static void
+imagepresent_get_window_size( Imagepresent *imagepresent, 
+	int *width, int *height )
+{
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent->scrolled ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent->scrolled ) );
+
+	*width = gtk_adjustment_get_page_size( hadj );
+	*height = gtk_adjustment_get_page_size( vadj );
+}
+
+static void
+imagepresent_bestfit( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	Imagepresent *imagepresent = (Imagepresent *) user_data;
+	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
+
+	printf( "imagepresent_bestfit:\n" ); 
+
+	if( imagedisplay->image ) { 
+		int window_width;
+		int window_height;
+		double hfac;
+		double vfac;
+		double fac;
+
+		imagepresent_get_window_size( imagepresent, 
+			&window_width, &window_height ); 
+		hfac = (double) window_width / imagedisplay->image->Xsize;
+		vfac = (double) window_width / imagedisplay->image->Xsize;
+		fac = VIPS_MIN( hfac, vfac );
+
+		if( fac >= 1 )
+			imagedisplay_set_mag( imagedisplay, (int) fac );
+		else
+			/* 0.999 means we don't round up on an exact fit.
+			 *
+			 * FIXME ... yuk
+			 */
+			imagedisplay_set_mag( imagedisplay, 
+				-((int) (0.99999999 + 1.0 / fac)) );
+	}
+}
+
 static GActionEntry imagepresent_entries[] = {
 	{ "magin", imagepresent_magin },
 	{ "magout", imagepresent_magout },
+	{ "normal", imagepresent_normal },
+	{ "bestfit", imagepresent_bestfit },
 	{ "fullscreen", imagepresent_activate_toggle, NULL, "false", 
 		imagepresent_change_fullscreen_state }
 };
@@ -124,7 +189,7 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 	else 
 		gtk_header_bar_set_title( 
 			GTK_HEADER_BAR( imagepresent->header_bar ), 
-			"vipsdisp" );
+			"Untitled" );
 
 	return( 0 );
 }
@@ -176,7 +241,6 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	GtkWidget *menu_button;
 	GtkBuilder *builder;
 	GMenuModel *menu;
-	GtkWidget *scrolled;
 
 	printf( "imagepresent_new: file = %p\n", file ); 
 
@@ -213,15 +277,16 @@ imagepresent_new( GtkApplication *application, GFile *file )
 	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), 
 		imagepresent->header_bar ); 
 
-	scrolled = gtk_scrolled_window_new( NULL, NULL );
-	gtk_widget_set_hexpand( scrolled, TRUE );
-	gtk_widget_set_vexpand( scrolled, TRUE );
+	imagepresent->scrolled = gtk_scrolled_window_new( NULL, NULL );
+	gtk_widget_set_hexpand( imagepresent->scrolled, TRUE );
+	gtk_widget_set_vexpand( imagepresent->scrolled, TRUE );
 
 	imagepresent->imagedisplay = imagedisplay_new();
-	gtk_container_add( GTK_CONTAINER( scrolled ), 
+	gtk_container_add( GTK_CONTAINER( imagepresent->scrolled ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
 
-	gtk_container_add( GTK_CONTAINER( imagepresent ), scrolled );
+	gtk_container_add( GTK_CONTAINER( imagepresent ), 
+		imagepresent->scrolled );
 
 	imagepresent_set_file( imagepresent, file ); 
 

@@ -7,6 +7,7 @@ typedef struct _Imagepresent {
 
 	Imagedisplay *imagedisplay;
 	GtkWidget *header_bar;
+	GtkWidget *scrolled;
 
 } Imagepresent;
 

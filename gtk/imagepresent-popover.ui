@@ -23,23 +23,27 @@
     <section>
       <item>
         <attribute name="label" translatable="yes">_Zoom In</attribute>
-        <attribute name="action">magin</attribute>
+        <attribute name="action">win.magin</attribute>
         <attribute name="verb-icon">magout-symbolic</attribute>
+	<attribute name="accel">i</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Zoom Out</attribute>
-        <attribute name="action">magout</attribute>
+        <attribute name="action">win.magout</attribute>
         <attribute name="verb-icon">magin-symbolic</attribute>
+	<attribute name="accel">o</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Normal Size</attribute>
-        <attribute name="action">normal</attribute>
+        <attribute name="action">win.normal</attribute>
         <attribute name="verb-icon">normal-symbolic</attribute>
+	<attribute name="accel">1</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Best Fit</attribute>
-        <attribute name="action">bestfit</attribute>
+        <attribute name="action">win.bestfit</attribute>
         <attribute name="verb-icon">bestfit-symbolic</attribute>
+	<attribute name="accel">0</attribute>
       </item>
     </section>
   </menu>
