@@ -139,9 +139,11 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 }
 
 static void
-imagedisplay_init( Imagedisplay *Imagedisplay )
+imagedisplay_init( Imagedisplay *imagedisplay )
 {
 	printf( "imagedisplay_init:\n" ); 
+
+	imagedisplay->mag = 1;
 }
 
 static void
@@ -209,29 +211,24 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 	VipsImage *image;
 	VipsImage *x;
 
-	/* Edit these to add or remove things from the pipeline we build. These
-	 * should be wired up to something in a GUI.
-	 */
-	const gboolean zoom_in = FALSE;
-	const gboolean zoom_out = TRUE;
-
 	/* image redisplays the head of the pipeline. Hold a ref to it as we
 	 * work.
 	 */
 	image = in;
 	g_object_ref( image ); 
 
-	if( zoom_out ) {
-		if( vips_subsample( image, &x, 4, 4, NULL ) ) {
+	if( imagedisplay->mag < 0 ) {
+		if( vips_subsample( image, &x, 
+			-imagedisplay->mag, -imagedisplay->mag, NULL ) ) {
 			g_object_unref( image );
 			return( NULL ); 
 		}
 		g_object_unref( image );
 		image = x;
 	}
-
-	if( zoom_in ) {
-		if( vips_zoom( image, &x, 4, 4, NULL ) ) {
+	else { 
+		if( vips_zoom( image, &x, 
+			imagedisplay->mag, imagedisplay->mag, NULL ) ) {
 			g_object_unref( image );
 			return( NULL ); 
 		}
@@ -240,7 +237,7 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 	}
 
 	/* This won't work for CMYK, you need to mess about with ICC profiles
-	 * for that, but it will do everything else.
+	 * for that, but it will work for everything else.
 	 */
 	if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
 		g_object_unref( image );
@@ -269,6 +266,31 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 	image = x;
 
 	return( image );
+}
+
+static int
+imagedisplay_update_conversion( Imagedisplay *imagedisplay )
+{
+	if( imagedisplay->image ) { 
+		VIPS_UNREF( imagedisplay->display );
+		VIPS_UNREF( imagedisplay->region );
+
+		if( !(imagedisplay->display = 
+			imagedisplay_display_image( imagedisplay, 
+				imagedisplay->image )) ) 
+			return( -1 ); 
+		if( !(imagedisplay->region = 
+			vips_region_new( imagedisplay->display )) )
+			return( -1 ); 
+
+		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
+			imagedisplay->display->Xsize, 
+			imagedisplay->display->Ysize );
+
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	}
+
+	return( 0 );
 }
 
 int
@@ -310,23 +332,24 @@ imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
 		}
 	}
 
-	if( imagedisplay->image ) { 
-		if( !(imagedisplay->display = 
-			imagedisplay_display_image( imagedisplay, 
-				imagedisplay->image )) ) 
-			return( -1 ); 
-		if( !(imagedisplay->region = 
-			vips_region_new( imagedisplay->display )) )
-			return( -1 ); 
-
-		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
-			imagedisplay->display->Xsize, 
-			imagedisplay->display->Ysize );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
-	}
+	imagedisplay_update_conversion( imagedisplay );
 
 	return( 0 );
 }
+
+int
+imagedisplay_get_mag( Imagedisplay *imagedisplay )
+{
+	return( imagedisplay->mag );
+}
+
+void
+imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag )
+{
+	imagedisplay->mag = mag;
+	imagedisplay_update_conversion( imagedisplay );
+}
+
 
 Imagedisplay *
 imagedisplay_new( void ) 

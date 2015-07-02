@@ -22,8 +22,24 @@
     </section>
     <section>
       <item>
-        <attribute name="label" translatable="yes">_Words</attribute>
-        <attribute name="action">win.show-words</attribute>
+        <attribute name="label" translatable="yes">_Zoom In</attribute>
+        <attribute name="action">magin</attribute>
+        <attribute name="verb-icon">magout-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Zoom Out</attribute>
+        <attribute name="action">magout</attribute>
+        <attribute name="verb-icon">magin-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Normal Size</attribute>
+        <attribute name="action">normal</attribute>
+        <attribute name="verb-icon">normal-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_Best Fit</attribute>
+        <attribute name="action">bestfit</attribute>
+        <attribute name="verb-icon">bestfit-symbolic</attribute>
       </item>
     </section>
   </menu>

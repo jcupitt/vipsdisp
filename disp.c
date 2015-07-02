@@ -34,7 +34,7 @@ disp_quit_activated( GSimpleAction *action,
 }
 
 static GActionEntry app_entries[] = {
-	{ "quit", disp_quit_activated, NULL, NULL, NULL }
+	{ "quit", disp_quit_activated }
 };
 
 static void

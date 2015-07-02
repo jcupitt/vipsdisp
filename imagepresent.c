@@ -54,7 +54,45 @@ imagepresent_change_fullscreen_state( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static void
+imagepresent_magin( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	Imagepresent *imagepresent = (Imagepresent *) user_data;
+	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
+	int mag = imagedisplay_get_mag( imagedisplay );
+
+	if( mag <= 0 )  {
+		if( mag >= -2 )
+			imagedisplay_set_mag( imagedisplay, 1 );
+		else
+			imagedisplay_set_mag( imagedisplay, mag / 2 );
+	}
+	else 
+		imagedisplay_set_mag( imagedisplay, mag * 2 );
+}
+
+static void
+imagepresent_magout( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	Imagepresent *imagepresent = (Imagepresent *) user_data;
+	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
+	int mag = imagedisplay_get_mag( imagedisplay );
+
+	if( mag >= 0 )  {
+		if( mag < 2 ) 
+			imagedisplay_set_mag( imagedisplay, -2 );
+		else
+			imagedisplay_set_mag( imagedisplay, mag / 2 );
+	}
+	else 
+		imagedisplay_set_mag( imagedisplay, mag * 2 );
+}
+
 static GActionEntry imagepresent_entries[] = {
+	{ "magin", imagepresent_magin },
+	{ "magout", imagepresent_magout },
 	{ "fullscreen", imagepresent_activate_toggle, NULL, "false", 
 		imagepresent_change_fullscreen_state }
 };
