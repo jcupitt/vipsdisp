@@ -82,9 +82,9 @@ disp_shutdown( GApplication *application )
 	 */
 	while( (windows = gtk_application_get_windows( 
 		GTK_APPLICATION( application ) )) ) {
-		Imagepresent *imagepresent = (Imagepresent *) windows->data;
+		Imageview *imageview = (Imageview *) windows->data;
 
-		gtk_widget_destroy( GTK_WIDGET( imagepresent ) );
+		gtk_widget_destroy( GTK_WIDGET( imageview ) );
 	}
 
 	G_APPLICATION_CLASS( disp_parent_class )->shutdown( application );
@@ -95,7 +95,7 @@ disp_activate( GApplication *application )
 {
 	printf( "disp_activate:\n" ); 
 
-	imagepresent_new( GTK_APPLICATION( application ), NULL );
+	imageview_new( GTK_APPLICATION( application ), NULL );
 }
 
 static void
@@ -107,7 +107,7 @@ disp_open( GApplication *application,
 	printf( "disp_open:\n" ); 
 
 	for( i = 0; i < n_files; i++ )
-		imagepresent_new( GTK_APPLICATION( application ), files[i] );
+		imageview_new( GTK_APPLICATION( application ), files[i] );
 }
 
 static void

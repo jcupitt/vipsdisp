@@ -8,3 +8,4 @@ typedef GtkApplicationClass DispClass;
 
 #include "imagedisplay.h"
 #include "imagepresent.h"
+#include "imageview.h"

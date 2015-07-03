@@ -16,4 +16,7 @@ int imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file );
 void imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag );
 int imagedisplay_get_mag( Imagedisplay *imagedisplay );
 
+gboolean imagedisplay_get_image_size( Imagedisplay *imagedisplay, 
+	int *width, int *height );
+
 Imagedisplay *imagedisplay_new( void ); 

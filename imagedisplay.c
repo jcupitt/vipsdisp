@@ -346,10 +346,25 @@ imagedisplay_get_mag( Imagedisplay *imagedisplay )
 void
 imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag )
 {
-	imagedisplay->mag = mag;
-	imagedisplay_update_conversion( imagedisplay );
+	if( imagedisplay->mag != mag ) { 
+		imagedisplay->mag = mag;
+		imagedisplay_update_conversion( imagedisplay );
+	}
 }
 
+gboolean
+imagedisplay_get_image_size( Imagedisplay *imagedisplay, 
+	int *width, int *height )
+{
+	if( imagedisplay->image ) {
+		*width = imagedisplay->image->Xsize;
+		*height = imagedisplay->image->Ysize;
+
+		return( TRUE ); 
+	}
+	else
+		return( FALSE );
+}
 
 Imagedisplay *
 imagedisplay_new( void ) 

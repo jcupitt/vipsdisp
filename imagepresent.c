@@ -10,7 +10,7 @@
 
 #include "disp.h"
 
-G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_APPLICATION_WINDOW );
+G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_SCROLLED_WINDOW );
 
 static void
 imagepresent_init( Imagepresent *Imagepresent )
@@ -24,111 +24,77 @@ imagepresent_class_init( ImagepresentClass *class )
 	printf( "imagepresent_class_init:\n" ); 
 }
 
-static void
-imagepresent_activate_toggle( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	GVariant *state;
-
-	printf( "imagepresent_activate_toggle:\n" ); 
-
-	state = g_action_get_state( G_ACTION( action ) );
-	g_action_change_state( G_ACTION( action ), 
-		g_variant_new_boolean( !g_variant_get_boolean( state ) ) );
-	g_variant_unref( state );
-}
-
-static void
-imagepresent_change_fullscreen_state( GSimpleAction *action, 
-	GVariant *state, gpointer user_data )
-{
-	Imagepresent *imagepresent = (Imagepresent *) user_data;
-
-	printf( "imagepresent_change_fullscreen_state:\n" ); 
-
-	if( g_variant_get_boolean( state ) )
-		gtk_window_fullscreen( GTK_WINDOW( imagepresent ) );
-	else
-		gtk_window_unfullscreen( GTK_WINDOW( imagepresent ) );
-
-	g_simple_action_set_state( action, state );
-}
-
-static void
-imagepresent_magin( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	Imagepresent *imagepresent = (Imagepresent *) user_data;
-	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
-	int mag = imagedisplay_get_mag( imagedisplay );
-
-	printf( "imagepresent_magin:\n" ); 
-
-	if( mag <= 0 )  {
-		if( mag >= -2 )
-			imagedisplay_set_mag( imagedisplay, 1 );
-		else
-			imagedisplay_set_mag( imagedisplay, mag / 2 );
-	}
-	else 
-		imagedisplay_set_mag( imagedisplay, mag * 2 );
-}
-
-static void
-imagepresent_magout( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	Imagepresent *imagepresent = (Imagepresent *) user_data;
-	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
-	int mag = imagedisplay_get_mag( imagedisplay );
-
-	printf( "imagepresent_magout:\n" ); 
-
-	if( mag >= 0 )  {
-		if( mag < 2 ) 
-			imagedisplay_set_mag( imagedisplay, -2 );
-		else
-			imagedisplay_set_mag( imagedisplay, mag / 2 );
-	}
-	else 
-		imagedisplay_set_mag( imagedisplay, mag * 2 );
-}
-
-static void
-imagepresent_normal( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	Imagepresent *imagepresent = (Imagepresent *) user_data;
-	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
-
-	printf( "imagepresent_normal:\n" ); 
-
-	imagedisplay_set_mag( imagedisplay, 1 );
-}
-
-static void
+void
 imagepresent_get_window_size( Imagepresent *imagepresent, 
 	int *width, int *height )
 {
 	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent->scrolled ) );
+		GTK_SCROLLED_WINDOW( imagepresent ) );
 	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent->scrolled ) );
+		GTK_SCROLLED_WINDOW( imagepresent ) );
 
 	*width = gtk_adjustment_get_page_size( hadj );
 	*height = gtk_adjustment_get_page_size( vadj );
 }
 
-static void
-imagepresent_bestfit( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
+gboolean
+imagepresent_get_image_size( Imagepresent *imagepresent, 
+	int *width, int *height )
 {
-	Imagepresent *imagepresent = (Imagepresent *) user_data;
-	Imagedisplay *imagedisplay = imagepresent->imagedisplay;
+	return( imagedisplay_get_image_size( imagepresent->imagedisplay,
+		width, height ) ); 
+}
+
+void
+imagepresent_set_mag( Imagepresent *imagepresent, int mag )
+{
+	imagedisplay_set_mag( imagepresent->imagedisplay, mag ); 
+}
+
+void
+imagepresent_magin( Imagepresent *imagepresent )
+{
+	int mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+
+	printf( "imagepresent_magin:\n" ); 
+
+	if( mag <= 0 )  {
+		if( mag >= -2 )
+			imagepresent_set_mag( imagepresent, 1 );
+		else
+			imagepresent_set_mag( imagepresent, mag / 2 );
+	}
+	else 
+		imagepresent_set_mag( imagepresent, mag * 2 );
+}
+
+void
+imagepresent_magout( Imagepresent *imagepresent )
+{
+	int mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+
+	printf( "imagepresent_magout:\n" ); 
+
+	if( mag >= 0 )  {
+		if( mag < 2 ) 
+			imagepresent_set_mag( imagepresent, -2 );
+		else
+			imagepresent_set_mag( imagepresent, mag / 2 );
+	}
+	else 
+		imagepresent_set_mag( imagepresent, mag * 2 );
+}
+
+void
+imagepresent_bestfit( Imagepresent *imagepresent )
+{
+	int image_width;
+	int image_height;
 
 	printf( "imagepresent_bestfit:\n" ); 
 
-	if( imagedisplay->image ) { 
+	if( imagepresent_get_image_size( imagepresent, 
+		&image_width, &image_height ) ) {
 		int window_width;
 		int window_height;
 		double hfac;
@@ -137,36 +103,37 @@ imagepresent_bestfit( GSimpleAction *action,
 
 		imagepresent_get_window_size( imagepresent, 
 			&window_width, &window_height ); 
-		hfac = (double) window_width / imagedisplay->image->Xsize;
-		vfac = (double) window_width / imagedisplay->image->Xsize;
+		hfac = (double) window_width / image_width;
+		vfac = (double) window_width / image_height;
 		fac = VIPS_MIN( hfac, vfac );
 
 		if( fac >= 1 )
-			imagedisplay_set_mag( imagedisplay, (int) fac );
+			imagepresent_set_mag( imagepresent, (int) fac );
 		else
 			/* 0.999 means we don't round up on an exact fit.
 			 *
 			 * FIXME ... yuk
 			 */
-			imagedisplay_set_mag( imagedisplay, 
+			imagepresent_set_mag( imagepresent, 
 				-((int) (0.99999999 + 1.0 / fac)) );
 	}
 }
 
-static GActionEntry imagepresent_entries[] = {
-	{ "magin", imagepresent_magin },
-	{ "magout", imagepresent_magout },
-	{ "normal", imagepresent_normal },
-	{ "bestfit", imagepresent_bestfit },
-	{ "fullscreen", imagepresent_activate_toggle, NULL, "false", 
-		imagepresent_change_fullscreen_state }
-};
+char *
+imagepresent_get_path( Imagepresent *imagepresent ) 
+{
+	char *path;
+
+	if( imagepresent->file && 
+		(path = g_file_get_path( imagepresent->file )) ) 
+		return( path );
+
+	return( NULL );
+}
 
 int
 imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 {
-	char *path;
-
 	VIPS_UNREF( imagepresent->file );
 
 	imagepresent->file = file;
@@ -176,132 +143,24 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 		imagepresent->file ) )
 	       return( -1 ); 	
 
-	if( imagepresent->file && 
-		(path = g_file_get_path( imagepresent->file )) ) {
-		char *basename;
-
-		basename = g_path_get_basename( path );
-		g_free( path ); 
-		gtk_header_bar_set_title( 
-			GTK_HEADER_BAR( imagepresent->header_bar ), basename );
-		g_free( basename ); 
-	}
-	else 
-		gtk_header_bar_set_title( 
-			GTK_HEADER_BAR( imagepresent->header_bar ), 
-			"Untitled" );
-
 	return( 0 );
 }
 
-static void
-imagepresent_open_clicked( GtkWidget *button, Imagepresent *imagepresent )
-{
-	GtkWidget *dialog;
-	char *path;
-	int result;
-
-	dialog = gtk_file_chooser_dialog_new( "Select a file",
-		GTK_WINDOW( imagepresent ) , 
-		GTK_FILE_CHOOSER_ACTION_OPEN,
-		"_Cancel", GTK_RESPONSE_CANCEL,
-		"_Open", GTK_RESPONSE_ACCEPT,
-		NULL );
-
-	if( imagepresent->file && 
-		(path = g_file_get_path( imagepresent->file )) ) {
-		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
-			path );
-		g_free( path ); 
-	}
-
-	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
-	if( result == GTK_RESPONSE_ACCEPT ) {
-		char *path;
-		GFile *file;
-
-		path = gtk_file_chooser_get_filename( 
-			GTK_FILE_CHOOSER( dialog ) );
-		file = g_file_new_for_path( path );
-		g_free( path );
-		imagepresent_set_file( imagepresent, file ); 
-		g_object_unref( file ); 
-	}
-
-	gtk_widget_destroy( dialog );
-}
-
 Imagepresent *
-imagepresent_new( GtkApplication *application, GFile *file )
+imagepresent_new( void ) 
 {
-	Disp *disp = (Disp *) application;
-
 	Imagepresent *imagepresent;
-	GtkWidget *open;
-	GtkWidget *menu_button;
-	GtkBuilder *builder;
-	GMenuModel *menu;
 
-	printf( "imagepresent_new: file = %p\n", file ); 
+	printf( "imagepresent_new:\n" ); 
 
 	imagepresent = g_object_new( imagepresent_get_type(),
-		"application", application,
 		NULL );
-	g_action_map_add_action_entries( G_ACTION_MAP( imagepresent ), 
-		imagepresent_entries, G_N_ELEMENTS( imagepresent_entries ), 
-		imagepresent );
-
-	imagepresent->disp = disp;
-
-	imagepresent->header_bar = gtk_header_bar_new(); 
-
-	gtk_header_bar_set_show_close_button( 
-		GTK_HEADER_BAR( imagepresent->header_bar ), TRUE );
-
-	open = gtk_button_new_with_label( "Open" );
-	gtk_header_bar_pack_start( 
-		GTK_HEADER_BAR( imagepresent->header_bar ), open ); 
-	g_signal_connect( open, "clicked", 
-		G_CALLBACK( imagepresent_open_clicked ), imagepresent );
-
-	menu_button = gtk_menu_button_new();
-	gtk_header_bar_pack_end( 
-		GTK_HEADER_BAR( imagepresent->header_bar ), menu_button ); 
-	builder = gtk_builder_new_from_resource( 
-		"/vips/disp/gtk/imagepresent-popover.ui" ); 
-	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
-		"imagepresent-popover-menu" ) );
-	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
-	g_object_unref( builder );
-
-	gtk_window_set_titlebar( GTK_WINDOW( imagepresent ), 
-		imagepresent->header_bar ); 
-
-	imagepresent->scrolled = gtk_scrolled_window_new( NULL, NULL );
-	gtk_widget_set_hexpand( imagepresent->scrolled, TRUE );
-	gtk_widget_set_vexpand( imagepresent->scrolled, TRUE );
 
 	imagepresent->imagedisplay = imagedisplay_new();
-	gtk_container_add( GTK_CONTAINER( imagepresent->scrolled ), 
+	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
 
-	gtk_container_add( GTK_CONTAINER( imagepresent ), 
-		imagepresent->scrolled );
-
-	imagepresent_set_file( imagepresent, file ); 
-
-	/* 83 is a magic number for the height of the top 
-	 * bar on my laptop. 
-	 */
-	if( imagepresent->imagedisplay->display ) { 
-		VipsImage *display = imagepresent->imagedisplay->display;
-
-		gtk_window_set_default_size( GTK_WINDOW( imagepresent ), 
-			VIPS_MIN( 800, display->Xsize ),
-			VIPS_MIN( 800, display->Ysize + 83 ) ); 
-	}
-
-	gtk_widget_show_all( GTK_WIDGET( imagepresent ) );
+	gtk_widget_show( GTK_WIDGET( imagepresent->imagedisplay ) );
 
 	return( imagepresent ); 
 }

@@ -1,16 +1,26 @@
 
 typedef struct _Imagepresent {
-	GtkApplicationWindow parent_instance;
+	GtkScrolledWindow parent_instance;
 
-	Disp *disp;
 	GFile *file;
 
 	Imagedisplay *imagedisplay;
-	GtkWidget *header_bar;
-	GtkWidget *scrolled;
 
 } Imagepresent;
 
-typedef GtkApplicationWindowClass ImagepresentClass;
+typedef GtkScrolledWindowClass ImagepresentClass;
 
-Imagepresent *imagepresent_new( GtkApplication *application, GFile *file );
+gboolean imagepresent_get_image_size( Imagepresent *imagepresent, 
+	int *width, int *height );
+void imagepresent_get_window_size( Imagepresent *imagepresent, 
+	int *width, int *height );
+
+void imagepresent_set_mag( Imagepresent *imagepresent, int mag );
+void imagepresent_magin( Imagepresent *imagepresent );
+void imagepresent_magout( Imagepresent *imagepresent );
+void imagepresent_bestfit( Imagepresent *imagepresent );
+
+char *imagepresent_get_path( Imagepresent *imagepresent );
+int imagepresent_set_file( Imagepresent *imagepresent, GFile *file );
+
+Imagepresent *imagepresent_new();

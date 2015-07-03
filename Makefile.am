@@ -6,6 +6,8 @@ vipsdisp_SOURCES = \
 	disp-gresources.c \
 	disp.c \
 	disp.h \
+	imageview.c \
+	imageview.h \
 	imagepresent.c \
 	imagepresent.h \
 	imagedisplay.c \
@@ -17,7 +19,7 @@ AM_LDFLAGS = @LDFLAGS@
 
 resource_files = \
 	disp.gresources.xml \
-	gtk/imagepresent-popover.ui \
+	gtk/imageview-popover.ui \
 	gtk/menus.ui
 
 disp-gresources.c: $(resource_files)

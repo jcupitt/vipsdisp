@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
 
 <interface>
-  <menu id='imagepresent-popover-menu'>
+  <menu id='imageview-popover-menu'>
     <section>
       <attribute name="display-hint">horizontal-buttons</attribute>
       <item>
