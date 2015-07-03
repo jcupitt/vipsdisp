@@ -18,5 +18,7 @@ int imagedisplay_get_mag( Imagedisplay *imagedisplay );
 
 gboolean imagedisplay_get_image_size( Imagedisplay *imagedisplay, 
 	int *width, int *height );
+gboolean imagedisplay_get_display_image_size( Imagedisplay *imagedisplay, 
+	int *width, int *height );
 
 Imagedisplay *imagedisplay_new( void ); 

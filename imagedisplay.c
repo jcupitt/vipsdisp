@@ -366,6 +366,20 @@ imagedisplay_get_image_size( Imagedisplay *imagedisplay,
 		return( FALSE );
 }
 
+gboolean
+imagedisplay_get_display_image_size( Imagedisplay *imagedisplay, 
+	int *width, int *height )
+{
+	if( imagedisplay->display ) {
+		*width = imagedisplay->display->Xsize;
+		*height = imagedisplay->display->Ysize;
+
+		return( TRUE ); 
+	}
+	else
+		return( FALSE );
+}
+
 Imagedisplay *
 imagedisplay_new( void ) 
 {

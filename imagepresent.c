@@ -45,6 +45,14 @@ imagepresent_get_image_size( Imagepresent *imagepresent,
 		width, height ) ); 
 }
 
+gboolean
+imagepresent_get_display_image_size( Imagepresent *imagepresent, 
+	int *width, int *height )
+{
+	return( imagedisplay_get_display_image_size( imagepresent->imagedisplay,
+		width, height ) ); 
+}
+
 void
 imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 {
@@ -146,6 +154,96 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 	return( 0 );
 }
 
+static void
+imagepresent_get_position( Imagepresent *imagepresent, int *x, int *y )
+{
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+
+	*x = gtk_adjustment_get_value( hadj );
+	*y = gtk_adjustment_get_value( vadj );
+}
+
+static void
+imagepresent_set_position( Imagepresent *imagepresent, int x, int y )
+{
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+
+	if( gtk_adjustment_get_value( hadj ) != x ) { 
+		gtk_adjustment_set_value( hadj, x );
+		gtk_adjustment_value_changed( hadj );
+	}
+	if( gtk_adjustment_get_value( vadj ) != y ) { 
+		gtk_adjustment_set_value( vadj, y );
+		gtk_adjustment_value_changed( vadj );
+	}
+}
+
+static gboolean
+imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event, 
+	Imagepresent *imagepresent )
+{
+	int image_width;
+	int image_height;
+	int window_width;
+	int window_height;
+	int x;
+	int y;
+
+	gboolean handled;
+
+	printf( "imagepresent_key_press_event: key = %d\n", event->keyval );
+
+	handled = FALSE;
+
+	if( !imagepresent_get_display_image_size( imagepresent, 
+		&image_width, &image_height ) ) 
+		return( handled ); 
+	imagepresent_get_window_size( imagepresent, 
+		&window_width, &window_height ); 
+	imagepresent_get_position( imagepresent, &x, &y );
+
+	switch( event->keyval ) {
+	case GDK_KEY_Left:
+		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+			imagepresent_set_position( imagepresent, 
+				x - 10, y ); 
+		else if( event->state & GDK_SHIFT_MASK )
+			imagepresent_set_position( imagepresent,
+				x - window_width, y ); 
+		else if( event->state & GDK_CONTROL_MASK )
+			imagepresent_set_position( imagepresent,
+				0, y );
+
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Right:
+		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+			imagepresent_set_position( imagepresent, 
+				x + 10, y ); 
+		else if( event->state & GDK_SHIFT_MASK )
+			imagepresent_set_position( imagepresent,
+				x + window_width, y ); 
+		else if( event->state & GDK_CONTROL_MASK )
+			imagepresent_set_position( imagepresent,
+				image_width - window_width, y );
+
+		handled = TRUE;
+		break;
+
+	default:
+		break;
+	}
+
+	return( handled ); 
+}
+
 Imagepresent *
 imagepresent_new( void ) 
 {
@@ -155,6 +253,10 @@ imagepresent_new( void )
 
 	imagepresent = g_object_new( imagepresent_get_type(),
 		NULL );
+	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
+
+	g_signal_connect( imagepresent, "key-press-event",
+		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
 
 	imagepresent->imagedisplay = imagedisplay_new();
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
