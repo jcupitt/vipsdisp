@@ -188,12 +188,22 @@ static gboolean
 imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event, 
 	Imagepresent *imagepresent )
 {
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+
+	int hstep = gtk_adjustment_get_step_increment( hadj );
+	int vstep = gtk_adjustment_get_step_increment( vadj );
+
 	int image_width;
 	int image_height;
 	int window_width;
 	int window_height;
 	int x;
 	int y;
+	int image_x;
+	int image_y;
 
 	gboolean handled;
 
@@ -212,7 +222,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 	case GDK_KEY_Left:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
 			imagepresent_set_position( imagepresent, 
-				x - 10, y ); 
+				x - hstep, y ); 
 		else if( event->state & GDK_SHIFT_MASK )
 			imagepresent_set_position( imagepresent,
 				x - window_width, y ); 
@@ -226,7 +236,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 	case GDK_KEY_Right:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
 			imagepresent_set_position( imagepresent, 
-				x + 10, y ); 
+				x + hstep, y ); 
 		else if( event->state & GDK_SHIFT_MASK )
 			imagepresent_set_position( imagepresent,
 				x + window_width, y ); 
@@ -237,9 +247,63 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 		handled = TRUE;
 		break;
 
+	case GDK_KEY_Up:
+		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+			imagepresent_set_position( imagepresent, 
+				x, y - vstep ); 
+		else if( event->state & GDK_SHIFT_MASK )
+			imagepresent_set_position( imagepresent,
+				x, y - window_height ); 
+		else if( event->state & GDK_CONTROL_MASK )
+			imagepresent_set_position( imagepresent,
+				x, 0 );
+
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Down:
+		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
+			imagepresent_set_position( imagepresent, 
+				x, y + vstep ); 
+		else if( event->state & GDK_SHIFT_MASK )
+			imagepresent_set_position( imagepresent,
+				x, y + window_height ); 
+		else if( event->state & GDK_CONTROL_MASK )
+			imagepresent_set_position( imagepresent,
+				x, image_height - window_height );
+
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_i:
+	case GDK_KEY_plus:
+		imagedisplay_to_image_cods( imagepresent->imagedisplay,
+			imagepresent->last_x, imagepresent->last_y,
+			&image_x, &image_y ); 
+
+		handled = TRUE;
+		break;
+
 	default:
 		break;
 	}
+
+	return( handled ); 
+}
+
+static gboolean
+imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event, 
+	Imagepresent *imagepresent )
+{
+	gboolean handled;
+
+	printf( "imagepresent_motion_notify_event: %g, %g\n", 
+		event->x, event->y );
+
+	handled = FALSE;
+
+	imagepresent->last_x = event->x;
+	imagepresent->last_y = event->y;
 
 	return( handled ); 
 }
@@ -253,12 +317,18 @@ imagepresent_new( void )
 
 	imagepresent = g_object_new( imagepresent_get_type(),
 		NULL );
-	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
-
-	g_signal_connect( imagepresent, "key-press-event",
-		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
 
 	imagepresent->imagedisplay = imagedisplay_new();
+
+	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent->imagedisplay ), 
+		TRUE ); 
+	g_signal_connect( imagepresent->imagedisplay, "key-press-event",
+		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
+	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
+		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
+	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
+		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK );
+
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
 

@@ -6,6 +6,11 @@ typedef struct _Imagepresent {
 
 	Imagedisplay *imagedisplay;
 
+	/* Last mouse position we saw, in display image coordinates.
+	 */
+	int last_x;
+	int last_y;
+
 } Imagepresent;
 
 typedef GtkScrolledWindowClass ImagepresentClass;

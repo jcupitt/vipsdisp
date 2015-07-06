@@ -380,6 +380,22 @@ imagedisplay_get_display_image_size( Imagedisplay *imagedisplay,
 		return( FALSE );
 }
 
+/* Map to underlying image coordinates from display image coordinates.
+ */
+void
+imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
+	int display_x, int display_x, int *image_x, int *image_x )
+{
+	if( imagedisplay->mag > 0 ) {
+		*image_x = display_x / imagedisplay->mag;
+		*image_y = display_y / imagedisplay->mag;
+	}
+	else {
+		*image_x = display_x * imagedisplay->mag;
+		*image_y = display_y * imagedisplay->mag;
+	}
+}
+
 Imagedisplay *
 imagedisplay_new( void ) 
 {
