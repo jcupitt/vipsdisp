@@ -22,6 +22,8 @@ gboolean imagedisplay_get_display_image_size( Imagedisplay *imagedisplay,
 	int *width, int *height );
 
 void imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
-	int display_x, int display_x, int *image_x, int *image_x );
+	int display_x, int display_y, int *image_x, int *image_y );
+void imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
+	int image_x, int image_y, int *display_x, int *display_y ); 
 
 Imagedisplay *imagedisplay_new( void ); 

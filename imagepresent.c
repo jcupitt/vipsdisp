@@ -25,16 +25,42 @@ imagepresent_class_init( ImagepresentClass *class )
 }
 
 void
-imagepresent_get_window_size( Imagepresent *imagepresent, 
-	int *width, int *height )
+imagepresent_get_window_position( Imagepresent *imagepresent, 
+	int *left, int *top, int *width, int *height )
 {
 	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
 		GTK_SCROLLED_WINDOW( imagepresent ) );
 	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
 		GTK_SCROLLED_WINDOW( imagepresent ) );
 
+	*left = gtk_adjustment_get_value( hadj );
+	*top = gtk_adjustment_get_value( vadj );
 	*width = gtk_adjustment_get_page_size( hadj );
 	*height = gtk_adjustment_get_page_size( vadj );
+
+	printf( "imagepresent_get_window_position: %d %d %d %d\n", 
+		*left, *top, *width, *height ); 
+}
+
+static void
+imagepresent_set_window_position( Imagepresent *imagepresent, 
+	int left, int top )
+{
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+
+	printf( "imagepresent_set_window_position: %d %d\n", left, top ); 
+
+	if( gtk_adjustment_get_value( hadj ) != left ) { 
+		gtk_adjustment_set_value( hadj, left );
+		gtk_adjustment_value_changed( hadj );
+	}
+	if( gtk_adjustment_get_value( vadj ) != top ) { 
+		gtk_adjustment_set_value( vadj, top );
+		gtk_adjustment_value_changed( vadj );
+	}
 }
 
 gboolean
@@ -56,16 +82,57 @@ imagepresent_get_display_image_size( Imagepresent *imagepresent,
 void
 imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 {
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( imagepresent ) );
+
+	int image_x;
+	int image_y;
+	int width;
+	int height;
+
+	/* We need to update last_x/_y ... go via image cods.
+	 */
+	imagedisplay_to_image_cods( imagepresent->imagedisplay,
+		imagepresent->last_x, imagepresent->last_y, 
+		&image_x, &image_y ); 
+
 	imagedisplay_set_mag( imagepresent->imagedisplay, mag ); 
+
+	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+		image_x, image_y,
+		&imagepresent->last_x, &imagepresent->last_y );
+
+	/* We've set the size of the imagedisplay DrawingArea to the new image
+	 * size, but the adjustments won't get updated until we hit the main
+	 * loop again. If we set position after calling set_mag, we need to
+	 * have the new adj range set immediately.
+	 */
+	imagepresent_get_display_image_size( imagepresent, &width, &height );
+	gtk_adjustment_set_upper( hadj, width );
+	gtk_adjustment_set_upper( vadj, height );
 }
 
+/* Zoom in, positioning the pixel at x/y in image coordinates at the centre of
+ * the window.
+ */
 void
-imagepresent_magin( Imagepresent *imagepresent )
+imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 {
-	int mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
 
-	printf( "imagepresent_magin:\n" ); 
+	int mag;
 
+	int display_x;
+	int display_y;
+
+	printf( "imagepresent_magin: %d %d\n", x, y ); 
+
+	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
 	if( mag <= 0 )  {
 		if( mag >= -2 )
 			imagepresent_set_mag( imagepresent, 1 );
@@ -74,15 +141,43 @@ imagepresent_magin( Imagepresent *imagepresent )
 	}
 	else 
 		imagepresent_set_mag( imagepresent, mag * 2 );
+
+	imagepresent_get_window_position( imagepresent, 
+		&window_left, &window_top, &window_width, &window_height );
+	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+		x, y,
+		&display_x, &display_y ); 
+
+	imagepresent_set_window_position( imagepresent,
+		display_x - window_width / 2, 
+		display_y - window_height / 2 );
 }
 
 void
 imagepresent_magout( Imagepresent *imagepresent )
 {
-	int mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+
+	int mag;
+
+	int image_x;
+	int image_y;
+	int display_x;
+	int display_y;
 
 	printf( "imagepresent_magout:\n" ); 
 
+	imagepresent_get_window_position( imagepresent, 
+		&window_left, &window_top, &window_width, &window_height );
+
+	imagedisplay_to_image_cods( imagepresent->imagedisplay,
+		window_left + window_width / 2, window_left + window_height / 2,
+		&image_x, &image_y ); 
+
+	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
 			imagepresent_set_mag( imagepresent, -2 );
@@ -91,6 +186,13 @@ imagepresent_magout( Imagepresent *imagepresent )
 	}
 	else 
 		imagepresent_set_mag( imagepresent, mag * 2 );
+
+	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+		image_x, image_y,
+		&display_x, &display_y ); 
+	imagepresent_set_window_position( imagepresent,
+		display_x - window_width / 2, 
+		display_y - window_height / 2 );
 }
 
 void
@@ -103,14 +205,17 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 
 	if( imagepresent_get_image_size( imagepresent, 
 		&image_width, &image_height ) ) {
+		int window_left;
+		int window_top;
 		int window_width;
 		int window_height;
 		double hfac;
 		double vfac;
 		double fac;
 
-		imagepresent_get_window_size( imagepresent, 
-			&window_width, &window_height ); 
+		imagepresent_get_window_position( imagepresent, 
+			&window_left, &window_top, 
+			&window_width, &window_height );
 		hfac = (double) window_width / image_width;
 		vfac = (double) window_width / image_height;
 		fac = VIPS_MIN( hfac, vfac );
@@ -154,36 +259,6 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 	return( 0 );
 }
 
-static void
-imagepresent_get_position( Imagepresent *imagepresent, int *x, int *y )
-{
-	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-
-	*x = gtk_adjustment_get_value( hadj );
-	*y = gtk_adjustment_get_value( vadj );
-}
-
-static void
-imagepresent_set_position( Imagepresent *imagepresent, int x, int y )
-{
-	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-
-	if( gtk_adjustment_get_value( hadj ) != x ) { 
-		gtk_adjustment_set_value( hadj, x );
-		gtk_adjustment_value_changed( hadj );
-	}
-	if( gtk_adjustment_get_value( vadj ) != y ) { 
-		gtk_adjustment_set_value( vadj, y );
-		gtk_adjustment_value_changed( vadj );
-	}
-}
-
 static gboolean
 imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event, 
 	Imagepresent *imagepresent )
@@ -198,10 +273,10 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	int image_width;
 	int image_height;
+	int window_left;
+	int window_top;
 	int window_width;
 	int window_height;
-	int x;
-	int y;
 	int image_x;
 	int image_y;
 
@@ -214,63 +289,62 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 	if( !imagepresent_get_display_image_size( imagepresent, 
 		&image_width, &image_height ) ) 
 		return( handled ); 
-	imagepresent_get_window_size( imagepresent, 
-		&window_width, &window_height ); 
-	imagepresent_get_position( imagepresent, &x, &y );
+	imagepresent_get_window_position( imagepresent, 
+		&window_left, &window_top, &window_width, &window_height );
 
 	switch( event->keyval ) {
 	case GDK_KEY_Left:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
-			imagepresent_set_position( imagepresent, 
-				x - hstep, y ); 
+			imagepresent_set_window_position( imagepresent, 
+				window_left - hstep, window_top ); 
 		else if( event->state & GDK_SHIFT_MASK )
-			imagepresent_set_position( imagepresent,
-				x - window_width, y ); 
+			imagepresent_set_window_position( imagepresent,
+				window_left - window_width, window_top ); 
 		else if( event->state & GDK_CONTROL_MASK )
-			imagepresent_set_position( imagepresent,
-				0, y );
+			imagepresent_set_window_position( imagepresent,
+				0, window_top );
 
 		handled = TRUE;
 		break;
 
 	case GDK_KEY_Right:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
-			imagepresent_set_position( imagepresent, 
-				x + hstep, y ); 
+			imagepresent_set_window_position( imagepresent, 
+				window_left + hstep, window_top ); 
 		else if( event->state & GDK_SHIFT_MASK )
-			imagepresent_set_position( imagepresent,
-				x + window_width, y ); 
+			imagepresent_set_window_position( imagepresent,
+				window_left + window_width, window_top ); 
 		else if( event->state & GDK_CONTROL_MASK )
-			imagepresent_set_position( imagepresent,
-				image_width - window_width, y );
+			imagepresent_set_window_position( imagepresent,
+				image_width - window_width, window_top );
 
 		handled = TRUE;
 		break;
 
 	case GDK_KEY_Up:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
-			imagepresent_set_position( imagepresent, 
-				x, y - vstep ); 
+			imagepresent_set_window_position( imagepresent, 
+				window_left, window_top - vstep ); 
 		else if( event->state & GDK_SHIFT_MASK )
-			imagepresent_set_position( imagepresent,
-				x, y - window_height ); 
+			imagepresent_set_window_position( imagepresent,
+				window_left, window_top - window_height ); 
 		else if( event->state & GDK_CONTROL_MASK )
-			imagepresent_set_position( imagepresent,
-				x, 0 );
+			imagepresent_set_window_position( imagepresent,
+				window_left, 0 );
 
 		handled = TRUE;
 		break;
 
 	case GDK_KEY_Down:
 		if( !(event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) )
-			imagepresent_set_position( imagepresent, 
-				x, y + vstep ); 
+			imagepresent_set_window_position( imagepresent, 
+				window_left, window_top + vstep ); 
 		else if( event->state & GDK_SHIFT_MASK )
-			imagepresent_set_position( imagepresent,
-				x, y + window_height ); 
+			imagepresent_set_window_position( imagepresent,
+				window_left, window_top + window_height ); 
 		else if( event->state & GDK_CONTROL_MASK )
-			imagepresent_set_position( imagepresent,
-				x, image_height - window_height );
+			imagepresent_set_window_position( imagepresent,
+				window_left, image_height - window_height );
 
 		handled = TRUE;
 		break;
@@ -280,6 +354,14 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 		imagedisplay_to_image_cods( imagepresent->imagedisplay,
 			imagepresent->last_x, imagepresent->last_y,
 			&image_x, &image_y ); 
+		imagepresent_magin( imagepresent, image_x, image_y );
+
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_o:
+	case GDK_KEY_minus:
+		imagepresent_magout( imagepresent ); 
 
 		handled = TRUE;
 		break;
@@ -297,8 +379,10 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 {
 	gboolean handled;
 
+	/*
 	printf( "imagepresent_motion_notify_event: %g, %g\n", 
 		event->x, event->y );
+	 */
 
 	handled = FALSE;
 

@@ -384,7 +384,7 @@ imagedisplay_get_display_image_size( Imagedisplay *imagedisplay,
  */
 void
 imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
-	int display_x, int display_x, int *image_x, int *image_x )
+	int display_x, int display_y, int *image_x, int *image_y )
 {
 	if( imagedisplay->mag > 0 ) {
 		*image_x = display_x / imagedisplay->mag;
@@ -393,6 +393,22 @@ imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
 	else {
 		*image_x = display_x * imagedisplay->mag;
 		*image_y = display_y * imagedisplay->mag;
+	}
+}
+
+/* Map to display cods from underlying image coordinates.
+ */
+void
+imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
+	int image_x, int image_y, int *display_x, int *display_y )
+{
+	if( imagedisplay->mag > 0 ) {
+		*display_x = image_x * imagedisplay->mag;
+		*display_y = image_y * imagedisplay->mag;
+	}
+	else {
+		*display_x = image_x / imagedisplay->mag;
+		*display_y = image_y / imagedisplay->mag;
 	}
 }
 
