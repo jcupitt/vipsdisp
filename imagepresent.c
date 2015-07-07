@@ -112,6 +112,43 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	imagepresent_get_display_image_size( imagepresent, &width, &height );
 	gtk_adjustment_set_upper( hadj, width );
 	gtk_adjustment_set_upper( vadj, height );
+
+	printf( "imagepresent_set_mag: new size %d %d\n", width, height ); 
+}
+
+/* Set mag, keeping the pixel in the centre of the screen in the centre of the
+ * screen.
+ */
+void
+imagepresent_set_mag_centre( Imagepresent *imagepresent, int mag )
+{
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+
+	int image_x;
+	int image_y;
+	int display_x;
+	int display_y;
+
+	printf( "imagepresent_set_mag_centre:\n" ); 
+
+	imagepresent_get_window_position( imagepresent, 
+		&window_left, &window_top, &window_width, &window_height );
+
+	imagedisplay_to_image_cods( imagepresent->imagedisplay,
+		window_left + window_width / 2, window_top + window_height / 2,
+		&image_x, &image_y ); 
+
+	imagepresent_set_mag( imagepresent, mag );
+
+	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+		image_x, image_y,
+		&display_x, &display_y ); 
+	imagepresent_set_window_position( imagepresent,
+		display_x - window_width / 2, 
+		display_y - window_height / 2 );
 }
 
 /* Zoom in, positioning the pixel at x/y in image coordinates at the centre of
@@ -156,43 +193,19 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 void
 imagepresent_magout( Imagepresent *imagepresent )
 {
-	int window_left;
-	int window_top;
-	int window_width;
-	int window_height;
-
 	int mag;
 
-	int image_x;
-	int image_y;
-	int display_x;
-	int display_y;
-
 	printf( "imagepresent_magout:\n" ); 
-
-	imagepresent_get_window_position( imagepresent, 
-		&window_left, &window_top, &window_width, &window_height );
-
-	imagedisplay_to_image_cods( imagepresent->imagedisplay,
-		window_left + window_width / 2, window_left + window_height / 2,
-		&image_x, &image_y ); 
 
 	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
-			imagepresent_set_mag( imagepresent, -2 );
+			imagepresent_set_mag_centre( imagepresent, -2 );
 		else
-			imagepresent_set_mag( imagepresent, mag / 2 );
+			imagepresent_set_mag_centre( imagepresent, mag / 2 );
 	}
 	else 
-		imagepresent_set_mag( imagepresent, mag * 2 );
-
-	imagedisplay_to_display_cods( imagepresent->imagedisplay,
-		image_x, image_y,
-		&display_x, &display_y ); 
-	imagepresent_set_window_position( imagepresent,
-		display_x - window_width / 2, 
-		display_y - window_height / 2 );
+		imagepresent_set_mag_centre( imagepresent, mag * 2 );
 }
 
 void
@@ -258,6 +271,21 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 
 	return( 0 );
 }
+
+static struct {
+	int keyval;
+	int mag;
+} magnify_keys[] = {
+	{ GDK_KEY_1, 1 },
+	{ GDK_KEY_2, 2 },
+	{ GDK_KEY_3, 3 },
+	{ GDK_KEY_4, 4 },
+	{ GDK_KEY_5, 5 },
+	{ GDK_KEY_6, 6 },
+	{ GDK_KEY_7, 7 },
+	{ GDK_KEY_8, 8 },
+	{ GDK_KEY_9, 9 }
+};
 
 static gboolean
 imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event, 
@@ -366,8 +394,32 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 		handled = TRUE;
 		break;
 
+	case GDK_KEY_0:
+		imagepresent_bestfit( imagepresent ); 
+
+		handled = TRUE;
+		break;
+
 	default:
 		break;
+	}
+
+	if( !handled ) {
+		int i;
+
+		for( i = 0; i < VIPS_NUMBER( magnify_keys ); i++ ) 
+			if( event->keyval == magnify_keys[i].keyval ) {
+				int mag;
+
+				mag = magnify_keys[i].mag;
+				if( event->state & GDK_CONTROL_MASK )
+					mag *= -1;
+
+				imagepresent_set_mag_centre( imagepresent, mag);
+
+				handled = TRUE;
+				break;
+			}
 	}
 
 	return( handled ); 

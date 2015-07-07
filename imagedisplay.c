@@ -391,8 +391,8 @@ imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
 		*image_y = display_y / imagedisplay->mag;
 	}
 	else {
-		*image_x = display_x * imagedisplay->mag;
-		*image_y = display_y * imagedisplay->mag;
+		*image_x = display_x * -imagedisplay->mag;
+		*image_y = display_y * -imagedisplay->mag;
 	}
 }
 
@@ -407,8 +407,8 @@ imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
 		*display_y = image_y * imagedisplay->mag;
 	}
 	else {
-		*display_x = image_x / imagedisplay->mag;
-		*display_y = image_y / imagedisplay->mag;
+		*display_x = image_x / -imagedisplay->mag;
+		*display_y = image_y / -imagedisplay->mag;
 	}
 }
 
