@@ -7,9 +7,24 @@ typedef struct _Imagedisplay {
 	VipsRegion *region;
 
 	int mag;
+
+	/* Watch image load with these.
+	 */
+	guint preeval_sig;
+	guint eval_sig;
+	guint posteval_sig;
 } Imagedisplay;
 
-typedef GtkDrawingAreaClass ImagedisplayClass;
+typedef struct _ImagedisplayClass {
+	GtkDrawingAreaClass parent_class;
+
+	/* Track image load.
+	 */
+	void (*preload)( Imagedisplay *imagedisplay, VipsProgress *progress );
+	void (*load)( Imagedisplay *imagedisplay, VipsProgress *progress );
+	void (*postload)( Imagedisplay *imagedisplay, VipsProgress *progress );
+
+} ImagedisplayClass;
 
 int imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file );
 

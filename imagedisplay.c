@@ -12,23 +12,41 @@
 
 G_DEFINE_TYPE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA );
 
+/* Our signals. 
+ */
+enum {
+	SIG_PRELOAD,
+	SIG_LOAD,
+	SIG_POSTLOAD,
+	SIG_LAST
+};
+
+static guint imagedisplay_signals[SIG_LAST] = { 0 };
+
 static void
 imagedisplay_empty( Imagedisplay *imagedisplay )
 {
-	if( imagedisplay->region ) {
-		g_object_unref( imagedisplay->region );
-		imagedisplay->region = NULL;
-	}
+	if( imagedisplay->preeval_sig &&
+		imagedisplay->image ) 
+		g_signal_handler_disconnect( imagedisplay->image, 
+			imagedisplay->preeval_sig ); 
+	imagedisplay->preeval_sig = 0;
 
-	if( imagedisplay->display ) {
-		g_object_unref( imagedisplay->display );
-		imagedisplay->display = NULL;
-	}
+	if( imagedisplay->eval_sig &&
+		imagedisplay->image ) 
+		g_signal_handler_disconnect( imagedisplay->image, 
+			imagedisplay->eval_sig ); 
+	imagedisplay->eval_sig = 0;
 
-	if( imagedisplay->image ) {
-		g_object_unref( imagedisplay->image );
-		imagedisplay->image = NULL;
-	}
+	if( imagedisplay->posteval_sig &&
+		imagedisplay->image ) 
+		g_signal_handler_disconnect( imagedisplay->image, 
+			imagedisplay->posteval_sig ); 
+	imagedisplay->posteval_sig = 0;
+
+	VIPS_UNREF( imagedisplay->region );
+	VIPS_UNREF( imagedisplay->display );
+	VIPS_UNREF( imagedisplay->image );
 }
 
 static void
@@ -155,6 +173,33 @@ imagedisplay_class_init( ImagedisplayClass *class )
 
 	widget_class->destroy = imagedisplay_destroy;
 	widget_class->draw = imagedisplay_draw;
+
+	imagedisplay_signals[SIG_PRELOAD] = g_signal_new( "preload",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ImagedisplayClass, preload ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
+	imagedisplay_signals[SIG_LOAD] = g_signal_new( "load",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ImagedisplayClass, load ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
+	imagedisplay_signals[SIG_POSTLOAD] = g_signal_new( "postload",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ImagedisplayClass, postload ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
 
 }
 
@@ -293,6 +338,55 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 	return( 0 );
 }
 
+static void
+imagedisplay_preeval( VipsImage *image, 
+	VipsProgress *progress, Imagedisplay *imagedisplay )
+{
+	g_signal_emit( imagedisplay, 
+		imagedisplay_signals[SIG_PRELOAD], 0, progress );
+}
+
+static void
+imagedisplay_eval( VipsImage *image, 
+	VipsProgress *progress, Imagedisplay *imagedisplay )
+{
+	g_signal_emit( imagedisplay, 
+		imagedisplay_signals[SIG_LOAD], 0, progress );
+}
+
+static void
+imagedisplay_posteval( VipsImage *image, 
+	VipsProgress *progress, Imagedisplay *imagedisplay )
+{
+	g_signal_emit( imagedisplay, 
+		imagedisplay_signals[SIG_POSTLOAD], 0, progress );
+}
+
+static void
+imagedisplay_attach_progress( Imagedisplay *imagedisplay )
+{
+	g_assert( !imagedisplay->preeval_sig );
+	g_assert( !imagedisplay->eval_sig );
+	g_assert( !imagedisplay->posteval_sig );
+
+	/* Attach an eval callback: this will tick down if we 
+	 * have to decode this image.
+	 */
+	vips_image_set_progress( imagedisplay->image, TRUE ); 
+	imagedisplay->preeval_sig = 
+		g_signal_connect( imagedisplay->image, "preeval",
+			G_CALLBACK( imagedisplay_preeval ), 
+			imagedisplay );
+	imagedisplay->eval_sig = 
+		g_signal_connect( imagedisplay->image, "eval",
+			G_CALLBACK( imagedisplay_eval ), 
+			imagedisplay );
+	imagedisplay->posteval_sig = 
+		g_signal_connect( imagedisplay->image, "posteval",
+			G_CALLBACK( imagedisplay_posteval ), 
+			imagedisplay );
+}
+
 int
 imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
 {
@@ -309,7 +403,6 @@ imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
 				g_free( path ); 
 				return( -1 );
 			}
-
 			g_free( path ); 
 		}
 		else if( g_file_load_contents( file, NULL, 
@@ -330,6 +423,8 @@ imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
 				"unable to load GFile object" );
 			return( -1 );
 		}
+
+		imagedisplay_attach_progress( imagedisplay ); 
 	}
 
 	imagedisplay_update_conversion( imagedisplay );

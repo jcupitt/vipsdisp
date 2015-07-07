@@ -6,6 +6,8 @@ typedef struct _Imageview {
 
 	GtkWidget *header_bar;
 	Imagepresent *imagepresent;
+	GtkWidget *info;
+	GtkWidget *progress;
 
 } Imageview;
 

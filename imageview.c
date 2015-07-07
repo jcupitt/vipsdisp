@@ -140,6 +140,35 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 	gtk_widget_destroy( dialog );
 }
 
+static void
+imageview_preload( Imagedisplay *imagedisplay, 
+	VipsProgress *progress, Imageview *imageview )
+{
+	gtk_widget_show( imageview->info );
+}
+
+static void
+imageview_load( Imagedisplay *imagedisplay, 
+	VipsProgress *progress, Imageview *imageview )
+{
+	static int previous_precent = -1;
+
+	if( progress->percent != previous_precent ) {
+		gtk_progress_bar_set_fraction( 
+			GTK_PROGRESS_BAR( imageview->progress ), 
+			progress->percent / 100.0 ); 
+
+		previous_precent = progress->percent;
+	}
+}
+
+static void
+imageview_postload( Imagedisplay *imagedisplay, 
+	VipsProgress *progress, Imageview *imageview )
+{
+	gtk_widget_hide( imageview->info );
+}
+
 Imageview *
 imageview_new( GtkApplication *application, GFile *file )
 {
@@ -150,6 +179,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	GtkWidget *menu_button;
 	GtkBuilder *builder;
 	GMenuModel *menu;
+	GtkWidget *grid;
+	GtkWidget *content_area;
 	int width;
 	int height;
 
@@ -174,10 +205,13 @@ imageview_new( GtkApplication *application, GFile *file )
 		GTK_HEADER_BAR( imageview->header_bar ), open ); 
 	g_signal_connect( open, "clicked", 
 		G_CALLBACK( imageview_open_clicked ), imageview );
+	gtk_widget_show( open );
 
 	menu_button = gtk_menu_button_new();
 	gtk_header_bar_pack_end( 
 		GTK_HEADER_BAR( imageview->header_bar ), menu_button ); 
+	gtk_widget_show( menu_button );
+
 	builder = gtk_builder_new_from_resource( 
 		"/vips/disp/gtk/imageview-popover.ui" ); 
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
@@ -187,12 +221,35 @@ imageview_new( GtkApplication *application, GFile *file )
 
 	gtk_window_set_titlebar( GTK_WINDOW( imageview ), 
 		imageview->header_bar ); 
+	gtk_widget_show( imageview->header_bar );
+
+	grid = gtk_grid_new();
+	gtk_container_add( GTK_CONTAINER( imageview ), grid ); 
+	gtk_widget_show( grid );
+
+	imageview->info = gtk_info_bar_new();
+	imageview->progress = gtk_progress_bar_new();
+	gtk_widget_set_hexpand( imageview->progress, TRUE ); 
+	content_area = gtk_info_bar_get_content_area( 
+		GTK_INFO_BAR( imageview->info ) );
+	gtk_container_add( GTK_CONTAINER( content_area ), imageview->progress );
+	gtk_widget_show( imageview->progress );
+	gtk_grid_attach( GTK_GRID( grid ), 
+		imageview->info, 0, 0, 1, 1 );
 
 	imageview->imagepresent = imagepresent_new();
 	gtk_widget_set_hexpand( GTK_WIDGET( imageview->imagepresent ), TRUE ); 
 	gtk_widget_set_vexpand( GTK_WIDGET( imageview->imagepresent ), TRUE ); 
-	gtk_container_add( GTK_CONTAINER( imageview ), 
-		GTK_WIDGET( imageview->imagepresent ) );
+	gtk_grid_attach( GTK_GRID( grid ), 
+		GTK_WIDGET( imageview->imagepresent ), 0, 1, 1, 1 ); 
+	gtk_widget_show( GTK_WIDGET( imageview->imagepresent ) );
+
+	g_signal_connect( imageview->imagepresent->imagedisplay, "preload",
+		G_CALLBACK( imageview_preload ), imageview );
+	g_signal_connect( imageview->imagepresent->imagedisplay, "load",
+		G_CALLBACK( imageview_load ), imageview );
+	g_signal_connect( imageview->imagepresent->imagedisplay, "postload",
+		G_CALLBACK( imageview_postload ), imageview );
 
 	imagepresent_set_file( imageview->imagepresent, file ); 
 
@@ -205,7 +262,7 @@ imageview_new( GtkApplication *application, GFile *file )
 			VIPS_MIN( 800, width ),
 			VIPS_MIN( 800, height + 83 ) ); 
 
-	gtk_widget_show_all( GTK_WIDGET( imageview ) );
+	gtk_widget_show( GTK_WIDGET( imageview ) );
 
 	return( imageview ); 
 }
