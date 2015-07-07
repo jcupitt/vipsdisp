@@ -444,6 +444,39 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 	return( handled ); 
 }
 
+static gboolean
+imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event, 
+	Imagepresent *imagepresent )
+{
+	gboolean handled;
+	int image_x;
+	int image_y;
+
+	handled = FALSE;
+
+	switch( event->direction ) {
+	case GDK_SCROLL_UP:
+		imagedisplay_to_image_cods( imagepresent->imagedisplay,
+			event->x, event->y,
+			&image_x, &image_y ); 
+		imagepresent_magin( imagepresent, image_x, image_y );
+
+		handled = TRUE;
+		break;
+
+	case GDK_SCROLL_DOWN:
+		imagepresent_magout( imagepresent ); 
+
+		handled = TRUE;
+		break;
+
+	default:
+		break;
+	}
+
+	return( handled ); 
+}
+
 Imagepresent *
 imagepresent_new( void ) 
 {
@@ -462,8 +495,11 @@ imagepresent_new( void )
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
 	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
 		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
+	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
+		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
 	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
-		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK );
+		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK |
+		GDK_SCROLL_MASK );
 
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
