@@ -26,23 +26,25 @@ static guint imagedisplay_signals[SIG_LAST] = { 0 };
 static void
 imagedisplay_empty( Imagedisplay *imagedisplay )
 {
-	if( imagedisplay->preeval_sig &&
-		imagedisplay->image ) 
-		g_signal_handler_disconnect( imagedisplay->image, 
-			imagedisplay->preeval_sig ); 
-	imagedisplay->preeval_sig = 0;
+	if( imagedisplay->image ) { 
+		if( imagedisplay->preeval_sig ) { 
+			g_signal_handler_disconnect( imagedisplay->image, 
+				imagedisplay->preeval_sig ); 
+			imagedisplay->preeval_sig = 0;
+		}
 
-	if( imagedisplay->eval_sig &&
-		imagedisplay->image ) 
-		g_signal_handler_disconnect( imagedisplay->image, 
-			imagedisplay->eval_sig ); 
-	imagedisplay->eval_sig = 0;
+		if( imagedisplay->eval_sig ) { 
+			g_signal_handler_disconnect( imagedisplay->image, 
+				imagedisplay->eval_sig ); 
+			imagedisplay->eval_sig = 0;
+		}
 
-	if( imagedisplay->posteval_sig &&
-		imagedisplay->image ) 
-		g_signal_handler_disconnect( imagedisplay->image, 
-			imagedisplay->posteval_sig ); 
-	imagedisplay->posteval_sig = 0;
+		if( imagedisplay->posteval_sig ) { 
+			g_signal_handler_disconnect( imagedisplay->image, 
+				imagedisplay->posteval_sig ); 
+			imagedisplay->posteval_sig = 0;
+		}
+	}
 
 	VIPS_UNREF( imagedisplay->region );
 	VIPS_UNREF( imagedisplay->display );
@@ -317,8 +319,8 @@ static int
 imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 {
 	if( imagedisplay->image ) { 
-		VIPS_UNREF( imagedisplay->display );
 		VIPS_UNREF( imagedisplay->region );
+		VIPS_UNREF( imagedisplay->display );
 
 		if( !(imagedisplay->display = 
 			imagedisplay_display_image( imagedisplay, 
@@ -441,7 +443,9 @@ imagedisplay_get_mag( Imagedisplay *imagedisplay )
 void
 imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag )
 {
-	if( imagedisplay->mag != mag ) { 
+	if( mag > -600 &&
+		mag < 1000000 &&
+		imagedisplay->mag != mag ) { 
 		imagedisplay->mag = mag;
 		imagedisplay_update_conversion( imagedisplay );
 	}
