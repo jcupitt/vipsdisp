@@ -23,6 +23,19 @@ $ ./vipsdisp ~/pics/k2.jpg
 * i, + / o, - to zoom in and out
 * Mousewheel to zoom
 
+### Structure
+
+`Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`.
+
+`Imagepresent` is a `GtkScrolledWindow` subclass that contains an
+`Imagedisplay` and adds a lot of navigation stuff. It uses the `GtkAdjustment`
+on the scrolled window to slide the drawing area around.
+
+`Imageview` is a `GtkApplicationWindow` subclass that contains an
+`Imagepresent` plus a header bar and some other UI bits.
+
+`disp` is the `main()`
+
 ### TODO
 
 - zoom in and out quickly, repaint breaks ... we start just getting black
@@ -30,10 +43,20 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - tab into image display part scrolls left to x == 0?
 
-  seems to happen whenever imagedisplay gets focus? you get it with left 
-  click to move focus to imagedisplay as well
+  gtkcontainer is calling `gtk_adjustment_clamp_page()`, and clamp page is
+  setting value to 0 because it's coded that way:
 
-- start with nopn-existent or broken file should show an error
+	https://git.gnome.org/browse/gtk+/tree/gtk/gtkadjustment.c#n932
+
+  is this a bug? building my own gtk and swapping these < and > seems to fix
+  it
+
+- add left-click-drag scrolling
+
+- start with non-existent or broken file should show an error
+
+- imagepresent should draw focus indicator? could just float on top of
+  viewport ... what would it look like with scrollbars?
 
 - resize window on image replace?
 

@@ -53,14 +53,8 @@ imagepresent_set_window_position( Imagepresent *imagepresent,
 
 	printf( "imagepresent_set_window_position: %d %d\n", left, top ); 
 
-	if( gtk_adjustment_get_value( hadj ) != left ) { 
-		gtk_adjustment_set_value( hadj, left );
-		gtk_adjustment_value_changed( hadj );
-	}
-	if( gtk_adjustment_get_value( vadj ) != top ) { 
-		gtk_adjustment_set_value( vadj, top );
-		gtk_adjustment_value_changed( vadj );
-	}
+	gtk_adjustment_set_value( hadj, left );
+	gtk_adjustment_set_value( vadj, top );
 }
 
 gboolean

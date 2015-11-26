@@ -131,11 +131,11 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
+	printf( "imagedisplay_draw:\n" ); 
+
 	if( imagedisplay->region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
-
-		//printf( "disp_draw:\n" ); 
 
 		if( rectangle_list->status == CAIRO_STATUS_SUCCESS ) { 
 			int i;
@@ -252,9 +252,7 @@ imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
 	g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
 }
 
-/* Make the image for display from the raw disc image. Could do
- * anything here, really. Uncomment sections to try different effects. Convert
- * to 8-bit RGB would be a good idea.
+/* Make the image for display from the raw disc image. 
  */
 static VipsImage *
 imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
