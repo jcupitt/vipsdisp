@@ -72,12 +72,10 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	int x, y;
 	cairo_surface_t *surface;
 
-	/*
 	printf( "imagedisplay_draw_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
-	 */
 
 	/* Clip against the image size ... we don't want to try painting 
 	 * outside the image area.
@@ -446,6 +444,8 @@ imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag )
 	if( mag > -600 &&
 		mag < 1000000 &&
 		imagedisplay->mag != mag ) { 
+		printf( "imagedisplay_set_mag: %d\n", mag ); 
+
 		imagedisplay->mag = mag;
 		imagedisplay_update_conversion( imagedisplay );
 	}

@@ -253,6 +253,8 @@ imageview_new( GtkApplication *application, GFile *file )
 
 	imagepresent_set_file( imageview->imagepresent, file ); 
 
+	imageview_update_header( imageview ); 
+
 	/* 83 is a magic number for the height of the top 
 	 * bar on my laptop. 
 	 */

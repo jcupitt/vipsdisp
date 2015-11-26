@@ -262,8 +262,10 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 {
 	VIPS_UNREF( imagepresent->file );
 
-	imagepresent->file = file;
-	g_object_ref( file ); 
+	if( file ) { 
+		imagepresent->file = file;
+		g_object_ref( file ); 
+	}
 
 	if( imagedisplay_set_file( imagepresent->imagedisplay, 
 		imagepresent->file ) )
