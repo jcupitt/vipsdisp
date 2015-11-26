@@ -428,6 +428,27 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 }
 
 static gboolean
+imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event, 
+	Imagepresent *imagepresent )
+{
+	gboolean handled;
+
+	printf( "imagepresent_button_press_event:\n" ); 
+
+	handled = FALSE;
+
+	if( event->button == 1 ) {
+		/* This handler is attached to the imagedisplay, so widget is
+		 * imagedisplay, not imagepresent.
+		 */
+		gtk_widget_grab_focus( widget );
+		handled = TRUE;
+	}
+
+	return( handled ); 
+}
+
+static gboolean
 imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event, 
 	Imagepresent *imagepresent )
 {
@@ -453,6 +474,8 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 	gboolean handled;
 	int image_x;
 	int image_y;
+
+	printf( "imagepresent_scroll_event:\n" );
 
 	handled = FALSE;
 
@@ -491,17 +514,17 @@ imagepresent_new( void )
 
 	imagepresent->imagedisplay = imagedisplay_new();
 
-	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent->imagedisplay ), 
-		TRUE ); 
 	g_signal_connect( imagepresent->imagedisplay, "key-press-event",
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
+	g_signal_connect( imagepresent->imagedisplay, "button-press-event",
+		G_CALLBACK( imagepresent_button_press_event ), imagepresent ); 
 	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
 		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
 	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
 		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
 	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
 		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK |
-		GDK_SCROLL_MASK );
+		GDK_BUTTON_PRESS_MASK | GDK_SCROLL_MASK );
 
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );

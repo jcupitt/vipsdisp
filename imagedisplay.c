@@ -62,6 +62,7 @@ imagedisplay_destroy( GtkWidget *widget )
 
 	GTK_WIDGET_CLASS( imagedisplay_parent_class )->destroy( widget );
 }
+
 static void
 imagedisplay_draw_rect( Imagedisplay *imagedisplay, 
 	cairo_t *cr, VipsRect *expose )
@@ -85,9 +86,13 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	image.width = imagedisplay->region->im->Xsize;
 	image.height = imagedisplay->region->im->Ysize;
 	vips_rect_intersectrect( &image, expose, &clip );
-	if( vips_rect_isempty( &clip ) ||
-		vips_region_prepare( imagedisplay->region, &clip ) )
+	if( vips_rect_isempty( &clip ) )
 		return;
+	if( vips_region_prepare( imagedisplay->region, &clip ) ) {
+		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
+		vips_error_clear();
+		return;
+	}
 
 	/* libvips is RGB, cairo is ARGB, we have to repack the data.
 	 */
@@ -162,6 +167,7 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 	printf( "imagedisplay_init:\n" ); 
 
 	imagedisplay->mag = 1;
+	gtk_widget_set_can_focus( GTK_WIDGET( imagedisplay ), TRUE ); 
 }
 
 static void

@@ -27,10 +27,39 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - zoom in and out quickly, repaint breaks ... we start just getting black
   everywhere 
-- does not quit correctly? ^Q works, x in title bar does not?
-- keyboard stops working sometimes ... the kb focus gets on one of the
-  titlebar buttons and clicking on the image does not the focus back there
-  again
+
+- tab into image display part scrolls left to x == 0?
+
+  seems to happen whenever imagedisplay gets focus? you get it with left 
+  click to move focus to imagedisplay as well
+
+- start with nopn-existent or broken file should show an error
+
 - resize window on image replace?
+
+- zoom out enough and you get an underflow in `imagepresent_set_mag()`
+
+```
+imagepresent_get_window_position: 0 0 360 55
+imagedisplay_set_mag: -16
+imagepresent_set_mag: new size 2 2
+imagepresent_set_window_position: -90 -14
+imagedisplay_draw_rect: left = 0, top = 0, width = 360, height = 55
+imagedisplay_draw_rect: left = 0, top = 0, width = 128, height = 55
+imagepresent_magout:
+imagepresent_set_mag_centre:
+imagepresent_get_window_position: 0 0 360 55
+imagedisplay_set_mag: -32
+imagepresent_set_mag: new size 1 1
+imagepresent_set_window_position: -90 -14
+imagedisplay_draw_rect: left = 0, top = 0, width = 360, height = 55
+imagedisplay_draw_rect: left = 0, top = 0, width = 128, height = 55
+imagepresent_magout:
+imagepresent_set_mag_centre:
+imagepresent_get_window_position: 0 0 360 55
+imagedisplay_set_mag: -64
+imagepresent_set_mag: new size -1281283988 32767
+```
+imagepresent_set_window_position: -90 -14
 
 
