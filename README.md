@@ -45,8 +45,6 @@ on the scrolled window to slide the drawing area around.
 
 - centre on zoom out, if the image becomes smaller than the window
 
-- add left-click-drag scrolling
-
 - fullscreen mode isn't working?
 
 - status bar: width, height, %zoom, size in kb, view mode etc, 

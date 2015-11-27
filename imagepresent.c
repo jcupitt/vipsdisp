@@ -477,6 +477,32 @@ imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event,
 		handled = TRUE;
 	}
 
+	switch( imagepresent->state ) {
+	case IMAGEPRESENT_WAIT:
+		if( event->button == 1 ) {
+			int window_left;
+			int window_top;
+			int window_width;
+			int window_height;
+
+			imagepresent_get_window_position( imagepresent, 
+				&window_left, &window_top, 
+				&window_width, &window_height );
+
+			imagepresent->state = IMAGEPRESENT_DRAG;
+			imagepresent->drag_start_x = 
+				window_left + event->x_root;
+			imagepresent->drag_start_y = 
+				window_top + event->y_root;
+
+			handled = TRUE;
+		}
+		break;
+	
+	default:
+		break;
+	}
+
 	return( handled ); 
 }
 
@@ -495,6 +521,43 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 
 	imagepresent->last_x = event->x;
 	imagepresent->last_y = event->y;
+
+	switch( imagepresent->state ) {
+	case IMAGEPRESENT_DRAG:
+		imagepresent_set_window_position( imagepresent,
+			imagepresent->drag_start_x - event->x_root, 
+			imagepresent->drag_start_y - event->y_root );  
+		break;
+
+	default:
+		break;
+	}
+
+	return( handled ); 
+}
+
+static gboolean
+imagepresent_button_release_event( GtkWidget *widget, GdkEventButton *event, 
+	Imagepresent *imagepresent )
+{
+	gboolean handled;
+
+	printf( "imagepresent_button_release_event:\n" ); 
+
+	handled = FALSE;
+
+	switch( imagepresent->state ) {
+	case IMAGEPRESENT_DRAG:
+		if( event->button == 1 ) {
+			imagepresent->state = IMAGEPRESENT_WAIT;
+
+			handled = TRUE;
+		}
+		break;
+
+	default:
+		break;
+	}
 
 	return( handled ); 
 }
@@ -557,11 +620,14 @@ imagepresent_new( void )
 		G_CALLBACK( imagepresent_button_press_event ), imagepresent ); 
 	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
 		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
+	g_signal_connect( imagepresent->imagedisplay, "button-release-event",
+		G_CALLBACK( imagepresent_button_release_event ), imagepresent );
 	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
 		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
 	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
 		GDK_POINTER_MOTION_MASK | 
 		GDK_BUTTON_PRESS_MASK | 
+		GDK_BUTTON_RELEASE_MASK | 
 		GDK_SCROLL_MASK );
 
 	/* Draw the focus indicator after rendering the image.

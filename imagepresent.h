@@ -1,4 +1,18 @@
 
+/* Our state. 
+ */
+typedef enum _ImagepresentState {
+	/* Base doing-nothing state.
+	 */
+	IMAGEPRESENT_WAIT,
+
+	/* Doing a left-mouse-drag action.
+	 */
+	IMAGEPRESENT_DRAG,
+
+	IMAGEPRESENT_LAST
+} ImagepresentState;
+
 typedef struct _Imagepresent {
 	GtkScrolledWindow parent_instance;
 
@@ -10,6 +24,16 @@ typedef struct _Imagepresent {
 	 */
 	int last_x;
 	int last_y;
+
+	/* Current state.
+	 */
+	ImagepresentState state;
+
+	/* For DRAG, the mouse x/y when we started the drag, in root window
+	 * coordinates.
+	 */
+	int drag_start_x;
+	int drag_start_y;
 
 } Imagepresent;
 
