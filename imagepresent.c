@@ -18,7 +18,7 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 	GdkWindow *window = gtk_widget_get_window( widget );
 	GtkStyleContext *context = gtk_widget_get_style_context( widget );
 
-	printf( "imagepresent_draw:\n" ); 
+	//printf( "imagepresent_draw:\n" ); 
 
 	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
 
@@ -546,17 +546,26 @@ imagepresent_new( void )
 
 	imagepresent->imagedisplay = imagedisplay_new();
 
+	/* The imagepresent takes the focus, so we must listen for keypresses
+	 * there. We get the mouse position from (last_x, last_y), which we
+	 * record in the motion handler. 
+	 */
 	g_signal_connect( imagepresent, "key-press-event",
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
-	g_signal_connect( imagepresent, "button-press-event",
+
+	g_signal_connect( imagepresent->imagedisplay, "button-press-event",
 		G_CALLBACK( imagepresent_button_press_event ), imagepresent ); 
-	g_signal_connect( imagepresent, "motion-notify-event",
+	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
 		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
-	g_signal_connect( imagepresent, "scroll-event",
+	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
 		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
-	gtk_widget_add_events( GTK_WIDGET( imagepresent ),
-		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK |
-		GDK_BUTTON_PRESS_MASK | GDK_SCROLL_MASK );
+	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
+		GDK_POINTER_MOTION_MASK | 
+		GDK_BUTTON_PRESS_MASK | 
+		GDK_SCROLL_MASK );
+
+	/* Draw the focus indicator after rendering the image.
+	 */
 	g_signal_connect_after( imagepresent, "draw",
 		G_CALLBACK( imagepresent_draw ), imagepresent );
 

@@ -40,6 +40,10 @@ on the scrolled window to slide the drawing area around.
 
 - start with non-existent or broken file should show an error
 
+  we have imageview::info displaying the progress bar
+
+  add imageview::error for an error box?
+
 - zoom in and out quickly, repaint breaks ... we start just getting black
   everywhere 
 
@@ -51,8 +55,4 @@ on the scrolled window to slide the drawing area around.
 
 - resize window on image replace?
 
-- i/o etc. break, they now see event cods for imagepresent, not imagedisplay,
-  we need to add the left/top offset
-
-- mousewheel zoom is broken? instead we are now scrolling the viewport
 
