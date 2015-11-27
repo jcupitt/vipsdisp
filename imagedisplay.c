@@ -91,6 +91,7 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	if( vips_region_prepare( imagedisplay->region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
+		abort();
 		return;
 	}
 
@@ -158,7 +159,7 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 		cairo_rectangle_list_destroy( rectangle_list );
 	}
 
-	return( TRUE ); 
+	return( FALSE ); 
 }
 
 static void
@@ -167,7 +168,6 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 	printf( "imagedisplay_init:\n" ); 
 
 	imagedisplay->mag = 1;
-	gtk_widget_set_can_focus( GTK_WIDGET( imagedisplay ), TRUE ); 
 }
 
 static void
@@ -331,6 +331,10 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 		if( !(imagedisplay->region = 
 			vips_region_new( imagedisplay->display )) )
 			return( -1 ); 
+
+		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
+			imagedisplay->display->Xsize, 
+			imagedisplay->display->Ysize );
 
 		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
 			imagedisplay->display->Xsize, 

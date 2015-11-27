@@ -12,16 +12,42 @@
 
 G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_SCROLLED_WINDOW );
 
+static gboolean
+imagepresent_draw( GtkWidget *widget, cairo_t *cr )
+{
+	GdkWindow *window = gtk_widget_get_window( widget );
+	GtkStyleContext *context = gtk_widget_get_style_context( widget );
+
+	printf( "imagepresent_draw:\n" ); 
+
+	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
+
+	if( gtk_cairo_should_draw_window( cr, window ) ) {
+		if( gtk_widget_has_focus( widget ) ) 
+			gtk_render_focus( context, cr, 0, 0, 
+				gtk_widget_get_allocated_width( widget ), 
+				gtk_widget_get_allocated_height( widget ) ); 
+	}
+
+	return( FALSE ); 
+}
+
 static void
-imagepresent_init( Imagepresent *Imagepresent )
+imagepresent_init( Imagepresent *imagepresent )
 {
 	printf( "imagepresent_init:\n" ); 
+
+	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
 }
 
 static void
 imagepresent_class_init( ImagepresentClass *class )
 {
+	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
+
 	printf( "imagepresent_class_init:\n" ); 
+
+	widget_class->draw = imagepresent_draw;
 }
 
 void
@@ -86,6 +112,8 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	int width;
 	int height;
 
+	printf( "imagepresent_set_mag: %d\n", mag ); 
+
 	/* We need to update last_x/_y ... go via image cods.
 	 */
 	imagedisplay_to_image_cods( imagepresent->imagedisplay,
@@ -103,11 +131,13 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	 * loop again. If we set position after calling set_mag, we need to
 	 * have the new adj range set immediately.
 	 */
-	imagepresent_get_display_image_size( imagepresent, &width, &height );
-	gtk_adjustment_set_upper( hadj, width );
-	gtk_adjustment_set_upper( vadj, height );
-
-	printf( "imagepresent_set_mag: new size %d %d\n", width, height ); 
+	if( imagepresent_get_display_image_size( imagepresent, 
+		&width, &height ) ) { 
+		printf( "imagepresent_set_mag: new size %d %d\n", 
+			width, height ); 
+		gtk_adjustment_set_upper( hadj, width );
+		gtk_adjustment_set_upper( vadj, height );
+	}
 }
 
 /* Set mag, keeping the pixel in the centre of the screen in the centre of the
@@ -187,9 +217,20 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 void
 imagepresent_magout( Imagepresent *imagepresent )
 {
+	int image_width;
+	int image_height;
 	int mag;
 
 	printf( "imagepresent_magout:\n" ); 
+
+	/* Don't let the image get too small.
+	 */
+	if( !imagepresent_get_display_image_size( imagepresent, 
+		&image_width, &image_height ) ) 
+		return;
+	if( image_width == 1 ||
+		image_height == 1 )
+		return;
 
 	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
 	if( mag >= 0 )  {
@@ -432,10 +473,7 @@ imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event,
 	handled = FALSE;
 
 	if( event->button == 1 ) {
-		/* This handler is attached to the imagedisplay, so widget is
-		 * imagedisplay, not imagepresent.
-		 */
-		gtk_widget_grab_focus( widget );
+		gtk_widget_grab_focus( GTK_WIDGET( imagepresent ) );
 		handled = TRUE;
 	}
 
@@ -508,17 +546,19 @@ imagepresent_new( void )
 
 	imagepresent->imagedisplay = imagedisplay_new();
 
-	g_signal_connect( imagepresent->imagedisplay, "key-press-event",
+	g_signal_connect( imagepresent, "key-press-event",
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
-	g_signal_connect( imagepresent->imagedisplay, "button-press-event",
+	g_signal_connect( imagepresent, "button-press-event",
 		G_CALLBACK( imagepresent_button_press_event ), imagepresent ); 
-	g_signal_connect( imagepresent->imagedisplay, "motion-notify-event",
+	g_signal_connect( imagepresent, "motion-notify-event",
 		G_CALLBACK( imagepresent_motion_notify_event ), imagepresent );
-	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
+	g_signal_connect( imagepresent, "scroll-event",
 		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
-	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
+	gtk_widget_add_events( GTK_WIDGET( imagepresent ),
 		GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK |
 		GDK_BUTTON_PRESS_MASK | GDK_SCROLL_MASK );
+	g_signal_connect_after( imagepresent, "draw",
+		G_CALLBACK( imagepresent_draw ), imagepresent );
 
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );

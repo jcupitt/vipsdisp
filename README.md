@@ -38,51 +38,21 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
+- start with non-existent or broken file should show an error
+
 - zoom in and out quickly, repaint breaks ... we start just getting black
   everywhere 
 
-- tab into image display part scrolls left to x == 0?
-
-  gtkcontainer is calling `gtk_adjustment_clamp_page()`, and clamp page is
-  setting value to 0 because it's coded that way:
-
-	https://git.gnome.org/browse/gtk+/tree/gtk/gtkadjustment.c#n932
-
-  is this a bug? building my own gtk and swapping these < and > seems to fix
-  it
+  mysterious :( maybe not important?
 
 - add left-click-drag scrolling
 
-- start with non-existent or broken file should show an error
-
-- imagepresent should draw focus indicator? could just float on top of
-  viewport ... what would it look like with scrollbars?
+  imageview has info containing progress, need an error indicator widget too
 
 - resize window on image replace?
 
-- zoom out enough and you get an underflow in `imagepresent_set_mag()`
+- i/o etc. break, they now see event cods for imagepresent, not imagedisplay,
+  we need to add the left/top offset
 
-```
-imagepresent_get_window_position: 0 0 360 55
-imagedisplay_set_mag: -16
-imagepresent_set_mag: new size 2 2
-imagepresent_set_window_position: -90 -14
-imagedisplay_draw_rect: left = 0, top = 0, width = 360, height = 55
-imagedisplay_draw_rect: left = 0, top = 0, width = 128, height = 55
-imagepresent_magout:
-imagepresent_set_mag_centre:
-imagepresent_get_window_position: 0 0 360 55
-imagedisplay_set_mag: -32
-imagepresent_set_mag: new size 1 1
-imagepresent_set_window_position: -90 -14
-imagedisplay_draw_rect: left = 0, top = 0, width = 360, height = 55
-imagedisplay_draw_rect: left = 0, top = 0, width = 128, height = 55
-imagepresent_magout:
-imagepresent_set_mag_centre:
-imagepresent_get_window_position: 0 0 360 55
-imagedisplay_set_mag: -64
-imagepresent_set_mag: new size -1281283988 32767
-```
-imagepresent_set_window_position: -90 -14
-
+- mousewheel zoom is broken? instead we are now scrolling the viewport
 
