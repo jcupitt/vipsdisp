@@ -103,6 +103,21 @@ imageview_update_header( Imageview *imageview )
 }
 
 static void
+imageview_show_error( Imageview *imageview )
+{
+	gtk_label_set_text( GTK_LABEL( imageview->error_label ), 
+		vips_error_buffer() ); 
+	vips_error_clear();
+	gtk_widget_show( imageview->error_info );
+}
+
+static void
+imageview_hide_error( Imageview *imageview )
+{
+	gtk_widget_hide( imageview->error_info );
+}
+
+static void
 imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 {
 	GtkWidget *dialog;
@@ -127,11 +142,14 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 		char *path;
 		GFile *file;
 
+		imageview_hide_error( imageview ); 
 		path = gtk_file_chooser_get_filename( 
 			GTK_FILE_CHOOSER( dialog ) );
 		file = g_file_new_for_path( path );
 		g_free( path );
-		imagepresent_set_file( imageview->imagepresent, file ); 
+		if( imagepresent_set_file( imageview->imagepresent, file ) )
+			imageview_show_error( imageview ); 
+
 		g_object_unref( file ); 
 
 		imageview_update_header( imageview ); 
@@ -144,7 +162,7 @@ static void
 imageview_preload( Imagedisplay *imagedisplay, 
 	VipsProgress *progress, Imageview *imageview )
 {
-	gtk_widget_show( imageview->info );
+	gtk_widget_show( imageview->progress_info );
 }
 
 static void
@@ -166,7 +184,7 @@ static void
 imageview_postload( Imagedisplay *imagedisplay, 
 	VipsProgress *progress, Imageview *imageview )
 {
-	gtk_widget_hide( imageview->info );
+	gtk_widget_hide( imageview->progress_info );
 }
 
 Imageview *
@@ -227,15 +245,27 @@ imageview_new( GtkApplication *application, GFile *file )
 	gtk_container_add( GTK_CONTAINER( imageview ), grid ); 
 	gtk_widget_show( grid );
 
-	imageview->info = gtk_info_bar_new();
+	imageview->progress_info = gtk_info_bar_new();
 	imageview->progress = gtk_progress_bar_new();
 	gtk_widget_set_hexpand( imageview->progress, TRUE ); 
 	content_area = gtk_info_bar_get_content_area( 
-		GTK_INFO_BAR( imageview->info ) );
+		GTK_INFO_BAR( imageview->progress_info ) );
 	gtk_container_add( GTK_CONTAINER( content_area ), imageview->progress );
 	gtk_widget_show( imageview->progress );
 	gtk_grid_attach( GTK_GRID( grid ), 
-		imageview->info, 0, 0, 1, 1 );
+		imageview->progress_info, 0, 0, 1, 1 );
+
+	imageview->error_info = gtk_info_bar_new();
+	gtk_info_bar_set_message_type( GTK_INFO_BAR( imageview->error_info ),
+		GTK_MESSAGE_ERROR );
+	imageview->error_label = gtk_label_new( "hello" );
+	content_area = gtk_info_bar_get_content_area( 
+		GTK_INFO_BAR( imageview->error_info ) );
+	gtk_container_add( GTK_CONTAINER( content_area ), 
+		imageview->error_label );
+	gtk_widget_show( imageview->error_label );
+	gtk_grid_attach( GTK_GRID( grid ), 
+		imageview->error_info, 0, 0, 1, 1 );
 
 	imageview->imagepresent = imagepresent_new();
 	gtk_widget_set_hexpand( GTK_WIDGET( imageview->imagepresent ), TRUE ); 
@@ -251,8 +281,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	g_signal_connect( imageview->imagepresent->imagedisplay, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
 
-	imagepresent_set_file( imageview->imagepresent, file ); 
-
+	if( imagepresent_set_file( imageview->imagepresent, file ) )
+		imageview_show_error( imageview ); 
 	imageview_update_header( imageview ); 
 
 	/* 83 is a magic number for the height of the top 

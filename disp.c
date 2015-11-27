@@ -15,7 +15,7 @@ G_DEFINE_TYPE( Disp, disp, GTK_TYPE_APPLICATION );
 static void
 disp_finalize( GObject *object )
 {
-	Disp *disp = (Disp *) object;
+	//Disp *disp = (Disp *) object;
 
 	printf( "disp_finalize:\n" ); 
 
@@ -40,7 +40,7 @@ static GActionEntry app_entries[] = {
 static void
 disp_startup( GApplication *application )
 {
-	Disp *disp = (Disp *) application;
+	//Disp *disp = (Disp *) application;
 	GtkApplication *app = GTK_APPLICATION( application );
 
 	int i;
@@ -72,7 +72,7 @@ disp_startup( GApplication *application )
 static void
 disp_shutdown( GApplication *application )
 {
-	Disp *disp = (Disp *) application;
+	//Disp *disp = (Disp *) application;
 	GList *windows;
 
 	printf( "disp_shutdown:\n" ); 

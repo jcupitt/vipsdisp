@@ -38,20 +38,22 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
-- start with non-existent or broken file should show an error
-
-  we have imageview::info displaying the progress bar
-
-  add imageview::error for an error box?
-
 - zoom in and out quickly, repaint breaks ... we start just getting black
   everywhere 
 
   mysterious :( maybe not important?
 
+- centre on zoom out, if the image becomes smaller than the window
+
 - add left-click-drag scrolling
 
-  imageview has info containing progress, need an error indicator widget too
+- fullscreen mode isn't working?
+
+- status bar: width, height, %zoom, size in kb, view mode etc, 
+
+- header display
+
+- eog-style dark theme? I guess they just have some special css for this
 
 - resize window on image replace?
 
