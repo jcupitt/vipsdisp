@@ -12,6 +12,15 @@
 
 G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_SCROLLED_WINDOW );
 
+/* Our signals. 
+ */
+enum {
+	SIG_POSITION_CHANGED,
+	SIG_LAST
+};
+
+static guint imagepresent_signals[SIG_LAST] = { 0 };
+
 static gboolean
 imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 {
@@ -48,6 +57,22 @@ imagepresent_class_init( ImagepresentClass *class )
 	printf( "imagepresent_class_init:\n" ); 
 
 	widget_class->draw = imagepresent_draw;
+
+	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
+		"position_changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ImagepresentClass, position_changed ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
+}
+
+static void
+imagepresent_position_changed( Imagepresent *imagepresent )
+{
+	g_signal_emit( imagepresent, 
+		imagepresent_signals[SIG_POSITION_CHANGED], 0 );
 }
 
 void
@@ -138,6 +163,10 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 		gtk_adjustment_set_upper( hadj, width );
 		gtk_adjustment_set_upper( vadj, height );
 	}
+
+	/* mag has changed.
+	 */
+	imagepresent_position_changed( imagepresent );
 }
 
 /* Set mag, keeping the pixel in the centre of the screen in the centre of the
@@ -532,6 +561,10 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 	default:
 		break;
 	}
+
+	/* last_x/_y has changed.
+	 */
+	imagepresent_position_changed( imagepresent );
 
 	return( handled ); 
 }

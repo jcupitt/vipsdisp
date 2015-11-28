@@ -46,8 +46,11 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 		}
 	}
 
-	VIPS_UNREF( imagedisplay->region );
 	VIPS_UNREF( imagedisplay->display );
+	VIPS_UNREF( imagedisplay->display_region );
+	VIPS_UNREF( imagedisplay->srgb );
+	VIPS_UNREF( imagedisplay->srgb_region );
+
 	VIPS_UNREF( imagedisplay->image );
 }
 
@@ -83,12 +86,12 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	 */
 	image.left = 0;
 	image.top = 0;
-	image.width = imagedisplay->region->im->Xsize;
-	image.height = imagedisplay->region->im->Ysize;
+	image.width = imagedisplay->srgb_region->im->Xsize;
+	image.height = imagedisplay->srgb_region->im->Ysize;
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) )
 		return;
-	if( vips_region_prepare( imagedisplay->region, &clip ) ) {
+	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
@@ -100,7 +103,7 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	cairo_buffer = g_malloc( clip.width * clip.height * 4 );
 
 	for( y = 0; y < clip.height; y++ ) {
-		VipsPel *p = VIPS_REGION_ADDR( imagedisplay->region, 
+		VipsPel *p = VIPS_REGION_ADDR( imagedisplay->srgb_region, 
 			clip.left, clip.top + y );
 		unsigned char *q = cairo_buffer + clip.width * 4 * y;
 
@@ -134,7 +137,7 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 
 	printf( "imagedisplay_draw:\n" ); 
 
-	if( imagedisplay->region ) {
+	if( imagedisplay->srgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 
@@ -252,7 +255,8 @@ imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
 	g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
 }
 
-/* Make the image for display from the raw disc image. 
+/* Make the screen image. This is the thing we display pixel values from in
+ * the status bar.
  */
 static VipsImage *
 imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
@@ -284,6 +288,23 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 		g_object_unref( image );
 		image = x;
 	}
+
+	return( image );
+}
+
+/* Make the srgb image we paint with. 
+ */
+static VipsImage *
+imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in )
+{
+	VipsImage *image;
+	VipsImage *x;
+
+	/* image redisplays the head of the pipeline. Hold a ref to it as we
+	 * work.
+	 */
+	image = in;
+	g_object_ref( image ); 
 
 	/* This won't work for CMYK, you need to mess about with ICC profiles
 	 * for that, but it will work for everything else.
@@ -321,15 +342,25 @@ static int
 imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 {
 	if( imagedisplay->image ) { 
-		VIPS_UNREF( imagedisplay->region );
 		VIPS_UNREF( imagedisplay->display );
+		VIPS_UNREF( imagedisplay->display_region );
+		VIPS_UNREF( imagedisplay->srgb );
+		VIPS_UNREF( imagedisplay->srgb_region );
 
 		if( !(imagedisplay->display = 
 			imagedisplay_display_image( imagedisplay, 
 				imagedisplay->image )) ) 
 			return( -1 ); 
-		if( !(imagedisplay->region = 
+		if( !(imagedisplay->display_region = 
 			vips_region_new( imagedisplay->display )) )
+			return( -1 ); 
+
+		if( !(imagedisplay->srgb = 
+			imagedisplay_srgb_image( imagedisplay, 
+				imagedisplay->display )) ) 
+			return( -1 ); 
+		if( !(imagedisplay->srgb_region = 
+			vips_region_new( imagedisplay->srgb )) )
 			return( -1 ); 
 
 		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
@@ -517,6 +548,21 @@ imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
 		*display_x = image_x / -imagedisplay->mag;
 		*display_y = image_y / -imagedisplay->mag;
 	}
+}
+
+VipsPel *
+imagedisplay_get_ink( Imagedisplay *imagedisplay, int x, int y )
+{
+	VipsRect rect;
+
+	rect.left = x;
+	rect.top = y;
+	rect.width = 1;
+	rect.height = 1;
+	if( vips_region_prepare( imagedisplay->display_region, &rect ) )
+		return( NULL );
+
+	return( VIPS_REGION_ADDR( imagedisplay->display_region, x, y ) );  
 }
 
 Imagedisplay *

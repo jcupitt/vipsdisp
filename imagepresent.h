@@ -37,7 +37,12 @@ typedef struct _Imagepresent {
 
 } Imagepresent;
 
-typedef GtkScrolledWindowClass ImagepresentClass;
+typedef struct _ImagepresentClass {
+	GtkScrolledWindowClass parent_class;
+
+	void (*position_changed)( Imagepresent *imagepresent ); 
+
+} ImagepresentClass;
 
 void imagepresent_get_window_position( Imagepresent *imagepresent, 
 	int *left, int *top, int *width, int *height );

@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <gtk/gtk.h>
 
@@ -80,10 +81,184 @@ static GActionEntry imageview_entries[] = {
 	{ "bestfit", imageview_bestfit }
 };
 
-static int
-imageview_update_header( Imageview *imageview )
+/* Display a LABPACK value.
+ */
+static void
+imageview_status_value_labpack( Imageview *imageview, VipsBuf *buf, VipsPel *p )
 {
+	unsigned int iL = (p[0] << 2) | (p[3] >> 6);
+	float L = 100.0 * iL / 1023.0;
+	signed int ia = ((signed char) p[1] << 3) | ((p[3] >> 3) & 0x7);
+	float a = 0.125 * ia;
+	signed int ib = ((signed char) p[2] << 3) | (p[3] & 0x7);
+	float b = 0.125 * ib;
+
+	vips_buf_appendf( buf, "%5g ", L );
+	vips_buf_appendf( buf, "%5g ", a );
+	vips_buf_appendf( buf, "%5g ", b );
+}
+
+/* Diplay a RAD. 
+ */
+static void
+imageview_status_value_rad( Imageview *imageview, VipsBuf *buf, VipsPel *p )
+{
+	double f = ldexp( 1.0, p[3] - (128 + 8) );
+	float r = (p[0] + 0.5) * f;
+	float g = (p[1] + 0.5) * f;
+	float b = (p[2] + 0.5) * f;
+
+	vips_buf_appendf( buf, "%5g ", r );
+	vips_buf_appendf( buf, "%5g ", g );
+	vips_buf_appendf( buf, "%5g ", b );
+}
+
+static void 
+imageview_status_value_uncoded( Imageview *imageview, 
+	VipsBuf *buf, VipsPel *p )
+{
+	VipsImage *image = imageview->imagepresent->imagedisplay->image;
+
+	int i;
+
+	for( i = 0; i < image->Bands; i++ ) {
+		switch( image->BandFmt ) {
+		case VIPS_FORMAT_UCHAR:
+			vips_buf_appendf( buf, 
+				"%3d ", ((unsigned char *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_CHAR:
+			vips_buf_appendf( buf, 
+				"%4d ", ((char *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_USHORT:
+			vips_buf_appendf( buf, 
+				"%7d ", ((unsigned short *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_SHORT:
+			vips_buf_appendf( buf, 
+				"%7d ", ((short *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_UINT:
+			vips_buf_appendf( buf, 
+				"%8d ", ((unsigned int *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_INT:
+			vips_buf_appendf( buf, 
+				"%8d ", ((int *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_FLOAT:
+			vips_buf_appendf( buf, 
+				"%10g ", ((float *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_COMPLEX:
+			vips_buf_appendf( buf, 
+				"(%7g,%7g) ", 
+				((float *)p)[0], ((float *)p)[1] );
+			break;
+
+		case VIPS_FORMAT_DOUBLE:
+			vips_buf_appendf( buf, 
+				"%10g ", ((double *)p)[0] );
+			break;
+
+		case VIPS_FORMAT_DPCOMPLEX:
+			vips_buf_appendf( buf, "(%7g,%7g) ", 
+				((double *)p)[0], 
+				((double *)p)[1] );
+			break;
+
+		default:
+			vips_buf_appendf( buf, " " );
+			break;
+		}
+
+		p += VIPS_IMAGE_SIZEOF_ELEMENT( image );
+	}
+}
+
+void 
+imageview_status_value( Imageview *imageview, VipsBuf *buf, int x, int y ) 
+{
+	VipsImage *image = imageview->imagepresent->imagedisplay->image;
+	Imagedisplay *imagedisplay = imageview->imagepresent->imagedisplay;
+
+	VipsPel *ink;
+
+	if( image &&
+		(ink = imagedisplay_get_ink( imagedisplay, x, y )) ) { 
+		switch( image->Coding ) { 
+		case VIPS_CODING_LABQ:
+			imageview_status_value_labpack( imageview, buf, ink );
+			break;
+
+		case VIPS_CODING_RAD:
+			imageview_status_value_rad( imageview, buf, ink );
+			break;
+
+		case VIPS_CODING_NONE:
+			imageview_status_value_uncoded( imageview, buf, ink );
+			break;
+
+		default:
+			break;
+		}
+	}
+}
+
+void
+imageview_status_update( Imageview *imageview )
+{
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
+	int mag;
+
+	vips_buf_appendf( &buf, "(%7d, %7d)", 
+		imageview->imagepresent->last_x,
+		imageview->imagepresent->last_y );
+	gtk_label_set_text( GTK_LABEL( imageview->coord_label ), 
+		vips_buf_all( &buf ) ); 
+
+	vips_buf_rewind( &buf ); 
+	imageview_status_value( imageview, &buf, 
+		imageview->imagepresent->last_x, 
+		imageview->imagepresent->last_y );  
+	gtk_label_set_text( GTK_LABEL( imageview->value_label ), 
+		vips_buf_all( &buf ) ); 
+
+	vips_buf_rewind( &buf ); 
+	vips_buf_appendf( &buf, "Magnification " );
+	mag = imagedisplay_get_mag( imageview->imagepresent->imagedisplay ); 
+	if( mag >= 0 )
+		vips_buf_appendf( &buf, "%d:1", mag );
+	else
+		vips_buf_appendf( &buf, "1:%d", -mag );
+	gtk_label_set_text( GTK_LABEL( imageview->mag_label ), 
+		vips_buf_all( &buf ) ); 
+
+}
+
+static void
+imageview_position_changed( Imagepresent *imagepresent, Imageview *imageview )
+{
+	imageview_status_update( imageview ); 
+}
+
+static int
+imageview_header_update( Imageview *imageview )
+{
+	VipsImage *image = imageview->imagepresent->imagedisplay->image;
+
 	char *path;
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
 
 	if( (path = imagepresent_get_path( imageview->imagepresent )) ) { 
 		char *basename;
@@ -98,6 +273,18 @@ imageview_update_header( Imageview *imageview )
 		gtk_header_bar_set_title( 
 			GTK_HEADER_BAR( imageview->header_bar ), 
 			"Untitled" );
+
+	if( image ) {
+		vips_object_summary( VIPS_OBJECT( image ), &buf );
+		vips_buf_appendf( &buf, ", " );
+		vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+		vips_buf_appendf( &buf, ", %g x %g p/mm",
+			image->Xres, image->Yres );
+		gtk_label_set_text( GTK_LABEL( imageview->info_label ), 
+			vips_buf_all( &buf ) ); 
+	}
+
+	imageview_status_update( imageview ); 
 
 	return( 0 );
 }
@@ -152,7 +339,7 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 
 		g_object_unref( file ); 
 
-		imageview_update_header( imageview ); 
+		imageview_header_update( imageview ); 
 	}
 
 	gtk_widget_destroy( dialog );
@@ -199,6 +386,7 @@ imageview_new( GtkApplication *application, GFile *file )
 	GMenuModel *menu;
 	GtkWidget *grid;
 	GtkWidget *content_area;
+	GtkWidget *hbox;
 	int width;
 	int height;
 
@@ -281,9 +469,47 @@ imageview_new( GtkApplication *application, GFile *file )
 	g_signal_connect( imageview->imagepresent->imagedisplay, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
 
+	imageview->status_bar = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_container_set_border_width( GTK_CONTAINER( imageview->status_bar ),
+		10 );
+
+	imageview->info_label = gtk_label_new( "" );
+	gtk_label_set_xalign( GTK_LABEL( imageview->info_label ), 0 );
+	gtk_box_pack_start( GTK_BOX( imageview->status_bar ), 
+		imageview->info_label, TRUE, TRUE, 0 );
+	gtk_widget_show( imageview->info_label );
+
+	hbox = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 10 );
+
+	imageview->coord_label = gtk_label_new( "" );
+	gtk_label_set_xalign( GTK_LABEL( imageview->coord_label ), 0 );
+	gtk_box_pack_start( GTK_BOX( hbox ), 
+		imageview->coord_label, FALSE, FALSE, 0 );
+	gtk_widget_show( imageview->coord_label );
+
+	imageview->value_label = gtk_label_new( "" );
+	gtk_label_set_xalign( GTK_LABEL( imageview->value_label ), 0 );
+	gtk_box_pack_start( GTK_BOX( hbox ), 
+		imageview->value_label, TRUE, TRUE, 0 );
+	gtk_widget_show( imageview->value_label );
+
+	imageview->mag_label = gtk_label_new( "" );
+	gtk_label_set_xalign( GTK_LABEL( imageview->mag_label ), 0 );
+	gtk_box_pack_end( GTK_BOX( hbox ), 
+		imageview->mag_label, FALSE, FALSE, 0 );
+	gtk_widget_show( imageview->mag_label );
+
+	gtk_box_pack_start( GTK_BOX( imageview->status_bar ), 
+		hbox, TRUE, TRUE, 0 );
+	gtk_widget_show( hbox );
+
+	gtk_grid_attach( GTK_GRID( grid ), 
+		imageview->status_bar, 0, 2, 1, 1 );
+	gtk_widget_show( imageview->status_bar );
+
 	if( imagepresent_set_file( imageview->imagepresent, file ) )
 		imageview_show_error( imageview ); 
-	imageview_update_header( imageview ); 
+	imageview_header_update( imageview ); 
 
 	/* 83 is a magic number for the height of the top 
 	 * bar on my laptop. 
@@ -293,6 +519,9 @@ imageview_new( GtkApplication *application, GFile *file )
 		gtk_window_set_default_size( GTK_WINDOW( imageview ), 
 			VIPS_MIN( 800, width ),
 			VIPS_MIN( 800, height + 83 ) ); 
+
+	g_signal_connect( imageview->imagepresent, "position_changed", 
+		G_CALLBACK( imageview_position_changed ), imageview );
 
 	gtk_widget_show( GTK_WIDGET( imageview ) );
 

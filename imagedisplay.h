@@ -3,10 +3,17 @@ typedef struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
 	VipsImage *image;
-	VipsImage *display;
-	VipsRegion *region;
-
 	int mag;
+
+	/* The image reformatted for the display, ie. including shrink & zoom.
+	 */
+	VipsImage *display;
+	VipsRegion *display_region;
+
+	/* The image to sRGB for painting.
+	 */
+	VipsImage *srgb;
+	VipsRegion *srgb_region;
 
 	/* Watch image load with these.
 	 */
@@ -40,5 +47,7 @@ void imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
 	int display_x, int display_y, int *image_x, int *image_y );
 void imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
 	int image_x, int image_y, int *display_x, int *display_y ); 
+
+VipsPel *imagedisplay_get_ink( Imagedisplay *imagedisplay, int x, int y );
 
 Imagedisplay *imagedisplay_new( void ); 
