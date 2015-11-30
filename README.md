@@ -38,14 +38,7 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
-- zoom in and out quickly, repaint breaks ... we start just getting black
-  everywhere 
-
-  mysterious :( 
-
-  try with wtc.jpg, happens very easily
-
-  sometimes get:
+- try with wtc.jpg, sometimes get:
 
 	GLib-GObject-CRITICAL **: g_object_ref: assertion 'G_IS_OBJECT (object)' failed
 
@@ -60,7 +53,18 @@ on the scrolled window to slide the drawing area around.
 #4  0x00007ffff68559dd in vips_image_invalidate_all (image=0xe5c960)
     at image.c:1420
 #5  0x00007ffff685fd0d in render_work (state=0x7fffc0001820, a=0xe62250)
+    at sinkscreen.c:436
+#6  0x00007ffff69dcddc in vips_thread_work_unit (thr=0x7fffac015a90)
+    at threadpool.c:573
 ```
+
+  we have invalid image pointers on `->downstream` ... how are they getting
+  there? 
+
+  `render_work()` l. 436 is calling `vips_image_invalidate_all()` on an
+  output image we have unreffed
+
+
 
 - centre on zoom out, if the image becomes smaller than the window
 

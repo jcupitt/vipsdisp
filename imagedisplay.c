@@ -46,10 +46,10 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 		}
 	}
 
-	VIPS_UNREF( imagedisplay->display );
-	VIPS_UNREF( imagedisplay->display_region );
-	VIPS_UNREF( imagedisplay->srgb );
 	VIPS_UNREF( imagedisplay->srgb_region );
+	VIPS_UNREF( imagedisplay->srgb );
+	VIPS_UNREF( imagedisplay->display_region );
+	VIPS_UNREF( imagedisplay->display );
 
 	VIPS_UNREF( imagedisplay->image );
 }
@@ -91,6 +91,7 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) )
 		return;
+	printf( "** preparing region %p\n", imagedisplay->srgb_region );
 	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
@@ -220,6 +221,7 @@ imagedisplay_close_memory( VipsImage *image, gpointer contents )
 
 typedef struct _ImagedisplayUpdate {
 	Imagedisplay *imagedisplay;
+	VipsImage *image;
 	VipsRect rect;
 } ImagedisplayUpdate;
 
@@ -229,9 +231,15 @@ typedef struct _ImagedisplayUpdate {
 static gboolean
 imagedisplay_render_cb( ImagedisplayUpdate *update )
 {
-	gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
-		update->rect.left, update->rect.top,
-		update->rect.width, update->rect.height );
+	Imagedisplay *imagedisplay = update->imagedisplay;
+
+	/* Again, stuff can run here long after the image has vanished, check
+	 * before we update.
+	 */
+	if( update->image == imagedisplay->srgb )  
+		gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
+			update->rect.left, update->rect.top,
+			update->rect.width, update->rect.height );
 
 	g_free( update );
 
@@ -247,12 +255,19 @@ static void
 imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) client;
-	ImagedisplayUpdate *update = g_new( ImagedisplayUpdate, 1 );
 
-	update->imagedisplay = imagedisplay;
-	update->rect = *rect;
+	/* We can come here after imagedisplay has junked this image and
+	 * started displaying another. Check the image is still correct.
+	 */
+	if( image == imagedisplay->srgb ) { 
+		ImagedisplayUpdate *update = g_new( ImagedisplayUpdate, 1 );
 
-	g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
+		update->imagedisplay = imagedisplay;
+		update->image = image;
+		update->rect = *rect;
+
+		g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
+	}
 }
 
 /* Make the screen image. This is the thing we display pixel values from in
@@ -330,6 +345,7 @@ imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in )
 		imagedisplay_render_notify, imagedisplay ) ) {
 		g_object_unref( image );
 		g_object_unref( x );
+		g_object_unref( y );
 		return( NULL );
 	}
 	g_object_unref( image );
@@ -342,10 +358,14 @@ static int
 imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 {
 	if( imagedisplay->image ) { 
-		VIPS_UNREF( imagedisplay->display );
-		VIPS_UNREF( imagedisplay->display_region );
-		VIPS_UNREF( imagedisplay->srgb );
+		if( imagedisplay->srgb_region )
+			printf( "** junking region %p\n", 
+				imagedisplay->srgb_region );
+
 		VIPS_UNREF( imagedisplay->srgb_region );
+		VIPS_UNREF( imagedisplay->srgb );
+		VIPS_UNREF( imagedisplay->display_region );
+		VIPS_UNREF( imagedisplay->display );
 
 		if( !(imagedisplay->display = 
 			imagedisplay_display_image( imagedisplay, 
@@ -366,6 +386,8 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
 			imagedisplay->display->Xsize, 
 			imagedisplay->display->Ysize );
+		printf( "** srgb image %p\n", imagedisplay->srgb );
+		printf( "** new region %p\n", imagedisplay->srgb_region );
 
 		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
 			imagedisplay->display->Xsize, 
