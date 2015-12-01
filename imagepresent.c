@@ -222,14 +222,18 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 
 	printf( "imagepresent_magin: %d %d\n", x, y ); 
 
+	/* Limit max mag to 512. We use int for image width and height, so 9
+	 * bits for magnification leaves us 22 for size, or about 4m x 4m
+	 * pixels. 
+	 */
 	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
-	if( mag <= 0 )  {
+	if( mag <= 0 ) {
 		if( mag >= -2 )
 			imagepresent_set_mag( imagepresent, 1 );
 		else
 			imagepresent_set_mag( imagepresent, mag / 2 );
 	}
-	else 
+	else if( mag < 512 )
 		imagepresent_set_mag( imagepresent, mag * 2 );
 
 	imagepresent_get_window_position( imagepresent, 

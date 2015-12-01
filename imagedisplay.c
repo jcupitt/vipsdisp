@@ -92,6 +92,7 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	if( vips_rect_isempty( &clip ) )
 		return;
 	printf( "** preparing region %p\n", imagedisplay->srgb_region );
+	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
 	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
@@ -345,7 +346,6 @@ imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in )
 		imagedisplay_render_notify, imagedisplay ) ) {
 		g_object_unref( image );
 		g_object_unref( x );
-		g_object_unref( y );
 		return( NULL );
 	}
 	g_object_unref( image );
