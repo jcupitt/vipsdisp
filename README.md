@@ -38,33 +38,9 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
-- try with wtc.jpg, sometimes get:
+- try with wtc.jpg, sometimes get deadlocks
 
-	GLib-GObject-CRITICAL **: g_object_ref: assertion 'G_IS_OBJECT (object)' failed
-
-  it's 
-
-```
-#2  0x00007ffff6454a3c in g_object_ref ()
-    from /usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0
-#3  0x00007ffff685a756 in vips__link_map (image=0xe5c960, upstream=0, 
-    fn=0x7ffff685598f <vips_image_invalidate_all_cb>, a=0x0, b=0x0)
-    at generate.c:264
-#4  0x00007ffff68559dd in vips_image_invalidate_all (image=0xe5c960)
-    at image.c:1420
-#5  0x00007ffff685fd0d in render_work (state=0x7fffc0001820, a=0xe62250)
-    at sinkscreen.c:436
-#6  0x00007ffff69dcddc in vips_thread_work_unit (thr=0x7fffac015a90)
-    at threadpool.c:573
-```
-
-  we have invalid image pointers on `->downstream` ... how are they getting
-  there? 
-
-  `render_work()` l. 436 is calling `vips_image_invalidate_all()` on an
-  output image we have unreffed
-
-
+  looks like two threads try to invalidate the same image at the same time?
 
 - centre on zoom out, if the image becomes smaller than the window
 
