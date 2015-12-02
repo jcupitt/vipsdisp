@@ -76,10 +76,12 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	int x, y;
 	cairo_surface_t *surface;
 
+	/*
 	printf( "imagedisplay_draw_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
+	 */
 
 	/* Clip against the image size ... we don't want to try painting 
 	 * outside the image area.
@@ -91,7 +93,6 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) )
 		return;
-	printf( "** preparing region %p\n", imagedisplay->srgb_region );
 	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
 	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
@@ -137,7 +138,7 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
-	printf( "imagedisplay_draw:\n" ); 
+	//printf( "imagedisplay_draw:\n" ); 
 
 	if( imagedisplay->srgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
