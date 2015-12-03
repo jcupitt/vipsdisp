@@ -216,22 +216,35 @@ imageview_status_value( Imageview *imageview, VipsBuf *buf, int x, int y )
 void
 imageview_status_update( Imageview *imageview )
 {
+	Imagedisplay *imagedisplay = imageview->imagepresent->imagedisplay;
+
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
+	int image_x;
+	int image_y;
+	int image_width;
+	int image_height;
 	int mag;
 
-	vips_buf_appendf( &buf, "(%7d, %7d)", 
-		imageview->imagepresent->last_x,
-		imageview->imagepresent->last_y );
-	gtk_label_set_text( GTK_LABEL( imageview->coord_label ), 
-		vips_buf_all( &buf ) ); 
-
-	vips_buf_rewind( &buf ); 
-	imageview_status_value( imageview, &buf, 
+	imagedisplay_to_image_cods( imagedisplay,
 		imageview->imagepresent->last_x, 
-		imageview->imagepresent->last_y );  
-	gtk_label_set_text( GTK_LABEL( imageview->value_label ), 
-		vips_buf_all( &buf ) ); 
+		imageview->imagepresent->last_y,
+		&image_x, &image_y );
+
+	if( imagedisplay_get_image_size( imagedisplay, 
+		&image_width, &image_height ) ) {
+		image_x = VIPS_CLIP( 0, image_x, image_width - 1 );
+		image_y = VIPS_CLIP( 0, image_y, image_height - 1 );
+
+		vips_buf_appendf( &buf, "(%7d, %7d)", image_x, image_y ); 
+		gtk_label_set_text( GTK_LABEL( imageview->coord_label ), 
+			vips_buf_all( &buf ) ); 
+		vips_buf_rewind( &buf ); 
+
+		imageview_status_value( imageview, &buf, image_x, image_y ); 
+		gtk_label_set_text( GTK_LABEL( imageview->value_label ), 
+			vips_buf_all( &buf ) ); 
+	}
 
 	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );

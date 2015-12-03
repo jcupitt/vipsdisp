@@ -50,6 +50,7 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 	VIPS_UNREF( imagedisplay->srgb );
 	VIPS_UNREF( imagedisplay->display_region );
 	VIPS_UNREF( imagedisplay->display );
+	VIPS_UNREF( imagedisplay->image_region );
 
 	VIPS_UNREF( imagedisplay->image );
 }
@@ -367,6 +368,11 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 		VIPS_UNREF( imagedisplay->srgb );
 		VIPS_UNREF( imagedisplay->display_region );
 		VIPS_UNREF( imagedisplay->display );
+		VIPS_UNREF( imagedisplay->image_region );
+
+		if( !(imagedisplay->image_region = 
+			vips_region_new( imagedisplay->image )) )
+			return( -1 ); 
 
 		if( !(imagedisplay->display = 
 			imagedisplay_display_image( imagedisplay, 
@@ -582,10 +588,10 @@ imagedisplay_get_ink( Imagedisplay *imagedisplay, int x, int y )
 	rect.top = y;
 	rect.width = 1;
 	rect.height = 1;
-	if( vips_region_prepare( imagedisplay->display_region, &rect ) )
+	if( vips_region_prepare( imagedisplay->image_region, &rect ) )
 		return( NULL );
 
-	return( VIPS_REGION_ADDR( imagedisplay->display_region, x, y ) );  
+	return( VIPS_REGION_ADDR( imagedisplay->image_region, x, y ) );  
 }
 
 Imagedisplay *

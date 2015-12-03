@@ -5,6 +5,10 @@ typedef struct _Imagedisplay {
 	VipsImage *image;
 	int mag;
 
+	/* A region on the input image for the status bar. 
+	 */
+	VipsRegion *image_region;
+
 	/* The image reformatted for the display, ie. including shrink & zoom.
 	 */
 	VipsImage *display;

@@ -42,7 +42,7 @@ on the scrolled window to slide the drawing area around.
 
 - centre on zoom out, if the image becomes smaller than the window
 
-- fullscreen mode isn't working?
+- fullscreen mode ?
 
 - have another "changed" signal when the image is swapped, use that to update
   the top part of the status bar
