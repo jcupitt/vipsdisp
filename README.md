@@ -38,7 +38,8 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
-- use mask image to avoid painting black?
+- does gtk3 support self-painted windows? we could stop the clear to grey,
+  perhaps
 
 - centre on zoom out, if the image becomes smaller than the window
 

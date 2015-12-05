@@ -48,6 +48,8 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 
 	VIPS_UNREF( imagedisplay->srgb_region );
 	VIPS_UNREF( imagedisplay->srgb );
+	VIPS_UNREF( imagedisplay->mask_region );
+	VIPS_UNREF( imagedisplay->mask );
 	VIPS_UNREF( imagedisplay->display_region );
 	VIPS_UNREF( imagedisplay->display );
 	VIPS_UNREF( imagedisplay->image_region );
@@ -73,8 +75,11 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 {
 	VipsRect image;
 	VipsRect clip;
-	unsigned char *cairo_buffer;
+	gboolean found;
+	VipsPel * restrict buf;
+	int lsk;
 	int x, y;
+	unsigned char *cairo_buffer;
 	cairo_surface_t *surface;
 
 	/*
@@ -94,11 +99,51 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) )
 		return;
+
 	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
+	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
+
+	/* Request pixels. We ask the mask first, to get an idea of what's 
+	 * currently in cache, then request tiles of pixels. We must always
+	 * request pixels, even if the mask is blank, because the request
+	 * will trigger a notify later which will reinvoke us.
+	 */
+	if( vips_region_prepare( imagedisplay->mask_region, &clip ) ) {
+		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
+		vips_error_clear();
+		abort();
+		return;
+	}
+
 	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
+		return;
+	}
+
+	/* If the mask is all blank, skip the paint.
+	 */
+	buf = VIPS_REGION_ADDR( imagedisplay->mask_region, 
+		clip.left, clip.top );
+	lsk = VIPS_REGION_LSKIP( imagedisplay->mask_region );
+	found = FALSE;
+
+	for( y = 0; y < clip.height; y++ ) {
+		for( x = 0; x < clip.width; x++ )
+			if( buf[x] ) {
+				found = TRUE;
+				break;
+			}
+
+		if( found )
+			break;
+
+		buf += lsk;
+	}
+
+	if( !found ) {
+		printf( "imagedisplay_paint_image: zero mask\n" );
 		return;
 	}
 
@@ -107,9 +152,10 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	cairo_buffer = g_malloc( clip.width * clip.height * 4 );
 
 	for( y = 0; y < clip.height; y++ ) {
-		VipsPel *p = VIPS_REGION_ADDR( imagedisplay->srgb_region, 
+		VipsPel * restrict p = 
+			VIPS_REGION_ADDR( imagedisplay->srgb_region, 
 			clip.left, clip.top + y );
-		unsigned char *q = cairo_buffer + clip.width * 4 * y;
+		unsigned char * restrict q = cairo_buffer + clip.width * 4 * y;
 
 		for( x = 0; x < clip.width; x++ ) {
 			q[0] = p[2];
@@ -313,7 +359,8 @@ imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
 /* Make the srgb image we paint with. 
  */
 static VipsImage *
-imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in )
+imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in, 
+	VipsImage **mask )
 {
 	VipsImage *image;
 	VipsImage *x;
@@ -344,7 +391,9 @@ imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in )
 	image = x;
 
 	x = vips_image_new();
-	if( vips_sink_screen( image, x, NULL, 128, 128, 400, 0, 
+	if( mask )
+		*mask = vips_image_new();
+	if( vips_sink_screen( image, x, *mask, 128, 128, 400, 0, 
 		imagedisplay_render_notify, imagedisplay ) ) {
 		g_object_unref( image );
 		g_object_unref( x );
@@ -364,6 +413,8 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 			printf( "** junking region %p\n", 
 				imagedisplay->srgb_region );
 
+		VIPS_UNREF( imagedisplay->mask_region );
+		VIPS_UNREF( imagedisplay->mask );
 		VIPS_UNREF( imagedisplay->srgb_region );
 		VIPS_UNREF( imagedisplay->srgb );
 		VIPS_UNREF( imagedisplay->display_region );
@@ -384,10 +435,13 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 
 		if( !(imagedisplay->srgb = 
 			imagedisplay_srgb_image( imagedisplay, 
-				imagedisplay->display )) ) 
+				imagedisplay->display, &imagedisplay->mask )) ) 
 			return( -1 ); 
 		if( !(imagedisplay->srgb_region = 
 			vips_region_new( imagedisplay->srgb )) )
+			return( -1 ); 
+		if( !(imagedisplay->mask_region = 
+			vips_region_new( imagedisplay->mask )) )
 			return( -1 ); 
 
 		printf( "imagedisplay_update_conversion: image size %d x %d\n", 

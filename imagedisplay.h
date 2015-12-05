@@ -19,6 +19,11 @@ typedef struct _Imagedisplay {
 	VipsImage *srgb;
 	VipsRegion *srgb_region;
 
+	/* The mask for detecting empty areas.
+	 */
+	VipsImage *mask;
+	VipsRegion *mask_region;
+
 	/* Watch image load with these.
 	 */
 	guint preeval_sig;
