@@ -38,6 +38,8 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
+- use `level` option of openslide and pyr tiff to speed up zoom out
+
 - does gtk3 support self-painted windows? we could stop the clear to grey,
   perhaps
 
