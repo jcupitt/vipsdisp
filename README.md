@@ -38,6 +38,8 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
+- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all thst
+
 - use `level` option of openslide and pyr tiff to speed up zoom out
 
 - does gtk3 support self-painted windows? we could stop the clear to grey,
