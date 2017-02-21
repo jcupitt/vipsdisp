@@ -83,11 +83,11 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	cairo_surface_t *surface;
 
 	/*
+	 */
 	printf( "imagedisplay_draw_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
-	 */
 
 	/* Clip against the image size ... we don't want to try painting 
 	 * outside the image area.
@@ -146,6 +146,9 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 		printf( "imagedisplay_paint_image: zero mask\n" );
 		return;
 	}
+
+	printf( "imagedisplay_paint_image: painting %d x %d pixels\n", 
+		clip.width, clip.height );
 
 	/* libvips is RGB, cairo is ARGB, we have to repack the data.
 	 */
@@ -454,7 +457,7 @@ imagedisplay_update_conversion( Imagedisplay *imagedisplay )
 			imagedisplay->display->Xsize, 
 			imagedisplay->display->Ysize );
 
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		//gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 	}
 
 	return( 0 );

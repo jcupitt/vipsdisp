@@ -38,14 +38,28 @@ on the scrolled window to slide the drawing area around.
 
 ### TODO
 
-- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all thst
+- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - use `level` option of openslide and pyr tiff to speed up zoom out
 
 - does gtk3 support self-painted windows? we could stop the clear to grey,
   perhaps
 
-- centre on zoom out, if the image becomes smaller than the window
+  nope, not supported after 3.10
+
+  we need to add an extra buffering layer ourselves: we must alloc a window-
+  sized bitmap, paint from that, and update that from vips
+
+  does that mean we need to do all the scrolling? 
+
+  maybe do the merge as a vips operation? argh yuk
+
+- do we need a conversion object with "changed" signal? all done inside
+  imagedisplay at the moment
+
+- add a display control bar: maybe scale / offset bars could sit in the menu?
+
+- centre on zoom out if the image becomes smaller than the window
 
 - fullscreen mode ?
 
