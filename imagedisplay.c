@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <gtk/gtk.h>
 
@@ -10,18 +11,208 @@
 
 #include "disp.h"
 
-G_DEFINE_TYPE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA );
-
-/* Our signals. 
+/* imagedisplay is actually a drawing area the size of the window: we do all
+ * scrolling ourselves.
  */
+G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
+	G_IMPLEMENT_INTERFACE( GTK_TYPE_SCROLLABLE, NULL ) );
+
 enum {
+	/* Our signals. 
+	 */
 	SIG_PRELOAD,
 	SIG_LOAD,
 	SIG_POSTLOAD,
+
+	/* The props we implement for the scrollable interface.
+	 */
+	PROP_HADJUSTMENT,
+	PROP_HSCROLL_POLICY,
+	PROP_VADJUSTMENT,
+	PROP_VSCROLL_POLICY,
+
 	SIG_LAST
 };
 
 static guint imagedisplay_signals[SIG_LAST] = { 0 };
+
+static void
+imagedisplay_adjustment_changed( GtkAdjustment *adjustment, 
+	Imagedisplay *imagedisplay )
+{
+	if( gtk_widget_get_realized( GTK_WIDGET( imagedisplay ) ) ) {
+		double left = 
+			gtk_adjustment_get_value( imagedisplay->hadjustment );
+		double top = 
+			gtk_adjustment_get_value( imagedisplay->vadjustment );
+
+		printf( "imagedisplay_adjustment_changed: %g x %g\n", 
+			left, top ); 
+
+		imagedisplay->left = left;
+		imagedisplay->top = top;
+
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	}
+}
+
+static gboolean
+imagedisplay_set_adjustment( Imagedisplay *imagedisplay,
+	GtkAdjustment **adjustment_slot, GtkAdjustment *new_adjustment )
+{
+	printf( "imagedisplay_set_adjustment:\n" ); 
+
+	if( new_adjustment && 
+		*adjustment_slot == new_adjustment )
+		return( FALSE );
+
+	if( *adjustment_slot ) {
+		g_signal_handlers_disconnect_by_func( *adjustment_slot,
+			    imagedisplay_adjustment_changed, imagedisplay );
+		VIPS_UNREF( *adjustment_slot );
+	}
+
+	if( !new_adjustment )
+		new_adjustment = 
+			gtk_adjustment_new( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );
+
+	g_signal_connect( new_adjustment, "value-changed",
+		G_CALLBACK( imagedisplay_adjustment_changed ), imagedisplay );
+	*adjustment_slot = g_object_ref_sink( new_adjustment );
+
+	return( TRUE );
+}
+
+static void
+imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay, 
+	GtkAdjustment *adjustment, int axis_size, int window_size ) 
+{
+	gdouble old_value;
+	gdouble new_value;
+	gdouble new_upper;
+
+	old_value = gtk_adjustment_get_value( adjustment );
+	new_upper = VIPS_MAX( window_size, axis_size );
+
+	printf( "imagedisplay_set_adjustment_values: upper = %g\n", 
+		new_upper ); 
+
+	g_object_set( adjustment,
+		"lower", 0.0,
+		"upper", new_upper,
+		"page-size", (gdouble) window_size,
+		"step-increment", window_size * 0.1,
+		"page-increment", window_size * 0.9,
+		NULL );
+
+	new_value = VIPS_CLIP( 0, old_value, new_upper - window_size );
+	if( new_value != old_value )
+		gtk_adjustment_set_value( adjustment, new_value );
+}
+
+static void
+imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay ) 
+{
+	int width = imagedisplay->image ? 
+		imagedisplay->image->Xsize : 0;
+
+	GtkAllocation allocation;
+
+	gtk_widget_get_allocation( GTK_WIDGET( imagedisplay ), &allocation );
+	imagedisplay_set_adjustment_values( imagedisplay, 
+		imagedisplay->hadjustment, width, allocation.width ); 
+}
+
+static void
+imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay ) 
+{
+	int height = imagedisplay->image ? 
+		imagedisplay->image->Ysize : 0;
+
+	GtkAllocation allocation;
+
+	gtk_widget_get_allocation( GTK_WIDGET( imagedisplay ), &allocation );
+	imagedisplay_set_adjustment_values( imagedisplay, 
+		imagedisplay->vadjustment, height, allocation.height ); 
+}
+
+static void
+imagedisplay_set_property( GObject *object, 
+	guint prop_id, const GValue *value, GParamSpec *pspec )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) object;
+
+	switch( prop_id ) {
+	case PROP_HADJUSTMENT:
+		if( imagedisplay_set_adjustment( imagedisplay, 
+			&imagedisplay->hadjustment, 
+			g_value_get_object( value ) ) ) { 
+			imagedisplay_set_hadjustment_values( imagedisplay );
+			g_object_notify( G_OBJECT( imagedisplay ), 
+				"hadjustment" );
+		}
+		break;
+
+	case PROP_VADJUSTMENT:
+		if( imagedisplay_set_adjustment( imagedisplay, 
+			&imagedisplay->vadjustment, 
+			g_value_get_object( value ) ) ) { 
+			imagedisplay_set_vadjustment_values( imagedisplay );
+			g_object_notify( G_OBJECT( imagedisplay ), 
+				"vadjustment" );
+		}
+		break;
+
+	case PROP_HSCROLL_POLICY:
+		if( imagedisplay->hscroll_policy != g_value_get_enum( value ) ) {
+			imagedisplay->hscroll_policy = g_value_get_enum( value );
+			gtk_widget_queue_resize( GTK_WIDGET( imagedisplay ) );
+			g_object_notify_by_pspec( object, pspec );
+		}
+		break;
+
+	case PROP_VSCROLL_POLICY:
+		if( imagedisplay->vscroll_policy != g_value_get_enum( value ) ) {
+			imagedisplay->vscroll_policy = g_value_get_enum( value );
+			gtk_widget_queue_resize( GTK_WIDGET( imagedisplay ) );
+			g_object_notify_by_pspec( object, pspec );
+		}
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
+}
+
+static void
+imagedisplay_get_property( GObject *object, 
+	guint prop_id, GValue *value, GParamSpec *pspec )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) object;
+
+	switch( prop_id ) {
+	case PROP_HADJUSTMENT:
+		g_value_set_object( value, imagedisplay->hadjustment );
+		break;
+
+	case PROP_VADJUSTMENT:
+		g_value_set_object( value, imagedisplay->vadjustment );
+		break;
+
+	case PROP_HSCROLL_POLICY:
+		g_value_set_enum( value, imagedisplay->hscroll_policy );
+		break;
+
+	case PROP_VSCROLL_POLICY:
+		g_value_set_enum( value, imagedisplay->vscroll_policy );
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
+}
 
 static void
 imagedisplay_empty( Imagedisplay *imagedisplay )
@@ -46,6 +237,7 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 		}
 	}
 
+
 	VIPS_UNREF( imagedisplay->srgb_region );
 	VIPS_UNREF( imagedisplay->srgb );
 	VIPS_UNREF( imagedisplay->mask_region );
@@ -55,6 +247,8 @@ imagedisplay_empty( Imagedisplay *imagedisplay )
 	VIPS_UNREF( imagedisplay->image_region );
 
 	VIPS_UNREF( imagedisplay->image );
+
+	VIPS_FREE( imagedisplay->cairo_buffer ); 
 }
 
 static void
@@ -70,16 +264,134 @@ imagedisplay_destroy( GtkWidget *widget )
 }
 
 static void
+imagedisplay_get_preferred_width( GtkWidget *widget, 
+	gint *minimum, gint *natural )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
+	int width = imagedisplay->image ? imagedisplay->image->Xsize : 0;
+
+	printf( "imagedisplay_get_preferred_width: %d\n", width ); 
+
+	*minimum = *natural = width;
+}
+
+static void
+imagedisplay_get_preferred_height( GtkWidget *widget, 
+	gint *minimum, gint *natural )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
+	int height = imagedisplay->image ? imagedisplay->image->Ysize : 0;
+
+	printf( "imagedisplay_get_preferred_height: %d\n", height ); 
+
+	*minimum = *natural = height;
+}
+
+static void
+imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
+	int new_buffer_width = VIPS_MIN( 
+		imagedisplay->image ? imagedisplay->image->Xsize : 0,
+		allocation->width );
+	int new_buffer_height = VIPS_MIN( 
+		imagedisplay->image ? imagedisplay->image->Ysize : 0,
+		allocation->height );
+
+	printf( "imagedisplay_size_allocate: %d x %d\n",
+		allocation->width, allocation->height ); 
+
+	gtk_widget_set_allocation( widget, allocation );
+	imagedisplay_set_hadjustment_values( imagedisplay );
+	imagedisplay_set_vadjustment_values( imagedisplay );
+
+	/* Reallocate the backing buffer, if necessary.
+	 */
+	if( !imagedisplay->cairo_buffer ||
+		new_buffer_width != imagedisplay->cairo_buffer_width ||
+		new_buffer_height != imagedisplay->cairo_buffer_height ) {
+		size_t size = new_buffer_width * new_buffer_height * 4;
+		unsigned char *new_buffer = g_malloc0( size );
+
+		if( imagedisplay->cairo_buffer ) {
+			/* Copy over any pixels from the old buffer.
+			 */
+			int common_height = VIPS_MIN( 
+				imagedisplay->cairo_buffer_height,
+				new_buffer_height );
+
+			int y;
+
+			for( y = 0; y < common_height; y++ ) 
+				memcpy( new_buffer + y * 4 * new_buffer_width,
+					imagedisplay->cairo_buffer + y * 4 * 
+						imagedisplay->cairo_buffer_width,
+					sizeof( unsigned char ) );
+		}
+
+		g_free( imagedisplay->cairo_buffer );
+		imagedisplay->cairo_buffer = new_buffer;
+		imagedisplay->cairo_buffer_width = new_buffer_width;
+		imagedisplay->cairo_buffer_height = new_buffer_height;
+	}
+}
+
+static gboolean
+imagedisplay_region_blank( VipsRegion *region, VipsRect *rect )
+{
+	int lsk = VIPS_REGION_LSKIP( region );
+
+	VipsPel * restrict buf;
+	int x, y;
+
+	buf = VIPS_REGION_ADDR( region, rect->left, rect->top );
+
+	for( y = 0; y < rect->height; y++ ) {
+		for( x = 0; x < rect->width; x++ )
+			if( buf[x] ) 
+				return( FALSE );
+
+		buf += lsk;
+	}
+
+	return( TRUE ); 
+}
+
+/* libvips is RGB, cairo is ABGR, we have to repack the data.
+ */
+static void
+imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay, 
+	unsigned char *cairo, VipsPel *vips, 
+	int width, int height,
+	int cairo_stride, int vips_stride )
+{
+	int x, y;
+
+	for( y = 0; y < height; y++ ) {
+		VipsPel * restrict p = vips + y * vips_stride;
+		unsigned char * restrict q = cairo + y * cairo_stride;
+
+		for( x = 0; x < width; x++ ) {
+			q[0] = p[2];
+			q[1] = p[1];
+			q[2] = p[0];
+			q[3] = 0;
+
+			p += 3;
+			q += 4;
+		}
+	}
+}
+
+static void
 imagedisplay_draw_rect( Imagedisplay *imagedisplay, 
 	cairo_t *cr, VipsRect *expose )
 {
 	VipsRect image;
 	VipsRect clip;
-	gboolean found;
-	VipsPel * restrict buf;
-	int lsk;
-	int x, y;
-	unsigned char *cairo_buffer;
+	VipsRect target;
+	int cairo_stride;
+	unsigned char *cairo_start;
 	cairo_surface_t *surface;
 
 	/*
@@ -88,6 +400,11 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
+
+	/* Transform to image pixels.
+	 */
+	expose->left += imagedisplay->left;
+	expose->top += imagedisplay->top;
 
 	/* Clip against the image size ... we don't want to try painting 
 	 * outside the image area.
@@ -99,6 +416,12 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	vips_rect_intersectrect( &image, expose, &clip );
 	if( vips_rect_isempty( &clip ) )
 		return;
+
+	/* And map back into display space.
+	 */
+	target = clip;
+	target.left -= imagedisplay->left;
+	target.top -= imagedisplay->top;
 
 	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
 	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
@@ -122,27 +445,10 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 		return;
 	}
 
-	/* If the mask is all blank, skip the paint.
+	/* If the mask is all blank, don't paint this part of the memory
+	 * buffer.
 	 */
-	buf = VIPS_REGION_ADDR( imagedisplay->mask_region, 
-		clip.left, clip.top );
-	lsk = VIPS_REGION_LSKIP( imagedisplay->mask_region );
-	found = FALSE;
-
-	for( y = 0; y < clip.height; y++ ) {
-		for( x = 0; x < clip.width; x++ )
-			if( buf[x] ) {
-				found = TRUE;
-				break;
-			}
-
-		if( found )
-			break;
-
-		buf += lsk;
-	}
-
-	if( !found ) {
+	if( imagedisplay_region_blank( imagedisplay->mask_region, &clip ) ) {
 		printf( "imagedisplay_paint_image: zero mask\n" );
 		return;
 	}
@@ -150,35 +456,26 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 	printf( "imagedisplay_paint_image: painting %d x %d pixels\n", 
 		clip.width, clip.height );
 
-	/* libvips is RGB, cairo is ARGB, we have to repack the data.
-	 */
-	cairo_buffer = g_malloc( clip.width * clip.height * 4 );
+	cairo_stride = 4 * imagedisplay->cairo_buffer_width;
+	cairo_start = imagedisplay->cairo_buffer +
+		target.top * cairo_stride +
+		target.left * 4,
 
-	for( y = 0; y < clip.height; y++ ) {
-		VipsPel * restrict p = 
-			VIPS_REGION_ADDR( imagedisplay->srgb_region, 
-			clip.left, clip.top + y );
-		unsigned char * restrict q = cairo_buffer + clip.width * 4 * y;
+	imagedisplay_vips_to_cairo( imagedisplay, 
+		cairo_start,
+		VIPS_REGION_ADDR( imagedisplay->srgb_region, 
+			clip.left, clip.top ),
+		clip.width, clip.height,
+		cairo_stride,
+		VIPS_REGION_LSKIP( imagedisplay->srgb_region ) );
 
-		for( x = 0; x < clip.width; x++ ) {
-			q[0] = p[2];
-			q[1] = p[1];
-			q[2] = p[0];
-			q[3] = 0;
+	surface = cairo_image_surface_create_for_data( cairo_start, 
+		CAIRO_FORMAT_RGB24, clip.width, clip.height, 
+		cairo_stride );  
 
-			p += 3;
-			q += 4;
-		}
-	}
-
-	surface = cairo_image_surface_create_for_data( cairo_buffer, 
-		CAIRO_FORMAT_RGB24, clip.width, clip.height, clip.width * 4 );
-
-	cairo_set_source_surface( cr, surface, clip.left, clip.top );
+	cairo_set_source_surface( cr, surface, target.left, target.top );
 
 	cairo_paint( cr );
-
-	g_free( cairo_buffer ); 
 
 	cairo_surface_destroy( surface ); 
 }
@@ -187,8 +484,6 @@ static gboolean
 imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-
-	//printf( "imagedisplay_draw:\n" ); 
 
 	if( imagedisplay->srgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
@@ -229,11 +524,18 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 static void
 imagedisplay_class_init( ImagedisplayClass *class )
 {
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 	printf( "imagedisplay_class_init:\n" ); 
 
+	gobject_class->set_property = imagedisplay_set_property;
+	gobject_class->get_property = imagedisplay_get_property;
+
 	widget_class->destroy = imagedisplay_destroy;
+	widget_class->get_preferred_width = imagedisplay_get_preferred_width;
+	widget_class->get_preferred_height = imagedisplay_get_preferred_height;
+	widget_class->size_allocate = imagedisplay_size_allocate;
 	widget_class->draw = imagedisplay_draw;
 
 	imagedisplay_signals[SIG_PRELOAD] = g_signal_new( "preload",
@@ -262,6 +564,15 @@ imagedisplay_class_init( ImagedisplayClass *class )
 		g_cclosure_marshal_VOID__POINTER,
 		G_TYPE_NONE, 1,
 		G_TYPE_POINTER );
+
+	g_object_class_override_property( gobject_class, 
+		PROP_HADJUSTMENT, "hadjustment" );
+	g_object_class_override_property( gobject_class, 
+		PROP_VADJUSTMENT, "vadjustment" );
+	g_object_class_override_property( gobject_class, 
+		PROP_HSCROLL_POLICY, "hscroll-policy" );
+	g_object_class_override_property( gobject_class, 
+		PROP_VSCROLL_POLICY, "vscroll-policy" );
 
 }
 

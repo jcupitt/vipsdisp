@@ -2,7 +2,32 @@
 typedef struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
+	/* We implement a scrollable interface.
+	 */
+	GtkAdjustment *hadjustment;
+	GtkAdjustment *vadjustment;
+	guint hscroll_policy;
+	guint vscroll_policy;
+
 	VipsImage *image;
+
+	/* A backing buffer the size of the visible part of the image. We use
+	 * this from the draw handler to paint the screen, and we also paint to
+	 * this from libvips in a background thread.
+	 *
+	 * This is always Cairo-style ARGB.
+	 */
+	unsigned char *cairo_buffer;
+	int cairo_buffer_width;
+	int cairo_buffer_height;
+
+	/* left/top is the position of the top-left corner of the window within
+	 * the image. These can be negative if the image is smaller than the
+	 * window and we are displaying the image in the centre.
+	 */
+	int left;
+	int top;
+
 	int mag;
 
 	/* A region on the input image for the status bar. 
@@ -29,6 +54,8 @@ typedef struct _Imagedisplay {
 	guint preeval_sig;
 	guint eval_sig;
 	guint posteval_sig;
+
+
 } Imagedisplay;
 
 typedef struct _ImagedisplayClass {
