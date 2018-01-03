@@ -11,8 +11,8 @@
 
 #include "disp.h"
 
-/* imagedisplay is actually a drawing area the size of the window: we do all
- * scrolling ourselves.
+/* imagedisplay is actually a drawing area the size of the widget on screen: we 
+ * do all scrolling ourselves.
  */
 G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 	G_IMPLEMENT_INTERFACE( GTK_TYPE_SCROLLABLE, NULL ) );
@@ -113,8 +113,8 @@ imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay,
 static void
 imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay ) 
 {
-	int width = imagedisplay->image ? 
-		imagedisplay->image->Xsize : 0;
+	int width = imagedisplay->display ? 
+		imagedisplay->display->Xsize : 0;
 
 	GtkAllocation allocation;
 
@@ -126,8 +126,8 @@ imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay )
 static void
 imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay ) 
 {
-	int height = imagedisplay->image ? 
-		imagedisplay->image->Ysize : 0;
+	int height = imagedisplay->display ? 
+		imagedisplay->display->Ysize : 0;
 
 	GtkAllocation allocation;
 
@@ -268,7 +268,7 @@ imagedisplay_get_preferred_width( GtkWidget *widget,
 	gint *minimum, gint *natural )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-	int width = imagedisplay->image ? imagedisplay->image->Xsize : 0;
+	int width = imagedisplay->display ? imagedisplay->display->Xsize : 0;
 
 	printf( "imagedisplay_get_preferred_width: %d\n", width ); 
 
@@ -280,7 +280,7 @@ imagedisplay_get_preferred_height( GtkWidget *widget,
 	gint *minimum, gint *natural )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-	int height = imagedisplay->image ? imagedisplay->image->Ysize : 0;
+	int height = imagedisplay->display ? imagedisplay->display->Ysize : 0;
 
 	printf( "imagedisplay_get_preferred_height: %d\n", height ); 
 
@@ -292,16 +292,15 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 	int new_buffer_width = VIPS_MIN( 
-		imagedisplay->image ? imagedisplay->image->Xsize : 0,
+		imagedisplay->display ? imagedisplay->display->Xsize : 0,
 		allocation->width );
 	int new_buffer_height = VIPS_MIN( 
-		imagedisplay->image ? imagedisplay->image->Ysize : 0,
+		imagedisplay->display ? imagedisplay->display->Ysize : 0,
 		allocation->height );
 
 	printf( "imagedisplay_size_allocate: %d x %d\n",
 		allocation->width, allocation->height ); 
 
-	gtk_widget_set_allocation( widget, allocation );
 	imagedisplay_set_hadjustment_values( imagedisplay );
 	imagedisplay_set_vadjustment_values( imagedisplay );
 
@@ -334,6 +333,9 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 		imagedisplay->cairo_buffer_width = new_buffer_width;
 		imagedisplay->cairo_buffer_height = new_buffer_height;
 	}
+
+	GTK_WIDGET_CLASS( imagedisplay_parent_class )->
+		size_allocate( widget, allocation );
 }
 
 static gboolean
