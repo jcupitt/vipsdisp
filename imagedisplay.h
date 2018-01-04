@@ -9,11 +9,13 @@ typedef struct _Imagedisplay {
 	guint hscroll_policy;
 	guint vscroll_policy;
 
+	/* The image we display. Change with the "image" property.
+	 */
 	VipsImage *image;
 
 	/* A backing buffer the size of the visible part of the image. We use
 	 * this from the draw handler to paint the screen, and we also paint to
-	 * this from libvips in a background thread.
+	 * this from libvips as it calculates pixels.
 	 *
 	 * This is always Cairo-style ARGB.
 	 */
