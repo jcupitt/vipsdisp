@@ -398,8 +398,8 @@ imagedisplay_to_screen( Imagedisplay *imagedisplay, VipsRect *rect )
 	/* If the image is smaller than the screen, we centre.
 	 */
 	gtk_widget_get_allocation( GTK_WIDGET( imagedisplay ), &allocation );
-	rect->left += VIPS_MIN( allocation.width - image_width / 2, 0 );
-	rect->top += VIPS_MIN( allocation.height - image_height / 2, 0 );
+	rect->left += VIPS_MAX( (allocation.width - image_width) / 2, 0 );
+	rect->top += VIPS_MAX( (allocation.height - image_height) / 2, 0 );
 }
 
 static void
@@ -415,8 +415,8 @@ imagedisplay_to_image( Imagedisplay *imagedisplay, VipsRect *rect )
 	/* If the image is smaller than the screen, we centre.
 	 */
 	gtk_widget_get_allocation( GTK_WIDGET( imagedisplay ), &allocation );
-	rect->left -= VIPS_MIN( allocation.width - image_width / 2, 0 );
-	rect->top -= VIPS_MIN( allocation.height - image_height / 2, 0 );
+	rect->left -= VIPS_MAX( (allocation.width - image_width) / 2, 0 );
+	rect->top -= VIPS_MAX( (allocation.height - image_height) / 2, 0 );
 
 	rect->left += imagedisplay->left;
 	rect->top += imagedisplay->top;
@@ -460,8 +460,10 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	 */
 	clip = target;
 	imagedisplay_to_image( imagedisplay, &clip ); 
+	/*
 	if( vips_rect_isempty( &clip ) )
 		return;
+	 */
 
 	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
 	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
