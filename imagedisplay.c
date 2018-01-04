@@ -338,27 +338,6 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 		size_allocate( widget, allocation );
 }
 
-static gboolean
-imagedisplay_region_blank( VipsRegion *region, VipsRect *rect )
-{
-	int lsk = VIPS_REGION_LSKIP( region );
-
-	VipsPel * restrict buf;
-	int x, y;
-
-	buf = VIPS_REGION_ADDR( region, rect->left, rect->top );
-
-	for( y = 0; y < rect->height; y++ ) {
-		for( x = 0; x < rect->width; x++ )
-			if( buf[x] ) 
-				return( FALSE );
-
-		buf += lsk;
-	}
-
-	return( TRUE ); 
-}
-
 /* libvips is RGB, cairo is ABGR, we have to repack the data.
  */
 static void
@@ -385,45 +364,40 @@ imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay,
 	}
 }
 
+/* Draw a single tile. The tile fits within a single tile cache entry, and
+ * within the image.
+ */
 static void
-imagedisplay_draw_rect( Imagedisplay *imagedisplay, 
-	cairo_t *cr, VipsRect *expose )
+imagedisplay_draw_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 {
-	VipsRect image;
-	VipsRect clip;
+	VipsRect screen;
 	VipsRect target;
+	VipsRect clip;
 	int cairo_stride;
 	unsigned char *cairo_start;
-	cairo_surface_t *surface;
 
-	/*
+	/* Map into display space.
 	 */
-	printf( "imagedisplay_draw_rect: "
-		"left = %d, top = %d, width = %d, height = %d\n",
-		expose->left, expose->top,
-		expose->width, expose->height );
-
-	/* Transform to image pixels.
-	 */
-	expose->left += imagedisplay->left;
-	expose->top += imagedisplay->top;
-
-	/* Clip against the image size ... we don't want to try painting 
-	 * outside the image area.
-	 */
-	image.left = 0;
-	image.top = 0;
-	image.width = imagedisplay->srgb_region->im->Xsize;
-	image.height = imagedisplay->srgb_region->im->Ysize;
-	vips_rect_intersectrect( &image, expose, &clip );
-	if( vips_rect_isempty( &clip ) )
-		return;
-
-	/* And map back into display space.
-	 */
-	target = clip;
+	target = *tile;
 	target.left -= imagedisplay->left;
 	target.top -= imagedisplay->top;
+
+	/* Clip against window size.
+	 */
+	screen.left = 0;
+	screen.top = 0;
+	screen.width = imagedisplay->cairo_buffer_width;
+	screen.height = imagedisplay->cairo_buffer_height;
+	vips_rect_intersectrect( &target, &screen, &target );
+
+	/* Back to image space.
+	 */
+	clip = target;
+	clip.left += imagedisplay->left;
+	clip.top += imagedisplay->top;
+
+	if( vips_rect_isempty( &clip ) )
+		return;
 
 	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
 	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
@@ -447,10 +421,11 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 		return;
 	}
 
-	/* If the mask is all blank, don't paint this part of the memory
-	 * buffer.
+	/* tile is within a single tile, so we only need to test the first byte
+	 * of the mask. 
 	 */
-	if( imagedisplay_region_blank( imagedisplay->mask_region, &clip ) ) {
+	if( !VIPS_REGION_ADDR( imagedisplay->mask_region, 
+		clip.left, clip.top )[0] ) {
 		printf( "imagedisplay_paint_image: zero mask\n" );
 		return;
 	}
@@ -460,8 +435,7 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 
 	cairo_stride = 4 * imagedisplay->cairo_buffer_width;
 	cairo_start = imagedisplay->cairo_buffer +
-		target.top * cairo_stride +
-		target.left * 4,
+		target.top * cairo_stride + target.left * 4;
 
 	imagedisplay_vips_to_cairo( imagedisplay, 
 		cairo_start,
@@ -470,9 +444,64 @@ imagedisplay_draw_rect( Imagedisplay *imagedisplay,
 		clip.width, clip.height,
 		cairo_stride,
 		VIPS_REGION_LSKIP( imagedisplay->srgb_region ) );
+}
+
+/* Decompose a rectangle into a set of libvips tiles.
+ */
+static void
+imagedisplay_draw_rect( Imagedisplay *imagedisplay, VipsRect *expose )
+{
+	int left, top, right, bottom;
+	int x, y;
+
+	/*
+	 */
+	printf( "imagedisplay_draw_rect: "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		expose->left, expose->top,
+		expose->width, expose->height );
+
+	left = VIPS_ROUND_DOWN( expose->left, 128 );
+	top = VIPS_ROUND_DOWN( expose->top, 128 );
+	right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( expose ), 128 );
+	bottom = VIPS_ROUND_UP( VIPS_RECT_RIGHT( expose ), 128 );
+
+	for( y = top; y < bottom; y += 128 ) 
+		for( x = left; x < right; x += 128 ) {
+			VipsRect tile;
+
+			tile.left = x;
+			tile.top = y;
+			tile.width = 128;
+			tile.height = 128;
+			vips_rect_intersectrect( &tile, expose, &tile );
+
+			if( !vips_rect_isempty( &tile ) )
+				imagedisplay_draw_tile( imagedisplay, &tile );
+		}
+}
+
+static void
+imagedisplay_draw_cairo( Imagedisplay *imagedisplay, 
+	cairo_t *cr, VipsRect *expose )
+{
+	VipsRect target;
+	int cairo_stride;
+	unsigned char *cairo_start;
+	cairo_surface_t *surface;
+
+	/* Map into display space.
+	 */
+	target = *expose;
+	target.left -= imagedisplay->left;
+	target.top -= imagedisplay->top;
+
+	cairo_stride = 4 * imagedisplay->cairo_buffer_width;
+	cairo_start = imagedisplay->cairo_buffer +
+		target.top * cairo_stride + target.left * 4;
 
 	surface = cairo_image_surface_create_for_data( cairo_start, 
-		CAIRO_FORMAT_RGB24, clip.width, clip.height, 
+		CAIRO_FORMAT_RGB24, expose->width, expose->height, 
 		cairo_stride );  
 
 	cairo_set_source_surface( cr, surface, target.left, target.top );
@@ -487,6 +516,13 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
+	VipsRect image;
+
+	image.left = 0;
+	image.top = 0;
+	image.width = imagedisplay->display->Xsize;
+	image.height = imagedisplay->display->Ysize;
+
 	if( imagedisplay->srgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
@@ -499,13 +535,21 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 					&rectangle_list->rectangles[i];
 				VipsRect expose;
 
-				expose.left = rectangle->x;
-				expose.top = rectangle->y;
+				/* Turn into an image-space rect.
+				 */
+				expose.left = imagedisplay->left + rectangle->x;
+				expose.top = imagedisplay->top + rectangle->y;
 				expose.width = rectangle->width;
 				expose.height = rectangle->height;
+				vips_rect_intersectrect( &expose, 
+					&image, &expose );
 
-				imagedisplay_draw_rect( imagedisplay, 
-					cr, &expose );
+				if( !vips_rect_isempty( &expose ) ) {
+					imagedisplay_draw_rect( imagedisplay, 
+						&expose );
+					imagedisplay_draw_cairo( imagedisplay, 
+						cr, &expose );
+				}
 			}
 		}
 
