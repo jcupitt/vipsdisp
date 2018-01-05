@@ -13,22 +13,37 @@ typedef struct _Imagedisplay {
 	 */
 	VipsImage *image;
 
-	/* A backing buffer the size of the visible part of the image. We use
+	/* Our geometry. 
+	 *
+	 * image_rect is the bounds of image space .. 0,0 to image->Xsize,
+	 * image->Ysize
+	 *
+	 * widget_rect is the bounds of the widget .. 0,0 to GtkAllocation
+	 *
+	 * paint_rect is the sub-part of the widget that we paint to .. if we
+	 * zoom out a long way, for example, we display the image centred in
+	 * the widget. 
+	 */
+	VipsRect image_rect;
+	VipsRect widget_rect;
+	VipsRect paint_rect;
+
+	/* A backing buffer the size of paint_rect. We use
 	 * this from the draw handler to paint the screen, and we also paint to
 	 * this from libvips as it calculates pixels.
 	 *
 	 * This is always Cairo-style ARGB.
 	 */
 	unsigned char *cairo_buffer;
-	int cairo_buffer_width;
-	int cairo_buffer_height;
 
-	/* left/top is the position of the top-left corner of the window within
-	 * the image. These can be negative if the image is smaller than the
-	 * window and we are displaying the image in the centre.
+	/* left/top is the position of the top-left corner of paint_rect within
+	 * the image. Set from our adjustments. 
 	 */
 	int left;
 	int top;
+
+
+
 
 	int mag;
 
