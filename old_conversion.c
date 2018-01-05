@@ -1,9 +1,8 @@
-/* Manage conversion of images for display: zoom, colour, load, etc.
+/* Convert an image for display.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include <gtk/gtk.h>
 
@@ -11,35 +10,18 @@
 
 #include "disp.h"
 
-/* The size of the tiles that we use for the libvips cache.
- */
-static const int tile_size = 128;
-
-/* conversion is actually a drawing area the size of the widget on screen: we 
- * do all scrolling ourselves.
- */
 G_DEFINE_TYPE( Conversion, conversion, G_OBJECT );
 
+/* Our signals. 
+ */
 enum {
-
-	/* Our signals. 
-	 */
-	SIG_PRELOAD,
-	SIG_LOAD,
-	SIG_POSTLOAD,
-
+	SIG_CHANGED,
+	SIG_AREA_CHANGED,
+	SIG_IMAGE_CHANGED,
 	SIG_LAST
 };
 
 static guint conversion_signals[SIG_LAST] = { 0 };
-
-static void
-conversion_finalize( GObject *object )
-{
-	Conversion *conversion = (Conversion *) widget;
-
-	G_OBJECT_CLASS( conversion_parent_class )->finalize( object );
-}
 
 static void
 conversion_empty( Conversion *conversion )
@@ -64,7 +46,6 @@ conversion_empty( Conversion *conversion )
 		}
 	}
 
-
 	VIPS_UNREF( conversion->srgb_region );
 	VIPS_UNREF( conversion->srgb );
 	VIPS_UNREF( conversion->mask_region );
@@ -77,41 +58,161 @@ conversion_empty( Conversion *conversion )
 }
 
 static void
-conversion_dispose( GObject *object )
+conversion_destroy( GtkWidget *widget )
 {
 	Conversion *conversion = (Conversion *) widget;
 
+	printf( "conversion_destroy:\n" ); 
+
 	conversion_empty( conversion );
 
-	G_OBJECT_CLASS( conversion_parent_class )->dispose( object );
+	GTK_WIDGET_CLASS( conversion_parent_class )->destroy( widget );
 }
 
 static void
-conversion_set_property( GObject *object, 
-	guint prop_id, const GValue *value, GParamSpec *pspec )
+conversion_draw_rect( Conversion *conversion, 
+	cairo_t *cr, VipsRect *expose )
 {
-	Conversion *conversion = (Conversion *) object;
+	VipsRect image;
+	VipsRect clip;
+	gboolean found;
+	VipsPel * restrict buf;
+	int lsk;
+	int x, y;
+	unsigned char *cairo_buffer;
+	cairo_surface_t *surface;
 
-	switch( prop_id ) {
+	/*
+	printf( "conversion_draw_rect: "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		expose->left, expose->top,
+		expose->width, expose->height );
+	 */
 
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-		break;
+	/* Clip against the image size ... we don't want to try painting 
+	 * outside the image area.
+	 */
+	image.left = 0;
+	image.top = 0;
+	image.width = conversion->srgb_region->im->Xsize;
+	image.height = conversion->srgb_region->im->Ysize;
+	vips_rect_intersectrect( &image, expose, &clip );
+	if( vips_rect_isempty( &clip ) )
+		return;
+
+	g_assert( conversion->srgb_region->im == conversion->srgb ); 
+	g_assert( conversion->mask_region->im == conversion->mask ); 
+
+	/* Request pixels. We ask the mask first, to get an idea of what's 
+	 * currently in cache, then request tiles of pixels. We must always
+	 * request pixels, even if the mask is blank, because the request
+	 * will trigger a notify later which will reinvoke us.
+	 */
+	if( vips_region_prepare( conversion->mask_region, &clip ) ) {
+		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
+		vips_error_clear();
+		abort();
+		return;
 	}
+
+	if( vips_region_prepare( conversion->srgb_region, &clip ) ) {
+		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
+		vips_error_clear();
+		abort();
+		return;
+	}
+
+	/* If the mask is all blank, skip the paint.
+	 */
+	buf = VIPS_REGION_ADDR( conversion->mask_region, 
+		clip.left, clip.top );
+	lsk = VIPS_REGION_LSKIP( conversion->mask_region );
+	found = FALSE;
+
+	for( y = 0; y < clip.height; y++ ) {
+		for( x = 0; x < clip.width; x++ )
+			if( buf[x] ) {
+				found = TRUE;
+				break;
+			}
+
+		if( found )
+			break;
+
+		buf += lsk;
+	}
+
+	if( !found ) {
+		printf( "conversion_paint_image: zero mask\n" );
+		return;
+	}
+
+	/* libvips is RGB, cairo is ARGB, we have to repack the data.
+	 */
+	cairo_buffer = g_malloc( clip.width * clip.height * 4 );
+
+	for( y = 0; y < clip.height; y++ ) {
+		VipsPel * restrict p = 
+			VIPS_REGION_ADDR( conversion->srgb_region, 
+			clip.left, clip.top + y );
+		unsigned char * restrict q = cairo_buffer + clip.width * 4 * y;
+
+		for( x = 0; x < clip.width; x++ ) {
+			q[0] = p[2];
+			q[1] = p[1];
+			q[2] = p[0];
+			q[3] = 0;
+
+			p += 3;
+			q += 4;
+		}
+	}
+
+	surface = cairo_image_surface_create_for_data( cairo_buffer, 
+		CAIRO_FORMAT_RGB24, clip.width, clip.height, clip.width * 4 );
+
+	cairo_set_source_surface( cr, surface, clip.left, clip.top );
+
+	cairo_paint( cr );
+
+	g_free( cairo_buffer ); 
+
+	cairo_surface_destroy( surface ); 
 }
 
-static void
-conversion_get_property( GObject *object, 
-	guint prop_id, GValue *value, GParamSpec *pspec )
+static gboolean
+conversion_draw( GtkWidget *widget, cairo_t *cr )
 {
-	Conversion *conversion = (Conversion *) object;
+	Conversion *conversion = (Conversion *) widget;
 
-	switch( prop_id ) {
+	//printf( "conversion_draw:\n" ); 
 
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-		break;
+	if( conversion->srgb_region ) {
+		cairo_rectangle_list_t *rectangle_list = 
+			cairo_copy_clip_rectangle_list( cr );
+
+		if( rectangle_list->status == CAIRO_STATUS_SUCCESS ) { 
+			int i;
+
+			for( i = 0; i < rectangle_list->num_rectangles; i++ ) {
+				cairo_rectangle_t *rectangle = 
+					&rectangle_list->rectangles[i];
+				VipsRect expose;
+
+				expose.left = rectangle->x;
+				expose.top = rectangle->y;
+				expose.width = rectangle->width;
+				expose.height = rectangle->height;
+
+				conversion_draw_rect( conversion, 
+					cr, &expose );
+			}
+		}
+
+		cairo_rectangle_list_destroy( rectangle_list );
 	}
+
+	return( FALSE ); 
 }
 
 static void
@@ -125,15 +226,12 @@ conversion_init( Conversion *conversion )
 static void
 conversion_class_init( ConversionClass *class )
 {
-	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 	printf( "conversion_class_init:\n" ); 
 
-	gobject_class->finalize = conversion_finalize;
-	gobject_class->dispose = conversion_dispose;
-	gobject_class->set_property = conversion_set_property;
-	gobject_class->get_property = conversion_get_property;
+	widget_class->destroy = conversion_destroy;
+	widget_class->draw = conversion_draw;
 
 	conversion_signals[SIG_PRELOAD] = g_signal_new( "preload",
 		G_TYPE_FROM_CLASS( class ),
@@ -162,6 +260,63 @@ conversion_class_init( ConversionClass *class )
 		G_TYPE_NONE, 1,
 		G_TYPE_POINTER );
 
+}
+
+static void
+conversion_close_memory( VipsImage *image, gpointer contents )
+{
+	g_free( contents );
+}
+
+typedef struct _ConversionUpdate {
+	Conversion *conversion;
+	VipsImage *image;
+	VipsRect rect;
+} ConversionUpdate;
+
+/* The main GUI thread runs this when it's idle and there are tiles that need
+ * painting. 
+ */
+static gboolean
+conversion_render_cb( ConversionUpdate *update )
+{
+	Conversion *conversion = update->conversion;
+
+	/* Again, stuff can run here long after the image has vanished, check
+	 * before we update.
+	 */
+	if( update->image == conversion->srgb )  
+		gtk_widget_queue_draw_area( GTK_WIDGET( update->conversion ),
+			update->rect.left, update->rect.top,
+			update->rect.width, update->rect.height );
+
+	g_free( update );
+
+	return( FALSE );
+}
+
+/* Come here from the vips_sink_screen() background thread when a tile has been
+ * calculated. We can't paint the screen directly since the main GUI thread
+ * might be doing something. Instead, we add an idle callback which will be
+ * run by the main GUI thread when it next hits the mainloop.
+ */
+static void
+conversion_render_notify( VipsImage *image, VipsRect *rect, void *client )
+{
+	Conversion *conversion = (Conversion *) client;
+
+	/* We can come here after conversion has junked this image and
+	 * started displaying another. Check the image is still correct.
+	 */
+	if( image == conversion->srgb ) { 
+		ConversionUpdate *update = g_new( ConversionUpdate, 1 );
+
+		update->conversion = conversion;
+		update->image = image;
+		update->rect = *rect;
+
+		g_idle_add( (GSourceFunc) conversion_render_cb, update );
+	}
 }
 
 /* Make the screen image. This is the thing we display pixel values from in
@@ -235,15 +390,17 @@ conversion_srgb_image( Conversion *conversion, VipsImage *in,
 	g_object_unref( image );
 	image = x;
 
-	/* Do a huge blur .. this is a slow operation, and handy for
-	 * debugging.
-	if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
+	x = vips_image_new();
+	if( mask )
+		*mask = vips_image_new();
+	if( vips_sink_screen( image, x, *mask, 128, 128, 400, 0, 
+		conversion_render_notify, conversion ) ) {
 		g_object_unref( image );
-		return( NULL ); 
+		g_object_unref( x );
+		return( NULL );
 	}
 	g_object_unref( image );
 	image = x;
-	 */
 
 	return( image );
 }
@@ -287,18 +444,17 @@ conversion_update_conversion( Conversion *conversion )
 			vips_region_new( conversion->mask )) )
 			return( -1 ); 
 
-		conversion->image_rect.width = conversion->display->Xsize;
-		conversion->image_rect.height = conversion->display->Ysize;
-
 		printf( "conversion_update_conversion: image size %d x %d\n", 
-			conversion->image_rect.width, 
-			conversion->image_rect.height );
+			conversion->display->Xsize, 
+			conversion->display->Ysize );
 		printf( "** srgb image %p\n", conversion->srgb );
 		printf( "** new region %p\n", conversion->srgb_region );
 
 		gtk_widget_set_size_request( GTK_WIDGET( conversion ),
-			conversion->image_rect.width, 
-			conversion->image_rect.height );
+			conversion->display->Xsize, 
+			conversion->display->Ysize );
+
+		gtk_widget_queue_draw( GTK_WIDGET( conversion ) ); 
 	}
 
 	return( 0 );

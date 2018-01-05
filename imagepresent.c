@@ -644,6 +644,8 @@ imagepresent_new( void )
 	imagepresent = g_object_new( imagepresent_get_type(),
 		NULL );
 
+	imagepresent->conversion = conversion_new();
+
 	imagepresent->imagedisplay = imagedisplay_new();
 
 	/* The imagepresent takes the focus, so we must listen for keypresses

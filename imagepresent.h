@@ -20,6 +20,8 @@ typedef struct _Imagepresent {
 
 	Imagedisplay *imagedisplay;
 
+	Conversion *conversion;
+
 	/* Last mouse position we saw, in display image coordinates.
 	 */
 	int last_x;

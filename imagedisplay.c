@@ -22,12 +22,6 @@ G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 	G_IMPLEMENT_INTERFACE( GTK_TYPE_SCROLLABLE, NULL ) );
 
 enum {
-	/* Our signals. 
-	 */
-	SIG_PRELOAD,
-	SIG_LOAD,
-	SIG_POSTLOAD,
-
 	/* Set the image with this.
 	 */
 	PROP_IMAGE,
@@ -138,6 +132,117 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		imagedisplay->paint_rect.height ); 
 }
 
+typedef struct _ImagedisplayUpdate {
+	Imagedisplay *imagedisplay;
+	VipsImage *image;
+	VipsRect rect;
+} ImagedisplayUpdate;
+
+/* The main GUI thread runs this when it's idle and there are tiles that need
+ * painting. 
+ */
+static gboolean
+imagedisplay_render_cb( ImagedisplayUpdate *update )
+{
+	Imagedisplay *imagedisplay = update->imagedisplay;
+
+	/*
+	printf( "imagedisplay_render_cb: "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		update->rect.left, update->rect.top,
+		update->rect.width, update->rect.height );
+	 */
+
+	/* Again, stuff can run here long after the image has vanished, check
+	 * before we update.
+	 */
+	if( update->image == imagedisplay->display ) {
+		imagedisplay_to_buffer( imagedisplay, &update->rect );
+		update->rect.left += imagedisplay->paint_rect.left;
+		update->rect.top += imagedisplay->paint_rect.top;
+
+		gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
+			update->rect.left, update->rect.top,
+			update->rect.width, update->rect.height );
+	}
+
+	g_free( update );
+
+	return( FALSE );
+}
+
+/* Come here from the vips_sink_screen() background thread when a tile has been
+ * calculated. We can't paint the screen directly since the main GUI thread
+ * might be doing something. Instead, we add an idle callback which will be
+ * run by the main GUI thread when it next hits the mainloop.
+ */
+static void
+imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
+{
+	Imagedisplay *imagedisplay = (Imagedisplay *) client;
+
+	/* We can come here after imagedisplay has junked this image and
+	 * started displaying another. Check the image is still correct.
+	 */
+	if( image == imagedisplay->display ) { 
+		ImagedisplayUpdate *update = g_new( ImagedisplayUpdate, 1 );
+
+		update->imagedisplay = imagedisplay;
+		update->image = image;
+		update->rect = *rect;
+
+		g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
+	}
+}
+
+static int
+imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
+{
+	if( imagedisplay->image ) { 
+		VIPS_UNREF( imagedisplay->mask_region );
+		VIPS_UNREF( imagedisplay->mask );
+		VIPS_UNREF( imagedisplay->display_region );
+		VIPS_UNREF( imagedisplay->display );
+		VIPS_UNREF( imagedisplay->image );
+	}
+
+	if( image ) { 
+		imagedisplay->image = image;
+		g_object_ref( image ); 
+		imagedisplay->mask = vips_image_new();
+		imagedisplay->display = vips_image_new();
+
+		if( vips_sink_screen( imagedisplay->image, 
+			imagedisplay->display, imagedisplay->mask, 
+			tile_size, tile_size, 400, 0, 
+			imagedisplay_render_notify, imagedisplay ) ) {
+			return( -1 );
+		}
+
+		if( !(imagedisplay->display_region = 
+			vips_region_new( imagedisplay->display )) )
+			return( -1 ); 
+		if( !(imagedisplay->mask_region = 
+			vips_region_new( imagedisplay->mask )) )
+			return( -1 ); 
+
+		imagedisplay->image_rect.width = imagedisplay->display->Xsize;
+		imagedisplay->image_rect.height = imagedisplay->display->Ysize;
+
+		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
+			imagedisplay->image_rect.width, 
+			imagedisplay->image_rect.height );
+		printf( "** display image %p\n", imagedisplay->display );
+		printf( "** new region %p\n", imagedisplay->display_region );
+
+		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
+			imagedisplay->image_rect.width, 
+			imagedisplay->image_rect.height );
+	}
+
+	return( 0 );
+}
+
 static void
 imagedisplay_set_property( GObject *object, 
 	guint prop_id, const GValue *value, GParamSpec *pspec )
@@ -185,6 +290,10 @@ imagedisplay_set_property( GObject *object,
 		}
 		break;
 
+	case PROP_IMAGE:
+		imagedisplay_set_image( imagedisplay, g_value_get_object( value ) );
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
@@ -214,6 +323,10 @@ imagedisplay_get_property( GObject *object,
 		g_value_set_enum( value, imagedisplay->vscroll_policy );
 		break;
 
+	case PROP_IMAGE:
+		g_value_set_object( value, imagedisplay->image );
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
@@ -223,37 +336,11 @@ imagedisplay_get_property( GObject *object,
 static void
 imagedisplay_empty( Imagedisplay *imagedisplay )
 {
-	if( imagedisplay->image ) { 
-		if( imagedisplay->preeval_sig ) { 
-			g_signal_handler_disconnect( imagedisplay->image, 
-				imagedisplay->preeval_sig ); 
-			imagedisplay->preeval_sig = 0;
-		}
-
-		if( imagedisplay->eval_sig ) { 
-			g_signal_handler_disconnect( imagedisplay->image, 
-				imagedisplay->eval_sig ); 
-			imagedisplay->eval_sig = 0;
-		}
-
-		if( imagedisplay->posteval_sig ) { 
-			g_signal_handler_disconnect( imagedisplay->image, 
-				imagedisplay->posteval_sig ); 
-			imagedisplay->posteval_sig = 0;
-		}
-	}
-
-
-	VIPS_UNREF( imagedisplay->srgb_region );
-	VIPS_UNREF( imagedisplay->srgb );
-	VIPS_UNREF( imagedisplay->mask_region );
-	VIPS_UNREF( imagedisplay->mask );
 	VIPS_UNREF( imagedisplay->display_region );
 	VIPS_UNREF( imagedisplay->display );
-	VIPS_UNREF( imagedisplay->image_region );
-
+	VIPS_UNREF( imagedisplay->mask_region );
+	VIPS_UNREF( imagedisplay->mask );
 	VIPS_UNREF( imagedisplay->image );
-
 	VIPS_FREE( imagedisplay->cairo_buffer ); 
 }
 
@@ -459,7 +546,7 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	if( vips_rect_isempty( &clip ) )
 		return;
 
-	g_assert( imagedisplay->srgb_region->im == imagedisplay->srgb ); 
+	g_assert( imagedisplay->display_region->im == imagedisplay->display ); 
 	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
 
 	/* Request pixels. We ask the mask first, to get an idea of what's 
@@ -474,7 +561,7 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 	}
 
-	if( vips_region_prepare( imagedisplay->srgb_region, &clip ) ) {
+	if( vips_region_prepare( imagedisplay->display_region, &clip ) ) {
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
@@ -499,11 +586,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 
 	imagedisplay_vips_to_cairo( imagedisplay, 
 		cairo_start,
-		VIPS_REGION_ADDR( imagedisplay->srgb_region, 
+		VIPS_REGION_ADDR( imagedisplay->display_region, 
 			clip.left, clip.top ),
 		clip.width, clip.height,
 		cairo_stride,
-		VIPS_REGION_LSKIP( imagedisplay->srgb_region ) );
+		VIPS_REGION_LSKIP( imagedisplay->display_region ) );
 }
 
 /* Fill a rectangle with a set of libvips tiles.
@@ -577,7 +664,7 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
-	if( imagedisplay->srgb_region ) {
+	if( imagedisplay->display_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 
@@ -639,33 +726,6 @@ imagedisplay_class_init( ImagedisplayClass *class )
 	widget_class->size_allocate = imagedisplay_size_allocate;
 	widget_class->draw = imagedisplay_draw;
 
-	imagedisplay_signals[SIG_PRELOAD] = g_signal_new( "preload",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ImagedisplayClass, preload ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
-	imagedisplay_signals[SIG_LOAD] = g_signal_new( "load",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ImagedisplayClass, load ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
-	imagedisplay_signals[SIG_POSTLOAD] = g_signal_new( "postload",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ImagedisplayClass, postload ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
 	g_object_class_override_property( gobject_class, 
 		PROP_HADJUSTMENT, "hadjustment" );
 	g_object_class_override_property( gobject_class, 
@@ -677,414 +737,9 @@ imagedisplay_class_init( ImagedisplayClass *class )
 
 }
 
-static void
-imagedisplay_close_memory( VipsImage *image, gpointer contents )
-{
-	g_free( contents );
-}
+we will need image cods <-> cairo cods functions for the statusbar etc.
 
-typedef struct _ImagedisplayUpdate {
-	Imagedisplay *imagedisplay;
-	VipsImage *image;
-	VipsRect rect;
-} ImagedisplayUpdate;
-
-/* The main GUI thread runs this when it's idle and there are tiles that need
- * painting. 
- */
-static gboolean
-imagedisplay_render_cb( ImagedisplayUpdate *update )
-{
-	Imagedisplay *imagedisplay = update->imagedisplay;
-
-	/*
-	printf( "imagedisplay_render_cb: "
-		"left = %d, top = %d, width = %d, height = %d\n",
-		update->rect.left, update->rect.top,
-		update->rect.width, update->rect.height );
-	 */
-
-	/* Again, stuff can run here long after the image has vanished, check
-	 * before we update.
-	 */
-	if( update->image == imagedisplay->srgb ) {
-		imagedisplay_to_buffer( imagedisplay, &update->rect );
-		update->rect.left += imagedisplay->paint_rect.left;
-		update->rect.top += imagedisplay->paint_rect.top;
-
-		gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
-			update->rect.left, update->rect.top,
-			update->rect.width, update->rect.height );
-	}
-
-	g_free( update );
-
-	return( FALSE );
-}
-
-/* Come here from the vips_sink_screen() background thread when a tile has been
- * calculated. We can't paint the screen directly since the main GUI thread
- * might be doing something. Instead, we add an idle callback which will be
- * run by the main GUI thread when it next hits the mainloop.
- */
-static void
-imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
-{
-	Imagedisplay *imagedisplay = (Imagedisplay *) client;
-
-	/* We can come here after imagedisplay has junked this image and
-	 * started displaying another. Check the image is still correct.
-	 */
-	if( image == imagedisplay->srgb ) { 
-		ImagedisplayUpdate *update = g_new( ImagedisplayUpdate, 1 );
-
-		update->imagedisplay = imagedisplay;
-		update->image = image;
-		update->rect = *rect;
-
-		g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
-	}
-}
-
-/* Make the screen image. This is the thing we display pixel values from in
- * the status bar.
- */
-static VipsImage *
-imagedisplay_display_image( Imagedisplay *imagedisplay, VipsImage *in )
-{
-	VipsImage *image;
-	VipsImage *x;
-
-	/* image redisplays the head of the pipeline. Hold a ref to it as we
-	 * work.
-	 */
-	image = in;
-	g_object_ref( image ); 
-
-	if( imagedisplay->mag < 0 ) {
-		if( vips_subsample( image, &x, 
-			-imagedisplay->mag, -imagedisplay->mag, NULL ) ) {
-			g_object_unref( image );
-			return( NULL ); 
-		}
-		g_object_unref( image );
-		image = x;
-	}
-	else { 
-		if( vips_zoom( image, &x, 
-			imagedisplay->mag, imagedisplay->mag, NULL ) ) {
-			g_object_unref( image );
-			return( NULL ); 
-		}
-		g_object_unref( image );
-		image = x;
-	}
-
-	return( image );
-}
-
-/* Make the srgb image we paint with. 
- */
-static VipsImage *
-imagedisplay_srgb_image( Imagedisplay *imagedisplay, VipsImage *in, 
-	VipsImage **mask )
-{
-	VipsImage *image;
-	VipsImage *x;
-
-	/* image redisplays the head of the pipeline. Hold a ref to it as we
-	 * work.
-	 */
-	image = in;
-	g_object_ref( image ); 
-
-	/* This won't work for CMYK, you need to mess about with ICC profiles
-	 * for that, but it will work for everything else.
-	 */
-	if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
-		g_object_unref( image );
-		return( NULL ); 
-	}
-	g_object_unref( image );
-	image = x;
-
-	/* Drop any alpha.
-	 */
-	if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
-		g_object_unref( image );
-		return( NULL ); 
-	}
-	g_object_unref( image );
-	image = x;
-
-	/* Do a huge blur .. this is a slow operation, and handy for
-	 * debugging.
-	if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
-		g_object_unref( image );
-		return( NULL ); 
-	}
-	g_object_unref( image );
-	image = x;
-	 */
-
-	x = vips_image_new();
-	if( mask )
-		*mask = vips_image_new();
-	if( vips_sink_screen( image, x, *mask, tile_size, tile_size, 400, 0, 
-		imagedisplay_render_notify, imagedisplay ) ) {
-		g_object_unref( image );
-		g_object_unref( x );
-		return( NULL );
-	}
-	g_object_unref( image );
-	image = x;
-
-	return( image );
-}
-
-static int
-imagedisplay_update_conversion( Imagedisplay *imagedisplay )
-{
-	if( imagedisplay->image ) { 
-		if( imagedisplay->srgb_region )
-			printf( "** junking region %p\n", 
-				imagedisplay->srgb_region );
-
-		VIPS_UNREF( imagedisplay->mask_region );
-		VIPS_UNREF( imagedisplay->mask );
-		VIPS_UNREF( imagedisplay->srgb_region );
-		VIPS_UNREF( imagedisplay->srgb );
-		VIPS_UNREF( imagedisplay->display_region );
-		VIPS_UNREF( imagedisplay->display );
-		VIPS_UNREF( imagedisplay->image_region );
-
-		if( !(imagedisplay->image_region = 
-			vips_region_new( imagedisplay->image )) )
-			return( -1 ); 
-
-		if( !(imagedisplay->display = 
-			imagedisplay_display_image( imagedisplay, 
-				imagedisplay->image )) ) 
-			return( -1 ); 
-		if( !(imagedisplay->display_region = 
-			vips_region_new( imagedisplay->display )) )
-			return( -1 ); 
-
-		if( !(imagedisplay->srgb = 
-			imagedisplay_srgb_image( imagedisplay, 
-				imagedisplay->display, &imagedisplay->mask )) ) 
-			return( -1 ); 
-		if( !(imagedisplay->srgb_region = 
-			vips_region_new( imagedisplay->srgb )) )
-			return( -1 ); 
-		if( !(imagedisplay->mask_region = 
-			vips_region_new( imagedisplay->mask )) )
-			return( -1 ); 
-
-		imagedisplay->image_rect.width = imagedisplay->display->Xsize;
-		imagedisplay->image_rect.height = imagedisplay->display->Ysize;
-
-		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
-			imagedisplay->image_rect.width, 
-			imagedisplay->image_rect.height );
-		printf( "** srgb image %p\n", imagedisplay->srgb );
-		printf( "** new region %p\n", imagedisplay->srgb_region );
-
-		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
-			imagedisplay->image_rect.width, 
-			imagedisplay->image_rect.height );
-	}
-
-	return( 0 );
-}
-
-static void
-imagedisplay_preeval( VipsImage *image, 
-	VipsProgress *progress, Imagedisplay *imagedisplay )
-{
-	g_signal_emit( imagedisplay, 
-		imagedisplay_signals[SIG_PRELOAD], 0, progress );
-}
-
-static void
-imagedisplay_eval( VipsImage *image, 
-	VipsProgress *progress, Imagedisplay *imagedisplay )
-{
-	g_signal_emit( imagedisplay, 
-		imagedisplay_signals[SIG_LOAD], 0, progress );
-}
-
-static void
-imagedisplay_posteval( VipsImage *image, 
-	VipsProgress *progress, Imagedisplay *imagedisplay )
-{
-	g_signal_emit( imagedisplay, 
-		imagedisplay_signals[SIG_POSTLOAD], 0, progress );
-}
-
-static void
-imagedisplay_attach_progress( Imagedisplay *imagedisplay )
-{
-	g_assert( !imagedisplay->preeval_sig );
-	g_assert( !imagedisplay->eval_sig );
-	g_assert( !imagedisplay->posteval_sig );
-
-	/* Attach an eval callback: this will tick down if we 
-	 * have to decode this image.
-	 */
-	vips_image_set_progress( imagedisplay->image, TRUE ); 
-	imagedisplay->preeval_sig = 
-		g_signal_connect( imagedisplay->image, "preeval",
-			G_CALLBACK( imagedisplay_preeval ), 
-			imagedisplay );
-	imagedisplay->eval_sig = 
-		g_signal_connect( imagedisplay->image, "eval",
-			G_CALLBACK( imagedisplay_eval ), 
-			imagedisplay );
-	imagedisplay->posteval_sig = 
-		g_signal_connect( imagedisplay->image, "posteval",
-			G_CALLBACK( imagedisplay_posteval ), 
-			imagedisplay );
-}
-
-int
-imagedisplay_set_file( Imagedisplay *imagedisplay, GFile *file )
-{
-	imagedisplay_empty( imagedisplay );
-
-	if( file != NULL ) {
-		gchar *path;
-		gchar *contents;
-		gsize length;
-
-		if( (path = g_file_get_path( file )) ) {
-			if( !(imagedisplay->image = 
-				vips_image_new_from_file( path, NULL )) ) {
-				g_free( path ); 
-				return( -1 );
-			}
-			g_free( path ); 
-		}
-		else if( g_file_load_contents( file, NULL, 
-			&contents, &length, NULL, NULL ) ) {
-			if( !(imagedisplay->image =
-				vips_image_new_from_buffer( contents, length, 
-					"", NULL )) ) {
-				g_free( contents );
-				return( -1 ); 
-			}
-
-			g_signal_connect( imagedisplay->image, "close",
-				G_CALLBACK( imagedisplay_close_memory ), 
-				contents );
-		}
-		else {
-			vips_error( "imagedisplay", 
-				"unable to load GFile object" );
-			return( -1 );
-		}
-
-		imagedisplay_attach_progress( imagedisplay ); 
-	}
-
-	imagedisplay_update_conversion( imagedisplay );
-
-	return( 0 );
-}
-
-int
-imagedisplay_get_mag( Imagedisplay *imagedisplay )
-{
-	return( imagedisplay->mag );
-}
-
-void
-imagedisplay_set_mag( Imagedisplay *imagedisplay, int mag )
-{
-	if( mag > -600 &&
-		mag < 1000000 &&
-		imagedisplay->mag != mag ) { 
-		printf( "imagedisplay_set_mag: %d\n", mag ); 
-
-		imagedisplay->mag = mag;
-		imagedisplay_update_conversion( imagedisplay );
-	}
-}
-
-gboolean
-imagedisplay_get_image_size( Imagedisplay *imagedisplay, 
-	int *width, int *height )
-{
-	if( imagedisplay->image ) {
-		*width = imagedisplay->image->Xsize;
-		*height = imagedisplay->image->Ysize;
-
-		return( TRUE ); 
-	}
-	else
-		return( FALSE );
-}
-
-gboolean
-imagedisplay_get_display_image_size( Imagedisplay *imagedisplay, 
-	int *width, int *height )
-{
-	if( imagedisplay->display ) {
-		*width = imagedisplay->display->Xsize;
-		*height = imagedisplay->display->Ysize;
-
-		return( TRUE ); 
-	}
-	else
-		return( FALSE );
-}
-
-/* Map to underlying image coordinates from display image coordinates.
- */
-void
-imagedisplay_to_image_cods( Imagedisplay *imagedisplay,
-	int display_x, int display_y, int *image_x, int *image_y )
-{
-	if( imagedisplay->mag > 0 ) {
-		*image_x = display_x / imagedisplay->mag;
-		*image_y = display_y / imagedisplay->mag;
-	}
-	else {
-		*image_x = display_x * -imagedisplay->mag;
-		*image_y = display_y * -imagedisplay->mag;
-	}
-}
-
-/* Map to display cods from underlying image coordinates.
- */
-void
-imagedisplay_to_display_cods( Imagedisplay *imagedisplay,
-	int image_x, int image_y, int *display_x, int *display_y )
-{
-	if( imagedisplay->mag > 0 ) {
-		*display_x = image_x * imagedisplay->mag;
-		*display_y = image_y * imagedisplay->mag;
-	}
-	else {
-		*display_x = image_x / -imagedisplay->mag;
-		*display_y = image_y / -imagedisplay->mag;
-	}
-}
-
-VipsPel *
-imagedisplay_get_ink( Imagedisplay *imagedisplay, int x, int y )
-{
-	VipsRect rect;
-
-	rect.left = x;
-	rect.top = y;
-	rect.width = 1;
-	rect.height = 1;
-	if( vips_region_prepare( imagedisplay->image_region, &rect ) )
-		return( NULL );
-
-	return( VIPS_REGION_ADDR( imagedisplay->image_region, x, y ) );  
-}
+conversion will need display image cods <-> real image
 
 Imagedisplay *
 imagedisplay_new( void ) 
