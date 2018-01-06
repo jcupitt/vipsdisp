@@ -59,4 +59,7 @@ typedef struct _ImagedisplayClass {
 
 } ImagedisplayClass;
 
+void imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, VipsRect *rect );
+void imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, VipsRect *rect );
+
 Imagedisplay *imagedisplay_new( void ); 

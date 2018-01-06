@@ -11,6 +11,10 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG
+ */
+
 /* The size of the tiles that we use for the libvips cache.
  */
 static const int tile_size = 128;
@@ -24,7 +28,7 @@ G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 enum {
 	/* Set the image with this.
 	 */
-	PROP_IMAGE,
+	PROP_IMAGE = 1,
 
 	/* The props we implement for the scrollable interface.
 	 */
@@ -36,8 +40,6 @@ enum {
 	SIG_LAST
 };
 
-static guint imagedisplay_signals[SIG_LAST] = { 0 };
-
 static void
 imagedisplay_adjustment_changed( GtkAdjustment *adjustment, 
 	Imagedisplay *imagedisplay )
@@ -48,8 +50,10 @@ imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
 		double top = 
 			gtk_adjustment_get_value( imagedisplay->vadjustment );
 
+#ifdef DEBUG
 		printf( "imagedisplay_adjustment_changed: %g x %g\n", 
 			left, top ); 
+#endif /*DEBUG*/
 
 		imagedisplay->left = left;
 		imagedisplay->top = top;
@@ -62,7 +66,9 @@ static gboolean
 imagedisplay_set_adjustment( Imagedisplay *imagedisplay,
 	GtkAdjustment **adjustment_slot, GtkAdjustment *new_adjustment )
 {
+#ifdef DEBUG
 	printf( "imagedisplay_set_adjustment:\n" ); 
+#endif /*DEBUG*/
 
 	if( new_adjustment && 
 		*adjustment_slot == new_adjustment )
@@ -94,8 +100,10 @@ imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay,
 	double new_upper;
 	double page_size;
 
+#ifdef DEBUG
 	printf( "imagedisplay_set_adjustment_values: window_size = %d, "
 		"axis_size = %d\n", axis_size, window_size );
+#endif /*DEBUG*/
 
 	old_value = gtk_adjustment_get_value( adjustment );
 	page_size = window_size;
@@ -146,20 +154,18 @@ imagedisplay_render_cb( ImagedisplayUpdate *update )
 {
 	Imagedisplay *imagedisplay = update->imagedisplay;
 
-	/*
+#ifdef DEBUG
 	printf( "imagedisplay_render_cb: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		update->rect.left, update->rect.top,
 		update->rect.width, update->rect.height );
-	 */
+#endif /*DEBUG*/
 
 	/* Again, stuff can run here long after the image has vanished, check
 	 * before we update.
 	 */
 	if( update->image == imagedisplay->display ) {
-		imagedisplay_to_buffer( imagedisplay, &update->rect );
-		update->rect.left += imagedisplay->paint_rect.left;
-		update->rect.top += imagedisplay->paint_rect.top;
+		imagedisplay_image_to_gtk( imagedisplay, &update->rect );
 
 		gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
 			update->rect.left, update->rect.top,
@@ -229,11 +235,13 @@ imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
 		imagedisplay->image_rect.width = imagedisplay->display->Xsize;
 		imagedisplay->image_rect.height = imagedisplay->display->Ysize;
 
+#ifdef DEBUG
 		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
 			imagedisplay->image_rect.width, 
 			imagedisplay->image_rect.height );
 		printf( "** display image %p\n", imagedisplay->display );
 		printf( "** new region %p\n", imagedisplay->display_region );
+#endif /*DEBUG*/
 
 		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
 			imagedisplay->image_rect.width, 
@@ -291,7 +299,8 @@ imagedisplay_set_property( GObject *object,
 		break;
 
 	case PROP_IMAGE:
-		imagedisplay_set_image( imagedisplay, g_value_get_object( value ) );
+		imagedisplay_set_image( imagedisplay, 
+			g_value_get_object( value ) );
 		break;
 
 	default:
@@ -334,24 +343,20 @@ imagedisplay_get_property( GObject *object,
 }
 
 static void
-imagedisplay_empty( Imagedisplay *imagedisplay )
+imagedisplay_destroy( GtkWidget *widget )
 {
+	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
+
+#ifdef DEBUG
+	printf( "imagedisplay_destroy:\n" ); 
+#endif /*DEBUG*/
+
 	VIPS_UNREF( imagedisplay->display_region );
 	VIPS_UNREF( imagedisplay->display );
 	VIPS_UNREF( imagedisplay->mask_region );
 	VIPS_UNREF( imagedisplay->mask );
 	VIPS_UNREF( imagedisplay->image );
 	VIPS_FREE( imagedisplay->cairo_buffer ); 
-}
-
-static void
-imagedisplay_destroy( GtkWidget *widget )
-{
-	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-
-	printf( "imagedisplay_destroy:\n" ); 
-
-	imagedisplay_empty( imagedisplay );
 
 	GTK_WIDGET_CLASS( imagedisplay_parent_class )->destroy( widget );
 }
@@ -363,7 +368,9 @@ imagedisplay_get_preferred_width( GtkWidget *widget,
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 	int width = imagedisplay->image_rect.width;
 
+#ifdef DEBUG
 	printf( "imagedisplay_get_preferred_width: %d\n", width ); 
+#endif /*DEBUG*/
 
 	*minimum = *natural = width;
 }
@@ -375,7 +382,9 @@ imagedisplay_get_preferred_height( GtkWidget *widget,
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 	int height = imagedisplay->image_rect.height;
 
+#ifdef DEBUG
 	printf( "imagedisplay_get_preferred_height: %d\n", height ); 
+#endif /*DEBUG*/
 
 	*minimum = *natural = height;
 }
@@ -387,8 +396,10 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 	int old_buffer_width = imagedisplay->paint_rect.width;
 	int old_buffer_height = imagedisplay->paint_rect.height;
 
+#ifdef DEBUG
 	printf( "imagedisplay_size_allocate: %d x %d\n",
 		allocation->width, allocation->height ); 
+#endif /*DEBUG*/
 
 	GTK_WIDGET_CLASS( imagedisplay_parent_class )->
 		size_allocate( widget, allocation );
@@ -475,41 +486,67 @@ imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay,
 	}
 }
 
-/* Transform between image space and buffer space. In buffer space, (0, 0) is
- * the first pixel in ->cairo_buffer.
+/* Transform between our coordinate spaces:
+ *
+ * image: libvips coordinates ... we clip against the image size when going to 
+ * libvips space.
+ *
+ * gtk: coordinates for gtk and for cairo drawing .. no clipping.
+ *
+ * buffer: coordinates for our backing buffer ... clip against buffer size when
+ * going to this space.
  */
 
-static void
-imagedisplay_to_buffer( Imagedisplay *imagedisplay, VipsRect *rect )
+void
+imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, VipsRect *rect )
 {
-	/* This goes to buffer space ..
-	 */
 	rect->left -= imagedisplay->left;
 	rect->top -= imagedisplay->top;
 
-	/* .. but we want to clip against paint_rect, so we need to go on to
-	 * paint space.
-	 */ 
 	rect->left += imagedisplay->paint_rect.left;
 	rect->top += imagedisplay->paint_rect.top;
+}
 
+static void
+imagedisplay_gtk_to_buffer( Imagedisplay *imagedisplay, VipsRect *rect )
+{
 	vips_rect_intersectrect( rect, &imagedisplay->paint_rect, rect ); 
 
-	/* And back to buffer space.
-	 */
 	rect->left -= imagedisplay->paint_rect.left;
 	rect->top -= imagedisplay->paint_rect.top;
 }
 
 static void
-imagedisplay_to_image( Imagedisplay *imagedisplay, VipsRect *rect )
+imagedisplay_buffer_to_gtk( Imagedisplay *imagedisplay, VipsRect *rect )
 {
+	rect->left += imagedisplay->paint_rect.left;
+	rect->top += imagedisplay->paint_rect.top;
+}
+
+void
+imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, VipsRect *rect )
+{
+	rect->left -= imagedisplay->paint_rect.left;
+	rect->top -= imagedisplay->paint_rect.top;
+
 	rect->left += imagedisplay->left;
 	rect->top += imagedisplay->top;
 
-	/* This should always be inside the image, but clip anyway.
-	 */
 	vips_rect_intersectrect( rect, &imagedisplay->image_rect, rect ); 
+}
+
+static void
+imagedisplay_image_to_buffer( Imagedisplay *imagedisplay, VipsRect *rect )
+{
+	imagedisplay_image_to_gtk( imagedisplay, rect );
+	imagedisplay_gtk_to_buffer( imagedisplay, rect );
+}
+
+static void
+imagedisplay_buffer_to_image( Imagedisplay *imagedisplay, VipsRect *rect )
+{
+	imagedisplay_buffer_to_gtk( imagedisplay, rect );
+	imagedisplay_gtk_to_image( imagedisplay, rect );
 }
 
 /* Fill a single tile from libvips. The tile fits within a single tile 
@@ -520,10 +557,8 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 {
 	VipsRect target;
 	VipsRect clip;
-	int cairo_stride;
-	unsigned char *cairo_start;
 
-	/* Must fit in a single tile.
+	/* Must fit in a single tile, and within the image.
 	 */
 	g_assert( tile->width <= tile_size );
 	g_assert( tile->height <= tile_size );
@@ -533,21 +568,16 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	g_assert( VIPS_ROUND_UP( tile->top, tile_size ) - 
 		VIPS_ROUND_DOWN( VIPS_RECT_BOTTOM( tile ), tile_size ) <= 
 			tile_size );
+	g_assert( vips_rect_includesrect( &imagedisplay->image_rect, tile ) ); 
 
-	/* Map into screen space and clip.
+	/* Map into buffer space and clip.
 	 */
 	target = *tile;
-	imagedisplay_to_buffer( imagedisplay, &target );
-
-	/* Back to image space.
-	 */
+	imagedisplay_image_to_buffer( imagedisplay, &target );
 	clip = target;
-	imagedisplay_to_image( imagedisplay, &clip ); 
+	imagedisplay_buffer_to_image( imagedisplay, &clip ); 
 	if( vips_rect_isempty( &clip ) )
 		return;
-
-	g_assert( imagedisplay->display_region->im == imagedisplay->display ); 
-	g_assert( imagedisplay->mask_region->im == imagedisplay->mask ); 
 
 	/* Request pixels. We ask the mask first, to get an idea of what's 
 	 * currently in cache, then request tiles of pixels. We must always
@@ -555,42 +585,48 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	 * will trigger a notify later which will reinvoke us.
 	 */
 	if( vips_region_prepare( imagedisplay->mask_region, &clip ) ) {
+#ifdef DEBUG
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
+#endif /*DEBUG*/
+
 		return;
 	}
 
 	if( vips_region_prepare( imagedisplay->display_region, &clip ) ) {
+#ifdef DEBUG
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
+#endif /*DEBUG*/
+
 		return;
 	}
 
 	/* tile is within a single tile, so we only need to test the first byte
 	 * of the mask. 
 	 */
-	if( !VIPS_REGION_ADDR( imagedisplay->mask_region, 
-		clip.left, clip.top )[0] ) 
-		return;
+	if( VIPS_REGION_ADDR( imagedisplay->mask_region, 
+		clip.left, clip.top )[0] ) {
+		int cairo_stride = 4 * imagedisplay->paint_rect.width;
+		unsigned char *cairo_start = imagedisplay->cairo_buffer +
+			target.top * cairo_stride + target.left * 4;
 
-	/*
-	printf( "imagedisplay_fill_tile: painting %d x %d pixels\n", 
-		clip.width, clip.height );
-	 */
+#ifdef DEBUG
+		printf( "imagedisplay_fill_tile: "
+			"painting %d x %d pixels to buffer\n", 
+			clip.width, clip.height );
+#endif /*DEBUG*/
 
-	cairo_stride = 4 * imagedisplay->paint_rect.width;
-	cairo_start = imagedisplay->cairo_buffer +
-		target.top * cairo_stride + target.left * 4;
-
-	imagedisplay_vips_to_cairo( imagedisplay, 
-		cairo_start,
-		VIPS_REGION_ADDR( imagedisplay->display_region, 
-			clip.left, clip.top ),
-		clip.width, clip.height,
-		cairo_stride,
-		VIPS_REGION_LSKIP( imagedisplay->display_region ) );
+		imagedisplay_vips_to_cairo( imagedisplay, 
+			cairo_start,
+			VIPS_REGION_ADDR( imagedisplay->display_region, 
+				clip.left, clip.top ),
+			clip.width, clip.height,
+			cairo_stride,
+			VIPS_REGION_LSKIP( imagedisplay->display_region ) );
+	}
 }
 
 /* Fill a rectangle with a set of libvips tiles.
@@ -601,12 +637,12 @@ imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 	int left, top, right, bottom;
 	int x, y;
 
-	/*
+#ifdef DEBUG
 	printf( "imagedisplay_fill_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
-	 */
+#endif /*DEBUG*/
 
 	left = VIPS_ROUND_DOWN( expose->left, tile_size );
 	top = VIPS_ROUND_DOWN( expose->top, tile_size );
@@ -634,29 +670,27 @@ static void
 imagedisplay_draw_cairo( Imagedisplay *imagedisplay, 
 	cairo_t *cr, VipsRect *expose )
 {
-	VipsRect target;
-	int cairo_stride;
-	unsigned char *cairo_start;
-	cairo_surface_t *surface;
+	VipsRect buffer;
+	VipsRect gtk;
 
-	target = *expose;
-	imagedisplay_to_buffer( imagedisplay, &target );
+	gtk = *expose;
+	imagedisplay_image_to_gtk( imagedisplay, &gtk );
+	buffer = gtk;
+	imagedisplay_gtk_to_buffer( imagedisplay, &buffer );
 
-	cairo_stride = 4 * imagedisplay->paint_rect.width;
-	cairo_start = imagedisplay->cairo_buffer +
-		target.top * cairo_stride + target.left * 4;
+	if( !vips_rect_isempty( &buffer ) ) {
+		int cairo_stride = 4 * imagedisplay->paint_rect.width;
+		unsigned char *cairo_start = imagedisplay->cairo_buffer +
+			buffer.top * cairo_stride + buffer.left * 4;
+		cairo_surface_t *surface;
 
-	surface = cairo_image_surface_create_for_data( cairo_start, 
-		CAIRO_FORMAT_RGB24, target.width, target.height, 
-		cairo_stride );  
-
-	cairo_set_source_surface( cr, surface, 
-		target.left + imagedisplay->paint_rect.left, 
-		target.top + imagedisplay->paint_rect.top );
-
-	cairo_paint( cr );
-
-	cairo_surface_destroy( surface ); 
+		surface = cairo_image_surface_create_for_data( cairo_start, 
+			CAIRO_FORMAT_RGB24, buffer.width, buffer.height, 
+			cairo_stride );  
+		cairo_set_source_surface( cr, surface, gtk.left, gtk.top ); 
+		cairo_paint( cr );
+		cairo_surface_destroy( surface ); 
+	}
 }
 
 static gboolean
@@ -678,13 +712,12 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 
 				/* Turn into an image-space rect.
 				 */
-				expose.left = rectangle->x - 
-					imagedisplay->paint_rect.left;
-				expose.top = rectangle->y - 
-					imagedisplay->paint_rect.top;
+				expose.left = rectangle->x;
+				expose.top = rectangle->y;
 				expose.width = rectangle->width;
 				expose.height = rectangle->height;
-				imagedisplay_to_image( imagedisplay, &expose ); 
+				imagedisplay_gtk_to_image( imagedisplay, 
+					&expose ); 
 
 				if( !vips_rect_isempty( &expose ) ) {
 					imagedisplay_fill_rect( imagedisplay, 
@@ -704,9 +737,9 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 static void
 imagedisplay_init( Imagedisplay *imagedisplay )
 {
+#ifdef DEBUG
 	printf( "imagedisplay_init:\n" ); 
-
-	imagedisplay->mag = 1;
+#endif /*DEBUG*/
 }
 
 static void
@@ -715,7 +748,9 @@ imagedisplay_class_init( ImagedisplayClass *class )
 	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
+#ifdef DEBUG
 	printf( "imagedisplay_class_init:\n" ); 
+#endif /*DEBUG*/
 
 	gobject_class->set_property = imagedisplay_set_property;
 	gobject_class->get_property = imagedisplay_get_property;
@@ -725,6 +760,13 @@ imagedisplay_class_init( ImagedisplayClass *class )
 	widget_class->get_preferred_height = imagedisplay_get_preferred_height;
 	widget_class->size_allocate = imagedisplay_size_allocate;
 	widget_class->draw = imagedisplay_draw;
+
+	g_object_class_install_property( gobject_class, PROP_IMAGE,
+		g_param_spec_object( "image",
+			_( "image" ),
+			_( "The image to be displayed" ),
+			VIPS_TYPE_IMAGE,
+			G_PARAM_READWRITE ) );
 
 	g_object_class_override_property( gobject_class, 
 		PROP_HADJUSTMENT, "hadjustment" );
@@ -737,16 +779,14 @@ imagedisplay_class_init( ImagedisplayClass *class )
 
 }
 
-we will need image cods <-> cairo cods functions for the statusbar etc.
-
-conversion will need display image cods <-> real image
-
 Imagedisplay *
 imagedisplay_new( void ) 
 {
 	Imagedisplay *imagedisplay;
 
+#ifdef DEBUG
 	printf( "imagedisplay_new:\n" ); 
+#endif /*DEBUG*/
 
 	imagedisplay = g_object_new( imagedisplay_get_type(),
 		NULL );

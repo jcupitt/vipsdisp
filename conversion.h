@@ -2,23 +2,27 @@
 typedef struct _Conversion {
 	GObject parent_instance;
 
+	/* The image we are holding.
+	 */
 	VipsImage *image;
 
+	/* Display transform parameters.
+	 */
 	int mag;
+	double scale;
+	double offset;
 
-	/* A region on the input image for the status bar. 
+	/* A region on the input image for the status bar to use. 
 	 */
 	VipsRegion *image_region;
 
 	/* The image resized for the display, ie. including shrink & zoom.
 	 */
 	VipsImage *display;
-	VipsRegion *display_region;
 
-	/* The image to sRGB for painting.
+	/* The display image converted to display RGB for painting.
 	 */
-	VipsImage *srgb;
-	VipsRegion *srgb_region;
+	VipsImage *rgb;
 
 	/* Watch image load with these.
 	 */

@@ -112,7 +112,7 @@ gboolean
 imagepresent_get_image_size( Imagepresent *imagepresent, 
 	int *width, int *height )
 {
-	return( imagedisplay_get_image_size( imagepresent->imagedisplay,
+	return( conversion_get_image_size( imagepresent->conversion,
 		width, height ) ); 
 }
 
@@ -120,7 +120,7 @@ gboolean
 imagepresent_get_display_image_size( Imagepresent *imagepresent, 
 	int *width, int *height )
 {
-	return( imagedisplay_get_display_image_size( imagepresent->imagedisplay,
+	return( conversion_get_display_image_size( imagepresent->conversion,
 		width, height ) ); 
 }
 
@@ -141,13 +141,13 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 
 	/* We need to update last_x/_y ... go via image cods.
 	 */
-	imagedisplay_to_image_cods( imagepresent->imagedisplay,
+	conversion_to_image_cods( imagepresent->conversion,
 		imagepresent->last_x, imagepresent->last_y, 
 		&image_x, &image_y ); 
 
-	imagedisplay_set_mag( imagepresent->imagedisplay, mag ); 
+	conversion_set_mag( imagepresent->conversion, mag ); 
 
-	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+	conversion_to_display_cods( imagepresent->conversion,
 		image_x, image_y,
 		&imagepresent->last_x, &imagepresent->last_y );
 
@@ -190,13 +190,13 @@ imagepresent_set_mag_centre( Imagepresent *imagepresent, int mag )
 	imagepresent_get_window_position( imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
 
-	imagedisplay_to_image_cods( imagepresent->imagedisplay,
+	conversion_to_image_cods( imagepresent->conversion,
 		window_left + window_width / 2, window_top + window_height / 2,
 		&image_x, &image_y ); 
 
 	imagepresent_set_mag( imagepresent, mag );
 
-	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+	conversion_to_display_cods( imagepresent->conversion,
 		image_x, image_y,
 		&display_x, &display_y ); 
 	imagepresent_set_window_position( imagepresent,
@@ -226,7 +226,7 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 	 * bits for magnification leaves us 22 for size, or about 4m x 4m
 	 * pixels. 
 	 */
-	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+	mag = conversion_get_mag( imagepresent->conversion );
 	if( mag <= 0 ) {
 		if( mag >= -2 )
 			imagepresent_set_mag( imagepresent, 1 );
@@ -238,7 +238,7 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 
 	imagepresent_get_window_position( imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
-	imagedisplay_to_display_cods( imagepresent->imagedisplay,
+	conversion_to_display_cods( imagepresent->conversion,
 		x, y,
 		&display_x, &display_y ); 
 
@@ -265,7 +265,7 @@ imagepresent_magout( Imagepresent *imagepresent )
 		image_height == 1 )
 		return;
 
-	mag = imagedisplay_get_mag( imagepresent->imagedisplay );
+	mag = conversion_get_mag( imagepresent->conversion );
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
 			imagepresent_set_mag_centre( imagepresent, -2 );
@@ -335,7 +335,7 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 		g_object_ref( file ); 
 	}
 
-	if( imagedisplay_set_file( imagepresent->imagedisplay, 
+	if( conversion_set_file( imagepresent->conversion, 
 		imagepresent->file ) )
 	       return( -1 ); 	
 
@@ -449,7 +449,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	case GDK_KEY_i:
 	case GDK_KEY_plus:
-		imagedisplay_to_image_cods( imagepresent->imagedisplay,
+		conversion_to_image_cods( imagepresent->conversion,
 			imagepresent->last_x, imagepresent->last_y,
 			&image_x, &image_y ); 
 		imagepresent_magin( imagepresent, image_x, image_y );
@@ -613,7 +613,7 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 
 	switch( event->direction ) {
 	case GDK_SCROLL_UP:
-		imagedisplay_to_image_cods( imagepresent->imagedisplay,
+		conversion_to_image_cods( imagepresent->conversion,
 			event->x, event->y,
 			&image_x, &image_y ); 
 		imagepresent_magin( imagepresent, image_x, image_y );
@@ -645,8 +645,13 @@ imagepresent_new( void )
 		NULL );
 
 	imagepresent->conversion = conversion_new();
-
 	imagepresent->imagedisplay = imagedisplay_new();
+
+	/* When the conversion output changes, update the display.
+	 */
+	g_object_bind_property( imagepresent->conversion, "rgb",
+				imagepresent->imagedisplay, "image",
+				G_BINDING_DEFAULT );
 
 	/* The imagepresent takes the focus, so we must listen for keypresses
 	 * there. We get the mouse position from (last_x, last_y), which we

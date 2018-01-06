@@ -1,4 +1,8 @@
 
+/* i18n placeholder.
+ */
+#define _(S) (S)
+
 typedef struct _Disp {
 	GtkApplication parent_instance;
 

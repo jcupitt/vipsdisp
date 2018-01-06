@@ -11,16 +11,16 @@
 
 #include "disp.h"
 
-/* The size of the tiles that we use for the libvips cache.
- */
-static const int tile_size = 128;
-
 /* conversion is actually a drawing area the size of the widget on screen: we 
  * do all scrolling ourselves.
  */
-G_DEFINE_TYPE( Conversion, conversion, G_OBJECT );
+G_DEFINE_TYPE( Conversion, conversion, G_TYPE_OBJECT );
 
 enum {
+	/* Properties.
+	 */
+	PROP_IMAGE = 1,
+	PROP_RGB,
 
 	/* Our signals. 
 	 */
@@ -34,16 +34,10 @@ enum {
 static guint conversion_signals[SIG_LAST] = { 0 };
 
 static void
-conversion_finalize( GObject *object )
+conversion_dispose( GObject *object )
 {
-	Conversion *conversion = (Conversion *) widget;
+	Conversion *conversion = (Conversion *) object;
 
-	G_OBJECT_CLASS( conversion_parent_class )->finalize( object );
-}
-
-static void
-conversion_empty( Conversion *conversion )
-{
 	if( conversion->image ) { 
 		if( conversion->preeval_sig ) { 
 			g_signal_handler_disconnect( conversion->image, 
@@ -65,147 +59,18 @@ conversion_empty( Conversion *conversion )
 	}
 
 
-	VIPS_UNREF( conversion->srgb_region );
-	VIPS_UNREF( conversion->srgb );
-	VIPS_UNREF( conversion->mask_region );
-	VIPS_UNREF( conversion->mask );
-	VIPS_UNREF( conversion->display_region );
+	VIPS_UNREF( conversion->rgb );
 	VIPS_UNREF( conversion->display );
 	VIPS_UNREF( conversion->image_region );
-
 	VIPS_UNREF( conversion->image );
-}
-
-static void
-conversion_dispose( GObject *object )
-{
-	Conversion *conversion = (Conversion *) widget;
-
-	conversion_empty( conversion );
 
 	G_OBJECT_CLASS( conversion_parent_class )->dispose( object );
 }
 
-static void
-conversion_set_property( GObject *object, 
-	guint prop_id, const GValue *value, GParamSpec *pspec )
-{
-	Conversion *conversion = (Conversion *) object;
-
-	switch( prop_id ) {
-
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-		break;
-	}
-}
-
-static void
-conversion_get_property( GObject *object, 
-	guint prop_id, GValue *value, GParamSpec *pspec )
-{
-	Conversion *conversion = (Conversion *) object;
-
-	switch( prop_id ) {
-
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-		break;
-	}
-}
-
-static void
-conversion_init( Conversion *conversion )
-{
-	printf( "conversion_init:\n" ); 
-
-	conversion->mag = 1;
-}
-
-static void
-conversion_class_init( ConversionClass *class )
-{
-	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
-
-	printf( "conversion_class_init:\n" ); 
-
-	gobject_class->finalize = conversion_finalize;
-	gobject_class->dispose = conversion_dispose;
-	gobject_class->set_property = conversion_set_property;
-	gobject_class->get_property = conversion_get_property;
-
-	conversion_signals[SIG_PRELOAD] = g_signal_new( "preload",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ConversionClass, preload ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
-	conversion_signals[SIG_LOAD] = g_signal_new( "load",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ConversionClass, load ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
-	conversion_signals[SIG_POSTLOAD] = g_signal_new( "postload",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ConversionClass, postload ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__POINTER,
-		G_TYPE_NONE, 1,
-		G_TYPE_POINTER );
-
-}
-
-/* Make the screen image. This is the thing we display pixel values from in
- * the status bar.
+/* Make the rgb image we paint with. 
  */
 static VipsImage *
-conversion_display_image( Conversion *conversion, VipsImage *in )
-{
-	VipsImage *image;
-	VipsImage *x;
-
-	/* image redisplays the head of the pipeline. Hold a ref to it as we
-	 * work.
-	 */
-	image = in;
-	g_object_ref( image ); 
-
-	if( conversion->mag < 0 ) {
-		if( vips_subsample( image, &x, 
-			-conversion->mag, -conversion->mag, NULL ) ) {
-			g_object_unref( image );
-			return( NULL ); 
-		}
-		g_object_unref( image );
-		image = x;
-	}
-	else { 
-		if( vips_zoom( image, &x, 
-			conversion->mag, conversion->mag, NULL ) ) {
-			g_object_unref( image );
-			return( NULL ); 
-		}
-		g_object_unref( image );
-		image = x;
-	}
-
-	return( image );
-}
-
-/* Make the srgb image we paint with. 
- */
-static VipsImage *
-conversion_srgb_image( Conversion *conversion, VipsImage *in, 
-	VipsImage **mask )
+conversion_rgb_image( Conversion *conversion, VipsImage *in ) 
 {
 	VipsImage *image;
 	VipsImage *x;
@@ -248,60 +113,188 @@ conversion_srgb_image( Conversion *conversion, VipsImage *in,
 	return( image );
 }
 
+/* Regenerate the second half of the conversion: to display RGB.
+ */
 static int
-conversion_update_conversion( Conversion *conversion )
+conversion_update_rgb( Conversion *conversion )
 {
+	if( conversion->display ) { 
+		VipsImage *rgb;
+
+		if( !(rgb = conversion_rgb_image( conversion, 
+			conversion->display )) ) 
+			return( -1 ); 
+		g_object_set( conversion, "rgb", rgb, NULL ); 
+		g_object_unref( rgb ); 
+	}
+
+	return( 0 );
+}
+
+/* Make the screen image. This is the thing we display pixel values from in
+ * the status bar.
+ */
+static VipsImage *
+conversion_display_image( Conversion *conversion, VipsImage *in )
+{
+	VipsImage *image;
+	VipsImage *x;
+
+	image = in;
+	g_object_ref( image ); 
+
+	if( conversion->mag < 0 ) {
+		if( vips_subsample( image, &x, 
+			-conversion->mag, -conversion->mag, NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
+	else { 
+		if( vips_zoom( image, &x, 
+			conversion->mag, conversion->mag, NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
+
+	return( image );
+}
+
+/* Rebuild the first half of the pipeline: original to display image. 
+ */
+static int
+conversion_update_display( Conversion *conversion )
+{
+	VIPS_UNREF( conversion->image_region );
+	VIPS_UNREF( conversion->display );
+
 	if( conversion->image ) { 
-		if( conversion->srgb_region )
-			printf( "** junking region %p\n", 
-				conversion->srgb_region );
-
-		VIPS_UNREF( conversion->mask_region );
-		VIPS_UNREF( conversion->mask );
-		VIPS_UNREF( conversion->srgb_region );
-		VIPS_UNREF( conversion->srgb );
-		VIPS_UNREF( conversion->display_region );
-		VIPS_UNREF( conversion->display );
-		VIPS_UNREF( conversion->image_region );
-
 		if( !(conversion->image_region = 
 			vips_region_new( conversion->image )) )
 			return( -1 ); 
-
 		if( !(conversion->display = 
 			conversion_display_image( conversion, 
 				conversion->image )) ) 
 			return( -1 ); 
-		if( !(conversion->display_region = 
-			vips_region_new( conversion->display )) )
-			return( -1 ); 
-
-		if( !(conversion->srgb = 
-			conversion_srgb_image( conversion, 
-				conversion->display, &conversion->mask )) ) 
-			return( -1 ); 
-		if( !(conversion->srgb_region = 
-			vips_region_new( conversion->srgb )) )
-			return( -1 ); 
-		if( !(conversion->mask_region = 
-			vips_region_new( conversion->mask )) )
-			return( -1 ); 
-
-		conversion->image_rect.width = conversion->display->Xsize;
-		conversion->image_rect.height = conversion->display->Ysize;
-
-		printf( "conversion_update_conversion: image size %d x %d\n", 
-			conversion->image_rect.width, 
-			conversion->image_rect.height );
-		printf( "** srgb image %p\n", conversion->srgb );
-		printf( "** new region %p\n", conversion->srgb_region );
-
-		gtk_widget_set_size_request( GTK_WIDGET( conversion ),
-			conversion->image_rect.width, 
-			conversion->image_rect.height );
 	}
 
+	conversion_update_rgb( conversion );
+
 	return( 0 );
+}
+
+static void
+conversion_set_property( GObject *object, 
+	guint prop_id, const GValue *value, GParamSpec *pspec )
+{
+	Conversion *conversion = (Conversion *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE:
+		VIPS_UNREF( conversion->image ); 
+		conversion->image = g_value_get_object( value );
+		g_object_ref( conversion->image );
+		conversion_update_display( conversion );
+		break;
+
+	case PROP_RGB:
+		VIPS_UNREF( conversion->rgb ); 
+		conversion->rgb = g_value_get_object( value );
+		g_object_ref( conversion->rgb );
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
+}
+
+static void
+conversion_get_property( GObject *object, 
+	guint prop_id, GValue *value, GParamSpec *pspec )
+{
+	Conversion *conversion = (Conversion *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE:
+		g_value_set_object( value, conversion->image );
+		break;
+
+	case PROP_RGB:
+		g_value_set_object( value, conversion->rgb );
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
+}
+
+static void
+conversion_init( Conversion *conversion )
+{
+	printf( "conversion_init:\n" ); 
+
+	conversion->mag = 1;
+}
+
+static void
+conversion_class_init( ConversionClass *class )
+{
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
+
+	printf( "conversion_class_init:\n" ); 
+
+	gobject_class->dispose = conversion_dispose;
+	gobject_class->set_property = conversion_set_property;
+	gobject_class->get_property = conversion_get_property;
+
+	g_object_class_install_property( gobject_class, PROP_IMAGE,
+		g_param_spec_object( "image",
+			_( "image" ),
+			_( "The image to be converted" ),
+			VIPS_TYPE_IMAGE,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_RGB,
+		g_param_spec_object( "rgb",
+			_( "rgb" ),
+			_( "The converted image" ),
+			VIPS_TYPE_IMAGE,
+			G_PARAM_READWRITE ) );
+
+	conversion_signals[SIG_PRELOAD] = g_signal_new( "preload",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ConversionClass, preload ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
+	conversion_signals[SIG_LOAD] = g_signal_new( "load",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ConversionClass, load ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
+	conversion_signals[SIG_POSTLOAD] = g_signal_new( "postload",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ConversionClass, postload ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
 }
 
 static void
@@ -329,7 +322,7 @@ conversion_posteval( VipsImage *image,
 }
 
 static void
-conversion_attach_progress( Conversion *conversion )
+conversion_attach_progress( Conversion *conversion, VipsImage *image )
 {
 	g_assert( !conversion->preeval_sig );
 	g_assert( !conversion->eval_sig );
@@ -338,34 +331,35 @@ conversion_attach_progress( Conversion *conversion )
 	/* Attach an eval callback: this will tick down if we 
 	 * have to decode this image.
 	 */
-	vips_image_set_progress( conversion->image, TRUE ); 
-	conversion->preeval_sig = 
-		g_signal_connect( conversion->image, "preeval",
-			G_CALLBACK( conversion_preeval ), 
-			conversion );
-	conversion->eval_sig = 
-		g_signal_connect( conversion->image, "eval",
-			G_CALLBACK( conversion_eval ), 
-			conversion );
-	conversion->posteval_sig = 
-		g_signal_connect( conversion->image, "posteval",
-			G_CALLBACK( conversion_posteval ), 
-			conversion );
+	vips_image_set_progress( image, TRUE ); 
+	conversion->preeval_sig = g_signal_connect( image, "preeval",
+		G_CALLBACK( conversion_preeval ), 
+		conversion );
+	conversion->eval_sig = g_signal_connect( image, "eval",
+		G_CALLBACK( conversion_eval ), 
+		conversion );
+	conversion->posteval_sig = g_signal_connect( image, "posteval",
+		G_CALLBACK( conversion_posteval ), 
+		conversion );
+}
+
+static void
+conversion_close_memory( VipsImage *image, gpointer contents )
+{
+	g_free( contents );
 }
 
 int
 conversion_set_file( Conversion *conversion, GFile *file )
 {
-	conversion_empty( conversion );
-
 	if( file != NULL ) {
 		gchar *path;
 		gchar *contents;
 		gsize length;
+		VipsImage *image;
 
 		if( (path = g_file_get_path( file )) ) {
-			if( !(conversion->image = 
-				vips_image_new_from_file( path, NULL )) ) {
+			if( !(image = vips_image_new_from_file( path, NULL )) ) {
 				g_free( path ); 
 				return( -1 );
 			}
@@ -373,14 +367,14 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		}
 		else if( g_file_load_contents( file, NULL, 
 			&contents, &length, NULL, NULL ) ) {
-			if( !(conversion->image =
+			if( !(image =
 				vips_image_new_from_buffer( contents, length, 
 					"", NULL )) ) {
 				g_free( contents );
 				return( -1 ); 
 			}
 
-			g_signal_connect( conversion->image, "close",
+			g_signal_connect( image, "close",
 				G_CALLBACK( conversion_close_memory ), 
 				contents );
 		}
@@ -390,10 +384,10 @@ conversion_set_file( Conversion *conversion, GFile *file )
 			return( -1 );
 		}
 
-		conversion_attach_progress( conversion ); 
+		conversion_attach_progress( conversion, image ); 
+		g_object_set( conversion, "image", image, NULL ); 
+		VIPS_UNREF( image ); 
 	}
-
-	conversion_update_conversion( conversion );
 
 	return( 0 );
 }
@@ -413,7 +407,7 @@ conversion_set_mag( Conversion *conversion, int mag )
 		printf( "conversion_set_mag: %d\n", mag ); 
 
 		conversion->mag = mag;
-		conversion_update_conversion( conversion );
+		conversion_update_display( conversion );
 	}
 }
 

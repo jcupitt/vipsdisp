@@ -40,7 +40,7 @@ imageview_magin( GSimpleAction *action,
 
 	imagepresent_get_window_position( imageview->imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
-	imagedisplay_to_image_cods( imageview->imagepresent->imagedisplay,
+	conversion_to_image_cods( imageview->imagepresent->conversion,
 		window_left + window_width / 2, window_top + window_height / 2, 
 		&image_x, &image_y ); 
 
@@ -117,7 +117,7 @@ static void
 imageview_status_value_uncoded( Imageview *imageview, 
 	VipsBuf *buf, VipsPel *p )
 {
-	VipsImage *image = imageview->imagepresent->imagedisplay->image;
+	VipsImage *image = imageview->imagepresent->conversion->image;
 
 	int i;
 
@@ -187,13 +187,13 @@ imageview_status_value_uncoded( Imageview *imageview,
 void 
 imageview_status_value( Imageview *imageview, VipsBuf *buf, int x, int y ) 
 {
-	VipsImage *image = imageview->imagepresent->imagedisplay->image;
-	Imagedisplay *imagedisplay = imageview->imagepresent->imagedisplay;
+	VipsImage *image = imageview->imagepresent->conversion->image;
+	Conversion *conversion = imageview->imagepresent->conversion;
 
 	VipsPel *ink;
 
 	if( image &&
-		(ink = imagedisplay_get_ink( imagedisplay, x, y )) ) { 
+		(ink = conversion_get_ink( conversion, x, y )) ) { 
 		switch( image->Coding ) { 
 		case VIPS_CODING_LABQ:
 			imageview_status_value_labpack( imageview, buf, ink );
@@ -216,7 +216,7 @@ imageview_status_value( Imageview *imageview, VipsBuf *buf, int x, int y )
 void
 imageview_status_update( Imageview *imageview )
 {
-	Imagedisplay *imagedisplay = imageview->imagepresent->imagedisplay;
+	Conversion *conversion = imageview->imagepresent->conversion;
 
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
@@ -226,12 +226,12 @@ imageview_status_update( Imageview *imageview )
 	int image_height;
 	int mag;
 
-	imagedisplay_to_image_cods( imagedisplay,
+	conversion_to_image_cods( conversion,
 		imageview->imagepresent->last_x, 
 		imageview->imagepresent->last_y,
 		&image_x, &image_y );
 
-	if( imagedisplay_get_image_size( imagedisplay, 
+	if( conversion_get_image_size( conversion, 
 		&image_width, &image_height ) ) {
 		image_x = VIPS_CLIP( 0, image_x, image_width - 1 );
 		image_y = VIPS_CLIP( 0, image_y, image_height - 1 );
@@ -248,7 +248,7 @@ imageview_status_update( Imageview *imageview )
 
 	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );
-	mag = imagedisplay_get_mag( imageview->imagepresent->imagedisplay ); 
+	mag = conversion_get_mag( conversion ); 
 	if( mag >= 0 )
 		vips_buf_appendf( &buf, "%d:1", mag );
 	else
@@ -267,7 +267,7 @@ imageview_position_changed( Imagepresent *imagepresent, Imageview *imageview )
 static int
 imageview_header_update( Imageview *imageview )
 {
-	VipsImage *image = imageview->imagepresent->imagedisplay->image;
+	VipsImage *image = imageview->imagepresent->conversion->image;
 
 	char *path;
 	char str[256];
@@ -359,14 +359,14 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 }
 
 static void
-imageview_preload( Imagedisplay *imagedisplay, 
+imageview_preload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 	gtk_widget_show( imageview->progress_info );
 }
 
 static void
-imageview_load( Imagedisplay *imagedisplay, 
+imageview_load( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 	static int previous_precent = -1;
@@ -381,7 +381,7 @@ imageview_load( Imagedisplay *imagedisplay,
 }
 
 static void
-imageview_postload( Imagedisplay *imagedisplay, 
+imageview_postload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 	gtk_widget_hide( imageview->progress_info );
@@ -475,11 +475,11 @@ imageview_new( GtkApplication *application, GFile *file )
 		GTK_WIDGET( imageview->imagepresent ), 0, 1, 1, 1 ); 
 	gtk_widget_show( GTK_WIDGET( imageview->imagepresent ) );
 
-	g_signal_connect( imageview->imagepresent->imagedisplay, "preload",
+	g_signal_connect( imageview->imagepresent->conversion, "preload",
 		G_CALLBACK( imageview_preload ), imageview );
-	g_signal_connect( imageview->imagepresent->imagedisplay, "load",
+	g_signal_connect( imageview->imagepresent->conversion, "load",
 		G_CALLBACK( imageview_load ), imageview );
-	g_signal_connect( imageview->imagepresent->imagedisplay, "postload",
+	g_signal_connect( imageview->imagepresent->conversion, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
 
 	imageview->status_bar = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
