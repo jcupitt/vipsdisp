@@ -21,6 +21,20 @@ enum {
 
 static guint imagepresent_signals[SIG_LAST] = { 0 };
 
+static void
+imagepresent_destroy( GtkWidget *widget )
+{
+	Imagepresent *imagepresent = (Imagepresent *) widget;
+
+#ifdef DEBUG
+	printf( "imagepresent:\n" ); 
+#endif /*DEBUG*/
+
+	VIPS_UNREF( imagepresent->conversion );
+
+	GTK_WIDGET_CLASS( imagepresent_parent_class )->destroy( widget );
+}
+
 static gboolean
 imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 {
@@ -57,6 +71,7 @@ imagepresent_class_init( ImagepresentClass *class )
 	printf( "imagepresent_class_init:\n" ); 
 
 	widget_class->draw = imagepresent_draw;
+	widget_class->destroy = imagepresent_destroy;
 
 	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
 		"position_changed",

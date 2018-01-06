@@ -161,6 +161,8 @@ main( int argc, char **argv )
 	if( VIPS_INIT( argv[0] ) )
 		vips_error_exit( "unable to start VIPS" );
 
+	vips_leak_set( TRUE );
+
 	/*
 	g_log_set_always_fatal( 
 		G_LOG_FLAG_RECURSION |

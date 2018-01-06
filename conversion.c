@@ -34,10 +34,8 @@ enum {
 static guint conversion_signals[SIG_LAST] = { 0 };
 
 static void
-conversion_dispose( GObject *object )
+conversion_disconnect( Conversion *conversion )
 {
-	Conversion *conversion = (Conversion *) object;
-
 	if( conversion->image ) { 
 		if( conversion->preeval_sig ) { 
 			g_signal_handler_disconnect( conversion->image, 
@@ -57,8 +55,14 @@ conversion_dispose( GObject *object )
 			conversion->posteval_sig = 0;
 		}
 	}
+}
 
+static void
+conversion_dispose( GObject *object )
+{
+	Conversion *conversion = (Conversion *) object;
 
+	conversion_disconnect( conversion ); 
 	VIPS_UNREF( conversion->rgb );
 	VIPS_UNREF( conversion->display );
 	VIPS_UNREF( conversion->image_region );
@@ -324,13 +328,8 @@ conversion_posteval( VipsImage *image,
 static void
 conversion_attach_progress( Conversion *conversion, VipsImage *image )
 {
-	g_assert( !conversion->preeval_sig );
-	g_assert( !conversion->eval_sig );
-	g_assert( !conversion->posteval_sig );
+	conversion_disconnect( conversion ); 
 
-	/* Attach an eval callback: this will tick down if we 
-	 * have to decode this image.
-	 */
 	vips_image_set_progress( image, TRUE ); 
 	conversion->preeval_sig = g_signal_connect( image, "preeval",
 		G_CALLBACK( conversion_preeval ), 
