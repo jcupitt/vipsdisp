@@ -298,7 +298,7 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 			&window_left, &window_top, 
 			&window_width, &window_height );
 		hfac = (double) window_width / image_width;
-		vfac = (double) window_width / image_height;
+		vfac = (double) window_height / image_height;
 		fac = VIPS_MIN( hfac, vfac );
 
 		if( fac >= 1 )
