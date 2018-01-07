@@ -309,11 +309,12 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 		double vfac;
 		double fac;
 
-		imagepresent_get_window_position( imagepresent, 
-			&window_left, &window_top, 
-			&window_width, &window_height );
+    GtkAllocation allocation;
+    gtk_widget_get_allocation( GTK_WIDGET(imagepresent->imagedisplay), &allocation );
+    window_width = allocation.width;
+    window_height = allocation.height;
 		hfac = (double) window_width / image_width;
-		vfac = (double) window_width / image_height;
+		vfac = (double) window_height / image_height;
 		fac = VIPS_MIN( hfac, vfac );
 
 		if( fac >= 1 )
