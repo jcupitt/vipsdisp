@@ -30,6 +30,11 @@ enum {
 	 */
 	PROP_IMAGE = 1,
 
+	/* Set this TRUE when the image has loaded and imagedisplay can start
+	 * fetching pixels.
+	 */
+	PROP_LOADED,
+
 	/* The props we implement for the scrollable interface.
 	 */
 	PROP_HADJUSTMENT,
@@ -248,6 +253,10 @@ imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
 			imagedisplay->image_rect.height );
 	}
 
+	/* Block painting until "loaded" is set.
+	 */
+	imagedisplay->loaded = FALSE;
+
 	return( 0 );
 }
 
@@ -303,6 +312,13 @@ imagedisplay_set_property( GObject *object,
 			g_value_get_object( value ) );
 		break;
 
+	case PROP_LOADED:
+		if( imagedisplay->loaded != g_value_get_boolean( value ) ) {
+			imagedisplay->loaded = g_value_get_boolean( value );
+			gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		}
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
@@ -334,6 +350,10 @@ imagedisplay_get_property( GObject *object,
 
 	case PROP_IMAGE:
 		g_value_set_object( value, imagedisplay->image );
+		break;
+
+	case PROP_LOADED:
+		g_value_set_boolean( value, imagedisplay->loaded );
 		break;
 
 	default:
@@ -698,7 +718,8 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
-	if( imagedisplay->display_region ) {
+	if( imagedisplay->loaded && 
+		imagedisplay->display_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 
@@ -766,6 +787,13 @@ imagedisplay_class_init( ImagedisplayClass *class )
 			_( "image" ),
 			_( "The image to be displayed" ),
 			VIPS_TYPE_IMAGE,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_LOADED,
+		g_param_spec_boolean( "loaded",
+			_( "loaded" ),
+			_( "The image can now paint" ),
+			FALSE,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_override_property( gobject_class, 

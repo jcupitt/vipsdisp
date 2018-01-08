@@ -30,6 +30,11 @@ typedef struct _Conversion {
 	guint eval_sig;
 	guint posteval_sig;
 
+	/* TRUE when the image has been loaded (ie. postload has fired) and we
+	 * can start looking at pixels.
+	 */
+	gboolean loaded;
+
 } Conversion;
 
 typedef struct _ConversionClass {
@@ -45,9 +50,6 @@ typedef struct _ConversionClass {
 
 int conversion_set_file( Conversion *conversion, GFile *file );
 
-void conversion_set_mag( Conversion *conversion, int mag );
-int conversion_get_mag( Conversion *conversion );
-
 gboolean conversion_get_image_size( Conversion *conversion, 
 	int *width, int *height );
 gboolean conversion_get_display_image_size( Conversion *conversion, 
@@ -59,5 +61,7 @@ void conversion_to_display_cods( Conversion *conversion,
 	int image_x, int image_y, int *display_x, int *display_y ); 
 
 VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );
+
+void conversion_force_load( Conversion *conversion );
 
 Conversion *conversion_new( void ); 

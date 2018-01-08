@@ -13,6 +13,11 @@ typedef struct _Imagedisplay {
 	 */
 	VipsImage *image;
 
+	/* Set "loaded" TRUE when @image has finished loading and we can start
+	 * demanding pixels from it.
+	 */
+	gboolean loaded;
+
 	/* Our geometry. 
 	 *
 	 * image_rect is the bounds of image space .. 0,0 to image->Xsize,

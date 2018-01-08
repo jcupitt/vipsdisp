@@ -21,6 +21,8 @@ enum {
 	 */
 	PROP_IMAGE = 1,
 	PROP_RGB,
+	PROP_MAG,
+	PROP_LOADED,
 
 	/* Our signals. 
 	 */
@@ -198,6 +200,9 @@ conversion_set_property( GObject *object,
 {
 	Conversion *conversion = (Conversion *) object;
 
+	int mag;
+	gboolean loaded;
+
 	switch( prop_id ) {
 	case PROP_IMAGE:
 		VIPS_UNREF( conversion->image ); 
@@ -210,6 +215,27 @@ conversion_set_property( GObject *object,
 		VIPS_UNREF( conversion->rgb ); 
 		conversion->rgb = g_value_get_object( value );
 		g_object_ref( conversion->rgb );
+		break;
+
+	case PROP_MAG:
+		mag = g_value_get_int( value );
+		if( mag >= -600 &&
+			mag <= 1000000 &&
+			conversion->mag != mag ) { 
+			printf( "conversion_set_mag: %d\n", mag ); 
+
+			conversion->mag = mag;
+			conversion_update_display( conversion );
+		}
+		break;
+
+	case PROP_LOADED:
+		loaded = g_value_get_boolean( value );
+		if( conversion->loaded != loaded ) { 
+			printf( "conversion_set_loaded: %d\n", loaded ); 
+
+			conversion->loaded = loaded;
+		}
 		break;
 
 	default:
@@ -231,6 +257,14 @@ conversion_get_property( GObject *object,
 
 	case PROP_RGB:
 		g_value_set_object( value, conversion->rgb );
+		break;
+
+	case PROP_MAG:
+		g_value_set_int( value, conversion->mag );
+		break;
+
+	case PROP_LOADED:
+		g_value_set_boolean( value, conversion->loaded );
 		break;
 
 	default:
@@ -270,6 +304,20 @@ conversion_class_init( ConversionClass *class )
 			_( "rgb" ),
 			_( "The converted image" ),
 			VIPS_TYPE_IMAGE,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_MAG,
+		g_param_spec_int( "mag",
+			_( "mag" ),
+			_( "Magnification factor" ),
+			-600, 1000000, 1,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_LOADED,
+		g_param_spec_boolean( "loaded",
+			_( "loaded" ),
+			_( "Image has finished loading" ),
+			FALSE,
 			G_PARAM_READWRITE ) );
 
 	conversion_signals[SIG_PRELOAD] = g_signal_new( "preload",
@@ -323,6 +371,10 @@ conversion_posteval( VipsImage *image,
 {
 	g_signal_emit( conversion, 
 		conversion_signals[SIG_POSTLOAD], 0, progress );
+
+	/* You can now fetch pixels.
+	 */
+	g_object_set( conversion, "loaded", TRUE, NULL );
 }
 
 static void
@@ -383,31 +435,16 @@ conversion_set_file( Conversion *conversion, GFile *file )
 			return( -1 );
 		}
 
+		/* This will be set TRUE again by postload.
+		 */
+		g_object_set( conversion, "loaded", FALSE, NULL );
+
 		conversion_attach_progress( conversion, image ); 
 		g_object_set( conversion, "image", image, NULL ); 
 		VIPS_UNREF( image ); 
 	}
 
 	return( 0 );
-}
-
-int
-conversion_get_mag( Conversion *conversion )
-{
-	return( conversion->mag );
-}
-
-void
-conversion_set_mag( Conversion *conversion, int mag )
-{
-	if( mag > -600 &&
-		mag < 1000000 &&
-		conversion->mag != mag ) { 
-		printf( "conversion_set_mag: %d\n", mag ); 
-
-		conversion->mag = mag;
-		conversion_update_display( conversion );
-	}
 }
 
 gboolean
@@ -473,7 +510,12 @@ conversion_to_display_cods( Conversion *conversion,
 VipsPel *
 conversion_get_ink( Conversion *conversion, int x, int y )
 {
+	gboolean loaded;
 	VipsRect rect;
+
+	g_object_get( conversion, "loaded", &loaded, NULL ); 
+	if( !loaded ) 
+		return( NULL ); 
 
 	rect.left = x;
 	rect.top = y;
@@ -483,6 +525,21 @@ conversion_get_ink( Conversion *conversion, int x, int y )
 		return( NULL );
 
 	return( VIPS_REGION_ADDR( conversion->image_region, x, y ) );  
+}
+
+void
+conversion_force_load( Conversion *conversion )
+{
+	if( conversion->image_region &&
+		!conversion->loaded ) { 
+		VipsRect rect;
+
+		rect.left = 0;
+		rect.top = 0;
+		rect.width = 1;
+		rect.height = 1;
+		(void) vips_region_prepare( conversion->image_region, &rect );
+	}
 }
 
 Conversion *

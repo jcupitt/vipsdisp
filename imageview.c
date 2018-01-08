@@ -248,7 +248,7 @@ imageview_status_update( Imageview *imageview )
 
 	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );
-	mag = conversion_get_mag( conversion ); 
+	g_object_get( imageview->imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag >= 0 )
 		vips_buf_appendf( &buf, "%d:1", mag );
 	else
@@ -362,7 +362,51 @@ static void
 imageview_preload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
+	printf( "imageview_preload:\n" ); 
+
 	gtk_widget_show( imageview->progress_info );
+}
+
+/* A 'safe' way to run a few events.
+ */             
+static void
+process_events( void )
+{
+	static GTimer *throttle_timer = NULL;
+
+	int n;
+
+        /* Block too much recursion. 0 is from the top-level, 1 is from a
+         * callback, we don't want any more than that.
+         */             
+        if( g_main_depth() >= 2 ) 
+		return;
+
+	if( !throttle_timer )
+		throttle_timer = g_timer_new();
+
+	/* Don't update more than 10 times a second.
+	 */
+	if( g_timer_elapsed( throttle_timer, NULL ) < 0.1 )
+		return;
+	g_timer_reset( throttle_timer );
+
+#ifdef DEBUG    
+	printf( "process_events: starting event dispatch\n" );
+#endif /*DEBUG*/
+
+        /* Don't process more than 100 events. 
+         */      
+	n = 0;
+	while( n < 100 &&
+		g_main_context_iteration( NULL, FALSE ) )
+		n += 1;
+
+#ifdef DEBUG
+	printf( "process_events: event dispatch done\n" );
+	if( n == max_events )
+		printf( "process_events: event dispatch timeout\n" );
+#endif /*DEBUG*/
 }
 
 static void
@@ -372,11 +416,12 @@ imageview_load( Conversion *conversion,
 	static int previous_precent = -1;
 
 	if( progress->percent != previous_precent ) {
+		printf( "imageview_load: %d%%\n", progress->percent ); 
 		gtk_progress_bar_set_fraction( 
 			GTK_PROGRESS_BAR( imageview->progress ), 
 			progress->percent / 100.0 ); 
-
 		previous_precent = progress->percent;
+		process_events();
 	}
 }
 
@@ -384,6 +429,8 @@ static void
 imageview_postload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
+	printf( "imageview_postload:\n" ); 
+
 	gtk_widget_hide( imageview->progress_info );
 }
 
@@ -400,8 +447,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	GtkWidget *grid;
 	GtkWidget *content_area;
 	GtkWidget *hbox;
-	int width;
-	int height;
+	int image_width;
+	int image_height;
 
 	printf( "imageview_new: file = %p\n", file ); 
 
@@ -516,27 +563,44 @@ imageview_new( GtkApplication *application, GFile *file )
 		hbox, TRUE, TRUE, 0 );
 	gtk_widget_show( hbox );
 
-	gtk_grid_attach( GTK_GRID( grid ), 
-		imageview->status_bar, 0, 2, 1, 1 );
+	gtk_grid_attach( GTK_GRID( grid ), imageview->status_bar, 0, 2, 1, 1 );
 	gtk_widget_show( imageview->status_bar );
 
-	if( imagepresent_set_file( imageview->imagepresent, file ) )
-		imageview_show_error( imageview ); 
-	imageview_header_update( imageview ); 
+	gtk_window_set_default_size( GTK_WINDOW( imageview ), 800, 800 );
 
-	/* 83 is a magic number for the height of the top 
-	 * bar on my laptop. 
-	 */
-	if( imagepresent_get_image_size( imageview->imagepresent, 
-		&width, &height ) )  
-		gtk_window_set_default_size( GTK_WINDOW( imageview ), 
-			VIPS_MIN( 800, width ),
-			VIPS_MIN( 800, height + 83 ) ); 
+	gtk_widget_show( GTK_WIDGET( imageview ) );
 
 	g_signal_connect( imageview->imagepresent, "position_changed", 
 		G_CALLBACK( imageview_position_changed ), imageview );
 
-	gtk_widget_show( GTK_WIDGET( imageview ) );
+	if( imagepresent_set_file( imageview->imagepresent, file ) )
+		imageview_show_error( imageview ); 
+
+	if( imagepresent_get_image_size( imageview->imagepresent, 
+		&image_width, &image_height ) ) {
+		int window_width = VIPS_MIN( 800, image_width );
+		int window_height = VIPS_MIN( 800, image_height + 83 );
+
+		gtk_window_set_default_size( GTK_WINDOW( imageview ), 
+			window_width, window_height ); 
+
+		imagepresent_bestfit( imageview->imagepresent );
+
+		/* Should size the window again now we have the best fit.
+		 */
+	}
+
+	imageview_header_update( imageview ); 
+
+	if( imageview->imagepresent->conversion->image_region ) { 
+		VipsRect rect;
+
+		rect.left = 0;
+		rect.top = 0;
+		rect.width = 1;
+		rect.height = 1;
+		(void) vips_region_prepare( imageview->imagepresent->conversion->image_region, &rect );
+	}
 
 	return( imageview ); 
 }

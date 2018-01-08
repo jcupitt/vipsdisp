@@ -160,7 +160,7 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 		imagepresent->last_x, imagepresent->last_y, 
 		&image_x, &image_y ); 
 
-	conversion_set_mag( imagepresent->conversion, mag ); 
+	g_object_set( imagepresent->conversion, "mag", mag, NULL ); 
 
 	conversion_to_display_cods( imagepresent->conversion,
 		image_x, image_y,
@@ -241,7 +241,7 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 	 * bits for magnification leaves us 22 for size, or about 4m x 4m
 	 * pixels. 
 	 */
-	mag = conversion_get_mag( imagepresent->conversion );
+	g_object_get( imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag <= 0 ) {
 		if( mag >= -2 )
 			imagepresent_set_mag( imagepresent, 1 );
@@ -280,7 +280,7 @@ imagepresent_magout( Imagepresent *imagepresent )
 		image_height == 1 )
 		return;
 
-	mag = conversion_get_mag( imagepresent->conversion );
+	g_object_get( imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
 			imagepresent_set_mag_centre( imagepresent, -2 );
@@ -348,7 +348,7 @@ imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
 
 	if( conversion_set_file( imagepresent->conversion, 
 		imagepresent->file ) )
-	       return( -1 ); 	
+		return( -1 ); 	
 
 	return( 0 );
 }
@@ -662,6 +662,13 @@ imagepresent_new( void )
 	 */
 	g_object_bind_property( imagepresent->conversion, "rgb",
 				imagepresent->imagedisplay, "image",
+				G_BINDING_DEFAULT );
+
+	/* When the conversion image has loaded, set loaded on the display
+	 * too.
+	 */
+	g_object_bind_property( imagepresent->conversion, "loaded",
+				imagepresent->imagedisplay, "loaded",
 				G_BINDING_DEFAULT );
 
 	/* The imagepresent takes the focus, so we must listen for keypresses
