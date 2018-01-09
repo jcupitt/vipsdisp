@@ -30,7 +30,7 @@ typedef struct _Conversion {
 	guint eval_sig;
 	guint posteval_sig;
 
-	/* TRUE when the image has been loaded (ie. postload has fired) and we
+	/* TRUE when the image has fully loaded (ie. postload has fired) and we
 	 * can start looking at pixels.
 	 */
 	gboolean loaded;
@@ -38,7 +38,7 @@ typedef struct _Conversion {
 } Conversion;
 
 typedef struct _ConversionClass {
-	GtkDrawingAreaClass parent_class;
+	GObjectClass parent_class;
 
 	/* Track image load.
 	 */
@@ -61,7 +61,5 @@ void conversion_to_display_cods( Conversion *conversion,
 	int image_x, int image_y, int *display_x, int *display_y ); 
 
 VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );
-
-void conversion_force_load( Conversion *conversion );
 
 Conversion *conversion_new( void ); 

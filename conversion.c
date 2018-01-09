@@ -282,7 +282,7 @@ conversion_init( Conversion *conversion )
 	conversion->mag = 1;
 }
 
-void
+static void
 conversion_force_load( Conversion *conversion )
 {
 	if( conversion->image_region &&

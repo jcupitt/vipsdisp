@@ -44,11 +44,13 @@ and sets properties of `Conversion` to zoom etc.
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
+- replace image during load can crash the viewer
+
+- we do not size the initial window very intelligently :( 
+
 - use `level` option of openslide and pyr tiff to speed up zoom out
 
 - add a display control bar: maybe scale / offset bars could sit in the menu?
-
-- centre on zoom out if the image becomes smaller than the window
 
 - fullscreen mode ?
 
