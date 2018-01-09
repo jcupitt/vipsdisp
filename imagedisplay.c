@@ -253,10 +253,6 @@ imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
 			imagedisplay->image_rect.height );
 	}
 
-	/* Block painting until "loaded" is set.
-	 */
-	imagedisplay->loaded = FALSE;
-
 	return( 0 );
 }
 
