@@ -155,8 +155,9 @@ typedef struct _ImagedisplayUpdate {
  * painting. 
  */
 static gboolean
-imagedisplay_render_cb( ImagedisplayUpdate *update )
+imagedisplay_render_cb( void *user_data )
 {
+	ImagedisplayUpdate *update = (ImagedisplayUpdate *) user_data;
 	Imagedisplay *imagedisplay = update->imagedisplay;
 
 #ifdef DEBUG
@@ -202,7 +203,7 @@ imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
 		update->image = image;
 		update->rect = *rect;
 
-		g_idle_add( (GSourceFunc) imagedisplay_render_cb, update );
+		g_idle_add( imagedisplay_render_cb, update );
 	}
 }
 

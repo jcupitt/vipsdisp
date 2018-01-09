@@ -11,9 +11,10 @@
 
 #include "disp.h"
 
-/* conversion is actually a drawing area the size of the widget on screen: we 
- * do all scrolling ourselves.
+/* Use this threadpool to do background loads of images.
  */
+static GThreadPool *conversion_background_load_pool = NULL;
+
 G_DEFINE_TYPE( Conversion, conversion, G_TYPE_OBJECT );
 
 enum {
@@ -281,6 +282,57 @@ conversion_init( Conversion *conversion )
 	conversion->mag = 1;
 }
 
+void
+conversion_force_load( Conversion *conversion )
+{
+	if( conversion->image_region &&
+		!conversion->loaded ) { 
+		VipsRect rect;
+
+		rect.left = 0;
+		rect.top = 0;
+		rect.width = 1;
+		rect.height = 1;
+		(void) vips_region_prepare( conversion->image_region, &rect );
+	}
+}
+
+/* This runs in the main thread when the bg load is done. We can't use
+ * postload since that will only fire if we are actually loading, and not if
+ * the image is coming from cache.
+ */
+static gboolean
+conversion_background_load_done_cb( void *user_data )
+{
+	Conversion *conversion = (Conversion *) user_data;
+
+	/* You can now fetch pixels.
+	 */
+	g_object_set( conversion, "loaded", TRUE, NULL );
+
+	/* Drop the ref that kept this conversion alive during load.
+	 */
+	g_object_unref( conversion ); 
+
+	return( FALSE ); 
+}
+
+/* This runs for the background load threadpool.
+ */
+static void 
+conversion_background_load( void *data, void *user_data )
+{
+	Conversion *conversion = (Conversion *) data;
+
+	printf( "conversion_background_load: starting ..\n" );
+
+	conversion_force_load( conversion );
+
+	g_idle_add( conversion_background_load_done_cb, conversion );
+
+	printf( "conversion_background_load: .. done\n" );
+}
+
 static void
 conversion_class_init( ConversionClass *class )
 {
@@ -347,39 +399,115 @@ conversion_class_init( ConversionClass *class )
 		G_TYPE_NONE, 1,
 		G_TYPE_POINTER );
 
+	g_assert( !conversion_background_load_pool ); 
+	conversion_background_load_pool = g_thread_pool_new( 
+		conversion_background_load,
+		NULL, -1, FALSE, NULL ); 
+}
+
+/* The pre/eval/post callbacks run from the background load thread. We can't
+ * call into gtk directly: instead, add an idle callback to trigger the
+ * signal from conversion.
+ */
+typedef struct _ConversionBackgroundLoadUpdate {
+	Conversion *conversion;
+	VipsImage *image;
+	VipsProgress *progress;
+} ConversionBackgroundLoadUpdate;
+
+static gboolean
+conversion_preeval_cb( void *user_data )
+{
+	ConversionBackgroundLoadUpdate *update = 
+		(ConversionBackgroundLoadUpdate *) user_data;
+
+	printf( "conversion_preeval_cb:\n" ); 
+
+	g_signal_emit( update->conversion, 
+		conversion_signals[SIG_PRELOAD], 0, update->progress );
+
+	g_free( update );
+
+	return( FALSE ); 
 }
 
 static void
 conversion_preeval( VipsImage *image, 
 	VipsProgress *progress, Conversion *conversion )
 {
-	g_signal_emit( conversion, 
-		conversion_signals[SIG_PRELOAD], 0, progress );
+	ConversionBackgroundLoadUpdate *update = 
+		g_new( ConversionBackgroundLoadUpdate, 1 );
+
+	update->conversion = conversion;
+	update->image = image;
+	update->progress = progress;
+
+	g_idle_add( conversion_preeval_cb, update );
+}
+
+static gboolean
+conversion_eval_cb( void *user_data )
+{
+	ConversionBackgroundLoadUpdate *update = 
+		(ConversionBackgroundLoadUpdate *) user_data;
+
+	g_signal_emit( update->conversion, 
+		conversion_signals[SIG_LOAD], 0, update->progress );
+
+	g_free( update );
+
+	return( FALSE ); 
 }
 
 static void
 conversion_eval( VipsImage *image, 
 	VipsProgress *progress, Conversion *conversion )
 {
-	g_signal_emit( conversion, 
-		conversion_signals[SIG_LOAD], 0, progress );
+	ConversionBackgroundLoadUpdate *update = 
+		g_new( ConversionBackgroundLoadUpdate, 1 );
+
+	update->conversion = conversion;
+	update->image = image;
+	update->progress = progress;
+
+	g_idle_add( conversion_eval_cb, update );
+}
+
+static gboolean
+conversion_posteval_cb( void *user_data )
+{
+	ConversionBackgroundLoadUpdate *update = 
+		(ConversionBackgroundLoadUpdate *) user_data;
+
+	printf( "conversion_posteval_cb:\n" ); 
+
+	g_signal_emit( update->conversion, 
+		conversion_signals[SIG_POSTLOAD], 0, update->progress );
+
+	g_free( update );
+
+	return( FALSE ); 
 }
 
 static void
 conversion_posteval( VipsImage *image, 
 	VipsProgress *progress, Conversion *conversion )
 {
-	g_signal_emit( conversion, 
-		conversion_signals[SIG_POSTLOAD], 0, progress );
+	ConversionBackgroundLoadUpdate *update = 
+		g_new( ConversionBackgroundLoadUpdate, 1 );
 
-	/* You can now fetch pixels.
-	 */
-	g_object_set( conversion, "loaded", TRUE, NULL );
+	update->conversion = conversion;
+	update->image = image;
+	update->progress = progress;
+
+	g_idle_add( conversion_posteval_cb, update );
 }
 
 static void
 conversion_attach_progress( Conversion *conversion, VipsImage *image )
 {
+	printf( "conversion_attach_progress:\n" ); 
+
 	conversion_disconnect( conversion ); 
 
 	vips_image_set_progress( image, TRUE ); 
@@ -403,6 +531,8 @@ conversion_close_memory( VipsImage *image, gpointer contents )
 int
 conversion_set_file( Conversion *conversion, GFile *file )
 {
+	printf( "conversion_set_file: starting ..\n" );
+
 	if( file != NULL ) {
 		gchar *path;
 		gchar *contents;
@@ -410,7 +540,10 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		VipsImage *image;
 
 		if( (path = g_file_get_path( file )) ) {
-			if( !(image = vips_image_new_from_file( path, NULL )) ) {
+			printf( "conversion_set_file: path = %s\n", path ); 
+
+			if( !(image = 
+				vips_image_new_from_file( path, NULL )) ) {
 				g_free( path ); 
 				return( -1 );
 			}
@@ -418,6 +551,9 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		}
 		else if( g_file_load_contents( file, NULL, 
 			&contents, &length, NULL, NULL ) ) {
+			printf( "conversion_set_file: buffer of %zd bytes\n", 
+			     length ); 
+
 			if( !(image =
 				vips_image_new_from_buffer( contents, length, 
 					"", NULL )) ) {
@@ -435,14 +571,26 @@ conversion_set_file( Conversion *conversion, GFile *file )
 			return( -1 );
 		}
 
-		/* This will be set TRUE again by postload.
+		/* This will be set TRUE again at the end of the background
+		 * load..
 		 */
 		g_object_set( conversion, "loaded", FALSE, NULL );
+
+		/* We ref this conversion so it won't die before the
+		 * background load is done. The matching unref is at the end
+		 * of bg load.
+		 */
+		g_object_ref( conversion );
 
 		conversion_attach_progress( conversion, image ); 
 		g_object_set( conversion, "image", image, NULL ); 
 		VIPS_UNREF( image ); 
+
+		g_thread_pool_push( conversion_background_load_pool, 
+			conversion, NULL ); 
 	}
+
+	printf( "conversion_set_file: .. done\n" );
 
 	return( 0 );
 }
@@ -525,21 +673,6 @@ conversion_get_ink( Conversion *conversion, int x, int y )
 		return( NULL );
 
 	return( VIPS_REGION_ADDR( conversion->image_region, x, y ) );  
-}
-
-void
-conversion_force_load( Conversion *conversion )
-{
-	if( conversion->image_region &&
-		!conversion->loaded ) { 
-		VipsRect rect;
-
-		rect.left = 0;
-		rect.top = 0;
-		rect.width = 1;
-		rect.height = 1;
-		(void) vips_region_prepare( conversion->image_region, &rect );
-	}
 }
 
 Conversion *
