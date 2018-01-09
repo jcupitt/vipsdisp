@@ -555,16 +555,22 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 	Imagepresent *imagepresent )
 {
 	gboolean handled;
-
-	/*
-	printf( "imagepresent_motion_notify_event: %g, %g\n", 
-		event->x, event->y );
-	 */
+	VipsRect point;
 
 	handled = FALSE;
 
-	imagepresent->last_x = event->x;
-	imagepresent->last_y = event->y;
+	point.left = event->x;
+	point.top = event->y;
+	point.width = 0;
+	point.height = 0;
+	imagedisplay_gtk_to_image( imagepresent->imagedisplay, &point );
+	imagepresent->last_x = point.left;
+	imagepresent->last_y = point.top;
+
+	/*
+	printf( "imagepresent_motion_notify_event: %g, %g\n", 
+		point.left, point.top );
+	 */
 
 	switch( imagepresent->state ) {
 	case IMAGEPRESENT_DRAG:
@@ -615,6 +621,7 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 	Imagepresent *imagepresent )
 {
 	gboolean handled;
+	VipsRect point;
 	int image_x;
 	int image_y;
 
@@ -624,8 +631,13 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 
 	switch( event->direction ) {
 	case GDK_SCROLL_UP:
+		point.left = event->x;
+		point.top = event->y;
+		point.width = 0;
+		point.height = 0;
+		imagedisplay_gtk_to_image( imagepresent->imagedisplay, &point );
 		conversion_to_image_cods( imagepresent->conversion,
-			event->x, event->y,
+			point.left, point.top,
 			&image_x, &image_y ); 
 		imagepresent_magin( imagepresent, image_x, image_y );
 

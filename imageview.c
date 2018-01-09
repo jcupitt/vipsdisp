@@ -447,19 +447,19 @@ imageview_new( GtkApplication *application, GFile *file )
 	gtk_container_add( GTK_CONTAINER( imageview ), grid ); 
 	gtk_widget_show( grid );
 
-	imageview->progress_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 2 );
+	imageview->progress_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	imageview->progress = gtk_progress_bar_new();
 	gtk_widget_set_hexpand( imageview->progress, TRUE ); 
 	gtk_box_pack_start( GTK_BOX( imageview->progress_box ), 
-		imageview->progress, TRUE, TRUE, 2 );
+		imageview->progress, TRUE, TRUE, 0 );
 	gtk_widget_show( imageview->progress );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->progress_box, 0, 0, 1, 1 );
 
-	imageview->error_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 2 );
+	imageview->error_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	imageview->error_label = gtk_label_new( "hello" );
 	gtk_box_pack_start( GTK_BOX( imageview->error_box ), 
-		imageview->error_label, TRUE, TRUE, 2 );
+		imageview->error_label, TRUE, TRUE, 0 );
 	gtk_widget_show( imageview->error_label );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->error_box, 0, 1, 1, 1 );
