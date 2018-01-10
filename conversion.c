@@ -223,7 +223,9 @@ conversion_set_property( GObject *object,
 		if( mag >= -600 &&
 			mag <= 1000000 &&
 			conversion->mag != mag ) { 
+#ifdef DEBUG
 			printf( "conversion_set_mag: %d\n", mag ); 
+#endif /*DEBUG*/
 
 			conversion->mag = mag;
 			conversion_update_display( conversion );
@@ -233,7 +235,9 @@ conversion_set_property( GObject *object,
 	case PROP_LOADED:
 		loaded = g_value_get_boolean( value );
 		if( conversion->loaded != loaded ) { 
+#ifdef DEBUG
 			printf( "conversion_set_loaded: %d\n", loaded ); 
+#endif /*DEBUG*/
 
 			conversion->loaded = loaded;
 		}
@@ -277,8 +281,6 @@ conversion_get_property( GObject *object,
 static void
 conversion_init( Conversion *conversion )
 {
-	printf( "conversion_init:\n" ); 
-
 	conversion->mag = 1;
 }
 
@@ -324,21 +326,23 @@ conversion_background_load( void *data, void *user_data )
 {
 	Conversion *conversion = (Conversion *) data;
 
+#ifdef DEBUG
 	printf( "conversion_background_load: starting ..\n" );
+#endif /*DEBUG*/
 
 	conversion_force_load( conversion );
 
 	g_idle_add( conversion_background_load_done_cb, conversion );
 
+#ifdef DEBUG
 	printf( "conversion_background_load: .. done\n" );
+#endif /*DEBUG*/
 }
 
 static void
 conversion_class_init( ConversionClass *class )
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-
-	printf( "conversion_class_init:\n" ); 
 
 	gobject_class->dispose = conversion_dispose;
 	gobject_class->set_property = conversion_set_property;
@@ -421,7 +425,9 @@ conversion_preeval_cb( void *user_data )
 	ConversionBackgroundLoadUpdate *update = 
 		(ConversionBackgroundLoadUpdate *) user_data;
 
+#ifdef DEBUG
 	printf( "conversion_preeval_cb:\n" ); 
+#endif /*DEBUG*/
 
 	g_signal_emit( update->conversion, 
 		conversion_signals[SIG_PRELOAD], 0, update->progress );
@@ -479,7 +485,9 @@ conversion_posteval_cb( void *user_data )
 	ConversionBackgroundLoadUpdate *update = 
 		(ConversionBackgroundLoadUpdate *) user_data;
 
+#ifdef DEBUG
 	printf( "conversion_posteval_cb:\n" ); 
+#endif /*DEBUG*/
 
 	g_signal_emit( update->conversion, 
 		conversion_signals[SIG_POSTLOAD], 0, update->progress );
@@ -506,7 +514,9 @@ conversion_posteval( VipsImage *image,
 static void
 conversion_attach_progress( Conversion *conversion, VipsImage *image )
 {
+#ifdef DEBUG
 	printf( "conversion_attach_progress:\n" ); 
+#endif /*DEBUG*/
 
 	conversion_disconnect( conversion ); 
 
@@ -531,7 +541,9 @@ conversion_close_memory( VipsImage *image, gpointer contents )
 int
 conversion_set_file( Conversion *conversion, GFile *file )
 {
+#ifdef DEBUG
 	printf( "conversion_set_file: starting ..\n" );
+#endif /*DEBUG*/
 
 	if( file != NULL ) {
 		gchar *path;
@@ -540,7 +552,9 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		VipsImage *image;
 
 		if( (path = g_file_get_path( file )) ) {
+#ifdef DEBUG
 			printf( "conversion_set_file: path = %s\n", path ); 
+#endif /*DEBUG*/
 
 			if( !(image = 
 				vips_image_new_from_file( path, NULL )) ) {
@@ -551,8 +565,10 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		}
 		else if( g_file_load_contents( file, NULL, 
 			&contents, &length, NULL, NULL ) ) {
+#ifdef DEBUG
 			printf( "conversion_set_file: buffer of %zd bytes\n", 
 			     length ); 
+#endif /*DEBUG*/
 
 			if( !(image =
 				vips_image_new_from_buffer( contents, length, 
@@ -590,7 +606,9 @@ conversion_set_file( Conversion *conversion, GFile *file )
 			conversion, NULL ); 
 	}
 
+#ifdef DEBUG
 	printf( "conversion_set_file: .. done\n" );
+#endif /*DEBUG*/
 
 	return( 0 );
 }
@@ -679,8 +697,6 @@ Conversion *
 conversion_new( void ) 
 {
 	Conversion *conversion;
-
-	printf( "conversion_new:\n" ); 
 
 	conversion = g_object_new( conversion_get_type(),
 		NULL );

@@ -17,7 +17,9 @@ disp_finalize( GObject *object )
 {
 	//Disp *disp = (Disp *) object;
 
+#ifdef DEBUG
 	printf( "disp_finalize:\n" ); 
+#endif /*DEBUG*/
 
 	G_OBJECT_CLASS( disp_parent_class )->finalize( object );
 }
@@ -28,7 +30,9 @@ disp_quit_activated( GSimpleAction *action,
 {
 	GApplication *app = G_APPLICATION( user_data );
 
+#ifdef DEBUG
 	printf( "disp_quit_activated:\n" ); 
+#endif /*DEBUG*/
 
 	g_application_quit( app );
 }
@@ -52,7 +56,9 @@ disp_startup( GApplication *application )
 		{ "app.quit", { "<Primary>q", NULL } }
 	};
 
+#ifdef DEBUG
 	printf( "disp_startup:\n" ); 
+#endif /*DEBUG*/
 
 	G_APPLICATION_CLASS( disp_parent_class )->startup( application );
 
@@ -75,7 +81,9 @@ disp_shutdown( GApplication *application )
 	//Disp *disp = (Disp *) application;
 	GList *windows;
 
+#ifdef DEBUG
 	printf( "disp_shutdown:\n" ); 
+#endif /*DEBUG*/
 
 	/* Force down all our windows ... this will not happen automatically
 	 * on _quit().
@@ -93,7 +101,9 @@ disp_shutdown( GApplication *application )
 static void
 disp_activate( GApplication *application )
 {
+#ifdef DEBUG
 	printf( "disp_activate:\n" ); 
+#endif /*DEBUG*/
 
 	imageview_new( GTK_APPLICATION( application ), NULL );
 }
@@ -104,7 +114,9 @@ disp_open( GApplication *application,
 {
 	gint i;
 
+#ifdef DEBUG
 	printf( "disp_open:\n" ); 
+#endif /*DEBUG*/
 
 	for( i = 0; i < n_files; i++ )
 		imageview_new( GTK_APPLICATION( application ), files[i] );
@@ -113,7 +125,6 @@ disp_open( GApplication *application,
 static void
 disp_init( Disp *disp )
 {
-	printf( "disp_init:\n" ); 
 }
 
 static void
@@ -121,8 +132,6 @@ disp_class_init( DispClass *class )
 {
 	GObjectClass *object_class = G_OBJECT_CLASS( class );
 	GApplicationClass *application_class = G_APPLICATION_CLASS( class );
-
-	printf( "disp_class_init:\n" ); 
 
 	object_class->finalize = disp_finalize;
 
@@ -137,9 +146,9 @@ disp_new( void )
 {
 	Disp *disp;
 
+#ifdef DEBUG
 	printf( "disp_new:\n" ); 
-
-	g_set_application_name( "vipsdisp" );
+#endif /*DEBUG*/
 
 	disp = g_object_new( disp_get_type(),
 		"application-id", "vips.disp",

@@ -41,7 +41,9 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 	GdkWindow *window = gtk_widget_get_window( widget );
 	GtkStyleContext *context = gtk_widget_get_style_context( widget );
 
-	//printf( "imagepresent_draw:\n" ); 
+#ifdef DEBUG
+	printf( "imagepresent_draw:\n" ); 
+#endif /*DEBUG*/
 
 	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
 
@@ -58,8 +60,6 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 static void
 imagepresent_init( Imagepresent *imagepresent )
 {
-	printf( "imagepresent_init:\n" ); 
-
 	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
 }
 
@@ -67,8 +67,6 @@ static void
 imagepresent_class_init( ImagepresentClass *class )
 {
 	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
-
-	printf( "imagepresent_class_init:\n" ); 
 
 	widget_class->draw = imagepresent_draw;
 	widget_class->destroy = imagepresent_destroy;
@@ -104,8 +102,10 @@ imagepresent_get_window_position( Imagepresent *imagepresent,
 	*width = gtk_adjustment_get_page_size( hadj );
 	*height = gtk_adjustment_get_page_size( vadj );
 
+#ifdef DEBUG
 	printf( "imagepresent_get_window_position: %d %d %d %d\n", 
 		*left, *top, *width, *height ); 
+#endif /*DEBUG*/
 }
 
 static void
@@ -117,7 +117,9 @@ imagepresent_set_window_position( Imagepresent *imagepresent,
 	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
 		GTK_SCROLLED_WINDOW( imagepresent ) );
 
+#ifdef DEBUG
 	printf( "imagepresent_set_window_position: %d %d\n", left, top ); 
+#endif /*DEBUG*/
 
 	gtk_adjustment_set_value( hadj, left );
 	gtk_adjustment_set_value( vadj, top );
@@ -152,7 +154,9 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	int width;
 	int height;
 
+#ifdef DEBUG
 	printf( "imagepresent_set_mag: %d\n", mag ); 
+#endif /*DEBUG*/
 
 	/* We need to update last_x/_y ... go via image cods.
 	 */
@@ -173,8 +177,11 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	 */
 	if( imagepresent_get_display_image_size( imagepresent, 
 		&width, &height ) ) { 
+#ifdef DEBUG
 		printf( "imagepresent_set_mag: new size %d %d\n", 
 			width, height ); 
+#endif /*DEBUG*/
+
 		gtk_adjustment_set_upper( hadj, width );
 		gtk_adjustment_set_upper( vadj, height );
 	}
@@ -200,7 +207,9 @@ imagepresent_set_mag_centre( Imagepresent *imagepresent, int mag )
 	int display_x;
 	int display_y;
 
+#ifdef DEBUG
 	printf( "imagepresent_set_mag_centre:\n" ); 
+#endif /*DEBUG*/
 
 	imagepresent_get_window_position( imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
@@ -235,7 +244,9 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 	int display_x;
 	int display_y;
 
+#ifdef DEBUG
 	printf( "imagepresent_magin: %d %d\n", x, y ); 
+#endif /*DEBUG*/
 
 	/* Limit max mag to 512. We use int for image width and height, so 9
 	 * bits for magnification leaves us 22 for size, or about 4m x 4m
@@ -269,7 +280,9 @@ imagepresent_magout( Imagepresent *imagepresent )
 	int image_height;
 	int mag;
 
+#ifdef DEBUG
 	printf( "imagepresent_magout:\n" ); 
+#endif /*DEBUG*/
 
 	/* Don't let the image get too small.
 	 */
@@ -297,7 +310,9 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 	int image_width;
 	int image_height;
 
+#ifdef DEBUG
 	printf( "imagepresent_bestfit:\n" ); 
+#endif /*DEBUG*/
 
 	if( imagepresent_get_image_size( imagepresent, 
 		&image_width, &image_height ) ) {
@@ -391,7 +406,9 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	gboolean handled;
 
+#ifdef DEBUG
 	printf( "imagepresent_key_press_event: key = %d\n", event->keyval );
+#endif /*DEBUG*/
 
 	handled = FALSE;
 
@@ -512,7 +529,9 @@ imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event,
 {
 	gboolean handled;
 
+#ifdef DEBUG
 	printf( "imagepresent_button_press_event:\n" ); 
+#endif /*DEBUG*/
 
 	handled = FALSE;
 
@@ -567,10 +586,10 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 	imagepresent->last_x = point.left;
 	imagepresent->last_y = point.top;
 
-	/*
+#ifdef DEBUG
 	printf( "imagepresent_motion_notify_event: %g, %g\n", 
 		point.left, point.top );
-	 */
+#endif /*DEBUG*/
 
 	switch( imagepresent->state ) {
 	case IMAGEPRESENT_DRAG:
@@ -596,7 +615,9 @@ imagepresent_button_release_event( GtkWidget *widget, GdkEventButton *event,
 {
 	gboolean handled;
 
+#ifdef DEBUG
 	printf( "imagepresent_button_release_event:\n" ); 
+#endif /*DEBUG*/
 
 	handled = FALSE;
 
@@ -625,7 +646,9 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 	int image_x;
 	int image_y;
 
+#ifdef DEBUG
 	printf( "imagepresent_scroll_event:\n" );
+#endif /*DEBUG*/
 
 	handled = FALSE;
 
@@ -661,8 +684,6 @@ Imagepresent *
 imagepresent_new( void ) 
 {
 	Imagepresent *imagepresent;
-
-	printf( "imagepresent_new:\n" ); 
 
 	imagepresent = g_object_new( imagepresent_get_type(),
 		NULL );

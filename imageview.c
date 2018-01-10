@@ -16,13 +16,11 @@ G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 static void
 imageview_init( Imageview *Imageview )
 {
-	printf( "imageview_init:\n" ); 
 }
 
 static void
 imageview_class_init( ImageviewClass *class )
 {
-	printf( "imageview_class_init:\n" ); 
 }
 
 static void
@@ -362,7 +360,9 @@ static void
 imageview_preload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
+#ifdef DEBUG
 	printf( "imageview_preload:\n" ); 
+#endif /*DEBUG*/
 
 	gtk_widget_show( imageview->progress_box );
 }
@@ -374,7 +374,10 @@ imageview_load( Conversion *conversion,
 	static int previous_precent = -1;
 
 	if( progress->percent != previous_precent ) {
+#ifdef DEBUG
 		printf( "imageview_load: %d%%\n", progress->percent ); 
+#endif /*DEBUG*/
+
 		gtk_progress_bar_set_fraction( 
 			GTK_PROGRESS_BAR( imageview->progress ), 
 			progress->percent / 100.0 ); 
@@ -386,7 +389,9 @@ static void
 imageview_postload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
+#ifdef DEBUG
 	printf( "imageview_postload:\n" ); 
+#endif /*DEBUG*/
 
 	gtk_widget_hide( imageview->progress_box );
 }
@@ -404,7 +409,9 @@ imageview_new( GtkApplication *application, GFile *file )
 	GtkWidget *grid;
 	GtkWidget *hbox;
 
+#ifdef DEBUG
 	printf( "imageview_new: file = %p\n", file ); 
+#endif /*DEBUG*/
 
 	imageview = g_object_new( imageview_get_type(),
 		"application", application,
