@@ -222,7 +222,8 @@ conversion_set_property( GObject *object,
 		mag = g_value_get_int( value );
 		if( mag >= -600 &&
 			mag <= 1000000 &&
-			conversion->mag != mag ) { 
+			conversion->mag != mag &&
+			conversion->loaded ) { 
 #ifdef DEBUG
 			printf( "conversion_set_mag: %d\n", mag ); 
 #endif /*DEBUG*/
@@ -366,7 +367,7 @@ conversion_class_init( ConversionClass *class )
 		g_param_spec_int( "mag",
 			_( "mag" ),
 			_( "Magnification factor" ),
-			-600, 1000000, 1,
+			-1000000, 1000000, 1,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_install_property( gobject_class, PROP_LOADED,
