@@ -396,6 +396,22 @@ imageview_postload( Conversion *conversion,
 	gtk_widget_hide( imageview->progress_box );
 }
 
+static void
+imageview_scale_value_changed( GtkAdjustment *adjustment, Imageview *imageview )
+{
+	g_object_set( imageview->imagepresent->conversion,
+		"scale", gtk_adjustment_get_value( adjustment ),
+		NULL );
+}
+
+static void
+imageview_offset_value_changed( GtkAdjustment *adjustment, Imageview *imageview )
+{
+	g_object_set( imageview->imagepresent->conversion,
+		"offset", gtk_adjustment_get_value( adjustment ),
+		NULL );
+}
+
 Imageview *
 imageview_new( GtkApplication *application, GFile *file )
 {
@@ -408,6 +424,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	GMenuModel *menu;
 	GtkWidget *grid;
 	GtkWidget *hbox;
+	GtkWidget *scale;
+	GtkAdjustment *adj;
 
 #ifdef DEBUG
 	printf( "imageview_new: file = %p\n", file ); 
@@ -485,6 +503,28 @@ imageview_new( GtkApplication *application, GFile *file )
 	g_signal_connect( imageview->imagepresent->conversion, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
 
+	imageview->display_control_box = 
+		gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 2 );
+	scale = gtk_scale_new_with_range( GTK_ORIENTATION_HORIZONTAL, 
+		0, 256, 10 );
+	adj = gtk_range_get_adjustment( GTK_RANGE( scale ) );
+	g_signal_connect( adj, "value-changed", 
+		G_CALLBACK( imageview_scale_value_changed ), imageview );
+	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
+		scale, TRUE, TRUE, 2 );
+	gtk_widget_show( scale );
+	scale = gtk_scale_new_with_range( GTK_ORIENTATION_HORIZONTAL, 
+		-128, 128, 10 );
+	adj = gtk_range_get_adjustment( GTK_RANGE( scale ) );
+	g_signal_connect( adj, "value-changed", 
+		G_CALLBACK( imageview_offset_value_changed ), imageview );
+	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
+		scale, TRUE, TRUE, 2 );
+	gtk_widget_show( scale );
+	gtk_widget_show( imageview->display_control_box );
+	gtk_grid_attach( GTK_GRID( grid ), 
+		imageview->display_control_box, 0, 3, 1, 1 );
+
 	imageview->status_bar = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_container_set_border_width( GTK_CONTAINER( imageview->status_bar ),
 		10 );
@@ -519,7 +559,7 @@ imageview_new( GtkApplication *application, GFile *file )
 		hbox, TRUE, TRUE, 0 );
 	gtk_widget_show( hbox );
 
-	gtk_grid_attach( GTK_GRID( grid ), imageview->status_bar, 0, 3, 1, 1 );
+	gtk_grid_attach( GTK_GRID( grid ), imageview->status_bar, 0, 4, 1, 1 );
 	gtk_widget_show( imageview->status_bar );
 
 	g_signal_connect( imageview->imagepresent, "position_changed", 

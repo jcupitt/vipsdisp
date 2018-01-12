@@ -14,6 +14,8 @@ typedef struct _Imageview {
 
 	Imagepresent *imagepresent;
 
+	GtkWidget *display_control_box;
+
 	GtkWidget *status_bar;
 	GtkWidget *info_label;
 	GtkWidget *coord_label;

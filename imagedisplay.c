@@ -252,6 +252,8 @@ imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
 		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
 			imagedisplay->image_rect.width, 
 			imagedisplay->image_rect.height );
+
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 	}
 
 	return( 0 );

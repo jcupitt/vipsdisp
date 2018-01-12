@@ -23,6 +23,8 @@ enum {
 	PROP_IMAGE = 1,
 	PROP_RGB,
 	PROP_MAG,
+	PROP_SCALE,
+	PROP_OFFSET,
 	PROP_LOADED,
 
 	/* Our signals. 
@@ -88,6 +90,19 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 	image = in;
 	g_object_ref( image ); 
 
+	/* Scale and offset.
+	 */
+	if( conversion->scale != 1.0 ||
+		conversion->offset != 0.0 ) {
+		if( vips_linear1( image, &x, 
+			conversion->scale, conversion->offset, NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
+
 	/* This won't work for CMYK, you need to mess about with ICC profiles
 	 * for that, but it will work for everything else.
 	 */
@@ -101,6 +116,15 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 	/* Drop any alpha.
 	 */
 	if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
+		g_object_unref( image );
+		return( NULL ); 
+	}
+	g_object_unref( image );
+	image = x;
+
+	/* To uchar.
+	 */
+	if( vips_cast_uchar( image, &x, NULL ) ) {
 		g_object_unref( image );
 		return( NULL ); 
 	}
@@ -202,6 +226,7 @@ conversion_set_property( GObject *object,
 	Conversion *conversion = (Conversion *) object;
 
 	int mag;
+	double d;
 	gboolean loaded;
 
 	switch( prop_id ) {
@@ -229,6 +254,36 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
 			conversion->mag = mag;
+			conversion_update_display( conversion );
+		}
+		break;
+
+	case PROP_SCALE:
+		d = g_value_get_double( value );
+		if( d > 0 &&
+			d <= 1000000 &&
+			conversion->scale != d &&
+			conversion->loaded ) { 
+#ifdef DEBUG
+			printf( "conversion_set_scale: %g\n", d ); 
+#endif /*DEBUG*/
+
+			conversion->scale = d;
+			conversion_update_display( conversion );
+		}
+		break;
+
+	case PROP_OFFSET:
+		d = g_value_get_double( value );
+		if( d >= -100000 &&
+			d <= 1000000 &&
+			conversion->offset != d &&
+			conversion->loaded ) { 
+#ifdef DEBUG
+			printf( "conversion_set_offset: %g\n", d ); 
+#endif /*DEBUG*/
+
+			conversion->offset = d;
 			conversion_update_display( conversion );
 		}
 		break;
@@ -269,6 +324,14 @@ conversion_get_property( GObject *object,
 		g_value_set_int( value, conversion->mag );
 		break;
 
+	case PROP_SCALE:
+		g_value_set_double( value, conversion->scale );
+		break;
+
+	case PROP_OFFSET:
+		g_value_set_double( value, conversion->offset );
+		break;
+
 	case PROP_LOADED:
 		g_value_set_boolean( value, conversion->loaded );
 		break;
@@ -283,6 +346,7 @@ static void
 conversion_init( Conversion *conversion )
 {
 	conversion->mag = 1;
+	conversion->scale = 1.0;
 }
 
 static void
@@ -368,6 +432,20 @@ conversion_class_init( ConversionClass *class )
 			_( "mag" ),
 			_( "Magnification factor" ),
 			-1000000, 1000000, 1,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_SCALE,
+		g_param_spec_double( "scale",
+			_( "scale" ),
+			_( "Scale" ),
+			-1000000, 1000000, 1,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_OFFSET,
+		g_param_spec_double( "offset",
+			_( "offset" ),
+			_( "Offset" ),
+			-1000000, 1000000, 0,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_install_property( gobject_class, PROP_LOADED,

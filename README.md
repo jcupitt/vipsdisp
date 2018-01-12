@@ -25,20 +25,22 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ### Structure
 
-`Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`.
+* `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`. It
+implements a scrollable interface.
 
-`Conversion` is a GObject which manages the image that is being displayed. Set
-things like magnification, file, scale, offset etc. on this.
+* `Conversion` is a GObject which manages the image that is being displayed. Set
+things like magnification, file, scale, offset etc. on this and the display
+will update automatically.
 
-`Imagepresent` is a `GtkScrolledWindow` subclass that contains an
+* `Imagepresent` is a `GtkScrolledWindow` subclass that contains an
 `Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It uses 
-the `GtkAdjustment` on the scrolled window to slide the drawing area around,
+the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
 and sets properties of `Conversion` to zoom etc. 
 
-`Imageview` is a `GtkApplicationWindow` subclass that contains an
+* `Imageview` is a `GtkApplicationWindow` subclass that contains an
 `Imagepresent` plus a header bar and some other UI bits.
 
-`disp` is the `main()`
+* `disp` is the `main()`
 
 ### TODO
 
