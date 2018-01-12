@@ -15,10 +15,6 @@
 #define DEBUG
  */
 
-/* The size of the tiles that we use for the libvips cache.
- */
-static const int tile_size = 128;
-
 /* imagedisplay is actually a drawing area the size of the widget on screen: we 
  * do all scrolling ourselves.
  */
@@ -143,68 +139,6 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		imagedisplay->vadjustment, 
 		imagedisplay->image_rect.height, 
 		imagedisplay->paint_rect.height ); 
-}
-
-typedef struct _ImagedisplayUpdate {
-	Imagedisplay *imagedisplay;
-	VipsImage *image;
-	VipsRect rect;
-} ImagedisplayUpdate;
-
-/* The main GUI thread runs this when it's idle and there are tiles that need
- * painting. 
- */
-static gboolean
-imagedisplay_render_cb( void *user_data )
-{
-	ImagedisplayUpdate *update = (ImagedisplayUpdate *) user_data;
-	Imagedisplay *imagedisplay = update->imagedisplay;
-
-#ifdef DEBUG
-	printf( "imagedisplay_render_cb: "
-		"left = %d, top = %d, width = %d, height = %d\n",
-		update->rect.left, update->rect.top,
-		update->rect.width, update->rect.height );
-#endif /*DEBUG*/
-
-	/* Again, stuff can run here long after the image has vanished, check
-	 * before we update.
-	 */
-	if( update->image == imagedisplay->display ) {
-		imagedisplay_image_to_gtk( imagedisplay, &update->rect );
-
-		gtk_widget_queue_draw_area( GTK_WIDGET( update->imagedisplay ),
-			update->rect.left, update->rect.top,
-			update->rect.width, update->rect.height );
-	}
-
-	g_free( update );
-
-	return( FALSE );
-}
-
-/* Come here from the vips_sink_screen() background thread when a tile has been
- * calculated. We can't paint the screen directly since the main GUI thread
- * might be doing something. Instead, we add an idle callback which will be
- * run by the main GUI thread when it next hits the mainloop.
- */
-static void
-imagedisplay_render_notify( VipsImage *image, VipsRect *rect, void *client )
-{
-	Imagedisplay *imagedisplay = (Imagedisplay *) client;
-
-	/* We can come here after imagedisplay has junked this image and
-	 * started displaying another. Check the image is still correct.
-	 */
-	if( image == imagedisplay->display ) { 
-		ImagedisplayUpdate *update = g_new( ImagedisplayUpdate, 1 );
-
-		update->imagedisplay = imagedisplay;
-		update->image = image;
-		update->rect = *rect;
-
-		g_idle_add( imagedisplay_render_cb, update );
-	}
 }
 
 static int

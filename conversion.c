@@ -32,6 +32,7 @@ enum {
 	SIG_PRELOAD,
 	SIG_LOAD,
 	SIG_POSTLOAD,
+	SIG_AREA_CHANGED,
 
 	SIG_LAST
 };
@@ -162,14 +163,75 @@ conversion_update_rgb( Conversion *conversion )
 	return( 0 );
 }
 
+typedef struct _ConversionUpdate {
+	Conversion *conversion;
+	VipsImage *image;
+	VipsRect rect;
+} ConversionUpdate;
+
+/* Run by the main GUI thread when an update comes in. 
+ */
+static gboolean
+conversion_render_notify_idle( void *user_data )
+{
+	ConversionUpdate *update = (ConversionUpdate *) user_data;
+	Conversion *conversion = update->conversion;
+
+#ifdef DEBUG
+	printf( "conversion_render_cb: "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		update->rect.left, update->rect.top,
+		update->rect.width, update->rect.height );
+#endif /*DEBUG*/
+
+	/* Again, stuff can run here long after the image has vanished, check
+	 * before we update.
+	 */
+	if( update->image == conversion->display ) 
+		g_signal_emit( conversion, 
+			conversion_signals[SIG_AREA_CHANGED], 0, update->rect );
+
+	g_free( update );
+
+	return( FALSE );
+}
+
+/* Come here from the vips_sink_screen() background thread when a tile has been
+ * calculated. We can't paint the screen directly since the main GUI thread
+ * might be doing something. Instead, we add an idle callback which will be
+ * run by the main GUI thread when it next hits the mainloop.
+ */
+static void
+conversion_render_notify( VipsImage *image, VipsRect *rect, void *client )
+{
+	Conversion *conversion = (Conversion *) client;
+
+	/* We can come here after Conversion has junked this image and
+	 * started displaying another. Check the image is still correct.
+	 */
+	if( image == conversion->display ) { 
+		ConversionUpdate *update = g_new( ConversionUpdate, 1 );
+
+		update->conversion = conversion;
+		update->image = image;
+		update->rect = *rect;
+
+		g_idle_add( conversion_render_notify_idle, update );
+	}
+}
+
 /* Make the screen image. This is the thing we display pixel values from in
  * the status bar.
  */
 static VipsImage *
-conversion_display_image( Conversion *conversion, VipsImage *in )
+conversion_display_image( Conversion *conversion, 
+	VipsImage *in, VipsImage **mask_out )
 {
 	VipsImage *image;
 	VipsImage *x;
+	VipsImage *mask;
+
+	g_assert( mask_out ); 
 
 	image = in;
 	g_object_ref( image ); 
@@ -193,10 +255,23 @@ conversion_display_image( Conversion *conversion, VipsImage *in )
 		image = x;
 	}
 
+	x = vips_image_new();
+	mask = vips_image_new();
+	if( vips_sink_screen( image, 
+		x, mask, 
+		tile_size, tile_size, 400, 0, 
+		conversion_render_notify, conversion ) ) {
+		return( -1 );
+	}
+	g_object_unref( image );
+	image = x;
+
+	*mask_out = mask;
+
 	return( image );
 }
 
-/* Rebuild the first half of the pipeline: original to display image. 
+/* Rebuild the pipeline from zoom onwards.
  */
 static int
 conversion_update_display( Conversion *conversion )
@@ -204,13 +279,14 @@ conversion_update_display( Conversion *conversion )
 	VIPS_UNREF( conversion->image_region );
 	VIPS_UNREF( conversion->display );
 
-	if( conversion->image ) { 
+	if( conversion->image ) {
 		if( !(conversion->image_region = 
 			vips_region_new( conversion->image )) )
 			return( -1 ); 
+	
 		if( !(conversion->display = 
 			conversion_display_image( conversion, 
-				conversion->image )) ) 
+				conversion->image, &conversion->mask )) ) 
 			return( -1 ); 
 	}
 
@@ -477,6 +553,15 @@ conversion_class_init( ConversionClass *class )
 		G_TYPE_FROM_CLASS( class ),
 		G_SIGNAL_RUN_LAST,
 		G_STRUCT_OFFSET( ConversionClass, postload ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__POINTER,
+		G_TYPE_NONE, 1,
+		G_TYPE_POINTER );
+
+	conversion_signals[SIG_AREA_CHANGED] = g_signal_new( "area-changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ConversionClass, area_changed ), 
 		NULL, NULL,
 		g_cclosure_marshal_VOID__POINTER,
 		G_TYPE_NONE, 1,

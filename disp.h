@@ -1,4 +1,8 @@
 
+/* The size of the tiles that we use for the libvips cache.
+ */
+#define tile_size (128)
+
 /* i18n placeholder.
  */
 #define _(S) (S)
