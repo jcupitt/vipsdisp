@@ -32,6 +32,7 @@ enum {
 	SIG_PRELOAD,
 	SIG_LOAD,
 	SIG_POSTLOAD,
+	SIG_CHANGED,
 	SIG_AREA_CHANGED,
 
 	SIG_LAST
@@ -40,26 +41,43 @@ enum {
 static guint conversion_signals[SIG_LAST] = { 0 };
 
 static void
+conversion_area_changed( Conversion *conversion, VipsRect *dirty )
+{
+	g_signal_emit( conversion, 
+		conversion_signals[SIG_AREA_CHANGED], 0, dirty );
+}
+
+static void
+conversion_changed( Conversion *conversion )
+{
+	g_signal_emit( conversion, 
+		conversion_signals[SIG_CHANGED], 0 );
+}
+
+static void
 conversion_disconnect( Conversion *conversion )
 {
-	if( conversion->image ) { 
-		if( conversion->preeval_sig ) { 
-			g_signal_handler_disconnect( conversion->image, 
-				conversion->preeval_sig ); 
-			conversion->preeval_sig = 0;
-		}
+	if( !conversion->image ) {
+		g_assert( !conversion->preeval_sig );
+		return;
+	}
 
-		if( conversion->eval_sig ) { 
-			g_signal_handler_disconnect( conversion->image, 
-				conversion->eval_sig ); 
-			conversion->eval_sig = 0;
-		}
+	if( conversion->preeval_sig ) { 
+		g_signal_handler_disconnect( conversion->image, 
+			conversion->preeval_sig ); 
+		conversion->preeval_sig = 0;
+	}
 
-		if( conversion->posteval_sig ) { 
-			g_signal_handler_disconnect( conversion->image, 
-				conversion->posteval_sig ); 
-			conversion->posteval_sig = 0;
-		}
+	if( conversion->eval_sig ) { 
+		g_signal_handler_disconnect( conversion->image, 
+			conversion->eval_sig ); 
+		conversion->eval_sig = 0;
+	}
+
+	if( conversion->posteval_sig ) { 
+		g_signal_handler_disconnect( conversion->image, 
+			conversion->posteval_sig ); 
+		conversion->posteval_sig = 0;
 	}
 }
 
@@ -158,6 +176,8 @@ conversion_update_rgb( Conversion *conversion )
 			return( -1 ); 
 		g_object_set( conversion, "rgb", rgb, NULL ); 
 		g_object_unref( rgb ); 
+
+		conversion_changed( conversion );
 	}
 
 	return( 0 );
@@ -178,7 +198,7 @@ conversion_render_notify_idle( void *user_data )
 	Conversion *conversion = update->conversion;
 
 #ifdef DEBUG
-	printf( "conversion_render_cb: "
+	printf( "conversion_render_notify_idle: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		update->rect.left, update->rect.top,
 		update->rect.width, update->rect.height );
@@ -188,8 +208,7 @@ conversion_render_notify_idle( void *user_data )
 	 * before we update.
 	 */
 	if( update->image == conversion->display ) 
-		g_signal_emit( conversion, 
-			conversion_signals[SIG_AREA_CHANGED], 0, update->rect );
+		conversion_area_changed( conversion, &update->rect );
 
 	g_free( update );
 
@@ -261,7 +280,10 @@ conversion_display_image( Conversion *conversion,
 		x, mask, 
 		tile_size, tile_size, 400, 0, 
 		conversion_render_notify, conversion ) ) {
-		return( -1 );
+		g_object_unref( x );
+		g_object_unref( mask );
+		g_object_unref( image );
+		return( NULL );
 	}
 	g_object_unref( image );
 	image = x;
@@ -345,7 +367,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
 			conversion->scale = d;
-			conversion_update_display( conversion );
+			conversion_update_rgb( conversion );
 		}
 		break;
 
@@ -360,7 +382,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
 			conversion->offset = d;
-			conversion_update_display( conversion );
+			conversion_update_rgb( conversion );
 		}
 		break;
 
@@ -557,6 +579,14 @@ conversion_class_init( ConversionClass *class )
 		g_cclosure_marshal_VOID__POINTER,
 		G_TYPE_NONE, 1,
 		G_TYPE_POINTER );
+
+	conversion_signals[SIG_CHANGED] = g_signal_new( "changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ConversionClass, changed ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
 
 	conversion_signals[SIG_AREA_CHANGED] = g_signal_new( "area-changed",
 		G_TYPE_FROM_CLASS( class ),

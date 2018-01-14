@@ -2,21 +2,21 @@
 typedef struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
+	/* The conversion whose output we display.
+	 */
+	Conversion *conversion;
+
+	/* Watch the conversion with these.
+	 */
+	guint conversion_changed_sig;
+	guint conversion_area_changed_sig;
+
 	/* We implement a scrollable interface.
 	 */
 	GtkAdjustment *hadjustment;
 	GtkAdjustment *vadjustment;
 	guint hscroll_policy;
 	guint vscroll_policy;
-
-	/* The image we display. Change with the "image" property.
-	 */
-	VipsImage *image;
-
-	/* Set "loaded" TRUE when @image has finished loading and we can start
-	 * demanding pixels from it.
-	 */
-	gboolean loaded;
 
 	/* Our geometry. 
 	 *
@@ -47,14 +47,10 @@ typedef struct _Imagedisplay {
 	int left;
 	int top;
 
-	/* The image after being put through sinkscreen, and the mask.
+	/* The regions we use for fetching pixels from the rgb image and from
+	 * the mask.
 	 */
-	VipsImage *display;
-	VipsRegion *display_region;
-
-	/* The mask for detecting empty areas.
-	 */
-	VipsImage *mask;
+	VipsRegion *rgb_region;
 	VipsRegion *mask_region;
 
 } Imagedisplay;
@@ -67,4 +63,4 @@ typedef struct _ImagedisplayClass {
 void imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, VipsRect *rect );
 void imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, VipsRect *rect );
 
-Imagedisplay *imagedisplay_new( void ); 
+Imagedisplay *imagedisplay_new( Conversion *conversion ); 

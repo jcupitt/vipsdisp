@@ -1,4 +1,16 @@
 
+#define TYPE_CONVERSION (conversion_get_type())
+#define CONVERSION( obj ) \
+	(G_TYPE_CHECK_INSTANCE_CAST( (obj), TYPE_CONVERSION, Conversion ))
+#define CONVERSION_CLASS( klass ) \
+	(G_TYPE_CHECK_CLASS_CAST( (klass), TYPE_CONVERSION, ConversionClass))
+#define IS_CONVERSION( obj ) \
+	(G_TYPE_CHECK_INSTANCE_TYPE( (obj), TYPE_CONVERSION ))
+#define IS_CONVERSION_CLASS( klass ) \
+	(G_TYPE_CHECK_CLASS_TYPE( (klass), TYPE_CONVERSION ))
+#define CONVERSION_GET_CLASS( obj ) \
+	(G_TYPE_INSTANCE_GET_CLASS( (obj), TYPE_CONVERSION, ConversionClass ))
+
 typedef struct _Conversion {
 	GObject parent_instance;
 
@@ -16,9 +28,11 @@ typedef struct _Conversion {
 	 */
 	VipsRegion *image_region;
 
-	/* The image resized for the display, ie. including shrink & zoom.
+	/* The image resized for the display, ie. including shrink & zoom, and
+	 * a cache mask.
 	 */
 	VipsImage *display;
+	VipsImage *mask;
 
 	/* The display image converted to display RGB for painting.
 	 */
@@ -46,7 +60,17 @@ typedef struct _ConversionClass {
 	void (*load)( Conversion *conversion, VipsProgress *progress );
 	void (*postload)( Conversion *conversion, VipsProgress *progress );
 
+	/* The image has changed.
+	 */
+	void (*changed)( Conversion *conversion );
+
+	/* Part of the output image has changed.
+	 */
+	void (*area_changed)( Conversion *conversion, VipsRect *dirty );
+
 } ConversionClass;
+
+GType conversion_get_type( void );
 
 int conversion_set_file( Conversion *conversion, GFile *file );
 

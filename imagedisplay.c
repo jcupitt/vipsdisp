@@ -22,14 +22,9 @@ G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 	G_IMPLEMENT_INTERFACE( GTK_TYPE_SCROLLABLE, NULL ) );
 
 enum {
-	/* Set the image with this.
+	/* Set the conversion with this.
 	 */
-	PROP_IMAGE = 1,
-
-	/* Set this TRUE when the image has loaded and imagedisplay can start
-	 * fetching pixels.
-	 */
-	PROP_LOADED,
+	PROP_CONVERSION = 1,
 
 	/* The props we implement for the scrollable interface.
 	 */
@@ -141,56 +136,67 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		imagedisplay->paint_rect.height ); 
 }
 
-static int
-imagedisplay_set_image( Imagedisplay *imagedisplay, VipsImage *image )
+static void
+imagedisplay_conversion_changed( Conversion *conversion, 
+	Imagedisplay *imagedisplay ) 
 {
-	if( imagedisplay->image ) { 
-		VIPS_UNREF( imagedisplay->mask_region );
-		VIPS_UNREF( imagedisplay->mask );
-		VIPS_UNREF( imagedisplay->display_region );
-		VIPS_UNREF( imagedisplay->display );
-		VIPS_UNREF( imagedisplay->image );
-	}
-
-	if( image ) { 
-		imagedisplay->image = image;
-		g_object_ref( image ); 
-		imagedisplay->mask = vips_image_new();
-		imagedisplay->display = vips_image_new();
-
-		if( vips_sink_screen( imagedisplay->image, 
-			imagedisplay->display, imagedisplay->mask, 
-			tile_size, tile_size, 400, 0, 
-			imagedisplay_render_notify, imagedisplay ) ) {
-			return( -1 );
-		}
-
-		if( !(imagedisplay->display_region = 
-			vips_region_new( imagedisplay->display )) )
-			return( -1 ); 
-		if( !(imagedisplay->mask_region = 
-			vips_region_new( imagedisplay->mask )) )
-			return( -1 ); 
-
-		imagedisplay->image_rect.width = imagedisplay->display->Xsize;
-		imagedisplay->image_rect.height = imagedisplay->display->Ysize;
-
 #ifdef DEBUG
-		printf( "imagedisplay_update_conversion: image size %d x %d\n", 
-			imagedisplay->image_rect.width, 
-			imagedisplay->image_rect.height );
-		printf( "** display image %p\n", imagedisplay->display );
-		printf( "** new region %p\n", imagedisplay->display_region );
+	printf( "imagedisplay_conversion_changed:\n" ); 
 #endif /*DEBUG*/
 
-		gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
-			imagedisplay->image_rect.width, 
-			imagedisplay->image_rect.height );
+	VIPS_UNREF( imagedisplay->mask_region );
+	VIPS_UNREF( imagedisplay->rgb_region );
 
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
-	}
+	imagedisplay->rgb_region = vips_region_new( conversion->rgb );
+	imagedisplay->mask_region = vips_region_new( conversion->mask );
 
-	return( 0 );
+	imagedisplay->image_rect.width = conversion->rgb->Xsize;
+	imagedisplay->image_rect.height = conversion->rgb->Ysize;
+
+	gtk_widget_set_size_request( GTK_WIDGET( imagedisplay ),
+		imagedisplay->image_rect.width, 
+		imagedisplay->image_rect.height );
+
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+}
+
+static void
+imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty, 
+	Imagedisplay *imagedisplay ) 
+{
+	VipsRect expose;
+
+#ifdef DEBUG
+	printf( "imagedisplay_conversion_area_changed: "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		dirty->left, dirty->top,
+		dirty->width, dirty->height );
+#endif /*DEBUG*/
+
+	expose = *dirty;
+	imagedisplay_image_to_gtk( imagedisplay, &expose );
+	gtk_widget_queue_draw_area( GTK_WIDGET( imagedisplay ),
+		expose.left, expose.top,
+		expose.width, expose.height );
+}
+
+static void
+imagedisplay_set_conversion( Imagedisplay *imagedisplay, Conversion *conversion )
+{
+	g_assert( !imagedisplay->conversion );
+	g_assert( !imagedisplay->conversion_changed_sig );
+	g_assert( !imagedisplay->conversion_area_changed_sig );
+
+	imagedisplay->conversion = conversion;
+	g_object_ref( imagedisplay->conversion );
+
+	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
+		"changed",
+		G_CALLBACK( imagedisplay_conversion_changed ), imagedisplay );
+	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
+		"area-changed",
+		G_CALLBACK( imagedisplay_conversion_area_changed ), 
+		imagedisplay );
 }
 
 static void
@@ -240,16 +246,9 @@ imagedisplay_set_property( GObject *object,
 		}
 		break;
 
-	case PROP_IMAGE:
-		imagedisplay_set_image( imagedisplay, 
+	case PROP_CONVERSION:
+		imagedisplay_set_conversion( imagedisplay, 
 			g_value_get_object( value ) );
-		break;
-
-	case PROP_LOADED:
-		if( imagedisplay->loaded != g_value_get_boolean( value ) ) {
-			imagedisplay->loaded = g_value_get_boolean( value );
-			gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
-		}
 		break;
 
 	default:
@@ -281,12 +280,8 @@ imagedisplay_get_property( GObject *object,
 		g_value_set_enum( value, imagedisplay->vscroll_policy );
 		break;
 
-	case PROP_IMAGE:
-		g_value_set_object( value, imagedisplay->image );
-		break;
-
-	case PROP_LOADED:
-		g_value_set_boolean( value, imagedisplay->loaded );
+	case PROP_CONVERSION:
+		g_value_set_object( value, imagedisplay->conversion );
 		break;
 
 	default:
@@ -304,11 +299,21 @@ imagedisplay_destroy( GtkWidget *widget )
 	printf( "imagedisplay_destroy:\n" ); 
 #endif /*DEBUG*/
 
-	VIPS_UNREF( imagedisplay->display_region );
-	VIPS_UNREF( imagedisplay->display );
+	if( imagedisplay->conversion_changed_sig ) { 
+		g_signal_handler_disconnect( imagedisplay->conversion, 
+			imagedisplay->conversion_changed_sig ); 
+		imagedisplay->conversion_changed_sig = 0;
+	}
+
+	if( imagedisplay->conversion_area_changed_sig ) { 
+		g_signal_handler_disconnect( imagedisplay->conversion, 
+			imagedisplay->conversion_area_changed_sig ); 
+		imagedisplay->conversion_area_changed_sig = 0;
+	}
+
+	VIPS_UNREF( imagedisplay->rgb_region );
 	VIPS_UNREF( imagedisplay->mask_region );
-	VIPS_UNREF( imagedisplay->mask );
-	VIPS_UNREF( imagedisplay->image );
+	VIPS_UNREF( imagedisplay->conversion );
 	VIPS_FREE( imagedisplay->cairo_buffer ); 
 
 	GTK_WIDGET_CLASS( imagedisplay_parent_class )->destroy( widget );
@@ -547,7 +552,7 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 	}
 
-	if( vips_region_prepare( imagedisplay->display_region, &clip ) ) {
+	if( vips_region_prepare( imagedisplay->rgb_region, &clip ) ) {
 #ifdef DEBUG
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
@@ -574,11 +579,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 
 		imagedisplay_vips_to_cairo( imagedisplay, 
 			cairo_start,
-			VIPS_REGION_ADDR( imagedisplay->display_region, 
+			VIPS_REGION_ADDR( imagedisplay->rgb_region, 
 				clip.left, clip.top ),
 			clip.width, clip.height,
 			cairo_stride,
-			VIPS_REGION_LSKIP( imagedisplay->display_region ) );
+			VIPS_REGION_LSKIP( imagedisplay->rgb_region ) );
 	}
 }
 
@@ -651,8 +656,8 @@ imagedisplay_draw( GtkWidget *widget, cairo_t *cr )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
-	if( imagedisplay->loaded && 
-		imagedisplay->display_region ) {
+	if( imagedisplay->conversion->loaded && 
+		imagedisplay->rgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 
@@ -715,18 +720,11 @@ imagedisplay_class_init( ImagedisplayClass *class )
 	widget_class->size_allocate = imagedisplay_size_allocate;
 	widget_class->draw = imagedisplay_draw;
 
-	g_object_class_install_property( gobject_class, PROP_IMAGE,
-		g_param_spec_object( "image",
-			_( "image" ),
-			_( "The image to be displayed" ),
-			VIPS_TYPE_IMAGE,
-			G_PARAM_READWRITE ) );
-
-	g_object_class_install_property( gobject_class, PROP_LOADED,
-		g_param_spec_boolean( "loaded",
-			_( "loaded" ),
-			_( "The image can now paint" ),
-			FALSE,
+	g_object_class_install_property( gobject_class, PROP_CONVERSION,
+		g_param_spec_object( "conversion",
+			_( "conversion" ),
+			_( "The conversion to be displayed" ),
+			TYPE_CONVERSION,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_override_property( gobject_class, 
@@ -741,7 +739,7 @@ imagedisplay_class_init( ImagedisplayClass *class )
 }
 
 Imagedisplay *
-imagedisplay_new( void ) 
+imagedisplay_new( Conversion *conversion ) 
 {
 	Imagedisplay *imagedisplay;
 
@@ -750,6 +748,7 @@ imagedisplay_new( void )
 #endif /*DEBUG*/
 
 	imagedisplay = g_object_new( imagedisplay_get_type(),
+		"conversion", conversion,
 		NULL );
 
 	return( imagedisplay ); 

@@ -689,20 +689,8 @@ imagepresent_new( void )
 		NULL );
 
 	imagepresent->conversion = conversion_new();
-	imagepresent->imagedisplay = imagedisplay_new();
-
-	/* When the conversion output changes, update the display.
-	 */
-	g_object_bind_property( imagepresent->conversion, "rgb",
-				imagepresent->imagedisplay, "image",
-				G_BINDING_DEFAULT );
-
-	/* When the conversion image has loaded, set loaded on the display
-	 * too.
-	 */
-	g_object_bind_property( imagepresent->conversion, "loaded",
-				imagepresent->imagedisplay, "loaded",
-				G_BINDING_DEFAULT );
+	imagepresent->imagedisplay = 
+		imagedisplay_new( imagepresent->conversion );
 
 	/* The imagepresent takes the focus, so we must listen for keypresses
 	 * there. We get the mouse position from (last_x, last_y), which we
