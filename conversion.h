@@ -17,16 +17,13 @@ typedef struct _Conversion {
 	/* The image we are holding.
 	 */
 	VipsImage *image;
+	VipsRegion *image_region;
 
 	/* Display transform parameters.
 	 */
 	int mag;
 	double scale;
 	double offset;
-
-	/* A region on the input image for the status bar to use. 
-	 */
-	VipsRegion *image_region;
 
 	/* The image resized for the display, ie. including shrink & zoom, and
 	 * a cache mask.

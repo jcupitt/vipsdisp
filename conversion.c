@@ -87,10 +87,12 @@ conversion_dispose( GObject *object )
 	Conversion *conversion = (Conversion *) object;
 
 	conversion_disconnect( conversion ); 
-	VIPS_UNREF( conversion->rgb );
-	VIPS_UNREF( conversion->display );
-	VIPS_UNREF( conversion->image_region );
+
 	VIPS_UNREF( conversion->image );
+	VIPS_UNREF( conversion->image_region );
+	VIPS_UNREF( conversion->display );
+	VIPS_UNREF( conversion->mask );
+	VIPS_UNREF( conversion->rgb );
 
 	G_OBJECT_CLASS( conversion_parent_class )->dispose( object );
 }
@@ -108,19 +110,6 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 	 */
 	image = in;
 	g_object_ref( image ); 
-
-	/* Scale and offset.
-	 */
-	if( conversion->scale != 1.0 ||
-		conversion->offset != 0.0 ) {
-		if( vips_linear1( image, &x, 
-			conversion->scale, conversion->offset, NULL ) ) {
-			g_object_unref( image );
-			return( NULL ); 
-		}
-		g_object_unref( image );
-		image = x;
-	}
 
 	/* This won't work for CMYK, you need to mess about with ICC profiles
 	 * for that, but it will work for everything else.
@@ -140,6 +129,21 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 	}
 	g_object_unref( image );
 	image = x;
+
+	/* Scale and offset.
+	 */
+	if( conversion->scale != 1.0 ||
+		conversion->offset != 0.0 ) {
+		if( vips_linear1( image, &x, 
+			conversion->scale, conversion->offset, 
+			"uchar", TRUE, 
+			NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
 
 	/* To uchar.
 	 */
@@ -298,14 +302,10 @@ conversion_display_image( Conversion *conversion,
 static int
 conversion_update_display( Conversion *conversion )
 {
-	VIPS_UNREF( conversion->image_region );
 	VIPS_UNREF( conversion->display );
+	VIPS_UNREF( conversion->mask );
 
 	if( conversion->image ) {
-		if( !(conversion->image_region = 
-			vips_region_new( conversion->image )) )
-			return( -1 ); 
-	
 		if( !(conversion->display = 
 			conversion_display_image( conversion, 
 				conversion->image, &conversion->mask )) ) 
@@ -330,8 +330,10 @@ conversion_set_property( GObject *object,
 	switch( prop_id ) {
 	case PROP_IMAGE:
 		VIPS_UNREF( conversion->image ); 
+		VIPS_UNREF( conversion->image_region ); 
 		conversion->image = g_value_get_object( value );
 		g_object_ref( conversion->image );
+		conversion->image_region = vips_region_new( conversion->image );
 		conversion_update_display( conversion );
 		break;
 
@@ -870,11 +872,9 @@ conversion_to_display_cods( Conversion *conversion,
 VipsPel *
 conversion_get_ink( Conversion *conversion, int x, int y )
 {
-	gboolean loaded;
 	VipsRect rect;
 
-	g_object_get( conversion, "loaded", &loaded, NULL ); 
-	if( !loaded ) 
+	if( !conversion->loaded ) 
 		return( NULL ); 
 
 	rect.left = x;
