@@ -297,7 +297,7 @@ conversion_display_image( Conversion *conversion,
 	return( image );
 }
 
-/* Rebuild the pipeline from zoom onwards.
+/* Rebuild the entire pipeline from zoom onwards.
  */
 static int
 conversion_update_display( Conversion *conversion )
@@ -396,6 +396,8 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
 			conversion->loaded = loaded;
+
+			conversion_update_display( conversion );
 		}
 		break;
 
@@ -494,6 +496,8 @@ conversion_background_load( void *data, void *user_data )
 #ifdef DEBUG
 	printf( "conversion_background_load: starting ..\n" );
 #endif /*DEBUG*/
+
+	g_assert( conversion->image_region ); 
 
 	conversion_force_load( conversion );
 
