@@ -153,7 +153,7 @@ disp_new( void )
 	disp = g_object_new( disp_get_type(),
 		"application-id", "vips.disp",
 		"flags", G_APPLICATION_HANDLES_OPEN,
-		"inactivity-timeout", 30000,
+		"inactivity-timeout", 3000,
 		"register-session", TRUE,
 		NULL );
 
@@ -173,13 +173,14 @@ main( int argc, char **argv )
 	vips_leak_set( TRUE );
 
 	/*
+	 */
 	g_log_set_always_fatal( 
 		G_LOG_FLAG_RECURSION |
 		G_LOG_FLAG_FATAL |
 		G_LOG_LEVEL_ERROR |
 		G_LOG_LEVEL_CRITICAL |
-		G_LOG_LEVEL_WARNING );
-	 */
+		// G_LOG_LEVEL_WARNING  |
+		0 );
 
 	disp = disp_new();
 
