@@ -8,8 +8,7 @@ See vipsdisp-tiny for a minimal example.
 ### To run
 
 ```
-$ ./bootstrap.sh
-$ ./configure 
+$ ./autogen.sh --prefix=/home/john/vips 
 $ make
 $ ./vipsdisp ~/pics/k2.jpg
 ```
@@ -17,25 +16,27 @@ $ ./vipsdisp ~/pics/k2.jpg
 ### Shortcuts
 
 * Cursor keys to scroll around
-* Cursor keys plus shift to move a screen size
+* Cursor keys plus shift to move by a screen size
 * Cursor keys plus ctrl to move to image edges
 * Number keys to pick a particular magnification, 0 for best fit
 * i, + / o, - to zoom in and out
+* Mouse drag to pan
 * Mousewheel to zoom
+* Mousewheel + shift/ctrl to pan
 
 ### Structure
 
 * `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`. It
 implements a scrollable interface.
 
-* `Conversion` is a GObject which manages the image that is being displayed. Set
-things like magnification, file, scale, offset etc. on this and the display
-will update automatically.
+* `Conversion` is a GObject which manages the image that is being
+displayed. Set things like magnification, file, scale, offset etc. on this
+and the display will update automatically.
 
 * `Imagepresent` is a `GtkScrolledWindow` subclass that contains an
-`Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It uses 
-the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
-and sets properties of `Conversion` to zoom etc. 
+`Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It
+uses the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
+and sets properties of `Conversion` to zoom etc.
 
 * `Imageview` is a `GtkApplicationWindow` subclass that contains an
 `Imagepresent` plus a header bar and some other UI bits.
