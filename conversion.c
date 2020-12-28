@@ -11,6 +11,10 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG
+ */
+
 /* Use this threadpool to do background loads of images.
  */
 static GThreadPool *conversion_background_load_pool = NULL;
@@ -746,46 +750,31 @@ conversion_set_file( Conversion *conversion, GFile *file )
 #endif /*DEBUG*/
 
 	if( file != NULL ) {
-		gchar *path;
-		gchar *contents;
-		gsize length;
+		GError *error = NULL;
+
+		GInputStream *stream;
+		VipsSource *source;
 		VipsImage *image;
 
-		if( (path = g_file_get_path( file )) ) {
-#ifdef DEBUG
-			printf( "conversion_set_file: path = %s\n", path ); 
-#endif /*DEBUG*/
-
-			if( !(image = 
-				vips_image_new_from_file( path, NULL )) ) {
-				g_free( path ); 
-				return( -1 );
-			}
-			g_free( path ); 
-		}
-		else if( g_file_load_contents( file, NULL, 
-			&contents, &length, NULL, NULL ) ) {
-#ifdef DEBUG
-			printf( "conversion_set_file: buffer of %zd bytes\n", 
-			     length ); 
-#endif /*DEBUG*/
-
-			if( !(image =
-				vips_image_new_from_buffer( contents, length, 
-					"", NULL )) ) {
-				g_free( contents );
-				return( -1 ); 
-			}
-
-			g_signal_connect( image, "close",
-				G_CALLBACK( conversion_close_memory ), 
-				contents );
-		}
-		else {
-			vips_error( "conversion", 
-				"unable to load GFile object" );
+		if( !(stream = G_INPUT_STREAM( 
+			g_file_read( file, NULL, &error ) )) ) {
+			vips_error_g( &error );
 			return( -1 );
 		}
+
+		if( !(source = VIPS_SOURCE( vips_source_g_input_stream_new( 
+			stream ) )) ) {
+			VIPS_UNREF( stream );
+			return( -1 );
+		}
+		VIPS_UNREF( stream );
+
+		if( !(image = vips_image_new_from_source( source, 
+			"", NULL )) ) {
+			VIPS_UNREF( source );
+			return( -1 );
+		}
+		VIPS_UNREF( source );
 
 		/* This will be set TRUE again at the end of the background
 		 * load..
