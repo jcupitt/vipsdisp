@@ -45,29 +45,33 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
+- fix log scale of scale in display control bar
+
+  also check speed -- fps seems low compared to nip2
+
+- keep ~10 most recent tilecaches to speed up zoom?
+
+- ^W to close window?
+
+- where is our main menu? it seems to have vanished
+
+  put everything in the "hamburger" dropdown
+
+- check openslideload and vips load now we are using VipsSource
+
+- dark theme?
+
+- fullscreen support
+
+- pyrtiff / openslide etc. zoom support
+
+- header display
+
+- tickbox in menu for status bar, display control bar
+
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - replace image during load can crash the viewer
 
 - we do not size the initial window very intelligently :( 
-
-- use `level` option of openslide and pyr tiff to speed up zoom out
-
-- add a display control bar: maybe scale / offset bars could sit in the menu?
-
-- fullscreen mode ?
-
-- have another "changed" signal when the image is swapped, use that to update
-  the top part of the status bar
-
-- header display
-
-- eog-style dark theme? I guess they just have some special css for this
-
-- hamburger icon in menu
-
-- tickbox in menu for status bar
-
-- resize window on image replace?
-
 
