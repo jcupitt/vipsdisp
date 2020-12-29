@@ -12,8 +12,8 @@
 #include "disp.h"
 
 /*
-#define DEBUG
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */
@@ -752,22 +752,49 @@ conversion_set_file( Conversion *conversion, GFile *file )
 	if( file != NULL ) {
 		GError *error = NULL;
 
-		GInputStream *stream;
+		char *path;
 		VipsSource *source;
 		VipsImage *image;
 
-		if( !(stream = G_INPUT_STREAM( 
-			g_file_read( file, NULL, &error ) )) ) {
-			vips_error_g( &error );
-			return( -1 );
-		}
+		if( (path = g_file_get_path( file )) ) {
+			/* If this GFile is a path to a file on disc, we can
+			 * make a source directly from it. This will allow
+			 * things like mmap and openslide to work.
+			 */
 
-		if( !(source = VIPS_SOURCE( vips_source_g_input_stream_new( 
-			stream ) )) ) {
-			VIPS_UNREF( stream );
-			return( -1 );
+#ifdef DEBUG
+			printf( "conversion_set_file: connecting via path\n" );
+#endif /*DEBUG*/
+
+			if( !(source = vips_source_new_from_file( path )) )
+				return( -1 );
+			g_free( path );
 		}
-		VIPS_UNREF( stream );
+		else {
+			/* Otherwise, this is perhaps a pipe or an area of
+			 * memory. We can connect via g_input_stream.
+			 */
+			GInputStream *stream;
+
+#ifdef DEBUG
+			printf( "conversion_set_file: connecting via "
+				"ginputstream\n" );
+#endif /*DEBUG*/
+
+			if( !(stream = G_INPUT_STREAM( 
+				g_file_read( file, NULL, &error ) )) ) {
+				vips_error_g( &error );
+				return( -1 );
+			}
+
+			if( !(source = VIPS_SOURCE( 
+				vips_source_g_input_stream_new( 
+					stream ) )) ) {
+					VIPS_UNREF( stream );
+				return( -1 );
+			}
+			VIPS_UNREF( stream );
+		}
 
 		if( !(image = vips_image_new_from_source( source, 
 			"", NULL )) ) {
