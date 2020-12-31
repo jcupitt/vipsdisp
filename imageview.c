@@ -347,7 +347,6 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 		g_free( path );
 		if( imagepresent_set_file( imageview->imagepresent, file ) )
 			imageview_show_error( imageview ); 
-
 		g_object_unref( file ); 
 
 		imageview_header_update( imageview ); 
@@ -397,18 +396,18 @@ imageview_postload( Conversion *conversion,
 }
 
 static void
-imageview_scale_value_changed( GtkAdjustment *adjustment, Imageview *imageview )
+imageview_scale_value_changed( Tslider *slider, Imageview *imageview )
 {
 	g_object_set( imageview->imagepresent->conversion,
-		"scale", gtk_adjustment_get_value( adjustment ),
+		"scale", slider->value,
 		NULL );
 }
 
 static void
-imageview_offset_value_changed( GtkAdjustment *adjustment, Imageview *imageview )
+imageview_offset_value_changed( Tslider *slider, Imageview *imageview )
 {
 	g_object_set( imageview->imagepresent->conversion,
-		"offset", gtk_adjustment_get_value( adjustment ),
+		"offset", slider->value,
 		NULL );
 }
 
@@ -424,8 +423,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	GMenuModel *menu;
 	GtkWidget *grid;
 	GtkWidget *hbox;
-	GtkWidget *scale;
-	GtkAdjustment *adj;
+	Tslider *scale;
+	Tslider *offset;
 
 #ifdef DEBUG
 	printf( "imageview_new: file = %p\n", file ); 
@@ -503,31 +502,51 @@ imageview_new( GtkApplication *application, GFile *file )
 	g_signal_connect( imageview->imagepresent->conversion, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
 
+	/* Display control.
+	 */
+
 	imageview->display_control_box = 
 		gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 2 );
-	scale = gtk_scale_new_with_range( GTK_ORIENTATION_HORIZONTAL, 
-		0, 256, 10 );
-	adj = gtk_range_get_adjustment( GTK_RANGE( scale ) );
-	g_signal_connect( adj, "value-changed", 
+	gtk_container_set_border_width( 
+		GTK_CONTAINER( imageview->display_control_box ), 3 );
+
+	scale = tslider_new();
+	tslider_set_conversions( scale,
+		tslider_log_value_to_slider, tslider_log_slider_to_value );
+        scale->from = 0.001;
+        scale->to = 255.0;
+        scale->value = 1.0;
+        scale->svalue = 128;
+        scale->digits = 3;
+        tslider_changed( scale );
+	g_signal_connect( scale, "changed", 
 		G_CALLBACK( imageview_scale_value_changed ), imageview );
 	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
-		scale, TRUE, TRUE, 2 );
-	gtk_widget_show( scale );
-	scale = gtk_scale_new_with_range( GTK_ORIENTATION_HORIZONTAL, 
-		-128, 128, 10 );
-	adj = gtk_range_get_adjustment( GTK_RANGE( scale ) );
-	g_signal_connect( adj, "value-changed", 
+		GTK_WIDGET( scale ), TRUE, TRUE, 2 );
+	gtk_widget_show( GTK_WIDGET( scale ) );
+
+	offset = tslider_new();
+        offset->from = -128;
+        offset->to = 128;
+        offset->value = 0;
+        offset->svalue = 0;
+        offset->digits = 1;
+        tslider_changed( offset );
+	g_signal_connect( offset, "changed", 
 		G_CALLBACK( imageview_offset_value_changed ), imageview );
 	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
-		scale, TRUE, TRUE, 2 );
-	gtk_widget_show( scale );
+		GTK_WIDGET( offset ), TRUE, TRUE, 2 );
+	gtk_widget_show( GTK_WIDGET( offset ) );
 	gtk_widget_show( imageview->display_control_box );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->display_control_box, 0, 3, 1, 1 );
 
+	/* Status bar.
+	 */
+
 	imageview->status_bar = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-	gtk_container_set_border_width( GTK_CONTAINER( imageview->status_bar ),
-		10 );
+	gtk_container_set_border_width( 
+		GTK_CONTAINER( imageview->status_bar ), 3 );
 
 	imageview->info_label = gtk_label_new( "" );
 	gtk_label_set_xalign( GTK_LABEL( imageview->info_label ), 0 );
@@ -564,6 +583,9 @@ imageview_new( GtkApplication *application, GFile *file )
 
 	g_signal_connect( imageview->imagepresent, "position_changed", 
 		G_CALLBACK( imageview_position_changed ), imageview );
+
+	/* Final size and show.
+	 */
 
 	gtk_window_set_default_size( GTK_WINDOW( imageview ), 800, 800 ); 
 

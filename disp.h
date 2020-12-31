@@ -14,6 +14,8 @@ typedef struct _Disp {
 
 typedef GtkApplicationClass DispClass;
 
+#include "gtkutil.h"
+#include "tslider.h"
 #include "conversion.h"
 #include "imagedisplay.h"
 #include "imagepresent.h"

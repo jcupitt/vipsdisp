@@ -73,5 +73,7 @@ and sets properties of `Conversion` to zoom etc.
 
 - replace image during load can crash the viewer
 
-- we do not size the initial window very intelligently :( 
+- we do not size the initial window very intelligently :( see
+	imagepresent_bestfit()
+
 

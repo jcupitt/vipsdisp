@@ -6,6 +6,10 @@ vipsdisp_SOURCES = \
 	disp-gresources.c \
 	disp.c \
 	disp.h \
+	gtkutil.h \
+	gtkutil.c \
+	tslider.h \
+	tslider.c \
 	imageview.c \
 	imageview.h \
 	imagepresent.c \
@@ -16,8 +20,8 @@ vipsdisp_SOURCES = \
 	imagedisplay.h
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
-LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@
-AM_LDFLAGS = @LDFLAGS@
+LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
+AM_LDFLAGS = @LDFLAGS@ 
 
 resource_files = \
 	disp.gresources.xml \
