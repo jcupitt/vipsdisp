@@ -45,11 +45,12 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- fix log scale of scale in display control bar
+- pyrtiff / openslide etc. zoom support
 
-  also check speed -- fps seems low compared to nip2
+- perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
+  then?
 
-- keep ~10 most recent tilecaches to speed up zoom?
+- keep ~10 most recent tilecaches to speed up zoom? 
 
 - ^W to close window?
 
@@ -57,13 +58,9 @@ and sets properties of `Conversion` to zoom etc.
 
   put everything in the "hamburger" dropdown
 
-- check openslideload and vips load now we are using VipsSource
-
 - dark theme?
 
 - fullscreen support
-
-- pyrtiff / openslide etc. zoom support
 
 - header display
 
@@ -75,5 +72,9 @@ and sets properties of `Conversion` to zoom etc.
 
 - we do not size the initial window very intelligently :( see
 	imagepresent_bestfit()
+
+- add "save as ..." for file format conversion
+
+  in a right-click menu on the view window?
 
 
