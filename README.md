@@ -47,6 +47,22 @@ and sets properties of `Conversion` to zoom etc.
 
 - pyrtiff / openslide etc. zoom support
 
+- what about multi-page images?
+
+  we need a "page" param to conversion for the page we display, add a page
+  entry to display control bar ... it'll be slow for things like GIF
+
+  maybe something to flip between displaying a single page (useful for subifd
+  pyramids) and displaying a toilet roll?
+
+- display control bar needs:
+
+    - falsecolour
+    - reset
+    - scale
+    - page select
+    - display as toilet roll
+
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
 

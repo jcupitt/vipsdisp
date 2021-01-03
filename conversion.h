@@ -11,10 +11,42 @@
 #define CONVERSION_GET_CLASS( obj ) \
 	(G_TYPE_INSTANCE_GET_CLASS( (obj), TYPE_CONVERSION, ConversionClass ))
 
+/* Should be plenty. We parse out any pyramid structure on source set.
+ */
+#define MAX_LEVELS (256)
+
 typedef struct _Conversion {
 	GObject parent_instance;
 
-	/* The image we are holding.
+	/* The loader and the source we have loaded. We may need to reload on
+	 * a zoom change.
+	 */
+	const char *loader;
+	VipsSource *source;
+
+	/* Basic image geometry.
+	 */
+        int width;
+        int height;
+        int n_pages;
+        int n_subifds;
+
+        /* For TIFF sources, open subifds to get pyr layers.
+         */
+        gboolean subifd_pyramid;
+
+        /* For TIFF sources, open pages to get pyr layers.
+         */
+        gboolean page_pyramid;
+
+	/* For pyramidal formats, we need to read out the size of each level.
+         */
+        int level_count;
+        int level_width[MAX_LEVELS];
+        int level_height[MAX_LEVELS];
+
+	/* The image we are displaying. image_region is used to fetch pixels
+	 * values for the status bar.
 	 */
 	VipsImage *image;
 	VipsRegion *image_region;
