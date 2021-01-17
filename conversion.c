@@ -91,6 +91,10 @@ conversion_dispose( GObject *object )
 {
 	Conversion *conversion = (Conversion *) object;
 
+#ifdef DEBUG
+        printf( "conversion_dispose: %p\n", object );
+#endif /*DEBUG*/
+
 	conversion_disconnect( conversion ); 
 
 	VIPS_UNREF( conversion->image );
@@ -154,7 +158,6 @@ conversion_open( Conversion *conversion, int factor )
 
 	return( image );
 }
-
 
 /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
  *
@@ -360,7 +363,7 @@ conversion_posteval( VipsImage *image,
 }
 
 static void
-conversion_attach_progress( Conversion *conversion, VipsImage *image )
+conversion_attach_progress( Conversion *conversion )
 {
 #ifdef DEBUG
 	printf( "conversion_attach_progress:\n" ); 
@@ -368,39 +371,29 @@ conversion_attach_progress( Conversion *conversion, VipsImage *image )
 
 	conversion_disconnect( conversion ); 
 
-	vips_image_set_progress( image, TRUE ); 
-	conversion->preeval_sig = g_signal_connect( image, "preeval",
+	vips_image_set_progress( conversion->image, TRUE ); 
+	conversion->preeval_sig = g_signal_connect( conversion->image, 
+		"preeval", 
 		G_CALLBACK( conversion_preeval ), 
 		conversion );
-	conversion->eval_sig = g_signal_connect( image, "eval",
+	conversion->eval_sig = g_signal_connect( conversion->image, 
+		"eval",
 		G_CALLBACK( conversion_eval ), 
 		conversion );
-	conversion->posteval_sig = g_signal_connect( image, "posteval",
+	conversion->posteval_sig = g_signal_connect( conversion->image, 
+		"posteval",
 		G_CALLBACK( conversion_posteval ), 
 		conversion );
 }
 
 static int
-conversion_set_source( Conversion *conversion, VipsSource *source ) 
+conversion_set_image( Conversion *conversion, VipsImage *image )
 {
-	const char *loader;
-	VipsImage *image;
-
 #ifdef DEBUG
-	printf( "conversion_set_source: starting ..\n" );
+	printf( "conversion_set_image: starting ..\n" );
 #endif /*DEBUG*/
  
-	if( !(loader = vips_foreign_find_load_source( source )) ||
-		!(image = vips_image_new_from_source( source, "", NULL )) ) {
-		g_warning( "unable to set source: %s", vips_error_buffer() );
-		vips_error_clear();
-		return( -1 );
-	}
-
-	conversion->loader = loader; 
-	VIPS_UNREF( conversion->image ); 
 	conversion->image = image; 
-
         conversion->width = image->Xsize;
         conversion->height = image->Ysize;
         conversion->n_pages = vips_image_get_n_pages( image );
@@ -455,7 +448,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 {
 	int i;
 
-	printf( "conversion_set_source:\n" );
+	printf( "conversion_set_image:\n" );
 	printf( "\tloader = %s\n", conversion->loader );
 	printf( "\twidth = %d\n", conversion->width );
 	printf( "\theight = %d\n", conversion->height );
@@ -473,8 +466,11 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 }
 #endif /*DEBUG*/
 
+	VIPS_UNREF( conversion->image_region );
+	conversion->image_region = vips_region_new( conversion->image );
+
 	/* This will be set TRUE again at the end of the background
-	 * load.
+	 * load. This will trigger conversion_update_display() for us.
 	 */
 	g_object_set( conversion, "loaded", FALSE, NULL );
 
@@ -484,9 +480,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	 */
 	g_object_ref( conversion );
 
-	conversion_attach_progress( conversion, image ); 
-	g_object_set( conversion, "image", image, NULL ); 
-	VIPS_UNREF( image ); 
+	conversion_attach_progress( conversion ); 
 
 	g_thread_pool_push( conversion_background_load_pool, conversion, NULL );
 
@@ -544,8 +538,9 @@ conversion_set_file( Conversion *conversion, GFile *file )
 		VIPS_UNREF( stream );
 	}
 	
-	if( conversion_set_source( conversion, source ) )
-		return( -1 );
+	g_object_set( conversion, "source", source, NULL ); 
+
+	VIPS_UNREF( source );
 
 	return( 0 );
 }
@@ -589,7 +584,7 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 		image = x;
 	}
 
-	/* falsecolour would go heer.
+	/* falsecolour would go here.
 	 */
 
 	/* Do a huge blur .. this is a slow operation, and handy for
@@ -783,22 +778,32 @@ conversion_set_property( GObject *object,
 
 	switch( prop_id ) {
 	case PROP_SOURCE:
-		if( conversion_set_source( conversion, 
-			g_value_get_object( value ) ) )
-			return;
+{
+		VipsSource *source;
+		const char *loader;
+		VipsImage *image;
 
-		VIPS_UNREF( conversion->image_region ); 
-		conversion->image_region = vips_region_new( conversion->image );
-		conversion_update_display( conversion );
+		source = VIPS_SOURCE( g_value_get_object( value ) );
+		if( !(loader = vips_foreign_find_load_source( source )) ||
+			!(image = vips_image_new_from_source( source, 
+				"", NULL )) ) {
+			g_warning( "unable to set source: %s", 
+				vips_error_buffer() );
+			vips_error_clear();
+		}
+
+		conversion->loader = loader; 
+		g_object_set( conversion, "image", image, NULL );
+}
 		break;
 
 	case PROP_IMAGE:
-		VIPS_UNREF( conversion->image ); 
-		VIPS_UNREF( conversion->image_region ); 
-		conversion->image = g_value_get_object( value );
-		g_object_ref( conversion->image );
-		conversion->image_region = vips_region_new( conversion->image );
-		conversion_update_display( conversion );
+		if( conversion_set_image( conversion, 
+			g_value_get_object( value ) ) ) {
+			g_warning( "unable to set image: %s", 
+				vips_error_buffer() );
+			vips_error_clear();
+		}
 		break;
 
 	case PROP_RGB:

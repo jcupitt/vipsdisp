@@ -45,6 +45,10 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
+- replace image leaks horribly
+
+
+
 - pyrtiff / openslide etc. zoom support
 
 - what about multi-page images?
