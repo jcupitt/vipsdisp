@@ -24,6 +24,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
 
+
 ### Structure
 
 * `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`. It
@@ -45,11 +46,9 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- replace image leaks horribly
-
-
-
 - pyrtiff / openslide etc. zoom support
+
+  displays tree on load and builds data structure .... we now need to make mag change reload the image if there's a pyramid (conversion_display_image()? )
 
 - what about multi-page images?
 
