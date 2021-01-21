@@ -181,7 +181,8 @@ imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty,
 }
 
 static void
-imagedisplay_set_conversion( Imagedisplay *imagedisplay, Conversion *conversion )
+imagedisplay_set_conversion( Imagedisplay *imagedisplay, 
+	Conversion *conversion )
 {
 	g_assert( !imagedisplay->conversion );
 	g_assert( !imagedisplay->conversion_changed_sig );
@@ -347,12 +348,44 @@ imagedisplay_get_preferred_height( GtkWidget *widget,
 	*minimum = *natural = height;
 }
 
+/* Copy over any pixels from the old buffer. If the new buffer is larger than 
+ * the old one, we tile the old pixels ... it's better than having the screen
+ * flash black.
+ *
+ * FIXME -- we could zoom / shrink / pan the old buffer? Or fill the new one
+ * with a grid pattern?
+ */
+static void
+imagedisplay_init_buffer( Imagedisplay *imagedisplay,
+	unsigned char *new_buffer, int new_width, int new_height,
+	unsigned char *old_buffer, int old_width, int old_height )
+{
+	int x, y;
+
+	if( !old_buffer ) 
+		return;
+
+	for( y = 0; y < new_height; y++ )
+		for( x = 0; x < new_width; x += old_width ) {
+			int source_y = y % old_height;
+			int pixels_to_copy = 
+				VIPS_MIN( old_width, new_width - x );
+
+			memcpy( new_buffer + 4 * (y * new_width + x),
+				old_buffer + 4 * (source_y * old_width), 
+				4 * pixels_to_copy );
+		}
+}
+
 static void
 imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 	int old_buffer_width = imagedisplay->paint_rect.width;
 	int old_buffer_height = imagedisplay->paint_rect.height;
+
+	int buffer_width;
+	int buffer_height;
 
 #ifdef DEBUG
 	printf( "imagedisplay_size_allocate: %d x %d\n",
@@ -364,21 +397,19 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 
 	imagedisplay->widget_rect.width = allocation->width;
 	imagedisplay->widget_rect.height = allocation->height;
+	buffer_width = VIPS_MIN( imagedisplay->widget_rect.width,
+                imagedisplay->image_rect.width );
+	buffer_height = VIPS_MIN( imagedisplay->widget_rect.height,
+                imagedisplay->image_rect.height );
 
 	/* If the image is smaller than the widget, centre it.
 	 */
-	imagedisplay->paint_rect.width = VIPS_MIN( 
-		imagedisplay->widget_rect.width, 
-		imagedisplay->image_rect.width );
-	imagedisplay->paint_rect.height = VIPS_MIN( 
-		imagedisplay->widget_rect.height, 
-		imagedisplay->image_rect.height );
+	imagedisplay->paint_rect.width = buffer_width;
+	imagedisplay->paint_rect.height = buffer_height;
 	imagedisplay->paint_rect.left = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.width - 
-			imagedisplay->paint_rect.width) / 2 ); 
+		(imagedisplay->widget_rect.width - buffer_width) / 2 ); 
 	imagedisplay->paint_rect.top = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.height - 
-			imagedisplay->paint_rect.height) / 2 ); 
+		(imagedisplay->widget_rect.height - buffer_height) / 2 ); 
 
 	imagedisplay_set_hadjustment_values( imagedisplay );
 	imagedisplay_set_vadjustment_values( imagedisplay );
@@ -392,27 +423,12 @@ imagedisplay_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 			imagedisplay->paint_rect.width * 
 			imagedisplay->paint_rect.height * 4 );
 
-		if( imagedisplay->cairo_buffer ) {
-			/* Copy over any pixels from the old buffer.
-			 */
-			int common_height = VIPS_MIN( 
-				old_buffer_height,
-				imagedisplay->paint_rect.height );
-			int common_size = 4 * VIPS_MIN( 
-				old_buffer_width,
-				imagedisplay->paint_rect.width );
-			int old_stride = 4 * old_buffer_width;
-			int new_stride = 4 * imagedisplay->paint_rect.width;
-
-			int y;
-
-			for( y = 0; y < common_height; y++ ) 
-				memcpy( new_buffer + y * new_stride,
-					imagedisplay->cairo_buffer + 
-						y * old_stride, 
-					common_size );
-		}
-
+		/* Fill the new buffer with default pixels somehow.
+		 */
+		imagedisplay_init_buffer( imagedisplay,
+			new_buffer, buffer_width, buffer_height,
+			imagedisplay->cairo_buffer, 
+				old_buffer_width, old_buffer_height );
 		g_free( imagedisplay->cairo_buffer );
 		imagedisplay->cairo_buffer = new_buffer;
 	}

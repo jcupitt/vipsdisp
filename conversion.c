@@ -12,8 +12,8 @@
 #include "disp.h"
 
 /*
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -550,7 +550,8 @@ conversion_set_file( Conversion *conversion, GFile *file )
         return( 0 );
 }
 
-/* Make the rgb image we paint with. 
+/* Make the rgb image we paint with. This runs synchronously and is not
+ * threaded.
  */
 static VipsImage *
 conversion_rgb_image( Conversion *conversion, VipsImage *in ) 
@@ -590,16 +591,6 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         }
 
         /* falsecolour would go here.
-         */
-
-        /* Do a huge blur .. this is a slow operation, and handy for
-         * debugging.
-        if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
-                g_object_unref( image );
-                return( NULL ); 
-        }
-        g_object_unref( image );
-        image = x;
          */
 
         return( image );
@@ -702,15 +693,14 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 			conversion->width * conversion->mag;
 
 		int i;
+		int level;
 
 		for( i = 0; i < conversion->level_count; i++ ) 
 			if( conversion->level_width[i] < required_width )
 				break;
+		level = VIPS_CLIP( 0, i - 1, conversion->level_count - 1 );
 
-		printf( "conversion_display_image: selected layer %d\n", 
-			i - 1 );
-
-		if( !(image = conversion_open( conversion, i - 1 )) )
+		if( !(image = conversion_open( conversion, level )) )
 			return( NULL );
 	}
 	else {
@@ -758,6 +748,16 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         }
         g_object_unref( image );
         image = x;
+
+        /* Do a huge blur .. this is a slow operation, and handy for
+         * debugging.
+        if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
+                g_object_unref( image );
+                return( NULL ); 
+        }
+        g_object_unref( image );
+        image = x;
+         */
 
         x = vips_image_new();
         mask = vips_image_new();

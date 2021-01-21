@@ -46,9 +46,6 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- on zoom in, don't fill background with black, instead copy some existing data
-  ... should reduce flashing
-
 - what about multi-page images?
 
   we need a "page" param to conversion for the page we display, add a page
@@ -67,8 +64,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
-
-- keep ~10 most recent tilecaches to speed up zoom? 
 
 - ^W to close window?
 
