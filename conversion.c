@@ -88,6 +88,7 @@ conversion_disconnect( Conversion *conversion )
         }
 
         VIPS_UNREF( conversion->image );
+        VIPS_UNREF( conversion->source );
         VIPS_UNREF( conversion->image_region );
         VIPS_UNREF( conversion->display );
         VIPS_UNREF( conversion->mask );
@@ -125,13 +126,14 @@ get_int( VipsImage *image, const char *field, int default_value )
 }
 
 static VipsImage *
-conversion_open( Conversion *conversion, int factor )
+conversion_open( Conversion *conversion, int level )
 {
         VipsImage *image;
 
         if( vips_isprefix( "VipsForeignLoadOpenslide", conversion->loader ) ) {
-                image = vips_image_new_from_source( conversion->source,
-                        "level", factor,
+                image = vips_image_new_from_source( conversion->source, 
+			"", 
+                        "level", level,
                         NULL );
         }
         else if( vips_isprefix( "VipsForeignLoadTiff", conversion->loader ) ) {
@@ -141,12 +143,12 @@ conversion_open( Conversion *conversion, int factor )
                 if( conversion->subifd_pyramid )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-                                "subifd", factor,
+                                "subifd", level,
                                 NULL );
                 else if( conversion->page_pyramid )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-                                "page", factor,
+                                "page", level,
                                 NULL );
                 else
                         image = vips_image_new_from_source( conversion->source,
@@ -156,7 +158,7 @@ conversion_open( Conversion *conversion, int factor )
         else 
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
-                        NULL );
+			NULL );
 
         return( image );
 }
@@ -398,6 +400,7 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
         conversion_disconnect( conversion );
 
         conversion->image = image;
+	g_object_ref( image );
         conversion->width = image->Xsize;
         conversion->height = image->Ysize;
         conversion->n_pages = vips_image_get_n_pages( image );
@@ -470,7 +473,6 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 }
 #endif /*DEBUG*/
 
-        VIPS_UNREF( conversion->image_region );
         conversion->image_region = vips_region_new( conversion->image );
 
         /* This will be set TRUE again at the end of the background
@@ -534,9 +536,8 @@ conversion_set_file( Conversion *conversion, GFile *file )
                 }
 
                 if( !(source = VIPS_SOURCE( 
-                        vips_source_g_input_stream_new( 
-                                stream ) )) ) {
-                                VIPS_UNREF( stream );
+                        vips_source_g_input_stream_new( stream ) )) ) {
+			VIPS_UNREF( stream );
                         return( -1 );
                 }
                 VIPS_UNREF( stream );
@@ -684,8 +685,7 @@ conversion_render_notify( VipsImage *image, VipsRect *rect, void *client )
  * the status bar.
  */
 static VipsImage *
-conversion_display_image( Conversion *conversion, 
-        VipsImage *in, VipsImage **mask_out )
+conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 {
         VipsImage *image;
         VipsImage *x;
@@ -693,27 +693,55 @@ conversion_display_image( Conversion *conversion,
 
         g_assert( mask_out ); 
 
-        image = in;
-        g_object_ref( image ); 
+        if( conversion->level_count ) {
+		/* There's a pyramid ... compute the size of image we need,
+		 * then find the layer which is one larger.
+		 */
+		int required_width = conversion->mag < 0 ? 
+			conversion->width / -conversion->mag : 
+			conversion->width * conversion->mag;
 
-        if( conversion->mag < 0 ) {
-                if( vips_subsample( image, &x, 
-                        -conversion->mag, -conversion->mag, NULL ) ) {
-                        g_object_unref( image );
-                        return( NULL ); 
-                }
-                g_object_unref( image );
-                image = x;
-        }
-        else { 
-                if( vips_zoom( image, &x, 
-                        conversion->mag, conversion->mag, NULL ) ) {
-                        g_object_unref( image );
-                        return( NULL ); 
-                }
-                g_object_unref( image );
-                image = x;
-        }
+		int i;
+
+		for( i = 0; i < conversion->level_count; i++ ) 
+			if( conversion->level_width[i] < required_width )
+				break;
+
+		printf( "conversion_display_image: selected layer %d\n", 
+			i - 1 );
+
+		if( !(image = conversion_open( conversion, i - 1 )) )
+			return( NULL );
+	}
+	else {
+		image = conversion->image;
+		g_object_ref( image ); 
+	}
+
+	if( conversion->mag < 0 ) {
+		/* We may have already zoomed out a bit because we've loaded
+		 * some layer other than the base one. Recalculate the
+		 * subsample as (current_width / required_width).
+		 */
+		int subsample = image->Xsize / 
+			(conversion->width / -conversion->mag);
+
+		if( vips_subsample( image, &x, subsample, subsample, NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
+	else { 
+		if( vips_zoom( image, &x, 
+			conversion->mag, conversion->mag, NULL ) ) {
+			g_object_unref( image );
+			return( NULL ); 
+		}
+		g_object_unref( image );
+		image = x;
+	}
 
         if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
                 g_object_unref( image );
@@ -759,9 +787,8 @@ conversion_update_display( Conversion *conversion )
         VIPS_UNREF( conversion->mask );
 
         if( conversion->image ) {
-                if( !(conversion->display = 
-                        conversion_display_image( conversion, 
-                                conversion->image, &conversion->mask )) ) 
+                if( !(conversion->display = conversion_display_image( 
+			conversion, &conversion->mask )) ) 
                         return( -1 ); 
         }
 
@@ -789,17 +816,28 @@ conversion_set_property( GObject *object,
 
                 source = VIPS_SOURCE( g_value_get_object( value ) );
                 if( !(loader = vips_foreign_find_load_source( source )) ||
-                        !(image = vips_image_new_from_source( source, 
-                                "", NULL )) ) {
+                        !(image = vips_image_new_from_source( source, "", 
+				NULL )) ) {
                         g_warning( "unable to set source: %s", 
                                 vips_error_buffer() );
                         vips_error_clear();
                 }
+		else {
+			/* We have a new source and image -- we're about to 
+			 * junk everything.
+			 */
+			conversion_disconnect( conversion );
 
-                conversion->loader = loader; 
-                g_object_set( conversion, "image", image, NULL );
+			conversion->loader = loader; 
+			conversion->source = source; 
+			g_object_ref( source );
+
+			g_object_set( conversion, "image", image, NULL );
+
+			g_object_unref( image );
+		}
+		break;
 }
-                break;
 
         case PROP_IMAGE:
                 if( conversion_set_image( conversion, 

@@ -46,9 +46,8 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- pyrtiff / openslide etc. zoom support
-
-  displays tree on load and builds data structure .... we now need to make mag change reload the image if there's a pyramid (conversion_display_image()? )
+- on zoom in, don't fill background with black, instead copy some existing data
+  ... should reduce flashing
 
 - what about multi-page images?
 

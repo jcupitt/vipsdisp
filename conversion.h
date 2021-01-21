@@ -19,7 +19,7 @@ typedef struct _Conversion {
 	GObject parent_instance;
 
 	/* The loader and the source we have loaded. We may need to reload on
-	 * a zoom change.
+	 * a zoom change, so we need to keep the source.
 	 */
 	const char *loader;
 	VipsSource *source;
@@ -40,6 +40,7 @@ typedef struct _Conversion {
         gboolean page_pyramid;
 
 	/* For pyramidal formats, we need to read out the size of each level.
+	 * Largest level first.
          */
         int level_count;
         int level_width[MAX_LEVELS];
