@@ -16,11 +16,7 @@ typedef struct _Imageview {
 
 	GtkWidget *display_control_box;
 
-	GtkWidget *status_bar;
-	GtkWidget *info_label;
-	GtkWidget *coord_label;
-	GtkWidget *value_label;
-	GtkWidget *mag_label;
+	Infobar *infobar;
 
 } Imageview;
 

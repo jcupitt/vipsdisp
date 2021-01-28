@@ -10,6 +10,8 @@ vipsdisp_SOURCES = \
 	gtkutil.c \
 	tslider.h \
 	tslider.c \
+	infobar.c \
+	infobar.h \
 	imageview.c \
 	imageview.h \
 	imagepresent.c \

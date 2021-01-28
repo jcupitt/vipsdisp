@@ -46,42 +46,40 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- what about multi-page images?
+- where is our main menu? it seems to have vanished
 
-  we need a "page" param to conversion for the page we display, add a page
-  entry to display control bar ... it'll be slow for things like GIF
+  need to revisit app class
 
-  maybe something to flip between displaying a single page (useful for subifd
-  pyramids) and displaying a toilet roll?
+  put everything in the "hamburger" dropdown
+
+  ^W to close window
+
+  tickbox in menu for status bar, display control bar
+
+  fullscreen support (see BP)
+
+  dark theme?
 
 - display control bar needs:
 
     - falsecolour
     - reset
     - scale
-    - page select
-    - display as toilet roll
+    - view multipage as:
+      - single page, with page select widget (pdf style)
+      - toilet roll (volume style)
+      - video (GIF style)
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
 
-- ^W to close window?
-
-- where is our main menu? it seems to have vanished
-
-  put everything in the "hamburger" dropdown
-
-- dark theme?
-
-- fullscreen support
-
 - header display
-
-- tickbox in menu for status bar, display control bar
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - replace image during load can crash the viewer
+
+  is this still true? check
 
 - we do not size the initial window very intelligently :( see
 	imagepresent_bestfit()

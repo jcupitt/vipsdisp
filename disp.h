@@ -19,4 +19,5 @@ typedef GtkApplicationClass DispClass;
 #include "conversion.h"
 #include "imagedisplay.h"
 #include "imagepresent.h"
+#include "infobar.h"
 #include "imageview.h"
