@@ -4,7 +4,6 @@ typedef struct _Infobar {
 
 	Imagepresent *imagepresent;
 
-	GtkWidget *info_label;
 	GtkWidget *coord_label;
 	GtkWidget *value_label;
 	GtkWidget *mag_label;

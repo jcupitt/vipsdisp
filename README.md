@@ -46,7 +46,7 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- ^W to close window
+- ^W to close window?
 
   tickbox in menu for status bar, display control bar
 

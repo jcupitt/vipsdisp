@@ -16,42 +16,29 @@ G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_BOX );
 static void
 infobar_init( Infobar *infobar )
 {
-	GtkWidget *hbox;
+	infobar->imagepresent = NULL;
 
 	gtk_orientable_set_orientation( GTK_ORIENTABLE( infobar ), 
-		GTK_ORIENTATION_VERTICAL );
-	gtk_container_set_border_width( GTK_CONTAINER( infobar ), 3 );
-
-	infobar->info_label = gtk_label_new( "" );
-	gtk_label_set_xalign( GTK_LABEL( infobar->info_label ), 0 );
-	gtk_box_pack_start( GTK_BOX( infobar ), 
-		infobar->info_label, TRUE, TRUE, 0 );
-	gtk_widget_show( infobar->info_label );
-
-	hbox = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 10 );
+		GTK_ORIENTATION_HORIZONTAL );
+	gtk_container_set_border_width( GTK_CONTAINER( infobar ), 6 );
 
 	infobar->coord_label = gtk_label_new( "" );
 	gtk_label_set_xalign( GTK_LABEL( infobar->coord_label ), 0 );
-	gtk_box_pack_start( GTK_BOX( hbox ), 
+	gtk_box_pack_start( GTK_BOX( infobar ), 
 		infobar->coord_label, FALSE, FALSE, 0 );
 	gtk_widget_show( infobar->coord_label );
 
 	infobar->value_label = gtk_label_new( "" );
 	gtk_label_set_xalign( GTK_LABEL( infobar->value_label ), 0 );
-	gtk_box_pack_start( GTK_BOX( hbox ), 
+	gtk_box_pack_start( GTK_BOX( infobar ), 
 		infobar->value_label, TRUE, TRUE, 0 );
 	gtk_widget_show( infobar->value_label );
 
 	infobar->mag_label = gtk_label_new( "" );
 	gtk_label_set_xalign( GTK_LABEL( infobar->mag_label ), 0 );
-	gtk_box_pack_end( GTK_BOX( hbox ), 
+	gtk_box_pack_end( GTK_BOX( infobar ), 
 		infobar->mag_label, FALSE, FALSE, 0 );
 	gtk_widget_show( infobar->mag_label );
-
-	gtk_box_pack_start( GTK_BOX( infobar ), hbox, TRUE, TRUE, 0 );
-	gtk_widget_show( hbox );
-
-	infobar->imagepresent = NULL;
 }
 
 static void
@@ -242,27 +229,6 @@ infobar_position_changed( Imagepresent *imagepresent, Infobar *infobar )
 	infobar_status_update( infobar ); 
 }
 
-static void
-infobar_conversion_changed( Conversion *conversion, Infobar *infobar )
-{
-	VipsImage *image = infobar->imagepresent->conversion->image;
-
-	if( image ) {
-		char str[256];
-		VipsBuf buf = VIPS_BUF_STATIC( str );
-
-		vips_object_summary( VIPS_OBJECT( image ), &buf );
-		vips_buf_appendf( &buf, ", " );
-		vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
-		vips_buf_appendf( &buf, ", %g x %g p/mm",
-			image->Xres, image->Yres );
-		gtk_label_set_text( GTK_LABEL( infobar->info_label ), 
-			vips_buf_all( &buf ) ); 
-	}
-
-	infobar_status_update( infobar ); 
-}
-
 Infobar *
 infobar_new( Imagepresent *imagepresent )
 {
@@ -275,9 +241,6 @@ infobar_new( Imagepresent *imagepresent )
 
 	g_signal_connect( infobar->imagepresent, "position_changed", 
 		G_CALLBACK( infobar_position_changed ), infobar );
-
-	g_signal_connect( infobar->imagepresent->conversion, "changed", 
-		G_CALLBACK( infobar_conversion_changed ), infobar );
 
 	return( infobar ); 
 }

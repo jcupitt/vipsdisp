@@ -27,34 +27,58 @@
       </item>
     </section>
     <section>
-      <item>
-        <attribute name="label" translatable="yes">_Zoom In</attribute>
-        <attribute name="action">win.magin</attribute>
-        <attribute name="verb-icon">magout-symbolic</attribute>
-	<attribute name="accel">i</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">_Zoom Out</attribute>
-        <attribute name="action">win.magout</attribute>
-        <attribute name="verb-icon">magin-symbolic</attribute>
-	<attribute name="accel">o</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">_Normal Size</attribute>
-        <attribute name="action">win.normal</attribute>
-        <attribute name="verb-icon">normal-symbolic</attribute>
-	<attribute name="accel">1</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">_Best Fit</attribute>
-        <attribute name="action">win.bestfit</attribute>
-        <attribute name="verb-icon">bestfit-symbolic</attribute>
-	<attribute name="accel">0</attribute>
-      </item>
+
+      <submenu>
+        <attribute name="label">Zoom</attribute>
+        <section>
+          <item>
+            <attribute name="label" translatable="yes">_Zoom In</attribute>
+            <attribute name="action">win.magin</attribute>
+            <attribute name="accel">i</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">_Zoom Out</attribute>
+            <attribute name="action">win.magout</attribute>
+            <attribute name="accel">o</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">_Normal Size</attribute>
+            <attribute name="action">win.normal</attribute>
+            <attribute name="accel">1</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">_Best Fit</attribute>
+            <attribute name="action">win.bestfit</attribute>
+            <attribute name="accel">0</attribute>
+          </item>
+        </section>
+      </submenu>
+
+      <submenu>
+        <attribute name="label">View</attribute>
+        <section>
+          <item>
+            <attribute name="label" translatable="yes">Display control bar</attribute>
+            <attribute name="action">win.display</attribute>
+            <attribute name="target">control</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">Info bar</attribute>
+            <attribute name="action">win.display</attribute>
+            <attribute name="target">info</attribute>
+          </item>
+          <item>
+            <attribute name="label" translatable="yes">Fullscreen</attribute>
+            <attribute name="action">win.display</attribute>
+            <attribute name="target">fullscreen</attribute>
+          </item>
+        </section>
+      </submenu>
+
     </section>
     <section>
       <item>
-        <attribute name='label' translatable='yes'>_About Vipsdisp</attribute>
+        <attribute name='label' translatable='yes'>_About vipsdisp</attribute>
         <attribute name='action'>app.about</attribute>
       </item>
     </section>

@@ -76,7 +76,7 @@ static GActionEntry imageview_entries[] = {
 	{ "magin", imageview_magin },
 	{ "magout", imageview_magout },
 	{ "normal", imageview_normal },
-	{ "bestfit", imageview_bestfit }
+	{ "bestfit", imageview_bestfit },
 };
 
 static void
@@ -186,6 +186,22 @@ imageview_postload( Conversion *conversion,
 		gtk_header_bar_set_title( 
 			GTK_HEADER_BAR( imageview->header_bar ), 
 			"Untitled" );
+
+	if( conversion->image ) {
+		VipsImage *image = conversion->image;
+
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+		vips_object_summary( VIPS_OBJECT( image ), &buf );
+		vips_buf_appendf( &buf, ", " );
+		vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+		vips_buf_appendf( &buf, ", %g x %g p/mm",
+			image->Xres, image->Yres );
+		gtk_header_bar_set_subtitle( 
+			GTK_HEADER_BAR( imageview->header_bar ),
+			vips_buf_all( &buf ) ); 
+	}
 }
 
 Imageview *
