@@ -22,6 +22,12 @@
     </section>
     <section>
       <item>
+        <attribute name='label' translatable='yes'>_New Window</attribute>
+        <attribute name='action'>app.new</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
         <attribute name="label" translatable="yes">_Zoom In</attribute>
         <attribute name="action">win.magin</attribute>
         <attribute name="verb-icon">magout-symbolic</attribute>
@@ -44,6 +50,12 @@
         <attribute name="action">win.bestfit</attribute>
         <attribute name="verb-icon">bestfit-symbolic</attribute>
 	<attribute name="accel">0</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name='label' translatable='yes'>_About Vipsdisp</attribute>
+        <attribute name='action'>app.about</attribute>
       </item>
     </section>
   </menu>

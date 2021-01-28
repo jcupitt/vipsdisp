@@ -195,6 +195,7 @@ imageview_new( GtkApplication *application, GFile *file )
 
 	Imageview *imageview;
 	GtkWidget *open;
+	GtkWidget *image;
 	GtkWidget *menu_button;
 	GtkBuilder *builder;
 	GMenuModel *menu;
@@ -225,7 +226,12 @@ imageview_new( GtkApplication *application, GFile *file )
 		G_CALLBACK( imageview_open_clicked ), imageview );
 	gtk_widget_show( open );
 
+
 	menu_button = gtk_menu_button_new();
+	image = gtk_image_new_from_icon_name( "open-menu-symbolic", 
+		GTK_ICON_SIZE_SMALL_TOOLBAR );
+	gtk_widget_show( image );
+	gtk_container_add( GTK_CONTAINER( menu_button ), image );
 	gtk_header_bar_pack_end( 
 		GTK_HEADER_BAR( imageview->header_bar ), menu_button ); 
 	gtk_widget_show( menu_button );

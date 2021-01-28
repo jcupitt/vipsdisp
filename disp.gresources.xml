@@ -2,7 +2,6 @@
 
 <gresources>
   <gresource prefix="/vips/disp">
-    <file preprocess="xml-stripblanks">gtk/menus.ui</file>
     <file preprocess="xml-stripblanks">gtk/imageview-popover.ui</file>
   </gresource>
 </gresources>

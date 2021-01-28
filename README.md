@@ -46,13 +46,7 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- where is our main menu? it seems to have vanished
-
-  need to revisit app class
-
-  put everything in the "hamburger" dropdown
-
-  ^W to close window
+- ^W to close window
 
   tickbox in menu for status bar, display control bar
 

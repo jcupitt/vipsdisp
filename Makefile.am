@@ -29,8 +29,7 @@ AM_LDFLAGS = @LDFLAGS@
 
 resource_files = \
 	disp.gresources.xml \
-	gtk/imageview-popover.ui \
-	gtk/menus.ui
+	gtk/imageview-popover.ui 
 
 disp-gresources.c: $(resource_files)
 	glib-compile-resources --target=$@ --sourcedir=$(srcdir) --generate-source $<
