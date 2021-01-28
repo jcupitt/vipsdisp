@@ -18,6 +18,8 @@ vipsdisp_SOURCES = \
 	imagepresent.h \
 	conversion.c \
 	conversion.h \
+	conversionview.c \
+	conversionview.h \
 	imagedisplay.c \
 	imagedisplay.h
 

@@ -188,22 +188,6 @@ imageview_postload( Conversion *conversion,
 			"Untitled" );
 }
 
-static void
-imageview_scale_value_changed( Tslider *slider, Imageview *imageview )
-{
-	g_object_set( imageview->imagepresent->conversion,
-		"scale", slider->value,
-		NULL );
-}
-
-static void
-imageview_offset_value_changed( Tslider *slider, Imageview *imageview )
-{
-	g_object_set( imageview->imagepresent->conversion,
-		"offset", slider->value,
-		NULL );
-}
-
 Imageview *
 imageview_new( GtkApplication *application, GFile *file )
 {
@@ -215,8 +199,6 @@ imageview_new( GtkApplication *application, GFile *file )
 	GtkBuilder *builder;
 	GMenuModel *menu;
 	GtkWidget *grid;
-	Tslider *scale;
-	Tslider *offset;
 
 #ifdef DEBUG
 	printf( "imageview_new: file = %p\n", file ); 
@@ -297,41 +279,11 @@ imageview_new( GtkApplication *application, GFile *file )
 	/* Display control.
 	 */
 
-	imageview->display_control_box = 
-		gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 2 );
-	gtk_container_set_border_width( 
-		GTK_CONTAINER( imageview->display_control_box ), 3 );
-
-	scale = tslider_new();
-	tslider_set_conversions( scale,
-		tslider_log_value_to_slider, tslider_log_slider_to_value );
-        scale->from = 0.001;
-        scale->to = 255.0;
-        scale->value = 1.0;
-        scale->svalue = 128;
-        scale->digits = 3;
-        tslider_changed( scale );
-	g_signal_connect( scale, "changed", 
-		G_CALLBACK( imageview_scale_value_changed ), imageview );
-	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
-		GTK_WIDGET( scale ), TRUE, TRUE, 2 );
-	gtk_widget_show( GTK_WIDGET( scale ) );
-
-	offset = tslider_new();
-        offset->from = -128;
-        offset->to = 128;
-        offset->value = 0;
-        offset->svalue = 0;
-        offset->digits = 1;
-        tslider_changed( offset );
-	g_signal_connect( offset, "changed", 
-		G_CALLBACK( imageview_offset_value_changed ), imageview );
-	gtk_box_pack_start( GTK_BOX( imageview->display_control_box ), 
-		GTK_WIDGET( offset ), TRUE, TRUE, 2 );
-	gtk_widget_show( GTK_WIDGET( offset ) );
-	gtk_widget_show( imageview->display_control_box );
+	imageview->conversionview = 
+		conversionview_new( imageview->imagepresent->conversion );
 	gtk_grid_attach( GTK_GRID( grid ), 
-		imageview->display_control_box, 0, 3, 1, 1 );
+		GTK_WIDGET( imageview->conversionview ), 0, 3, 1, 1 );
+	gtk_widget_show( GTK_WIDGET( imageview->conversionview ) );
 
 	/* Info bar.
 	 */
