@@ -46,6 +46,8 @@ typedef struct _ImagepresentClass {
 
 void imagepresent_get_window_position( Imagepresent *imagepresent, 
 	int *left, int *top, int *width, int *height );
+void imagepresent_set_window_position( Imagepresent *imagepresent, 
+	int left, int top );
 
 gboolean imagepresent_get_image_size( Imagepresent *imagepresent, 
 	int *width, int *height );

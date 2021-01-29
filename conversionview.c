@@ -34,47 +34,59 @@ conversionview_offset_value_changed( Tslider *slider,
 static void
 conversionview_init( Conversionview *conversionview )
 {
-	Tslider *scale;
-	Tslider *offset;
-
 	gtk_orientable_set_orientation( GTK_ORIENTABLE( conversionview ), 
 		GTK_ORIENTATION_HORIZONTAL );
 	gtk_container_set_border_width( GTK_CONTAINER( conversionview ), 3 );
 
-	scale = tslider_new();
-	tslider_set_conversions( scale,
+	conversionview->scale = tslider_new();
+	tslider_set_conversions( conversionview->scale,
 		tslider_log_value_to_slider, tslider_log_slider_to_value );
-        scale->from = 0.001;
-        scale->to = 255.0;
-        scale->value = 1.0;
-        scale->svalue = 128;
-        scale->digits = 3;
-        tslider_changed( scale );
-	g_signal_connect( scale, "changed", 
+        conversionview->scale->from = 0.001;
+        conversionview->scale->to = 255.0;
+        conversionview->scale->value = 1.0;
+        conversionview->scale->svalue = 128;
+        conversionview->scale->digits = 3;
+        tslider_changed( conversionview->scale );
+	g_signal_connect( conversionview->scale, "changed", 
 		G_CALLBACK( conversionview_scale_value_changed ), 
 		conversionview );
 	gtk_box_pack_start( GTK_BOX( conversionview ), 
-		GTK_WIDGET( scale ), TRUE, TRUE, 2 );
-	gtk_widget_show( GTK_WIDGET( scale ) );
+		GTK_WIDGET( conversionview->scale ), TRUE, TRUE, 2 );
+	gtk_widget_show( GTK_WIDGET( conversionview->scale ) );
 
-	offset = tslider_new();
-        offset->from = -128;
-        offset->to = 128;
-        offset->value = 0;
-        offset->svalue = 0;
-        offset->digits = 1;
-        tslider_changed( offset );
-	g_signal_connect( offset, "changed", 
+	conversionview->offset = tslider_new();
+        conversionview->offset->from = -128;
+        conversionview->offset->to = 128;
+        conversionview->offset->value = 0;
+        conversionview->offset->svalue = 0;
+        conversionview->offset->digits = 1;
+        tslider_changed( conversionview->offset );
+	g_signal_connect( conversionview->offset, "changed", 
 		G_CALLBACK( conversionview_offset_value_changed ), 
 		conversionview );
 	gtk_box_pack_start( GTK_BOX( conversionview ), 
-		GTK_WIDGET( offset ), TRUE, TRUE, 2 );
-	gtk_widget_show( GTK_WIDGET( offset ) );
+		GTK_WIDGET( conversionview->offset ), TRUE, TRUE, 2 );
+	gtk_widget_show( GTK_WIDGET( conversionview->offset ) );
 }
 
 static void
 conversionview_class_init( ConversionviewClass *class )
 {
+}
+
+static void
+conversionview_display_changed( Conversion *conversion, 
+	Conversionview *conversionview )
+{
+	if( conversionview->scale->value != conversion->scale ) {
+		conversionview->scale->value = conversion->scale;
+		tslider_changed( conversionview->scale );
+	}
+
+	if( conversionview->offset->value != conversion->offset ) {
+		conversionview->offset->value = conversion->offset;
+		tslider_changed( conversionview->offset );
+	}
 }
 
 Conversionview *
@@ -86,6 +98,12 @@ conversionview_new( Conversion *conversion )
 		NULL );
 
 	conversionview->conversion = conversion;
+
+	/* If the conversion changes, we need to update our widgets.
+	 */
+	g_signal_connect( conversion,
+		"display-changed",
+		G_CALLBACK( conversionview_display_changed ), conversionview );
 
 	return( conversionview ); 
 }

@@ -142,13 +142,67 @@ imageview_bestfit( GSimpleAction *action,
 }
 
 static void
-imageview_clone( GSimpleAction *action, 
+imageview_copy_state( Imageview *new_imageview, Imageview *old_imageview, 
+	const char *action_name )
+{
+	GAction *old_action;
+	GAction *new_action;
+
+	old_action = g_action_map_lookup_action( G_ACTION_MAP( old_imageview ), 
+		action_name );
+	new_action = g_action_map_lookup_action( G_ACTION_MAP( new_imageview ), 
+		action_name );
+
+	if( old_action &&
+		new_action ) {
+		GVariant *state;
+
+		state = g_action_get_state( old_action );
+		g_action_change_state( new_action, state );
+		VIPS_FREEF( g_variant_unref, state );
+	}
+}
+
+static void
+imageview_duplicate( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
 	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
 
-	imageview_new_from_source( GTK_APPLICATION( imageview->disp ), 
-		imageview->imagepresent->conversion->source );
+	Imageview *new_imageview;
+	int left, top, width, height;
+
+	new_imageview = imageview_new_from_source( 
+		GTK_APPLICATION( imageview->disp ), 
+		conversion->source );
+
+	g_object_set( new_imageview->imagepresent->conversion,
+		"mag", conversion->mag,
+		"scale", conversion->scale,
+		"offset", conversion->offset,
+		NULL );
+
+	imageview_copy_state( new_imageview, imageview, "control" );
+	imageview_copy_state( new_imageview, imageview, "info" );
+	imageview_copy_state( new_imageview, imageview, "fullscreen" );
+
+	gtk_window_get_size( GTK_WINDOW( imageview ), &width, &height );
+	gtk_window_resize( GTK_WINDOW( new_imageview ), width, height );
+
+	imagepresent_get_window_position( imageview->imagepresent, 
+		&left, &top, &width, &height );
+	imagepresent_set_window_position( new_imageview->imagepresent, 
+		left, top );
+}
+
+static void
+imageview_close( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	gtk_widget_destroy( GTK_WIDGET( imageview ) );  
 }
 
 static void
@@ -206,7 +260,8 @@ static GActionEntry imageview_entries[] = {
 	{ "magout", imageview_magout },
 	{ "normal", imageview_normal },
 	{ "bestfit", imageview_bestfit },
-	{ "clone", imageview_clone },
+	{ "duplicate", imageview_duplicate },
+	{ "close", imageview_close },
 	{ "fullscreen", imageview_toggle, NULL, "false", imageview_fullscreen },
 	{ "control", imageview_toggle, NULL, "false", imageview_control },
 	{ "info", imageview_toggle, NULL, "false", imageview_info },
@@ -423,9 +478,10 @@ imageview_new_from_source( GtkApplication *application, VipsSource *source )
 
 	gtk_widget_show( GTK_WIDGET( imageview ) );
 
-        g_object_set( imageview->imagepresent->conversion, 
-		"source", source, 
-		NULL ); 
+	if( source )
+		g_object_set( imageview->imagepresent->conversion, 
+			"source", source, 
+			NULL ); 
 
 	return( imageview ); 
 }

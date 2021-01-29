@@ -10,6 +10,11 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG_VERBOSE
+#define DEBUG
+ */
+
 G_DEFINE_TYPE( Imagepresent, imagepresent, GTK_TYPE_SCROLLED_WINDOW );
 
 /* Our signals. 
@@ -27,7 +32,7 @@ imagepresent_destroy( GtkWidget *widget )
 	Imagepresent *imagepresent = (Imagepresent *) widget;
 
 #ifdef DEBUG
-	printf( "imagepresent:\n" ); 
+	printf( "imagepresent_destroy: %p\n", imagepresent ); 
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagepresent->conversion );
@@ -78,7 +83,7 @@ imagepresent_get_window_position( Imagepresent *imagepresent,
 #endif /*DEBUG*/
 }
 
-static void
+void
 imagepresent_set_window_position( Imagepresent *imagepresent, 
 	int left, int top )
 {
@@ -454,9 +459,9 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 	GdkWindow *window = gtk_widget_get_window( widget );
 	GtkStyleContext *context = gtk_widget_get_style_context( widget );
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf( "imagepresent_draw:\n" ); 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
 
@@ -533,10 +538,10 @@ imagepresent_motion_notify_event( GtkWidget *widget, GdkEventMotion *event,
 	imagepresent->last_x = point.left;
 	imagepresent->last_y = point.top;
 
-#ifdef DEBUG
-	printf( "imagepresent_motion_notify_event: %g, %g\n", 
+#ifdef DEBUG_VERBOSE
+	printf( "imagepresent_motion_notify_event: %d, %d\n", 
 		point.left, point.top );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	switch( imagepresent->state ) {
 	case IMAGEPRESENT_DRAG:
@@ -630,6 +635,10 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 static void
 imagepresent_init( Imagepresent *imagepresent )
 {
+#ifdef DEBUG
+	printf( "imagepresent_init: %p\n", imagepresent ); 
+#endif /*DEBUG*/
+
 	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
 
 	/* The imagepresent takes the focus, so we must listen for keypresses

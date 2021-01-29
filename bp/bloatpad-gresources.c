@@ -330,14 +330,16 @@ static const SECTION union { const guint8 data[2521]; const double alignment; vo
 #endif /* !_MSC_VER */
 
 static GStaticResource static_resource = { bloatpad_resource_data.data, sizeof (bloatpad_resource_data.data) - 1 /* nul terminator */, NULL, NULL, NULL };
-extern GResource *bloatpad_get_resource (void);
+
+G_MODULE_EXPORT
+GResource *bloatpad_get_resource (void);
 GResource *bloatpad_get_resource (void)
 {
   return g_static_resource_get_resource (&static_resource);
 }
 /*
   If G_HAS_CONSTRUCTORS is true then the compiler support *both* constructors and
-  destructors, in a sane way, including e.g. on library unload. If not you're on
+  destructors, in a usable way, including e.g. on library unload. If not you're on
   your own.
 
   Some compilers need #pragma to handle this, which does not work with macros,
@@ -379,13 +381,13 @@ GResource *bloatpad_get_resource (void)
  */
 
 /* We need to account for differences between the mangling of symbols
- * for Win32 (x86) and x64 programs, as symbols on Win32 are prefixed
- * with an underscore but symbols on x64 are not.
+ * for x86 and x64/ARM/ARM64 programs, as symbols on x86 are prefixed
+ * with an underscore but symbols on x64/ARM/ARM64 are not.
  */
-#ifdef _WIN64
-#define G_MSVC_SYMBOL_PREFIX ""
-#else
+#ifdef _M_IX86
 #define G_MSVC_SYMBOL_PREFIX "_"
+#else
+#define G_MSVC_SYMBOL_PREFIX ""
 #endif
 
 #define G_DEFINE_CONSTRUCTOR(_func) G_MSVC_CTOR (_func, G_MSVC_SYMBOL_PREFIX)

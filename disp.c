@@ -97,7 +97,8 @@ disp_startup( GApplication *application )
 	} accels[] = {
 		{ "app.quit", { "<Primary>q", NULL } },
 		{ "app.new", { "<Primary>n", NULL } },
-		{ "app.new", { "<Primary>t", NULL } },
+		{ "win.duplicate", { "<Primary>d", NULL } },
+		{ "win.close", { "<Primary>w", NULL } },
 	};
 
 #ifdef DEBUG

@@ -791,6 +791,11 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 static int
 conversion_update_display( Conversion *conversion )
 {
+	/* Don't update if we're still loading.
+	 */
+	if( !conversion->loaded )
+		return( 0 );
+
         VIPS_UNREF( conversion->display );
         VIPS_UNREF( conversion->mask );
 
@@ -866,8 +871,7 @@ conversion_set_property( GObject *object,
                 mag = g_value_get_int( value );
                 if( mag >= -600 &&
                         mag <= 1000000 &&
-                        conversion->mag != mag &&
-                        conversion->loaded ) { 
+                        conversion->mag != mag ) {
 #ifdef DEBUG
                         printf( "conversion_set_mag: %d\n", mag ); 
 #endif /*DEBUG*/
@@ -881,8 +885,7 @@ conversion_set_property( GObject *object,
                 d = g_value_get_double( value );
                 if( d > 0 &&
                         d <= 1000000 &&
-                        conversion->scale != d &&
-                        conversion->loaded ) { 
+                        conversion->scale != d ) { 
 #ifdef DEBUG
                         printf( "conversion_set_scale: %g\n", d ); 
 #endif /*DEBUG*/
@@ -896,8 +899,7 @@ conversion_set_property( GObject *object,
                 d = g_value_get_double( value );
                 if( d >= -100000 &&
                         d <= 1000000 &&
-                        conversion->offset != d &&
-                        conversion->loaded ) { 
+                        conversion->offset != d ) { 
 #ifdef DEBUG
                         printf( "conversion_set_offset: %g\n", d ); 
 #endif /*DEBUG*/

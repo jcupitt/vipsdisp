@@ -23,12 +23,12 @@
 
     <section>
       <item>
-        <attribute name='label' translatable='yes'>New Window</attribute>
+        <attribute name='label' translatable='yes'>New window</attribute>
         <attribute name='action'>app.new</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Clone window</attribute>
-        <attribute name='action'>win.clone</attribute>
+        <attribute name='label' translatable='yes'>Duplicate window</attribute>
+        <attribute name='action'>win.duplicate</attribute>
       </item>
     </section>
 

@@ -46,9 +46,9 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- ^W to close window?
+- dark theme?
 
-  dark theme?
+- duplicate does not copy scroll position? see imageview_duplicate()
 
 - display control bar needs:
 
@@ -65,7 +65,7 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
-- save as
+- implement save as
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 

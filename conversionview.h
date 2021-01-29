@@ -4,6 +4,9 @@ typedef struct _Conversionview {
 
 	Conversion *conversion;
 
+	Tslider *scale;
+	Tslider *offset;
+
 } Conversionview;
 
 typedef GtkBoxClass ConversionviewClass;
