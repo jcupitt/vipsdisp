@@ -42,7 +42,7 @@ and sets properties of `Conversion` to zoom etc.
 * `Imageview` is a `GtkApplicationWindow` subclass that contains an
 `Imagepresent` plus a header bar and some other UI bits.
 
-* `disp` is the `main()`
+* `disp` is the `main()`, `Disp` is a `GtkApplication` subclass
 
 ### TODO
 
@@ -72,9 +72,4 @@ and sets properties of `Conversion` to zoom etc.
   is this still true? check
 
 - we do not size the initial window very intelligently :( it's always 800x800
-
-- add "save as ..." for file format conversion
-
-  in a right-click menu on the view window?
-
 

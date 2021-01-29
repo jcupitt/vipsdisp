@@ -20,6 +20,7 @@
         <attribute name="verb-icon">edit-paste-symbolic</attribute>
       </item>
     </section>
+
     <section>
       <item>
         <attribute name='label' translatable='yes'>New Window</attribute>
@@ -30,8 +31,15 @@
         <attribute name='action'>win.clone</attribute>
       </item>
     </section>
-    <section>
 
+    <section>
+      <item>
+        <attribute name='label' translatable='yes'>Save as ...</attribute>
+        <attribute name='action'>win.saveas</attribute>
+      </item>
+    </section>
+
+    <section>
       <submenu>
         <attribute name="label">Zoom</attribute>
         <section>
@@ -66,8 +74,8 @@
         <attribute name="label" translatable="yes">Info bar</attribute>
         <attribute name="action">win.info</attribute>
       </item>
-    
     </section>
+
     <section>
       <item>
         <attribute name='label' translatable='yes'>_About vipsdisp</attribute>
