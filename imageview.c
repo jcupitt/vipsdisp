@@ -14,13 +14,82 @@
 G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 
 static void
-imageview_init( Imageview *Imageview )
+imageview_preload( Conversion *conversion, 
+	VipsProgress *progress, Imageview *imageview )
 {
+#ifdef DEBUG
+	printf( "imageview_preload:\n" ); 
+#endif /*DEBUG*/
+
+	gtk_widget_show( imageview->progress_box );
 }
 
 static void
-imageview_class_init( ImageviewClass *class )
+imageview_load( Conversion *conversion, 
+	VipsProgress *progress, Imageview *imageview )
 {
+	static int previous_precent = -1;
+
+	if( progress->percent != previous_precent ) {
+#ifdef DEBUG
+		printf( "imageview_load: %d%%\n", progress->percent ); 
+#endif /*DEBUG*/
+
+		gtk_progress_bar_set_fraction( 
+			GTK_PROGRESS_BAR( imageview->progress ), 
+			progress->percent / 100.0 ); 
+		previous_precent = progress->percent;
+	}
+}
+
+static void
+imageview_postload( Conversion *conversion, 
+	VipsProgress *progress, Imageview *imageview )
+{
+#ifdef DEBUG
+	printf( "imageview_postload:\n" ); 
+#endif /*DEBUG*/
+
+	gtk_widget_hide( imageview->progress_box );
+}
+
+static void
+imageview_changed( Conversion *conversion, Imageview *imageview )
+{
+	const char *path;
+
+#ifdef DEBUG
+	printf( "imageview_changed:\n" ); 
+#endif /*DEBUG*/
+
+	if( (path = conversion_get_path( conversion )) ) { 
+		char *basename;
+
+		basename = g_path_get_basename( path );
+		gtk_header_bar_set_title( 
+			GTK_HEADER_BAR( imageview->header_bar ), basename );
+		g_free( basename ); 
+	}
+	else
+		gtk_header_bar_set_title( 
+			GTK_HEADER_BAR( imageview->header_bar ), 
+			"Untitled" );
+
+	if( conversion->image ) {
+		VipsImage *image = conversion->image;
+
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+		vips_object_summary( VIPS_OBJECT( image ), &buf );
+		vips_buf_appendf( &buf, ", " );
+		vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+		vips_buf_appendf( &buf, ", %g x %g p/mm",
+			image->Xres, image->Yres );
+		gtk_header_bar_set_subtitle( 
+			GTK_HEADER_BAR( imageview->header_bar ),
+			vips_buf_all( &buf ) ); 
+	}
 }
 
 static void
@@ -72,11 +141,75 @@ imageview_bestfit( GSimpleAction *action,
 	imagepresent_bestfit( imageview->imagepresent );
 }
 
+static void
+imageview_clone( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	imageview_new_from_source( GTK_APPLICATION( imageview->disp ), 
+		imageview->imagepresent->conversion->source );
+}
+
+static void
+imageview_toggle( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	GVariant *state;
+
+	state = g_action_get_state( G_ACTION( action ) );
+	g_action_change_state( G_ACTION( action ), 
+		g_variant_new_boolean( !g_variant_get_boolean( state ) ) );
+	g_variant_unref( state );
+} 
+
+static void
+imageview_fullscreen( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	if( g_variant_get_boolean( state ) )
+		gtk_window_fullscreen( GTK_WINDOW( imageview ) );
+	else
+		gtk_window_unfullscreen( GTK_WINDOW( imageview ) );
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
+imageview_control( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	gtk_widget_set_visible( GTK_WIDGET( imageview->conversionview ), 
+		g_variant_get_boolean( state ) );
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
+imageview_info( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	gtk_widget_set_visible( GTK_WIDGET( imageview->infobar ), 
+		g_variant_get_boolean( state ) );
+
+	g_simple_action_set_state( action, state );
+}
+
 static GActionEntry imageview_entries[] = {
 	{ "magin", imageview_magin },
 	{ "magout", imageview_magout },
 	{ "normal", imageview_normal },
 	{ "bestfit", imageview_bestfit },
+	{ "clone", imageview_clone },
+	{ "fullscreen", imageview_toggle, NULL, "false", imageview_fullscreen },
+	{ "control", imageview_toggle, NULL, "false", imageview_control },
+	{ "info", imageview_toggle, NULL, "false", imageview_info },
 };
 
 static void
@@ -97,8 +230,10 @@ imageview_hide_error( Imageview *imageview )
 static void
 imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 {
+	Conversion *conversion = imageview->imagepresent->conversion;
+
 	GtkWidget *dialog;
-	char *path;
+	const char *path;
 	int result;
 
 	dialog = gtk_file_chooser_dialog_new( "Select a file",
@@ -108,11 +243,9 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 		"_Open", GTK_RESPONSE_ACCEPT,
 		NULL );
 
-	if( (path = imagepresent_get_path( imageview->imagepresent )) ) {
+	if( (path = conversion_get_path( conversion )) )
 		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
 			path );
-		g_free( path ); 
-	}
 
 	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
 	if( result == GTK_RESPONSE_ACCEPT ) {
@@ -124,7 +257,7 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 			GTK_FILE_CHOOSER( dialog ) );
 		file = g_file_new_for_path( path );
 		g_free( path );
-		if( imagepresent_set_file( imageview->imagepresent, file ) )
+		if( conversion_set_file( conversion, file ) )
 			imageview_show_error( imageview ); 
 		g_object_unref( file ); 
 	}
@@ -133,83 +266,8 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 }
 
 static void
-imageview_preload( Conversion *conversion, 
-	VipsProgress *progress, Imageview *imageview )
+imageview_init( Imageview *imageview )
 {
-#ifdef DEBUG
-	printf( "imageview_preload:\n" ); 
-#endif /*DEBUG*/
-
-	gtk_widget_show( imageview->progress_box );
-}
-
-static void
-imageview_load( Conversion *conversion, 
-	VipsProgress *progress, Imageview *imageview )
-{
-	static int previous_precent = -1;
-
-	if( progress->percent != previous_precent ) {
-#ifdef DEBUG
-		printf( "imageview_load: %d%%\n", progress->percent ); 
-#endif /*DEBUG*/
-
-		gtk_progress_bar_set_fraction( 
-			GTK_PROGRESS_BAR( imageview->progress ), 
-			progress->percent / 100.0 ); 
-		previous_precent = progress->percent;
-	}
-}
-
-static void
-imageview_postload( Conversion *conversion, 
-	VipsProgress *progress, Imageview *imageview )
-{
-	char *path;
-
-#ifdef DEBUG
-	printf( "imageview_postload:\n" ); 
-#endif /*DEBUG*/
-
-	gtk_widget_hide( imageview->progress_box );
-
-	if( (path = imagepresent_get_path( imageview->imagepresent )) ) { 
-		char *basename;
-
-		basename = g_path_get_basename( path );
-		g_free( path ); 
-		gtk_header_bar_set_title( 
-			GTK_HEADER_BAR( imageview->header_bar ), basename );
-		g_free( basename ); 
-	}
-	else
-		gtk_header_bar_set_title( 
-			GTK_HEADER_BAR( imageview->header_bar ), 
-			"Untitled" );
-
-	if( conversion->image ) {
-		VipsImage *image = conversion->image;
-
-		char str[256];
-		VipsBuf buf = VIPS_BUF_STATIC( str );
-
-		vips_object_summary( VIPS_OBJECT( image ), &buf );
-		vips_buf_appendf( &buf, ", " );
-		vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
-		vips_buf_appendf( &buf, ", %g x %g p/mm",
-			image->Xres, image->Yres );
-		gtk_header_bar_set_subtitle( 
-			GTK_HEADER_BAR( imageview->header_bar ),
-			vips_buf_all( &buf ) ); 
-	}
-}
-
-Imageview *
-imageview_new( GtkApplication *application, GFile *file )
-{
-	Disp *disp = (Disp *) application;
-
-	Imageview *imageview;
 	GtkWidget *open;
 	GtkWidget *image;
 	GtkWidget *menu_button;
@@ -217,19 +275,12 @@ imageview_new( GtkApplication *application, GFile *file )
 	GMenuModel *menu;
 	GtkWidget *grid;
 
-#ifdef DEBUG
-	printf( "imageview_new: file = %p\n", file ); 
-#endif /*DEBUG*/
-
-	imageview = g_object_new( imageview_get_type(),
-		"application", application,
-		NULL );
 	g_action_map_add_action_entries( G_ACTION_MAP( imageview ), 
 		imageview_entries, G_N_ELEMENTS( imageview_entries ), 
 		imageview );
 
-	imageview->disp = disp;
-
+	/* Header bar.
+	 */
 	imageview->header_bar = gtk_header_bar_new(); 
 
 	gtk_header_bar_set_show_close_button( 
@@ -241,7 +292,6 @@ imageview_new( GtkApplication *application, GFile *file )
 	g_signal_connect( open, "clicked", 
 		G_CALLBACK( imageview_open_clicked ), imageview );
 	gtk_widget_show( open );
-
 
 	menu_button = gtk_menu_button_new();
 	image = gtk_image_new_from_icon_name( "open-menu-symbolic", 
@@ -263,10 +313,14 @@ imageview_new( GtkApplication *application, GFile *file )
 		imageview->header_bar ); 
 	gtk_widget_show( imageview->header_bar );
 
+	/* Body.
+	 */
 	grid = gtk_grid_new();
 	gtk_container_add( GTK_CONTAINER( imageview ), grid ); 
 	gtk_widget_show( grid );
 
+	/* Progress.
+	 */
 	imageview->progress_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	imageview->progress = gtk_progress_bar_new();
 	gtk_widget_set_hexpand( imageview->progress, TRUE ); 
@@ -276,6 +330,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->progress_box, 0, 0, 1, 1 );
 
+	/* Error display.
+	 */
 	imageview->error_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	imageview->error_label = gtk_label_new( "hello" );
 	gtk_box_pack_start( GTK_BOX( imageview->error_box ), 
@@ -284,6 +340,8 @@ imageview_new( GtkApplication *application, GFile *file )
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->error_box, 0, 1, 1, 1 );
 
+	/* Image view.
+	 */
 	imageview->imagepresent = imagepresent_new();
 	gtk_widget_set_hexpand( GTK_WIDGET( imageview->imagepresent ), TRUE ); 
 	gtk_widget_set_vexpand( GTK_WIDGET( imageview->imagepresent ), TRUE ); 
@@ -297,34 +355,77 @@ imageview_new( GtkApplication *application, GFile *file )
 		G_CALLBACK( imageview_load ), imageview );
 	g_signal_connect( imageview->imagepresent->conversion, "postload",
 		G_CALLBACK( imageview_postload ), imageview );
+	g_signal_connect( imageview->imagepresent->conversion, "changed",
+		G_CALLBACK( imageview_changed ), imageview );
 
 	/* Display control.
 	 */
-
 	imageview->conversionview = 
 		conversionview_new( imageview->imagepresent->conversion );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->conversionview ), 0, 3, 1, 1 );
-	gtk_widget_show( GTK_WIDGET( imageview->conversionview ) );
 
 	/* Info bar.
 	 */
 	imageview->infobar = infobar_new( imageview->imagepresent );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->infobar ), 0, 4, 1, 1 );
-	gtk_widget_show( GTK_WIDGET( imageview->infobar ) );
-
-	/* Final size and show.
-	 */
 
 	gtk_window_set_default_size( GTK_WINDOW( imageview ), 800, 800 ); 
+}
+
+static void
+imageview_class_init( ImageviewClass *class )
+{
+}
+
+Imageview *
+imageview_new( GtkApplication *application, GFile *file )
+{
+	Disp *disp = (Disp *) application;
+
+	Imageview *imageview;
+
+#ifdef DEBUG
+	printf( "imageview_new: file = %p\n", file ); 
+#endif /*DEBUG*/
+
+	imageview = g_object_new( imageview_get_type(),
+		"application", application,
+		NULL );
+
+	imageview->disp = disp;
 
 	gtk_widget_show( GTK_WIDGET( imageview ) );
 
-	if( imagepresent_set_file( imageview->imagepresent, file ) )
+	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
 		imageview_show_error( imageview ); 
 
-	imagepresent_bestfit( imageview->imagepresent );
+	return( imageview ); 
+}
+
+Imageview *
+imageview_new_from_source( GtkApplication *application, VipsSource *source )
+{
+	Disp *disp = (Disp *) application;
+
+	Imageview *imageview;
+
+#ifdef DEBUG
+	printf( "imageview_new_from_source: source = %p\n", source ); 
+#endif /*DEBUG*/
+
+	imageview = g_object_new( imageview_get_type(),
+		"application", application,
+		NULL );
+
+	imageview->disp = disp;
+
+	gtk_widget_show( GTK_WIDGET( imageview ) );
+
+        g_object_set( imageview->imagepresent->conversion, 
+		"source", source, 
+		NULL ); 
 
 	return( imageview ); 
 }

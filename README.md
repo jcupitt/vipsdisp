@@ -48,10 +48,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - ^W to close window?
 
-  tickbox in menu for status bar, display control bar
-
-  fullscreen support (see BP)
-
   dark theme?
 
 - display control bar needs:
@@ -75,8 +71,7 @@ and sets properties of `Conversion` to zoom etc.
 
   is this still true? check
 
-- we do not size the initial window very intelligently :( see
-	imagepresent_bestfit()
+- we do not size the initial window very intelligently :( it's always 800x800
 
 - add "save as ..." for file format conversion
 

@@ -37,8 +37,34 @@ disp_quit_activated( GSimpleAction *action,
 	g_application_quit( app );
 }
 
+static void
+disp_new_activated( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	GApplication *app = G_APPLICATION( user_data );
+
+#ifdef DEBUG
+	printf( "disp_new_activated:\n" ); 
+#endif /*DEBUG*/
+
+	imageview_new( GTK_APPLICATION( app ), NULL );
+}
+
+static void
+disp_about_activated( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	//GtkApplication *app = GTK_APPLICATION( user_data );
+
+#ifdef DEBUG
+#endif /*DEBUG*/
+	printf( "disp_about_activated:\n" ); 
+}
+
 static GActionEntry app_entries[] = {
-	{ "quit", disp_quit_activated }
+	{ "quit", disp_quit_activated },
+	{ "new", disp_new_activated },
+	{ "about", disp_about_activated },
 };
 
 static void
@@ -53,7 +79,9 @@ disp_startup( GApplication *application )
 		const gchar *action_and_target;
 		const gchar *accelerators[2];
 	} accels[] = {
-		{ "app.quit", { "<Primary>q", NULL } }
+		{ "app.quit", { "<Primary>q", NULL } },
+		{ "app.new", { "<Primary>n", NULL } },
+		{ "app.new", { "<Primary>t", NULL } },
 	};
 
 #ifdef DEBUG
@@ -68,11 +96,6 @@ disp_startup( GApplication *application )
 	for( i = 0; i < G_N_ELEMENTS( accels ); i++)
 		gtk_application_set_accels_for_action( app, 
 			accels[i].action_and_target, accels[i].accelerators );
-
-	const gchar *new_accels[] = { "<Primary>n", "<Primary>t", NULL };
-	gtk_application_set_accels_for_action( GTK_APPLICATION( application ), 
-		"app.new", new_accels );
-
 }
 
 static void

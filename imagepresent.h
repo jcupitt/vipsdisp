@@ -16,8 +16,6 @@ typedef enum _ImagepresentState {
 typedef struct _Imagepresent {
 	GtkScrolledWindow parent_instance;
 
-	GFile *file;
-
 	Imagedisplay *imagedisplay;
 
 	Conversion *conversion;
@@ -56,8 +54,5 @@ void imagepresent_set_mag( Imagepresent *imagepresent, int mag );
 void imagepresent_magin( Imagepresent *imagepresent, int x, int y );
 void imagepresent_magout( Imagepresent *imagepresent );
 void imagepresent_bestfit( Imagepresent *imagepresent );
-
-char *imagepresent_get_path( Imagepresent *imagepresent );
-int imagepresent_set_file( Imagepresent *imagepresent, GFile *file );
 
 Imagepresent *imagepresent_new();

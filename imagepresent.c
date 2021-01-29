@@ -339,35 +339,6 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 	}
 }
 
-char *
-imagepresent_get_path( Imagepresent *imagepresent ) 
-{
-	char *path;
-
-	if( imagepresent->file && 
-		(path = g_file_get_path( imagepresent->file )) ) 
-		return( path );
-
-	return( NULL );
-}
-
-int
-imagepresent_set_file( Imagepresent *imagepresent, GFile *file )
-{
-	VIPS_UNREF( imagepresent->file );
-
-	if( file ) { 
-		imagepresent->file = file;
-		g_object_ref( file ); 
-	}
-
-	if( conversion_set_file( imagepresent->conversion, 
-		imagepresent->file ) )
-		return( -1 ); 	
-
-	return( 0 );
-}
-
 static struct {
 	int keyval;
 	int mag;

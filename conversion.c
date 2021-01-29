@@ -1209,6 +1209,16 @@ conversion_get_ink( Conversion *conversion, int x, int y )
         return( VIPS_REGION_ADDR( conversion->image_region, x, y ) );  
 }
 
+const char *
+conversion_get_path( Conversion *conversion )
+{
+	if( conversion->source )
+		return( vips_connection_filename( 
+			VIPS_CONNECTION( conversion->source ) ) );
+
+	return( NULL );
+}
+
 Conversion *
 conversion_new( void ) 
 {

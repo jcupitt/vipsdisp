@@ -116,4 +116,6 @@ void conversion_to_display_cods( Conversion *conversion,
 
 VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );
 
+const char *conversion_get_path( Conversion *conversion );
+
 Conversion *conversion_new( void ); 
