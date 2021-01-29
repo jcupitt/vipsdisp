@@ -37,8 +37,9 @@ enum {
         SIG_PRELOAD,
         SIG_LOAD,
         SIG_POSTLOAD,
-        SIG_CHANGED,
-        SIG_AREA_CHANGED,
+        SIG_CHANGED,		/* The whole conversion has changed */
+        SIG_DISPLAY_CHANGED,	/* The whole display has changed */
+        SIG_AREA_CHANGED,	/* A tile has changed in the image */
 
         SIG_LAST
 };
@@ -50,6 +51,13 @@ conversion_area_changed( Conversion *conversion, VipsRect *dirty )
 {
         g_signal_emit( conversion, 
                 conversion_signals[SIG_AREA_CHANGED], 0, dirty );
+}
+
+static void
+conversion_display_changed( Conversion *conversion )
+{
+        g_signal_emit( conversion, 
+                conversion_signals[SIG_DISPLAY_CHANGED], 0 );
 }
 
 static void
@@ -610,7 +618,7 @@ conversion_update_rgb( Conversion *conversion )
                 g_object_set( conversion, "rgb", rgb, NULL ); 
                 g_object_unref( rgb ); 
 
-                conversion_changed( conversion );
+                conversion_display_changed( conversion );
         }
 
         return( 0 );
@@ -908,6 +916,7 @@ conversion_set_property( GObject *object,
 
                         conversion->loaded = loaded;
 
+			conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1112,6 +1121,14 @@ conversion_class_init( ConversionClass *class )
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
                 G_STRUCT_OFFSET( ConversionClass, changed ), 
+                NULL, NULL,
+                g_cclosure_marshal_VOID__VOID,
+                G_TYPE_NONE, 0 ); 
+
+        conversion_signals[SIG_DISPLAY_CHANGED] = g_signal_new( "display_changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                G_STRUCT_OFFSET( ConversionClass, display_changed ), 
                 NULL, NULL,
                 g_cclosure_marshal_VOID__VOID,
                 G_TYPE_NONE, 0 ); 

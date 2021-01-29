@@ -35,50 +35,20 @@ imagepresent_destroy( GtkWidget *widget )
 	GTK_WIDGET_CLASS( imagepresent_parent_class )->destroy( widget );
 }
 
-static gboolean
-imagepresent_draw( GtkWidget *widget, cairo_t *cr )
+gboolean
+imagepresent_get_image_size( Imagepresent *imagepresent, 
+	int *width, int *height )
 {
-	GdkWindow *window = gtk_widget_get_window( widget );
-	GtkStyleContext *context = gtk_widget_get_style_context( widget );
-
-#ifdef DEBUG
-	printf( "imagepresent_draw:\n" ); 
-#endif /*DEBUG*/
-
-	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
-
-	if( gtk_cairo_should_draw_window( cr, window ) ) {
-		if( gtk_widget_has_focus( widget ) ) 
-			gtk_render_focus( context, cr, 0, 0, 
-				gtk_widget_get_allocated_width( widget ), 
-				gtk_widget_get_allocated_height( widget ) ); 
-	}
-
-	return( FALSE ); 
+	return( conversion_get_image_size( imagepresent->conversion,
+		width, height ) ); 
 }
 
-static void
-imagepresent_init( Imagepresent *imagepresent )
+gboolean
+imagepresent_get_display_image_size( Imagepresent *imagepresent, 
+	int *width, int *height )
 {
-	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
-}
-
-static void
-imagepresent_class_init( ImagepresentClass *class )
-{
-	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
-
-	widget_class->draw = imagepresent_draw;
-	widget_class->destroy = imagepresent_destroy;
-
-	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
-		"position_changed",
-		G_TYPE_FROM_CLASS( class ),
-		G_SIGNAL_RUN_LAST,
-		G_STRUCT_OFFSET( ImagepresentClass, position_changed ), 
-		NULL, NULL,
-		g_cclosure_marshal_VOID__VOID,
-		G_TYPE_NONE, 0 ); 
+	return( conversion_get_display_image_size( imagepresent->conversion,
+		width, height ) ); 
 }
 
 static void
@@ -123,22 +93,6 @@ imagepresent_set_window_position( Imagepresent *imagepresent,
 
 	gtk_adjustment_set_value( hadj, left );
 	gtk_adjustment_set_value( vadj, top );
-}
-
-gboolean
-imagepresent_get_image_size( Imagepresent *imagepresent, 
-	int *width, int *height )
-{
-	return( conversion_get_image_size( imagepresent->conversion,
-		width, height ) ); 
-}
-
-gboolean
-imagepresent_get_display_image_size( Imagepresent *imagepresent, 
-	int *width, int *height )
-{
-	return( conversion_get_display_image_size( imagepresent->conversion,
-		width, height ) ); 
 }
 
 void
@@ -495,6 +449,28 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 }
 
 static gboolean
+imagepresent_draw( GtkWidget *widget, cairo_t *cr )
+{
+	GdkWindow *window = gtk_widget_get_window( widget );
+	GtkStyleContext *context = gtk_widget_get_style_context( widget );
+
+#ifdef DEBUG
+	printf( "imagepresent_draw:\n" ); 
+#endif /*DEBUG*/
+
+	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
+
+	if( gtk_cairo_should_draw_window( cr, window ) ) {
+		if( gtk_widget_has_focus( widget ) ) 
+			gtk_render_focus( context, cr, 0, 0, 
+				gtk_widget_get_allocated_width( widget ), 
+				gtk_widget_get_allocated_height( widget ) ); 
+	}
+
+	return( FALSE ); 
+}
+
+static gboolean
 imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event, 
 	Imagepresent *imagepresent )
 {
@@ -651,17 +627,10 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 	return( handled ); 
 }
 
-Imagepresent *
-imagepresent_new( void ) 
+static void
+imagepresent_init( Imagepresent *imagepresent )
 {
-	Imagepresent *imagepresent;
-
-	imagepresent = g_object_new( imagepresent_get_type(),
-		NULL );
-
-	imagepresent->conversion = conversion_new();
-	imagepresent->imagedisplay = 
-		imagedisplay_new( imagepresent->conversion );
+	gtk_widget_set_can_focus( GTK_WIDGET( imagepresent ), TRUE ); 
 
 	/* The imagepresent takes the focus, so we must listen for keypresses
 	 * there. We get the mouse position from (last_x, last_y), which we
@@ -669,6 +638,15 @@ imagepresent_new( void )
 	 */
 	g_signal_connect( imagepresent, "key-press-event",
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
+
+	/* Draw the focus indicator after rendering the image.
+	 */
+	g_signal_connect_after( imagepresent, "draw",
+		G_CALLBACK( imagepresent_draw ), imagepresent );
+
+	imagepresent->conversion = conversion_new();
+	imagepresent->imagedisplay = 
+		imagedisplay_new( imagepresent->conversion );
 
 	g_signal_connect( imagepresent->imagedisplay, "button-press-event",
 		G_CALLBACK( imagepresent_button_press_event ), imagepresent ); 
@@ -678,19 +656,42 @@ imagepresent_new( void )
 		G_CALLBACK( imagepresent_button_release_event ), imagepresent );
 	g_signal_connect( imagepresent->imagedisplay, "scroll-event",
 		G_CALLBACK( imagepresent_scroll_event ), imagepresent );
+
 	gtk_widget_add_events( GTK_WIDGET( imagepresent->imagedisplay ),
 		GDK_POINTER_MOTION_MASK | 
 		GDK_BUTTON_PRESS_MASK | 
 		GDK_BUTTON_RELEASE_MASK | 
 		GDK_SCROLL_MASK );
 
-	/* Draw the focus indicator after rendering the image.
-	 */
-	g_signal_connect_after( imagepresent, "draw",
-		G_CALLBACK( imagepresent_draw ), imagepresent );
-
 	gtk_container_add( GTK_CONTAINER( imagepresent ), 
 		GTK_WIDGET( imagepresent->imagedisplay ) );
+}
+
+static void
+imagepresent_class_init( ImagepresentClass *class )
+{
+	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
+
+	widget_class->draw = imagepresent_draw;
+	widget_class->destroy = imagepresent_destroy;
+
+	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
+		"position_changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		G_STRUCT_OFFSET( ImagepresentClass, position_changed ), 
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
+}
+
+Imagepresent *
+imagepresent_new( void ) 
+{
+	Imagepresent *imagepresent;
+
+	imagepresent = g_object_new( imagepresent_get_type(),
+		NULL );
 
 	gtk_widget_show( GTK_WIDGET( imagepresent->imagedisplay ) );
 

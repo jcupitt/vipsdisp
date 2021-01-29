@@ -286,7 +286,7 @@ imageview_init( Imageview *imageview )
 	gtk_header_bar_set_show_close_button( 
 		GTK_HEADER_BAR( imageview->header_bar ), TRUE );
 
-	open = gtk_button_new_with_label( "Open" );
+	open = gtk_button_new_with_label( "Load ..." );
 	gtk_header_bar_pack_start( 
 		GTK_HEADER_BAR( imageview->header_bar ), open ); 
 	g_signal_connect( open, "clicked", 

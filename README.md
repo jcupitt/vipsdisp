@@ -65,6 +65,8 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
+- save as
+
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - replace image during load can crash the viewer

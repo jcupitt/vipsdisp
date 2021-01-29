@@ -90,9 +90,13 @@ typedef struct _ConversionClass {
 	void (*load)( Conversion *conversion, VipsProgress *progress );
 	void (*postload)( Conversion *conversion, VipsProgress *progress );
 
-	/* The image has changed.
+	/* The whole conversion has changed, eg. new image loaded.
 	 */
 	void (*changed)( Conversion *conversion );
+
+	/* The display has changed, eg. change of offset or mag.
+	 */
+	void (*display_changed)( Conversion *conversion );
 
 	/* Part of the output image has changed.
 	 */

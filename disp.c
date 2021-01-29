@@ -54,11 +54,27 @@ static void
 disp_about_activated( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
-	//GtkApplication *app = GTK_APPLICATION( user_data );
+	static const char *authors[] = {
+		"John Cupitt",
+		NULL
+	};
+
+	//GdkPixbuf *logo = gdk_pixbuf_new_from_file( "logo.png", NULL );
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "disp_about_activated:\n" ); 
+#endif /*DEBUG*/
+
+	gtk_show_about_dialog( NULL,
+		"program-name", "vipsdisp",
+		//"logo", logo,
+		"title", _( "About vipsdisp" ),
+		"authors", authors,
+		"comments", _( "An image viewer for very large images" ),
+		"license-type", GTK_LICENSE_MIT_X11,
+		"website-label", "Visit vipsdisp on github",
+		"website", "https://github.com/jcupitt/vipsdisp",
+		NULL );
 }
 
 static GActionEntry app_entries[] = {

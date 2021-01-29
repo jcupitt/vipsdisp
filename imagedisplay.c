@@ -192,7 +192,7 @@ imagedisplay_set_conversion( Imagedisplay *imagedisplay,
 	g_object_ref( imagedisplay->conversion );
 
 	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
-		"changed",
+		"display-changed",
 		G_CALLBACK( imagedisplay_conversion_changed ), imagedisplay );
 	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
 		"area-changed",
