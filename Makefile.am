@@ -29,6 +29,7 @@ AM_LDFLAGS = @LDFLAGS@
 
 resource_files = \
 	disp.gresources.xml \
+	gtk/conversionview-popover.ui \
 	gtk/imageview-popover.ui 
 
 disp-gresources.c: $(resource_files)

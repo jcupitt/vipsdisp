@@ -30,6 +30,7 @@ enum {
         PROP_MAG,
         PROP_SCALE,
         PROP_OFFSET,
+        PROP_FALSECOLOUR,
         PROP_LOADED,
 
         /* Our signals. 
@@ -598,8 +599,14 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
                 image = x;
         }
 
-        /* falsecolour would go here.
-         */
+        if( conversion->falsecolour ) {
+                if( vips_falsecolour( image, &x, NULL ) ) {
+                        g_object_unref( image );
+                        return( NULL ); 
+                }
+                g_object_unref( image );
+                image = x;
+	}
 
         return( image );
 }
@@ -816,9 +823,9 @@ conversion_set_property( GObject *object,
 {
         Conversion *conversion = (Conversion *) object;
 
-        int mag;
+        int i;
         double d;
-        gboolean loaded;
+        gboolean b;
 
         switch( prop_id ) {
         case PROP_SOURCE:
@@ -868,15 +875,15 @@ conversion_set_property( GObject *object,
                 break;
 
         case PROP_MAG:
-                mag = g_value_get_int( value );
-                if( mag >= -600 &&
-                        mag <= 1000000 &&
-                        conversion->mag != mag ) {
+                i = g_value_get_int( value );
+                if( i >= -600 &&
+                        i <= 1000000 &&
+                        conversion->mag != i ) {
 #ifdef DEBUG
-                        printf( "conversion_set_mag: %d\n", mag ); 
+                        printf( "conversion_set_mag: %d\n", i ); 
 #endif /*DEBUG*/
 
-                        conversion->mag = mag;
+                        conversion->mag = i;
                         conversion_update_display( conversion );
                 }
                 break;
@@ -909,14 +916,26 @@ conversion_set_property( GObject *object,
                 }
                 break;
 
-        case PROP_LOADED:
-                loaded = g_value_get_boolean( value );
-                if( conversion->loaded != loaded ) { 
+        case PROP_FALSECOLOUR:
+                b = g_value_get_boolean( value );
+                if( conversion->falsecolour != b ) { 
 #ifdef DEBUG
-                        printf( "conversion_set_loaded: %d\n", loaded ); 
+                        printf( "conversion_set_falsecolour: %d\n", b ); 
 #endif /*DEBUG*/
 
-                        conversion->loaded = loaded;
+                        conversion->falsecolour = b;
+                        conversion_update_rgb( conversion );
+                }
+                break;
+
+        case PROP_LOADED:
+                b = g_value_get_boolean( value );
+                if( conversion->loaded != b ) { 
+#ifdef DEBUG
+                        printf( "conversion_set_loaded: %d\n", b ); 
+#endif /*DEBUG*/
+
+                        conversion->loaded = b;
 
 			conversion_changed( conversion );
                         conversion_update_display( conversion );
@@ -958,6 +977,10 @@ conversion_get_property( GObject *object,
 
         case PROP_OFFSET:
                 g_value_set_double( value, conversion->offset );
+                break;
+
+        case PROP_FALSECOLOUR:
+                g_value_set_boolean( value, conversion->falsecolour );
                 break;
 
         case PROP_LOADED:
@@ -1083,6 +1106,13 @@ conversion_class_init( ConversionClass *class )
                         _( "offset" ),
                         _( "Offset" ),
                         -1000000, 1000000, 0,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_FALSECOLOUR,
+                g_param_spec_boolean( "falsecolour",
+                        _( "falsecolour" ),
+                        _( "False colour" ),
+                        FALSE,
                         G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_LOADED,

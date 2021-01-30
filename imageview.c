@@ -14,6 +14,21 @@
 G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 
 static void
+imageview_show_error( Imageview *imageview )
+{
+	gtk_label_set_text( GTK_LABEL( imageview->error_label ), 
+		vips_error_buffer() ); 
+	vips_error_clear();
+	gtk_widget_show( imageview->error_box );
+}
+
+static void
+imageview_hide_error( Imageview *imageview )
+{
+	gtk_widget_hide( imageview->error_box );
+}
+
+static void
 imageview_preload( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
@@ -255,6 +270,130 @@ imageview_info( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static int
+imageview_find_scale( Imageview *imageview, VipsObject *context, 
+	int left, int top, int width, int height,
+	double *scale, double *offset )
+{
+	Conversion *conversion = imageview->imagepresent->conversion;
+	VipsImage **t = (VipsImage **) vips_object_local_array( context, 7 );
+
+	double min, max;
+
+	if( vips_extract_area( conversion->image, &t[0], 
+		left, top, width, height, NULL ) ||
+		vips_stats( t[0], &t[1], NULL ) )
+		return( -1 );
+
+	min = *VIPS_MATRIX( t[1], 0, 0 );
+	max = *VIPS_MATRIX( t[1], 1, 0 );
+	if( max == min ) {
+		vips_error( "Find scale", _( "Min and max are equal" ) );
+		return( -1 );
+	}
+
+	*scale = 255.0 / (max - min);
+	*offset = -(min * *scale) + 0.5;
+
+	return( 0 );
+}
+
+static void
+imageview_scale( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
+
+	int left, top, width, height;
+	int right, bottom;
+	VipsImage *context;
+	double scale, offset;
+
+	if( !conversion->image )
+		return;
+
+	imagepresent_get_window_position( imageview->imagepresent, 
+		&left, &top, &width, &height );
+
+	right = left + width;
+	bottom = top + height;
+
+	conversion_to_image_cods( conversion, 
+		left, top, &left, &top );
+	conversion_to_image_cods( conversion, 
+		right, bottom, &right, &bottom );
+
+	width = right - left;
+	height = bottom - top;
+
+	context = vips_image_new();
+	if( imageview_find_scale( imageview, VIPS_OBJECT( context ), 
+		left, top, width, height, &scale, &offset ) ) {
+		imageview_show_error( imageview );
+		g_object_unref( context );
+		return;
+	}
+	g_object_unref( context );
+
+	g_object_set( conversion,
+		"scale", scale,
+		"offset", offset,
+		NULL );
+}
+
+static void
+imageview_falsecolour( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	g_object_set( imageview->imagepresent->conversion,
+		"falsecolour", g_variant_get_boolean( state ),
+		NULL );
+	
+	g_simple_action_set_state( action, state );
+}
+
+static void
+imageview_radio( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	g_action_change_state( G_ACTION( action ), parameter );
+}
+
+static void
+imageview_mode( GSimpleAction *action,
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	const gchar *str;
+
+	str = g_variant_get_string( state, NULL );
+
+	//if( g_str_equal( str, "toilet" ) ) 
+	//   ...
+	//else
+	//   /* Ignore attempted change */
+	//   return;
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
+imageview_reset( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	g_object_set( imageview->imagepresent->conversion,
+		"falsecolour", FALSE,
+		"scale", 1.0,
+		"offset", 0.0,
+		NULL );
+}
+
 static GActionEntry imageview_entries[] = {
 	{ "magin", imageview_magin },
 	{ "magout", imageview_magout },
@@ -262,25 +401,17 @@ static GActionEntry imageview_entries[] = {
 	{ "bestfit", imageview_bestfit },
 	{ "duplicate", imageview_duplicate },
 	{ "close", imageview_close },
+
 	{ "fullscreen", imageview_toggle, NULL, "false", imageview_fullscreen },
 	{ "control", imageview_toggle, NULL, "false", imageview_control },
 	{ "info", imageview_toggle, NULL, "false", imageview_info },
+
+	{ "scale", imageview_scale },
+	{ "falsecolour", 
+		imageview_toggle, NULL, "false", imageview_falsecolour },
+	{ "mode", imageview_radio, "s", "'toilet'", imageview_mode },
+	{ "reset", imageview_reset },
 };
-
-static void
-imageview_show_error( Imageview *imageview )
-{
-	gtk_label_set_text( GTK_LABEL( imageview->error_label ), 
-		vips_error_buffer() ); 
-	vips_error_clear();
-	gtk_widget_show( imageview->error_box );
-}
-
-static void
-imageview_hide_error( Imageview *imageview )
-{
-	gtk_widget_hide( imageview->error_box );
-}
 
 static void
 imageview_open_clicked( GtkWidget *button, Imageview *imageview )

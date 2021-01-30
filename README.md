@@ -50,15 +50,13 @@ and sets properties of `Conversion` to zoom etc.
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
-- display control bar needs:
+- how about a log pixel value mode?
 
-    - falsecolour
-    - reset
-    - scale
-    - view multipage as:
-      - single page, with page select widget (pdf style)
-      - toilet roll (volume style)
-      - video (GIF style)
+  check interaction with "scale"
+
+- error bar needs a "close" button
+
+- save settings like info bar, display bar etc.
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?

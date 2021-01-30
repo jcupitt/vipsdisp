@@ -34,9 +34,30 @@ conversionview_offset_value_changed( Tslider *slider,
 static void
 conversionview_init( Conversionview *conversionview )
 {
+	GtkWidget *menu_button;
+	GtkWidget *image;
+	GtkBuilder *builder;
+	GMenuModel *menu;
+
 	gtk_orientable_set_orientation( GTK_ORIENTABLE( conversionview ), 
 		GTK_ORIENTATION_HORIZONTAL );
 	gtk_container_set_border_width( GTK_CONTAINER( conversionview ), 3 );
+
+	menu_button = gtk_menu_button_new();
+	image = gtk_image_new_from_icon_name( "open-menu-symbolic", 
+		GTK_ICON_SIZE_SMALL_TOOLBAR );
+	gtk_widget_show( image );
+	gtk_container_add( GTK_CONTAINER( menu_button ), image );
+	gtk_box_pack_start( GTK_BOX( conversionview ), 
+		GTK_WIDGET( menu_button ), FALSE, FALSE, 2 );
+	gtk_widget_show( menu_button );
+
+	builder = gtk_builder_new_from_resource( 
+		"/vips/disp/gtk/conversionview-popover.ui" ); 
+	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
+		"conversionview-popover-menu" ) );
+	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
+	g_object_unref( builder );
 
 	conversionview->scale = tslider_new();
 	tslider_set_conversions( conversionview->scale,
