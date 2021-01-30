@@ -58,6 +58,7 @@ typedef struct _Conversion {
 	double scale;
 	double offset;
 	gboolean falsecolour;
+	gboolean log;
 
 	/* The image resized for the display, ie. including shrink & zoom, and
 	 * a cache mask.

@@ -50,10 +50,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
-- how about a log pixel value mode?
-
-  check interaction with "scale"
-
 - error bar needs a "close" button
 
 - save settings like info bar, display bar etc.

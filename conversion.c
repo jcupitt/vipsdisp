@@ -31,6 +31,7 @@ enum {
         PROP_SCALE,
         PROP_OFFSET,
         PROP_FALSECOLOUR,
+        PROP_LOG,
         PROP_LOADED,
 
         /* Our signals. 
@@ -574,6 +575,29 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         image = in;
         g_object_ref( image ); 
 
+        if( conversion->log ) {
+		static const double power = 0.25;
+		const double scale = 255.0 / 
+			log10( 1.0 + pow( 255.0, power ) );
+
+		VipsImage *context = vips_image_new();
+		VipsImage **t = (VipsImage **) 
+			vips_object_local_array( VIPS_OBJECT( context ), 7 );
+
+                if( vips_pow_const1( image, &t[0], power, NULL ) ||
+                        vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
+                        vips_log10( t[1], &t[2], NULL ) ||
+                        /* Add 0.5 to get round to nearest.
+                         */
+                        vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
+                        g_object_unref( context );
+                        return( NULL ); 
+                }
+		g_object_unref( context );
+                g_object_unref( image );
+                image = x;
+	}
+
         /* Scale and offset.
          */
         if( conversion->scale != 1.0 ||
@@ -928,6 +952,18 @@ conversion_set_property( GObject *object,
                 }
                 break;
 
+        case PROP_LOG:
+                b = g_value_get_boolean( value );
+                if( conversion->log != b ) { 
+#ifdef DEBUG
+                        printf( "conversion_set_log: %d\n", b ); 
+#endif /*DEBUG*/
+
+                        conversion->log = b;
+                        conversion_update_rgb( conversion );
+                }
+                break;
+
         case PROP_LOADED:
                 b = g_value_get_boolean( value );
                 if( conversion->loaded != b ) { 
@@ -981,6 +1017,10 @@ conversion_get_property( GObject *object,
 
         case PROP_FALSECOLOUR:
                 g_value_set_boolean( value, conversion->falsecolour );
+                break;
+
+        case PROP_LOG:
+                g_value_set_boolean( value, conversion->log );
                 break;
 
         case PROP_LOADED:
@@ -1112,6 +1152,13 @@ conversion_class_init( ConversionClass *class )
                 g_param_spec_boolean( "falsecolour",
                         _( "falsecolour" ),
                         _( "False colour" ),
+                        FALSE,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_LOG,
+                g_param_spec_boolean( "log",
+                        _( "log" ),
+                        _( "Log" ),
                         FALSE,
                         G_PARAM_READWRITE ) );
 

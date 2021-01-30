@@ -11,6 +11,10 @@
         <attribute name='label' translatable='yes'>Falsecolour</attribute>
         <attribute name='action'>win.falsecolour</attribute>
       </item>
+      <item>
+        <attribute name='label' translatable='yes'>Log scale</attribute>
+        <attribute name='action'>win.log</attribute>
+      </item>
     </section>
 
     <section>

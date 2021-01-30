@@ -356,6 +356,19 @@ imageview_falsecolour( GSimpleAction *action,
 }
 
 static void
+imageview_log( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+
+	g_object_set( imageview->imagepresent->conversion,
+		"log", g_variant_get_boolean( state ),
+		NULL );
+	
+	g_simple_action_set_state( action, state );
+}
+
+static void
 imageview_radio( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
@@ -389,6 +402,7 @@ imageview_reset( GSimpleAction *action,
 
 	g_object_set( imageview->imagepresent->conversion,
 		"falsecolour", FALSE,
+		"log", FALSE,
 		"scale", 1.0,
 		"offset", 0.0,
 		NULL );
@@ -407,6 +421,7 @@ static GActionEntry imageview_entries[] = {
 	{ "info", imageview_toggle, NULL, "false", imageview_info },
 
 	{ "scale", imageview_scale },
+	{ "log", imageview_toggle, NULL, "false", imageview_log },
 	{ "falsecolour", 
 		imageview_toggle, NULL, "false", imageview_falsecolour },
 	{ "mode", imageview_radio, "s", "'toilet'", imageview_mode },
