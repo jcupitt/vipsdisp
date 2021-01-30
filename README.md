@@ -50,7 +50,9 @@ and sets properties of `Conversion` to zoom etc.
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
-- error bar needs a "close" button
+- duplicate does not copy over falsecolour or log
+
+- error bar needs a "close" button, perhaps an error icon, perhaps some colour
 
 - save settings like info bar, display bar etc.
 

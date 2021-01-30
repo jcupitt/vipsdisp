@@ -193,6 +193,8 @@ imageview_duplicate( GSimpleAction *action,
 		conversion->source );
 
 	g_object_set( new_imageview->imagepresent->conversion,
+		"falsecolour", conversion->falsecolour,
+		"log", conversion->log,
 		"mag", conversion->mag,
 		"scale", conversion->scale,
 		"offset", conversion->offset,
