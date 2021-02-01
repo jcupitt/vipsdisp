@@ -724,6 +724,64 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		g_object_ref( image ); 
 	}
 
+	/* Histogram type ... plot the histogram. 
+         */
+        if( image->Type == VIPS_INTERPRETATION_HISTOGRAM &&
+                (image->Xsize == 1 || image->Ysize == 1) ) {
+		VipsImage *context = vips_image_new();
+		VipsImage **t = (VipsImage **) 
+			vips_object_local_array( VIPS_OBJECT( context ), 7 );
+
+                if( image->Coding == VIPS_CODING_LABQ ) {
+                        if( vips_LabQ2Lab( image, &t[0], NULL ) ) {
+                                VIPS_UNREF( context );
+                                return( NULL );
+                        }
+
+			g_object_unref( image );
+                        image = t[0];
+                }
+
+                if( image->Coding == VIPS_CODING_RAD ) {
+                        if( vips_rad2float( image, &t[1], NULL ) ) {
+                                VIPS_UNREF( context );
+                                return( NULL );
+                        }
+
+			g_object_unref( image );
+                        image = t[1];
+                }
+
+                if( vips_hist_norm( image, &t[2], NULL ) ||
+                        vips_hist_plot( t[2], &t[3], NULL ) ) {
+			VIPS_UNREF( context );
+                        return( NULL );
+                }
+		g_object_unref( image );
+                image = t[3];
+
+                /* Scale to a sensible size ... aim for a height of 256
+                 * elements.
+                if( in->Xsize == 1 && t[1]->Xsize > 256 ) {
+                        if( im_subsample( t[1], t[2], t[1]->Xsize / 256, 1 ) ) {
+                                im_close( out );
+                                return( NULL );
+                        }
+                }
+                else if( in->Ysize == 1 && t[1]->Ysize > 256 ) {
+                        if( im_subsample( t[1], t[2], 1, t[1]->Ysize / 256 ) ) {
+                                im_close( out );
+                                return( NULL );
+                        }
+                }
+                else
+                        t[2] = t[1];
+                 */
+
+		g_object_ref( image ); 
+		VIPS_UNREF( context );
+        }
+
 	if( conversion->mag < 0 ) {
 		/* We may have already zoomed out a bit because we've loaded
 		 * some layer other than the base one. Recalculate the
@@ -765,7 +823,8 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         g_object_unref( image );
         image = x;
 
-        if( conversion->log ) {
+        if( conversion->log ||
+		image->Type == VIPS_INTERPRETATION_FOURIER ) { 
 		static const double power = 0.25;
 		const double scale = 255.0 / 
 			log10( 1.0 + pow( 255.0, power ) );

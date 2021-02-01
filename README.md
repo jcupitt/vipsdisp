@@ -43,6 +43,8 @@ implements a scrollable interface.
 displayed. Set things like magnification, file, scale, offset etc. on this
 and the display will update automatically.
 
+* `Conversionview` is the view for the conversion model.
+
 * `Imagepresent` is a `GtkScrolledWindow` subclass that contains an
 `Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It
 uses the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
@@ -56,6 +58,8 @@ and sets properties of `Conversion` to zoom etc.
 ### TODO
 
 - dark theme?
+
+- vips load, histogram display with hist_plot, enable log for FOURIER images
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
