@@ -1374,6 +1374,17 @@ conversion_get_path( Conversion *conversion )
 	return( NULL );
 }
 
+int
+conversion_write_to_file( Conversion *conversion, const char *file )
+{
+	int result;
+
+	//conversion_attach_progress( conversion );
+	result = vips_image_write_to_file( conversion->image, file, NULL );
+
+	return( result );
+}
+
 Conversion *
 conversion_new( void ) 
 {

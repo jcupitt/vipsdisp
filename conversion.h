@@ -124,4 +124,6 @@ VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );
 
 const char *conversion_get_path( Conversion *conversion );
 
+int conversion_write_to_file( Conversion *conversion, const char *file );
+
 Conversion *conversion_new( void ); 

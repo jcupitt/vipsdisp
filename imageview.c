@@ -214,6 +214,51 @@ imageview_duplicate( GSimpleAction *action,
 }
 
 static void
+imageview_saveas( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
+
+	GtkWidget *dialog;
+	const char *path;
+	int result;
+
+	if( !conversion->image )
+		return;
+
+	dialog = gtk_file_chooser_dialog_new( "Save file",
+		GTK_WINDOW( imageview ) , 
+		GTK_FILE_CHOOSER_ACTION_SAVE,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Save", GTK_RESPONSE_ACCEPT,
+		NULL );
+
+	if( (path = conversion_get_path( conversion )) )
+		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
+			path );
+	else
+		gtk_file_chooser_set_current_name( GTK_FILE_CHOOSER( dialog ),
+			"untitled document" );
+
+	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
+	if( result == GTK_RESPONSE_ACCEPT ) {
+		char *file;
+
+		imageview_hide_error( imageview ); 
+		file = gtk_file_chooser_get_filename( 
+			GTK_FILE_CHOOSER( dialog ) );
+		if( conversion_write_to_file( conversion, file ) ) {
+			imageview_show_error( imageview );
+			g_free( file );
+		}
+		g_free( file );
+	}
+
+	gtk_widget_destroy( dialog );
+}
+
+static void
 imageview_close( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
@@ -416,6 +461,7 @@ static GActionEntry imageview_entries[] = {
 	{ "normal", imageview_normal },
 	{ "bestfit", imageview_bestfit },
 	{ "duplicate", imageview_duplicate },
+	{ "saveas", imageview_saveas },
 	{ "close", imageview_close },
 
 	{ "fullscreen", imageview_toggle, NULL, "false", imageview_fullscreen },

@@ -59,8 +59,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - dark theme?
 
-- vips load, histogram display with hist_plot, enable log for FOURIER images
-
 - duplicate does not copy scroll position? see imageview_duplicate()
 
 - duplicate does not copy over falsecolour or log
@@ -74,7 +72,7 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
-- implement save as
+- "save as" needs a progress bar ... reuse the load one? add "cancel"?
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
