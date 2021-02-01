@@ -575,29 +575,6 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         image = in;
         g_object_ref( image ); 
 
-        if( conversion->log ) {
-		static const double power = 0.25;
-		const double scale = 255.0 / 
-			log10( 1.0 + pow( 255.0, power ) );
-
-		VipsImage *context = vips_image_new();
-		VipsImage **t = (VipsImage **) 
-			vips_object_local_array( VIPS_OBJECT( context ), 7 );
-
-                if( vips_pow_const1( image, &t[0], power, NULL ) ||
-                        vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
-                        vips_log10( t[1], &t[2], NULL ) ||
-                        /* Add 0.5 to get round to nearest.
-                         */
-                        vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
-                        g_object_unref( context );
-                        return( NULL ); 
-                }
-		g_object_unref( context );
-                g_object_unref( image );
-                image = x;
-	}
-
         /* Scale and offset.
          */
         if( conversion->scale != 1.0 ||
@@ -788,6 +765,29 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         g_object_unref( image );
         image = x;
 
+        if( conversion->log ) {
+		static const double power = 0.25;
+		const double scale = 255.0 / 
+			log10( 1.0 + pow( 255.0, power ) );
+
+		VipsImage *context = vips_image_new();
+		VipsImage **t = (VipsImage **) 
+			vips_object_local_array( VIPS_OBJECT( context ), 7 );
+
+                if( vips_pow_const1( image, &t[0], power, NULL ) ||
+                        vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
+                        vips_log10( t[1], &t[2], NULL ) ||
+                        /* Add 0.5 to get round to nearest.
+                         */
+                        vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
+                        g_object_unref( context );
+                        return( NULL ); 
+                }
+		g_object_unref( context );
+                g_object_unref( image );
+                image = x;
+	}
+
         /* Do a huge blur .. this is a slow operation, and handy for
          * debugging.
         if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
@@ -960,7 +960,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->log = b;
-                        conversion_update_rgb( conversion );
+			conversion_update_display( conversion );
                 }
                 break;
 

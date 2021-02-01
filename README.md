@@ -5,6 +5,16 @@ a slightly useful image viewer.
 
 See vipsdisp-tiny for a minimal example.
 
+### Screenshots
+
+It all works, though see the TODO list below.
+
+[![Screenshot](images/shot1.png)](images/shot1.png)
+
+[![Screenshot](images/shot2.png)](images/shot2.png)
+
+[![Screenshot](images/shot3.png)](images/shot3.png)
+
 ### To run
 
 ```
@@ -23,7 +33,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
-
 
 ### Structure
 
