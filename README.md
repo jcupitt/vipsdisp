@@ -9,11 +9,11 @@ See vipsdisp-tiny for a minimal example.
 
 It all works, though see the TODO list below.
 
-[![Screenshot](images/shot1.png)](images/shot1.png)
+[![Screenshot](images/shot1.jpg)](images/shot1.jpg)
 
-[![Screenshot](images/shot2.png)](images/shot2.png)
+[![Screenshot](images/shot2.jpg)](images/shot2.jpg)
 
-[![Screenshot](images/shot3.png)](images/shot3.png)
+[![Screenshot](images/shot3.jpg)](images/shot3.jpg)
 
 ### To run
 
