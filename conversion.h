@@ -86,11 +86,11 @@ typedef struct _Conversion {
 typedef struct _ConversionClass {
 	GObjectClass parent_class;
 
-	/* Track image load.
+	/* Signal image eval.
 	 */
-	void (*preload)( Conversion *conversion, VipsProgress *progress );
-	void (*load)( Conversion *conversion, VipsProgress *progress );
-	void (*postload)( Conversion *conversion, VipsProgress *progress );
+	void (*preeval)( Conversion *conversion, VipsProgress *progress );
+	void (*eval)( Conversion *conversion, VipsProgress *progress );
+	void (*posteval)( Conversion *conversion, VipsProgress *progress );
 
 	/* The whole conversion has changed, eg. new image loaded.
 	 */

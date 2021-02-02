@@ -36,9 +36,9 @@ enum {
 
         /* Our signals. 
          */
-        SIG_PRELOAD,
-        SIG_LOAD,
-        SIG_POSTLOAD,
+        SIG_PREEVAL,
+        SIG_EVAL,
+        SIG_POSTEVAL,
         SIG_CHANGED,		/* The whole conversion has changed */
         SIG_DISPLAY_CHANGED,	/* The whole display has changed */
         SIG_AREA_CHANGED,	/* A tile has changed in the image */
@@ -295,7 +295,7 @@ conversion_preeval_cb( void *user_data )
 #endif /*DEBUG*/
 
         g_signal_emit( update->conversion, 
-                conversion_signals[SIG_PRELOAD], 0, update->progress );
+                conversion_signals[SIG_PREEVAL], 0, update->progress );
 
         g_free( update );
 
@@ -323,7 +323,7 @@ conversion_eval_cb( void *user_data )
                 (ConversionBackgroundLoadUpdate *) user_data;
 
         g_signal_emit( update->conversion, 
-                conversion_signals[SIG_LOAD], 0, update->progress );
+                conversion_signals[SIG_EVAL], 0, update->progress );
 
         g_free( update );
 
@@ -355,7 +355,7 @@ conversion_posteval_cb( void *user_data )
 #endif /*DEBUG*/
 
         g_signal_emit( update->conversion, 
-                conversion_signals[SIG_POSTLOAD], 0, update->progress );
+                conversion_signals[SIG_POSTEVAL], 0, update->progress );
 
         g_free( update );
 
@@ -1228,28 +1228,28 @@ conversion_class_init( ConversionClass *class )
                         FALSE,
                         G_PARAM_READWRITE ) );
 
-        conversion_signals[SIG_PRELOAD] = g_signal_new( "preload",
+        conversion_signals[SIG_PREEVAL] = g_signal_new( "preeval",
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
-                G_STRUCT_OFFSET( ConversionClass, preload ), 
+                G_STRUCT_OFFSET( ConversionClass, preeval ), 
                 NULL, NULL,
                 g_cclosure_marshal_VOID__POINTER,
                 G_TYPE_NONE, 1,
                 G_TYPE_POINTER );
 
-        conversion_signals[SIG_LOAD] = g_signal_new( "load",
+        conversion_signals[SIG_EVAL] = g_signal_new( "eval",
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
-                G_STRUCT_OFFSET( ConversionClass, load ), 
+                G_STRUCT_OFFSET( ConversionClass, eval ), 
                 NULL, NULL,
                 g_cclosure_marshal_VOID__POINTER,
                 G_TYPE_NONE, 1,
                 G_TYPE_POINTER );
 
-        conversion_signals[SIG_POSTLOAD] = g_signal_new( "postload",
+        conversion_signals[SIG_POSTEVAL] = g_signal_new( "posteval",
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
-                G_STRUCT_OFFSET( ConversionClass, postload ), 
+                G_STRUCT_OFFSET( ConversionClass, posteval ), 
                 NULL, NULL,
                 g_cclosure_marshal_VOID__POINTER,
                 G_TYPE_NONE, 1,
@@ -1379,7 +1379,6 @@ conversion_write_to_file( Conversion *conversion, const char *file )
 {
 	int result;
 
-	//conversion_attach_progress( conversion );
 	result = vips_image_write_to_file( conversion->image, file, NULL );
 
 	return( result );

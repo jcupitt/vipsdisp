@@ -101,6 +101,15 @@ imagepresent_set_window_position( Imagepresent *imagepresent,
 }
 
 void
+imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu )
+{
+	g_assert( !imagepresent->menu );
+
+	imagepresent->menu = menu;
+	gtk_menu_attach_to_widget( menu, GTK_WIDGET( imagepresent ), NULL );
+}
+
+void
 imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 {
 	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
@@ -512,6 +521,10 @@ imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event,
 
 			handled = TRUE;
 		}
+		else if( event->button == 3 && 
+			imagepresent->menu ) 
+			gtk_menu_popup_at_pointer( imagepresent->menu, 
+				(GdkEvent *) event );
 		break;
 	
 	default:

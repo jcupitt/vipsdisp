@@ -35,6 +35,10 @@ typedef struct _Imagepresent {
 	int drag_start_x;
 	int drag_start_y;
 
+	/* Rightclick menu we display.
+	 */
+	GtkMenu *menu;
+
 } Imagepresent;
 
 typedef struct _ImagepresentClass {
@@ -51,6 +55,8 @@ void imagepresent_set_window_position( Imagepresent *imagepresent,
 
 gboolean imagepresent_get_image_size( Imagepresent *imagepresent, 
 	int *width, int *height );
+
+void imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu );
 
 void imagepresent_set_mag( Imagepresent *imagepresent, int mag );
 void imagepresent_magin( Imagepresent *imagepresent, int x, int y );

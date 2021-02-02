@@ -57,11 +57,15 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
+- save-as does not trigger progress display
+
+- hook up cancel button on progress
+
 - dark theme?
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
-- duplicate does not copy over falsecolour or log
+  duplicate does not copy over falsecolour or log
 
 - error bar needs a "close" button, perhaps an error icon, perhaps some colour
 
@@ -71,8 +75,6 @@ and sets properties of `Conversion` to zoom etc.
   then?
 
 - header display
-
-- "save as" needs a progress bar ... reuse the load one? add "cancel"?
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 

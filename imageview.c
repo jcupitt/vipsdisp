@@ -29,40 +29,48 @@ imageview_hide_error( Imageview *imageview )
 }
 
 static void
-imageview_preload( Conversion *conversion, 
+imageview_preeval( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 #ifdef DEBUG
-	printf( "imageview_preload:\n" ); 
+	printf( "imageview_preeval:\n" ); 
 #endif /*DEBUG*/
 
 	gtk_widget_show( imageview->progress_box );
 }
 
 static void
-imageview_load( Conversion *conversion, 
+imageview_eval( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 	static int previous_precent = -1;
 
 	if( progress->percent != previous_precent ) {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
 #ifdef DEBUG
-		printf( "imageview_load: %d%%\n", progress->percent ); 
+		printf( "imageview_eval: %d%%\n", progress->percent ); 
 #endif /*DEBUG*/
 
 		gtk_progress_bar_set_fraction( 
 			GTK_PROGRESS_BAR( imageview->progress ), 
 			progress->percent / 100.0 ); 
+		vips_buf_appendf( &buf, "%d%% complete, %d seconds to go", 
+			progress->percent, progress->eta );
+		gtk_progress_bar_set_text( 
+			GTK_PROGRESS_BAR( imageview->progress ), 
+			vips_buf_all( &buf ) );
 		previous_precent = progress->percent;
 	}
 }
 
 static void
-imageview_postload( Conversion *conversion, 
+imageview_posteval( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
 #ifdef DEBUG
-	printf( "imageview_postload:\n" ); 
+	printf( "imageview_posteval:\n" ); 
 #endif /*DEBUG*/
 
 	gtk_widget_hide( imageview->progress_box );
@@ -517,11 +525,11 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 static void
 imageview_init( Imageview *imageview )
 {
-	GtkWidget *open;
+	GtkWidget *button;
 	GtkWidget *image;
 	GtkWidget *menu_button;
 	GtkBuilder *builder;
-	GMenuModel *menu;
+	GMenuModel *model;
 	GtkWidget *grid;
 
 	g_action_map_add_action_entries( G_ACTION_MAP( imageview ), 
@@ -535,12 +543,12 @@ imageview_init( Imageview *imageview )
 	gtk_header_bar_set_show_close_button( 
 		GTK_HEADER_BAR( imageview->header_bar ), TRUE );
 
-	open = gtk_button_new_with_label( "Load ..." );
+	button = gtk_button_new_with_label( "Load ..." );
 	gtk_header_bar_pack_start( 
-		GTK_HEADER_BAR( imageview->header_bar ), open ); 
-	g_signal_connect( open, "clicked", 
+		GTK_HEADER_BAR( imageview->header_bar ), button ); 
+	g_signal_connect( button, "clicked", 
 		G_CALLBACK( imageview_open_clicked ), imageview );
-	gtk_widget_show( open );
+	gtk_widget_show( button );
 
 	menu_button = gtk_menu_button_new();
 	image = gtk_image_new_from_icon_name( "open-menu-symbolic", 
@@ -553,9 +561,9 @@ imageview_init( Imageview *imageview )
 
 	builder = gtk_builder_new_from_resource( 
 		"/vips/disp/gtk/imageview-popover.ui" ); 
-	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
+	model = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"imageview-popover-menu" ) );
-	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), menu );
+	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( menu_button ), model );
 	g_object_unref( builder );
 
 	gtk_window_set_titlebar( GTK_WINDOW( imageview ), 
@@ -570,12 +578,20 @@ imageview_init( Imageview *imageview )
 
 	/* Progress.
 	 */
-	imageview->progress_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+	imageview->progress_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_widget_set_margin_top( imageview->progress_box, 3 );
+	gtk_widget_set_margin_bottom( imageview->progress_box, 3 );
 	imageview->progress = gtk_progress_bar_new();
-	gtk_widget_set_hexpand( imageview->progress, TRUE ); 
+	gtk_progress_bar_set_show_text( 
+		GTK_PROGRESS_BAR( imageview->progress ), TRUE );
 	gtk_box_pack_start( GTK_BOX( imageview->progress_box ), 
-		imageview->progress, TRUE, TRUE, 0 );
+		imageview->progress, TRUE, TRUE, 3 );
+	gtk_widget_set_valign( imageview->progress, GTK_ALIGN_CENTER );
 	gtk_widget_show( imageview->progress );
+	button = gtk_button_new_with_label( "Cancel" );
+	gtk_box_pack_end( GTK_BOX( imageview->progress_box ), 
+		button, FALSE, FALSE, 3 );
+	gtk_widget_show( button );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->progress_box, 0, 0, 1, 1 );
 
@@ -598,14 +614,17 @@ imageview_init( Imageview *imageview )
 		GTK_WIDGET( imageview->imagepresent ), 0, 2, 1, 1 ); 
 	gtk_widget_show( GTK_WIDGET( imageview->imagepresent ) );
 
-	g_signal_connect( imageview->imagepresent->conversion, "preload",
-		G_CALLBACK( imageview_preload ), imageview );
-	g_signal_connect( imageview->imagepresent->conversion, "load",
-		G_CALLBACK( imageview_load ), imageview );
-	g_signal_connect( imageview->imagepresent->conversion, "postload",
-		G_CALLBACK( imageview_postload ), imageview );
+	g_signal_connect( imageview->imagepresent->conversion, "preeval",
+		G_CALLBACK( imageview_preeval ), imageview );
+	g_signal_connect( imageview->imagepresent->conversion, "eval",
+		G_CALLBACK( imageview_eval ), imageview );
+	g_signal_connect( imageview->imagepresent->conversion, "posteval",
+		G_CALLBACK( imageview_posteval ), imageview );
 	g_signal_connect( imageview->imagepresent->conversion, "changed",
 		G_CALLBACK( imageview_changed ), imageview );
+
+	imagepresent_set_menu( imageview->imagepresent, 
+		GTK_MENU( gtk_menu_new_from_model( model ) ) );
 
 	/* Display control.
 	 */
