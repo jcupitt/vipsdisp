@@ -12,8 +12,8 @@
 #include "disp.h"
 
 /*
-#define DEBUG
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */
@@ -74,6 +74,8 @@ conversion_changed( Conversion *conversion )
 static void
 conversion_disconnect( Conversion *conversion )
 {
+	printf( "conversion_disconnect:\n" );
+
         if( !conversion->image ) {
                 g_assert( !conversion->preeval_sig );
                 return;
@@ -274,114 +276,37 @@ conversion_get_tiff_pyramid_page( Conversion *conversion )
         conversion->level_count = conversion->n_pages;
 }
 
-/* The pre/eval/post callbacks run from the background load thread. We can't
- * call into gtk directly: instead, add an idle callback to trigger the
- * signal from conversion.
- */
-typedef struct _ConversionBackgroundLoadUpdate {
-        Conversion *conversion;
-        VipsImage *image;
-        VipsProgress *progress;
-} ConversionBackgroundLoadUpdate;
-
-static gboolean
-conversion_preeval_cb( void *user_data )
-{
-        ConversionBackgroundLoadUpdate *update = 
-                (ConversionBackgroundLoadUpdate *) user_data;
-
-#ifdef DEBUG
-        printf( "conversion_preeval_cb:\n" ); 
-#endif /*DEBUG*/
-
-        g_signal_emit( update->conversion, 
-                conversion_signals[SIG_PREEVAL], 0, update->progress );
-
-        g_free( update );
-
-        return( FALSE ); 
-}
 
 static void
 conversion_preeval( VipsImage *image, 
         VipsProgress *progress, Conversion *conversion )
 {
-        ConversionBackgroundLoadUpdate *update = 
-                g_new( ConversionBackgroundLoadUpdate, 1 );
-
-        update->conversion = conversion;
-        update->image = image;
-        update->progress = progress;
-
-        g_idle_add( conversion_preeval_cb, update );
-}
-
-static gboolean
-conversion_eval_cb( void *user_data )
-{
-        ConversionBackgroundLoadUpdate *update = 
-                (ConversionBackgroundLoadUpdate *) user_data;
-
-        g_signal_emit( update->conversion, 
-                conversion_signals[SIG_EVAL], 0, update->progress );
-
-        g_free( update );
-
-        return( FALSE ); 
+        g_signal_emit( conversion, 
+                conversion_signals[SIG_PREEVAL], 0, progress );
 }
 
 static void
 conversion_eval( VipsImage *image, 
         VipsProgress *progress, Conversion *conversion )
 {
-        ConversionBackgroundLoadUpdate *update = 
-                g_new( ConversionBackgroundLoadUpdate, 1 );
-
-        update->conversion = conversion;
-        update->image = image;
-        update->progress = progress;
-
-        g_idle_add( conversion_eval_cb, update );
-}
-
-static gboolean
-conversion_posteval_cb( void *user_data )
-{
-        ConversionBackgroundLoadUpdate *update = 
-                (ConversionBackgroundLoadUpdate *) user_data;
-
-#ifdef DEBUG
-        printf( "conversion_posteval_cb:\n" ); 
-#endif /*DEBUG*/
-
-        g_signal_emit( update->conversion, 
-                conversion_signals[SIG_POSTEVAL], 0, update->progress );
-
-        g_free( update );
-
-        return( FALSE ); 
+        g_signal_emit( conversion, 
+                conversion_signals[SIG_EVAL], 0, progress );
 }
 
 static void
 conversion_posteval( VipsImage *image, 
         VipsProgress *progress, Conversion *conversion )
 {
-        ConversionBackgroundLoadUpdate *update = 
-                g_new( ConversionBackgroundLoadUpdate, 1 );
-
-        update->conversion = conversion;
-        update->image = image;
-        update->progress = progress;
-
-        g_idle_add( conversion_posteval_cb, update );
+        g_signal_emit( conversion, 
+                conversion_signals[SIG_POSTEVAL], 0, progress );
 }
 
 static void
 conversion_attach_progress( Conversion *conversion )
 {
 #ifdef DEBUG
-        printf( "conversion_attach_progress:\n" ); 
 #endif /*DEBUG*/
+        printf( "conversion_attach_progress:\n" ); 
 
         g_assert( conversion->preeval_sig == 0 ); 
 
@@ -926,11 +851,6 @@ conversion_set_property( GObject *object,
                         vips_error_clear();
                 }
 		else {
-			/* We have a new source and image -- we're about to 
-			 * junk everything.
-			 */
-			conversion_disconnect( conversion );
-
 			conversion->loader = loader; 
 			conversion->source = source; 
 			g_object_ref( source );
@@ -1379,6 +1299,7 @@ conversion_write_to_file( Conversion *conversion, const char *file )
 {
 	int result;
 
+        vips_image_set_progress( conversion->image, TRUE ); 
 	result = vips_image_write_to_file( conversion->image, file, NULL );
 
 	return( result );

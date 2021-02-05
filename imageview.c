@@ -14,6 +14,18 @@
 G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 
 static void
+imageview_destroy( GtkWidget *widget )
+{
+	Imageview *imageview = (Imageview *) widget;
+
+#ifdef DEBUG
+	printf( "imageview_destroy: %p\n", imageview ); 
+#endif /*DEBUG*/
+
+	GTK_WIDGET_CLASS( imageview_parent_class )->destroy( widget );
+}
+
+static void
 imageview_show_error( Imageview *imageview )
 {
 	gtk_label_set_text( GTK_LABEL( imageview->error_label ), 
@@ -43,15 +55,15 @@ static void
 imageview_eval( Conversion *conversion, 
 	VipsProgress *progress, Imageview *imageview )
 {
-	static int previous_precent = -1;
-
-	if( progress->percent != previous_precent ) {
-		char str[256];
-		VipsBuf buf = VIPS_BUF_STATIC( str );
+	static int previous_percent = -1;
 
 #ifdef DEBUG
-		printf( "imageview_eval: %d%%\n", progress->percent ); 
+	printf( "imageview_eval: %d%%\n", progress->percent ); 
 #endif /*DEBUG*/
+
+	if( progress->percent != previous_percent ) {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
 
 		gtk_progress_bar_set_fraction( 
 			GTK_PROGRESS_BAR( imageview->progress ), 
@@ -61,8 +73,13 @@ imageview_eval( Conversion *conversion,
 		gtk_progress_bar_set_text( 
 			GTK_PROGRESS_BAR( imageview->progress ), 
 			vips_buf_all( &buf ) );
-		previous_precent = progress->percent;
+
+		previous_percent = progress->percent;
 	}
+
+	/* Run one loop iteration, don't block.
+	 */
+	(void) gtk_main_iteration_do( FALSE );
 }
 
 static void
@@ -230,6 +247,7 @@ imageview_saveas( GSimpleAction *action,
 
 	GtkWidget *dialog;
 	const char *path;
+	char *selected_filename;
 	int result;
 
 	if( !conversion->image )
@@ -249,21 +267,20 @@ imageview_saveas( GSimpleAction *action,
 		gtk_file_chooser_set_current_name( GTK_FILE_CHOOSER( dialog ),
 			"untitled document" );
 
+	/* We need to pop down immediately so we expose the cancel
+	 * button.
+	 */
+	imageview_hide_error( imageview ); 
 	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
-	if( result == GTK_RESPONSE_ACCEPT ) {
-		char *file;
-
-		imageview_hide_error( imageview ); 
-		file = gtk_file_chooser_get_filename( 
-			GTK_FILE_CHOOSER( dialog ) );
-		if( conversion_write_to_file( conversion, file ) ) {
-			imageview_show_error( imageview );
-			g_free( file );
-		}
-		g_free( file );
-	}
-
+	selected_filename = gtk_file_chooser_get_filename( 
+		GTK_FILE_CHOOSER( dialog ) );
 	gtk_widget_destroy( dialog );
+
+	if( result == GTK_RESPONSE_ACCEPT &&
+		conversion_write_to_file( conversion, selected_filename ) ) 
+		imageview_show_error( imageview );
+
+	g_free( selected_filename );
 }
 
 static void
@@ -523,6 +540,15 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 }
 
 static void
+imageview_cancel_clicked( GtkWidget *button, Imageview *imageview )
+{
+	Conversion *conversion = imageview->imagepresent->conversion;
+
+	if( conversion->image )
+		vips_image_set_kill( conversion->image, TRUE );
+}
+
+static void
 imageview_init( Imageview *imageview )
 {
 	GtkWidget *button;
@@ -589,6 +615,8 @@ imageview_init( Imageview *imageview )
 	gtk_widget_set_valign( imageview->progress, GTK_ALIGN_CENTER );
 	gtk_widget_show( imageview->progress );
 	button = gtk_button_new_with_label( "Cancel" );
+	g_signal_connect( button, "clicked", 
+		G_CALLBACK( imageview_cancel_clicked ), imageview );
 	gtk_box_pack_end( GTK_BOX( imageview->progress_box ), 
 		button, FALSE, FALSE, 3 );
 	gtk_widget_show( button );
@@ -645,6 +673,9 @@ imageview_init( Imageview *imageview )
 static void
 imageview_class_init( ImageviewClass *class )
 {
+	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
+
+	widget_class->destroy = imageview_destroy;
 }
 
 Imageview *

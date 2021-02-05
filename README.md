@@ -57,15 +57,17 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- save-as does not trigger progress display
-
-- hook up cancel button on progress
+- saveas seems to leak a VipsForeignLoadJpegSource
 
 - dark theme?
 
 - duplicate does not copy scroll position? see imageview_duplicate()
 
+  how do we set pan position on magin?
+
   duplicate does not copy over falsecolour or log
+
+- magin should centre on mouse pointer, not on screen
 
 - error bar needs a "close" button, perhaps an error icon, perhaps some colour
 
