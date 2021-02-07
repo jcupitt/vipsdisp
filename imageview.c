@@ -28,9 +28,17 @@ imageview_destroy( GtkWidget *widget )
 static void
 imageview_show_error( Imageview *imageview )
 {
-	gtk_label_set_text( GTK_LABEL( imageview->error_label ), 
-		vips_error_buffer() ); 
-	vips_error_clear();
+	char *err;
+	int i;
+
+	/* Remove any trailing \n.
+	 */
+	err = vips_error_buffer_copy();
+	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
+		err[i - 1] = '\0';
+	gtk_label_set_text( GTK_LABEL( imageview->error_label ), err );
+	g_free( err );
+
 	gtk_widget_show( imageview->error_box );
 }
 
@@ -549,6 +557,12 @@ imageview_cancel_clicked( GtkWidget *button, Imageview *imageview )
 }
 
 static void
+imageview_error_close_clicked( GtkWidget *button, Imageview *imageview )
+{
+	imageview_hide_error( imageview );
+}
+
+static void
 imageview_init( Imageview *imageview )
 {
 	GtkWidget *button;
@@ -625,11 +639,25 @@ imageview_init( Imageview *imageview )
 
 	/* Error display.
 	 */
-	imageview->error_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-	imageview->error_label = gtk_label_new( "hello" );
+	imageview->error_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_widget_set_margin_top( imageview->error_box, 3 );
+	gtk_widget_set_margin_bottom( imageview->error_box, 3 );
+	image = gtk_image_new_from_icon_name( "dialog-error", 
+		GTK_ICON_SIZE_LARGE_TOOLBAR );
+	gtk_widget_show( image );
 	gtk_box_pack_start( GTK_BOX( imageview->error_box ), 
-		imageview->error_label, TRUE, TRUE, 0 );
+		image, FALSE, FALSE, 3 );
+	imageview->error_label = gtk_label_new( "" );
+	gtk_box_pack_start( GTK_BOX( imageview->error_box ), 
+		imageview->error_label, TRUE, TRUE, 3 );
 	gtk_widget_show( imageview->error_label );
+	button = gtk_button_new_with_label( "Close" );
+	g_signal_connect( button, "clicked", 
+		G_CALLBACK( imageview_error_close_clicked ), imageview );
+	gtk_widget_set_valign( button, GTK_ALIGN_END );
+	gtk_box_pack_end( GTK_BOX( imageview->error_box ), 
+		button, FALSE, FALSE, 3 );
+	gtk_widget_show( button );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		imageview->error_box, 0, 1, 1, 1 );
 

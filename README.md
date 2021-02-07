@@ -65,13 +65,6 @@ and sets properties of `Conversion` to zoom etc.
 
   duplicate does not copy over falsecolour or log
 
-- error bar needs fixing up 
-
-    vipsdisp banana.poop to test
-    a "close" button
-    perhaps an error icon
-    perhaps some colour
-
 - save settings like info bar, display bar etc.
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
