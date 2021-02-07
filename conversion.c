@@ -12,8 +12,8 @@
 #include "disp.h"
 
 /*
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -74,7 +74,9 @@ conversion_changed( Conversion *conversion )
 static void
 conversion_disconnect( Conversion *conversion )
 {
+#ifdef DEBUG
 	printf( "conversion_disconnect:\n" );
+#endif /*DEBUG*/
 
         if( !conversion->image ) {
                 g_assert( !conversion->preeval_sig );
@@ -305,8 +307,8 @@ static void
 conversion_attach_progress( Conversion *conversion )
 {
 #ifdef DEBUG
-#endif /*DEBUG*/
         printf( "conversion_attach_progress:\n" ); 
+#endif /*DEBUG*/
 
         g_assert( conversion->preeval_sig == 0 ); 
 

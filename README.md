@@ -57,19 +57,20 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- saveas seems to leak a VipsForeignLoadJpegSource
-
-- dark theme?
-
 - duplicate does not copy scroll position? see imageview_duplicate()
 
   how do we set pan position on magin?
 
+    magin should centre on mouse pointer, not on screen
+
   duplicate does not copy over falsecolour or log
 
-- magin should centre on mouse pointer, not on screen
+- error bar needs fixing up 
 
-- error bar needs a "close" button, perhaps an error icon, perhaps some colour
+    vipsdisp banana.poop to test
+    a "close" button
+    perhaps an error icon
+    perhaps some colour
 
 - save settings like info bar, display bar etc.
 
@@ -86,3 +87,4 @@ and sets properties of `Conversion` to zoom etc.
 
 - we do not size the initial window very intelligently :( it's always 800x800
 
+- dark theme?
