@@ -219,7 +219,7 @@ imageview_duplicate( GSimpleAction *action,
 	Conversion *conversion = imageview->imagepresent->conversion;
 
 	Imageview *new_imageview;
-	int left, top, width, height;
+	int width, height;
 
 	new_imageview = imageview_new_from_source( 
 		GTK_APPLICATION( imageview->disp ), 
@@ -240,10 +240,21 @@ imageview_duplicate( GSimpleAction *action,
 	gtk_window_get_size( GTK_WINDOW( imageview ), &width, &height );
 	gtk_window_resize( GTK_WINDOW( new_imageview ), width, height );
 
-	imagepresent_get_window_position( imageview->imagepresent, 
-		&left, &top, &width, &height );
-	imagepresent_set_window_position( new_imageview->imagepresent, 
-		left, top );
+	/* We want to init the scroll position, but we can't do that until the
+	 * adj range is set, and that won't happen until the image is loaded.
+	 *
+	 * Just copy the adj settings from the current window.
+	 */
+	copy_adj( 
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( new_imageview->imagepresent ) ),
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( imageview->imagepresent ) ) );
+	copy_adj( 
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( new_imageview->imagepresent ) ),
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( imageview->imagepresent ) ) );
 }
 
 static void

@@ -114,3 +114,17 @@ set_tooltip( GtkWidget *wid, const char *fmt, ... )
         g_free( txt );
 }
 
+void
+copy_adj( GtkAdjustment *to, GtkAdjustment *from )
+{
+	double value = gtk_adjustment_get_value( from );
+	double lower = gtk_adjustment_get_lower( from );
+	double upper = gtk_adjustment_get_upper( from );
+	double step_increment = gtk_adjustment_get_step_increment( from );
+	double page_increment = gtk_adjustment_get_page_increment( from );
+	double page_size = gtk_adjustment_get_page_size( from );
+
+	gtk_adjustment_configure( to, value, 
+		lower, upper, 
+		step_increment, page_increment, page_size );
+}

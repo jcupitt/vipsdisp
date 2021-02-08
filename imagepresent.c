@@ -112,11 +112,6 @@ imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu )
 void
 imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 {
-	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
-		GTK_SCROLLED_WINDOW( imagepresent ) );
-
 	int image_x;
 	int image_y;
 	int width;
@@ -134,25 +129,31 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 
 	g_object_set( imagepresent->conversion, "mag", mag, NULL ); 
 
-	conversion_to_display_cods( imagepresent->conversion,
-		image_x, image_y,
-		&imagepresent->last_x, &imagepresent->last_y );
-
-	/* We've set the size of the imagedisplay DrawingArea to the new image
-	 * size, but the adjustments won't get updated until we hit the main
-	 * loop again. If we set position after calling set_mag, we need to
-	 * have the new adj range set immediately.
+	/* Update the adjustments range.
+	 *
+	 * After we change the drawingarea size, the adjustments won't get 
+	 * updated until we hit the gtk+ main loop again, but that will be too
+	 * late, and any imagepresent_set_window_position after this will fail
+	 * to work correctly.
 	 */
 	if( imagepresent_get_display_image_size( imagepresent, 
 		&width, &height ) ) { 
+		GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( imagepresent ) );
+		GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( imagepresent ) );
 #ifdef DEBUG
-		printf( "imagepresent_set_mag: new size %d %d\n", 
-			width, height ); 
 #endif /*DEBUG*/
+		printf( "imagepresent_init_adjustments: new size %d %d\n", 
+			width, height ); 
 
 		gtk_adjustment_set_upper( hadj, width );
 		gtk_adjustment_set_upper( vadj, height );
 	}
+
+	conversion_to_display_cods( imagepresent->conversion,
+		image_x, image_y,
+		&imagepresent->last_x, &imagepresent->last_y );
 
 	/* mag has changed.
 	 */
