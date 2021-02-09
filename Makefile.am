@@ -4,6 +4,7 @@ bin_PROGRAMS = vipsdisp
 
 vipsdisp_SOURCES = \
 	disp-gresources.c \
+	settings.c \
 	disp.c \
 	disp.h \
 	gtkutil.h \

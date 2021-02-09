@@ -128,3 +128,36 @@ copy_adj( GtkAdjustment *to, GtkAdjustment *from )
 		lower, upper, 
 		step_increment, page_increment, page_size );
 }
+
+void
+change_state( GtkWidget *widget, const char *name, GVariant *state )
+{
+	GAction *action;
+
+	action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
+	if( action )
+		g_action_change_state( action, state );
+}
+
+GVariant *
+get_state( GtkWidget *widget, const char *name )
+{
+	GAction *action;
+
+	action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
+	if( !action ) 
+		return( NULL );
+
+	return( g_action_get_state( action ) );
+}
+
+void
+copy_state( GtkWidget *to, GtkWidget *from, const char *name )
+{
+	GVariant *state;
+
+	if( (state = get_state( from, name )) ) {
+		change_state( to, name, state );
+		g_variant_unref( state );
+	}
+}

@@ -59,11 +59,7 @@ and sets properties of `Conversion` to zoom etc.
 
 - magin should centre on mouse pointer, not on screen
 
-- duplicate does not copy over falsecolour or log
-
 - don't tile on backing store fill, do zoom / subsample
-
-- save settings like info bar, display bar etc.
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
@@ -75,7 +71,5 @@ and sets properties of `Conversion` to zoom etc.
 - replace image during load can crash the viewer
 
   is this still true? check
-
-- we do not size the initial window very intelligently :( it's always 800x800
 
 - dark theme?

@@ -231,5 +231,8 @@ main( int argc, char **argv )
 
 	g_object_unref( disp );
 
+	if( settings_save() )
+		vips_error_exit( "unable to save settings" );
+
 	return( status );
 }

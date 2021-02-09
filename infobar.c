@@ -242,5 +242,9 @@ infobar_new( Imagepresent *imagepresent )
 	g_signal_connect( infobar->imagepresent, "position_changed", 
 		G_CALLBACK( infobar_position_changed ), infobar );
 
+	/* Initial refresh.
+	 */
+	infobar_status_update( infobar );
+
 	return( infobar ); 
 }

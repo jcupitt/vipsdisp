@@ -129,7 +129,7 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 
 	g_object_set( imagepresent->conversion, "mag", mag, NULL ); 
 
-	/* Update the adjustments range.
+	/* Update the adjustment range.
 	 *
 	 * After we change the drawingarea size, the adjustments won't get 
 	 * updated until we hit the gtk+ main loop again, but that will be too
@@ -143,9 +143,9 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 		GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
 			GTK_SCROLLED_WINDOW( imagepresent ) );
 #ifdef DEBUG
-#endif /*DEBUG*/
 		printf( "imagepresent_init_adjustments: new size %d %d\n", 
 			width, height ); 
+#endif /*DEBUG*/
 
 		gtk_adjustment_set_upper( hadj, width );
 		gtk_adjustment_set_upper( vadj, height );

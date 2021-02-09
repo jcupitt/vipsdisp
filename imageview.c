@@ -16,8 +16,6 @@ G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 static void
 imageview_destroy( GtkWidget *widget )
 {
-	Imageview *imageview = (Imageview *) widget;
-
 #ifdef DEBUG
 	printf( "imageview_destroy: %p\n", imageview ); 
 #endif /*DEBUG*/
@@ -190,28 +188,6 @@ imageview_bestfit( GSimpleAction *action,
 }
 
 static void
-imageview_copy_state( Imageview *new_imageview, Imageview *old_imageview, 
-	const char *action_name )
-{
-	GAction *old_action;
-	GAction *new_action;
-
-	old_action = g_action_map_lookup_action( G_ACTION_MAP( old_imageview ), 
-		action_name );
-	new_action = g_action_map_lookup_action( G_ACTION_MAP( new_imageview ), 
-		action_name );
-
-	if( old_action &&
-		new_action ) {
-		GVariant *state;
-
-		state = g_action_get_state( old_action );
-		g_action_change_state( new_action, state );
-		VIPS_FREEF( g_variant_unref, state );
-	}
-}
-
-static void
 imageview_duplicate( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
@@ -233,12 +209,19 @@ imageview_duplicate( GSimpleAction *action,
 		"offset", conversion->offset,
 		NULL );
 
-	imageview_copy_state( new_imageview, imageview, "control" );
-	imageview_copy_state( new_imageview, imageview, "info" );
-	imageview_copy_state( new_imageview, imageview, "fullscreen" );
-
 	gtk_window_get_size( GTK_WINDOW( imageview ), &width, &height );
 	gtk_window_resize( GTK_WINDOW( new_imageview ), width, height );
+
+	copy_state( GTK_WIDGET( new_imageview ), 
+		GTK_WIDGET( imageview ), "control" );
+	copy_state( GTK_WIDGET( new_imageview ), 
+		GTK_WIDGET( imageview ), "info" );
+	copy_state( GTK_WIDGET( new_imageview ), 
+		GTK_WIDGET( imageview ), "fullscreen" );
+	copy_state( GTK_WIDGET( new_imageview ), 
+		GTK_WIDGET( imageview ), "log" );
+	copy_state( GTK_WIDGET( new_imageview ), 
+		GTK_WIDGET( imageview ), "falsecolour" );
 
 	/* We want to init the scroll position, but we can't do that until the
 	 * adj range is set, and that won't happen until the image is loaded.
@@ -345,6 +328,8 @@ imageview_control( GSimpleAction *action,
 
 	gtk_widget_set_visible( GTK_WIDGET( imageview->conversionview ), 
 		g_variant_get_boolean( state ) );
+	settings_setb( "image-display", 
+		"show-display-control-bar", g_variant_get_boolean( state ) );
 
 	g_simple_action_set_state( action, state );
 }
@@ -357,6 +342,8 @@ imageview_info( GSimpleAction *action,
 
 	gtk_widget_set_visible( GTK_WIDGET( imageview->infobar ), 
 		g_variant_get_boolean( state ) );
+	settings_setb( "image-display", 
+		"show-display-info-bar", g_variant_get_boolean( state ) );
 
 	g_simple_action_set_state( action, state );
 }
@@ -470,12 +457,9 @@ static void
 imageview_mode( GSimpleAction *action,
 	GVariant *state, gpointer user_data )
 {
-	Imageview *imageview = (Imageview *) user_data;
-
-	const gchar *str;
-
-	str = g_variant_get_string( state, NULL );
-
+	//Imageview *imageview = (Imageview *) user_data;
+	//const gchar *str;
+	//str = g_variant_get_string( state, NULL );
 	//if( g_str_equal( str, "toilet" ) ) 
 	//   ...
 	//else
@@ -521,7 +505,7 @@ static GActionEntry imageview_entries[] = {
 };
 
 static void
-imageview_open_clicked( GtkWidget *button, Imageview *imageview )
+imageview_replace_clicked( GtkWidget *button, Imageview *imageview )
 {
 	Conversion *conversion = imageview->imagepresent->conversion;
 
@@ -529,11 +513,11 @@ imageview_open_clicked( GtkWidget *button, Imageview *imageview )
 	const char *path;
 	int result;
 
-	dialog = gtk_file_chooser_dialog_new( "Select a file",
+	dialog = gtk_file_chooser_dialog_new( "Replace from file",
 		GTK_WINDOW( imageview ) , 
 		GTK_FILE_CHOOSER_ACTION_OPEN,
 		"_Cancel", GTK_RESPONSE_CANCEL,
-		"_Open", GTK_RESPONSE_ACCEPT,
+		"_Replace", GTK_RESPONSE_ACCEPT,
 		NULL );
 
 	if( (path = conversion_get_path( conversion )) )
@@ -574,6 +558,16 @@ imageview_error_close_clicked( GtkWidget *button, Imageview *imageview )
 }
 
 static void
+imageview_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
+{
+	int new_width, new_height;
+
+	gtk_window_get_size( GTK_WINDOW( widget ), &new_width, &new_height );
+	settings_seti( "image-display", "window-width", new_width );
+	settings_seti( "image-display", "window-height", new_height );
+}
+
+static void
 imageview_init( Imageview *imageview )
 {
 	GtkWidget *button;
@@ -582,10 +576,14 @@ imageview_init( Imageview *imageview )
 	GtkBuilder *builder;
 	GMenuModel *model;
 	GtkWidget *grid;
+	GVariant *state;
 
 	g_action_map_add_action_entries( G_ACTION_MAP( imageview ), 
 		imageview_entries, G_N_ELEMENTS( imageview_entries ), 
 		imageview );
+
+	g_signal_connect( imageview, "size-allocate", 
+		G_CALLBACK( imageview_size_allocate ), imageview );
 
 	/* Header bar.
 	 */
@@ -594,11 +592,11 @@ imageview_init( Imageview *imageview )
 	gtk_header_bar_set_show_close_button( 
 		GTK_HEADER_BAR( imageview->header_bar ), TRUE );
 
-	button = gtk_button_new_with_label( "Load ..." );
+	button = gtk_button_new_with_label( "Replace ..." );
 	gtk_header_bar_pack_start( 
 		GTK_HEADER_BAR( imageview->header_bar ), button ); 
 	g_signal_connect( button, "clicked", 
-		G_CALLBACK( imageview_open_clicked ), imageview );
+		G_CALLBACK( imageview_replace_clicked ), imageview );
 	gtk_widget_show( button );
 
 	menu_button = gtk_menu_button_new();
@@ -699,14 +697,22 @@ imageview_init( Imageview *imageview )
 		conversionview_new( imageview->imagepresent->conversion );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->conversionview ), 0, 3, 1, 1 );
+	state = g_variant_new_boolean( 
+		settings_getb( "image-display", "show-display-control-bar" ) );
+	change_state( GTK_WIDGET( imageview ), "control", state );
 
 	/* Info bar.
 	 */
 	imageview->infobar = infobar_new( imageview->imagepresent );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->infobar ), 0, 4, 1, 1 );
+	state = g_variant_new_boolean( 
+		settings_getb( "image-display", "show-display-info-bar" ) );
+	change_state( GTK_WIDGET( imageview ), "info", state );
 
-	gtk_window_set_default_size( GTK_WINDOW( imageview ), 800, 800 ); 
+	gtk_window_set_default_size( GTK_WINDOW( imageview ), 
+		settings_geti( "image-display", "window-width" ),
+		settings_geti( "image-display", "window-height" ) );
 }
 
 static void
