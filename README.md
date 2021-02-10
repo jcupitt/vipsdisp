@@ -57,19 +57,15 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- magin should centre on mouse pointer, not on screen
-
-- don't tile on backing store fill, do zoom / subsample
-
-- perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
-  then?
-
 - header display
-
-- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - replace image during load can crash the viewer
 
   is this still true? check
+
+- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
+
+- perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
+  then?
 
 - dark theme?

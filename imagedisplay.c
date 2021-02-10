@@ -357,8 +357,8 @@ imagedisplay_get_preferred_height( GtkWidget *widget,
  */
 static void
 imagedisplay_init_buffer( Imagedisplay *imagedisplay,
-	unsigned char *new_buffer, int new_width, int new_height,
-	unsigned char *old_buffer, int old_width, int old_height )
+	VipsPel *new_buffer, int new_width, int new_height,
+	VipsPel *old_buffer, int old_width, int old_height )
 {
 	int x, y;
 

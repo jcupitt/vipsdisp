@@ -166,7 +166,20 @@ imageview_magout( GSimpleAction *action,
 {
 	Imageview *imageview = (Imageview *) user_data;
 
-	imagepresent_magout( imageview->imagepresent ); 
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+	int image_x;
+	int image_y;
+
+	imagepresent_get_window_position( imageview->imagepresent, 
+		&window_left, &window_top, &window_width, &window_height );
+	conversion_to_image_cods( imageview->imagepresent->conversion,
+		window_left + window_width / 2, window_top + window_height / 2, 
+		&image_x, &image_y ); 
+
+	imagepresent_magout( imageview->imagepresent, image_x, image_y ); 
 }
 
 static void

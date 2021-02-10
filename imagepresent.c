@@ -160,58 +160,49 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	imagepresent_position_changed( imagepresent );
 }
 
-/* Set mag, keeping the pixel in the centre of the screen in the centre of the
- * screen.
+/* Set a new mag, keeping the pixel at x/y in image coordinates at the same 
+ * position on the screen, if we can.
  */
-void
-imagepresent_set_mag_centre( Imagepresent *imagepresent, int mag )
+static void
+imagepresent_set_mag_position( Imagepresent *imagepresent, 
+	int mag, int x, int y )
 {
-	int window_left;
-	int window_top;
-	int window_width;
-	int window_height;
-
-	int image_x;
-	int image_y;
-	int display_x;
-	int display_y;
+	VipsRect old_point;
+	VipsRect new_point;
 
 #ifdef DEBUG
-	printf( "imagepresent_set_mag_centre:\n" ); 
+	printf( "imagepresent_set_mag_position: %d %d %d\n", mag, x, y ); 
 #endif /*DEBUG*/
 
-	imagepresent_get_window_position( imagepresent, 
-		&window_left, &window_top, &window_width, &window_height );
-
-	conversion_to_image_cods( imagepresent->conversion,
-		window_left + window_width / 2, window_top + window_height / 2,
-		&image_x, &image_y ); 
+	/* Map the image pixel at (x, y) to gtk space, ie. the space the user
+	 * sees.
+	 */
+	conversion_to_display_cods( imagepresent->conversion,
+		x, y,
+		&old_point.left, &old_point.top ); 
+	imagedisplay_image_to_gtk( imagepresent->imagedisplay, &old_point );
 
 	imagepresent_set_mag( imagepresent, mag );
 
+	/* Map image (x, y) to display coordinates, then move up and left by
+	 * the cursor poition to leave the same point at the same place.
+	 */
 	conversion_to_display_cods( imagepresent->conversion,
-		image_x, image_y,
-		&display_x, &display_y ); 
+		x, y,
+		&new_point.left, &new_point.top ); 
+
 	imagepresent_set_window_position( imagepresent,
-		display_x - window_width / 2, 
-		display_y - window_height / 2 );
+		new_point.left - old_point.left,
+		new_point.top - old_point.top );
 }
 
-/* Zoom in, positioning the pixel at x/y in image coordinates at the centre of
- * the window.
+/* Zoom in, keeping the pixel at x/y in image coordinates at the same position
+ * on the screen.
  */
 void
 imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 {
-	int window_left;
-	int window_top;
-	int window_width;
-	int window_height;
-
 	int mag;
-
-	int display_x;
-	int display_y;
 
 #ifdef DEBUG
 	printf( "imagepresent_magin: %d %d\n", x, y ); 
@@ -224,26 +215,20 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 	g_object_get( imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag <= 0 ) {
 		if( mag >= -2 )
-			imagepresent_set_mag( imagepresent, 1 );
+			imagepresent_set_mag_position( imagepresent, 1, x, y );
 		else
-			imagepresent_set_mag( imagepresent, mag / 2 );
+			imagepresent_set_mag_position( imagepresent, 
+				mag / 2, x, y );
 	}
 	else if( mag < 512 )
-		imagepresent_set_mag( imagepresent, mag * 2 );
-
-	imagepresent_get_window_position( imagepresent, 
-		&window_left, &window_top, &window_width, &window_height );
-	conversion_to_display_cods( imagepresent->conversion,
-		x, y,
-		&display_x, &display_y ); 
-
-	imagepresent_set_window_position( imagepresent,
-		display_x - window_width / 2, 
-		display_y - window_height / 2 );
+		imagepresent_set_mag_position( imagepresent, mag * 2, x, y );
 }
 
+/* Zoom out, keeping the pixel at x/y in image coordinates at the same position
+ * on the screen.
+ */
 void
-imagepresent_magout( Imagepresent *imagepresent )
+imagepresent_magout( Imagepresent *imagepresent, int x, int y )
 {
 	int image_width;
 	int image_height;
@@ -265,12 +250,13 @@ imagepresent_magout( Imagepresent *imagepresent )
 	g_object_get( imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag >= 0 )  {
 		if( mag < 2 ) 
-			imagepresent_set_mag_centre( imagepresent, -2 );
+			imagepresent_set_mag_position( imagepresent, -2, x, y );
 		else
-			imagepresent_set_mag_centre( imagepresent, mag / 2 );
+			imagepresent_set_mag_position( imagepresent, 
+				mag / 2, x, y );
 	}
 	else 
-		imagepresent_set_mag_centre( imagepresent, mag * 2 );
+		imagepresent_set_mag_position( imagepresent, mag * 2, x, y );
 }
 
 void
@@ -427,7 +413,10 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	case GDK_KEY_o:
 	case GDK_KEY_minus:
-		imagepresent_magout( imagepresent ); 
+		conversion_to_image_cods( imagepresent->conversion,
+			imagepresent->last_x, imagepresent->last_y,
+			&image_x, &image_y ); 
+		imagepresent_magout( imagepresent, image_x, image_y ); 
 
 		handled = TRUE;
 		break;
@@ -449,11 +438,30 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 			if( event->keyval == magnify_keys[i].keyval ) {
 				int mag;
 
+				int window_left;
+				int window_top;
+				int window_width;
+				int window_height;
+
+				int image_x;
+				int image_y;
+
 				mag = magnify_keys[i].mag;
 				if( event->state & GDK_CONTROL_MASK )
 					mag *= -1;
 
-				imagepresent_set_mag_centre( imagepresent, mag);
+				imagepresent_get_window_position( imagepresent, 
+					&window_left, &window_top, 
+					&window_width, &window_height );
+
+				conversion_to_image_cods( 
+					imagepresent->conversion,
+					window_left + window_width / 2, 
+					window_top + window_height / 2,
+					&image_x, &image_y ); 
+
+				imagepresent_set_mag_position( imagepresent, 
+					mag, image_x, image_y );
 
 				handled = TRUE;
 				break;
@@ -634,7 +642,15 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 		break;
 
 	case GDK_SCROLL_DOWN:
-		imagepresent_magout( imagepresent ); 
+		point.left = event->x;
+		point.top = event->y;
+		point.width = 0;
+		point.height = 0;
+		imagedisplay_gtk_to_image( imagepresent->imagedisplay, &point );
+		conversion_to_image_cods( imagepresent->conversion,
+			point.left, point.top,
+			&image_x, &image_y ); 
+		imagepresent_magout( imagepresent, image_x, image_y ); 
 
 		handled = TRUE;
 		break;
