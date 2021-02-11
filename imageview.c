@@ -329,6 +329,8 @@ imageview_fullscreen( GSimpleAction *action,
 		gtk_window_fullscreen( GTK_WINDOW( imageview ) );
 	else
 		gtk_window_unfullscreen( GTK_WINDOW( imageview ) );
+	settings_setb( "image-display",
+		"fullscreen", g_variant_get_boolean( state ) );
 
 	g_simple_action_set_state( action, state );
 }
@@ -710,18 +712,24 @@ imageview_init( Imageview *imageview )
 		conversionview_new( imageview->imagepresent->conversion );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->conversionview ), 0, 3, 1, 1 );
-	state = g_variant_new_boolean( 
-		settings_getb( "image-display", "show-display-control-bar" ) );
-	change_state( GTK_WIDGET( imageview ), "control", state );
 
 	/* Info bar.
 	 */
 	imageview->infobar = infobar_new( imageview->imagepresent );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->infobar ), 0, 4, 1, 1 );
+
+	/* Initial state from settings.
+	 */
+	state = g_variant_new_boolean( 
+		settings_getb( "image-display", "show-display-control-bar" ) );
+	change_state( GTK_WIDGET( imageview ), "control", state );
 	state = g_variant_new_boolean( 
 		settings_getb( "image-display", "show-display-info-bar" ) );
 	change_state( GTK_WIDGET( imageview ), "info", state );
+	state = g_variant_new_boolean( 
+		settings_getb( "image-display", "fullscreen" ) );
+	change_state( GTK_WIDGET( imageview ), "fullscreen", state );
 
 	gtk_window_set_default_size( GTK_WINDOW( imageview ), 
 		settings_geti( "image-display", "window-width" ),
