@@ -59,8 +59,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
-- "vipsdisp kylie.avi" leaks a VipsSource
-
 - load options? eg. load SVG at $x DPI
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that

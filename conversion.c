@@ -76,28 +76,26 @@ conversion_disconnect( Conversion *conversion )
 	printf( "conversion_disconnect:\n" );
 #endif /*DEBUG*/
 
-        if( !conversion->image ) {
-                g_assert( !conversion->preeval_sig );
-                return;
-        }
+        if( conversion->image ) {
+                g_assert( conversion->preeval_sig );
+		if( conversion->preeval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->preeval_sig ); 
+			conversion->preeval_sig = 0;
+		}
 
-        if( conversion->preeval_sig ) { 
-                g_signal_handler_disconnect( conversion->image, 
-                        conversion->preeval_sig ); 
-                conversion->preeval_sig = 0;
-        }
+		if( conversion->eval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->eval_sig ); 
+			conversion->eval_sig = 0;
+		}
 
-        if( conversion->eval_sig ) { 
-                g_signal_handler_disconnect( conversion->image, 
-                        conversion->eval_sig ); 
-                conversion->eval_sig = 0;
-        }
-
-        if( conversion->posteval_sig ) { 
-                g_signal_handler_disconnect( conversion->image, 
-                        conversion->posteval_sig ); 
-                conversion->posteval_sig = 0;
-        }
+		if( conversion->posteval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->posteval_sig ); 
+			conversion->posteval_sig = 0;
+		}
+	}
 
         VIPS_UNREF( conversion->image );
         VIPS_UNREF( conversion->source );
