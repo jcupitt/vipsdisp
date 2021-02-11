@@ -108,6 +108,7 @@ typedef struct _ConversionClass {
 
 GType conversion_get_type( void );
 
+int conversion_set_source( Conversion *conversion, VipsSource *source );
 int conversion_set_file( Conversion *conversion, GFile *file );
 
 gboolean conversion_get_image_size( Conversion *conversion, 

@@ -59,9 +59,9 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
-- replace image during load can crash the viewer
+- "vipsdisp kylie.avi" leaks a VipsSource
 
-  is this still true? check
+- load options? eg. load SVG at $x DPI
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 

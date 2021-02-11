@@ -520,6 +520,21 @@ static GActionEntry imageview_entries[] = {
 };
 
 static void
+imageview_set_source( Imageview *imageview, VipsSource *source )
+{
+	if( conversion_set_source( imageview->imagepresent->conversion, 
+		source ) )
+		imageview_show_error( imageview ); 
+}
+
+static void
+imageview_set_file( Imageview *imageview, GFile *file )
+{
+	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
+		imageview_show_error( imageview ); 
+}
+
+static void
 imageview_replace_clicked( GtkWidget *button, Imageview *imageview )
 {
 	Conversion *conversion = imageview->imagepresent->conversion;
@@ -542,16 +557,15 @@ imageview_replace_clicked( GtkWidget *button, Imageview *imageview )
 	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
 	if( result == GTK_RESPONSE_ACCEPT ) {
 		char *path;
-		GFile *file;
+		VipsSource *source;
 
 		imageview_hide_error( imageview ); 
 		path = gtk_file_chooser_get_filename( 
 			GTK_FILE_CHOOSER( dialog ) );
-		file = g_file_new_for_path( path );
+		source = vips_source_new_from_file( path );
 		g_free( path );
-		if( conversion_set_file( conversion, file ) )
-			imageview_show_error( imageview ); 
-		g_object_unref( file ); 
+		imageview_set_source( imageview, source );
+		g_object_unref( source ); 
 	}
 
 	gtk_widget_destroy( dialog );
@@ -763,8 +777,7 @@ imageview_new( GtkApplication *application, GFile *file )
 
 	gtk_widget_show( GTK_WIDGET( imageview ) );
 
-	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
-		imageview_show_error( imageview ); 
+	imageview_set_file( imageview, file );
 
 	return( imageview ); 
 }
@@ -789,9 +802,7 @@ imageview_new_from_source( GtkApplication *application, VipsSource *source )
 	gtk_widget_show( GTK_WIDGET( imageview ) );
 
 	if( source )
-		g_object_set( imageview->imagepresent->conversion, 
-			"source", source, 
-			NULL ); 
+		imageview_set_source( imageview, source );
 
 	return( imageview ); 
 }

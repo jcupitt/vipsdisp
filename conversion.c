@@ -24,9 +24,7 @@ G_DEFINE_TYPE( Conversion, conversion, G_TYPE_OBJECT );
 enum {
         /* Properties.
          */
-        PROP_SOURCE = 1,
-        PROP_IMAGE,
-        PROP_RGB,
+        PROP_RGB = 1,
         PROP_MAG,
         PROP_SCALE,
         PROP_OFFSET,
@@ -327,17 +325,40 @@ conversion_attach_progress( Conversion *conversion )
                 conversion );
 }
 
-static int
-conversion_set_image( Conversion *conversion, VipsImage *image )
+int
+conversion_set_source( Conversion *conversion, VipsSource *source )
 {
+	const char *loader;
+	VipsImage *image;
+
 #ifdef DEBUG
-        printf( "conversion_set_image: starting ..\n" );
+        printf( "conversion_set_source: starting ..\n" );
 #endif /*DEBUG*/
+
+	/* Don't update if we're still loading.
+	 */
+	if( conversion->image &&
+		!conversion->loaded )
+		return( 0 );
 
         conversion_disconnect( conversion );
 
+	/* Always set the source so we can display a filename in the header
+	 * bar even if load fails.
+	 */
+	conversion->source = source; 
+	g_object_ref( source );
+
+	if( !(loader = vips_foreign_find_load_source( source )) ||
+		!(image = vips_image_new_from_source( source, "", NULL )) ) {
+		/* Signal changed so eg. header bars can update.
+		 */
+		conversion_changed( conversion );
+		return( -1 );
+	}
+
+	conversion->loader = loader; 
         conversion->image = image;
-	g_object_ref( image );
         conversion->width = image->Xsize;
         conversion->height = image->Ysize;
         conversion->n_pages = vips_image_get_n_pages( image );
@@ -412,16 +433,16 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 
         conversion->image_region = vips_region_new( conversion->image );
 
-        /* This will be set TRUE again at the end of the background
-         * load. This will trigger conversion_update_display() for us.
-         */
-        g_object_set( conversion, "loaded", FALSE, NULL );
-
         /* We ref this conversion so it won't die before the
          * background load is done. The matching unref is at the end
          * of bg load.
          */
         g_object_ref( conversion );
+
+        /* This will be set TRUE again at the end of the background
+         * load. This will trigger conversion_update_display() for us.
+         */
+        g_object_set( conversion, "loaded", FALSE, NULL );
 
         conversion_attach_progress( conversion ); 
 
@@ -479,8 +500,11 @@ conversion_set_file( Conversion *conversion, GFile *file )
                 }
                 VIPS_UNREF( stream );
         }
-        
-        g_object_set( conversion, "source", source, NULL ); 
+
+        if( conversion_set_source( conversion, source ) ) {
+		VIPS_UNREF( source );
+		return( -1 );
+	}
 
         VIPS_UNREF( source );
 
@@ -838,41 +862,6 @@ conversion_set_property( GObject *object,
         gboolean b;
 
         switch( prop_id ) {
-        case PROP_SOURCE:
-{
-                VipsSource *source;
-                const char *loader;
-                VipsImage *image;
-
-                source = VIPS_SOURCE( g_value_get_object( value ) );
-                if( !(loader = vips_foreign_find_load_source( source )) ||
-                        !(image = vips_image_new_from_source( source, "", 
-				NULL )) ) {
-                        g_warning( "unable to set source: %s", 
-                                vips_error_buffer() );
-                        vips_error_clear();
-                }
-		else {
-			conversion->loader = loader; 
-			conversion->source = source; 
-			g_object_ref( source );
-
-			g_object_set( conversion, "image", image, NULL );
-
-			g_object_unref( image );
-		}
-		break;
-}
-
-        case PROP_IMAGE:
-                if( conversion_set_image( conversion, 
-                        g_value_get_object( value ) ) ) {
-                        g_warning( "unable to set image: %s", 
-                                vips_error_buffer() );
-                        vips_error_clear();
-                }
-                break;
-
         case PROP_RGB:
                 VIPS_UNREF( conversion->rgb ); 
                 conversion->rgb = g_value_get_object( value );
@@ -972,14 +961,6 @@ conversion_get_property( GObject *object,
         Conversion *conversion = (Conversion *) object;
 
         switch( prop_id ) {
-        case PROP_SOURCE:
-                g_value_set_object( value, conversion->source );
-                break;
-
-        case PROP_IMAGE:
-                g_value_set_object( value, conversion->image );
-                break;
-
         case PROP_RGB:
                 g_value_set_object( value, conversion->rgb );
                 break;
@@ -1086,20 +1067,6 @@ conversion_class_init( ConversionClass *class )
         gobject_class->dispose = conversion_dispose;
         gobject_class->set_property = conversion_set_property;
         gobject_class->get_property = conversion_get_property;
-
-        g_object_class_install_property( gobject_class, PROP_SOURCE,
-                g_param_spec_object( "source",
-                        _( "source" ),
-                        _( "The source to be displayed" ),
-                        VIPS_TYPE_SOURCE,
-                        G_PARAM_READWRITE ) );
-
-        g_object_class_install_property( gobject_class, PROP_IMAGE,
-                g_param_spec_object( "image",
-                        _( "image" ),
-                        _( "The image to be converted" ),
-                        VIPS_TYPE_IMAGE,
-                        G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_RGB,
                 g_param_spec_object( "rgb",
