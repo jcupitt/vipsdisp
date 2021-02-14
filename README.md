@@ -20,7 +20,7 @@ It all works, though see the TODO list below.
 ```
 $ ./autogen.sh --prefix=/home/john/vips 
 $ make
-$ ./vipsdisp ~/pics/k2.jpg
+$ ./vd ~/pics/k2.jpg
 ```
 
 ### Shortcuts
@@ -59,7 +59,7 @@ and sets properties of `Conversion` to zoom etc.
 
 - header display
 
-- load options? eg. load SVG at $x DPI
+- load options? save options? eg. load SVG at $x DPI
 
 - see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 

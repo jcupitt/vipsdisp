@@ -1,8 +1,6 @@
-SUBDIRS = bp
+bin_PROGRAMS = vd
 
-bin_PROGRAMS = vipsdisp
-
-vipsdisp_SOURCES = \
+vd_SOURCES = \
 	disp-gresources.c \
 	settings.c \
 	disp.c \

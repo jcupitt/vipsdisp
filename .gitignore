@@ -1,6 +1,7 @@
 tags
 test-driver
 vipsdisp
+vd
 vipsdisp-*.tar.gz
 disp-gresources.c
 bp/bloatpad
