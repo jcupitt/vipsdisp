@@ -15,6 +15,35 @@
  */
 #define MAX_LEVELS (256)
 
+/* Conversion modes. This is how we turn pages into images.
+ *
+ * MULTIPAGE
+ * 	If there's more than one page and pages are not all the same size, we
+ * 	have a select-page gtk_spin_button.
+ *
+ * ANIMATION
+ * 	If there's more than one page, they are all the same size, and there's
+ * 	a "delay" metadata item, we show pages as a looped animation.
+ *
+ * PYRAMID
+ * 	If the image has a pyramid structure (subifd or page based), use pages
+ * 	or layers to implement zooming. 
+ *
+ * TOILET_ROLL
+ * 	If there's more than one page, and they are all the same size, we show 
+ * 	the image as a very tall, thin strip. 
+ *
+ * The user can sometimes override the default conversion mode, eg. you can use
+ * the select-page box to view layers of a pyramid, or toilet roll mode to
+ * examine frames of an animation.
+ */
+typedef enum _ConversionMode {
+	CONVERSION_MULTIPAGE,
+	CONVERSION_ANIMATION,
+	CONVERSION_PYRAMID,
+	CONVERSION_TOILET_ROLL
+} ConversionMode;
+
 typedef struct _Conversion {
 	GObject parent_instance;
 
@@ -30,6 +59,10 @@ typedef struct _Conversion {
         int height;
         int n_pages;
         int n_subifds;
+
+	/* The viewing mode.
+	 */
+	ConversionMode mode;
 
         /* For TIFF sources, open subifds to get pyr layers.
          */
@@ -55,6 +88,7 @@ typedef struct _Conversion {
 	/* Display transform parameters.
 	 */
 	int mag;
+	int page;
 	double scale;
 	double offset;
 	gboolean falsecolour;
@@ -75,6 +109,10 @@ typedef struct _Conversion {
 	guint preeval_sig;
 	guint eval_sig;
 	guint posteval_sig;
+
+	/* For animations, the timeout we use for page flip.
+	 */
+	guint page_flip_timer;
 
 	/* TRUE when the image has fully loaded (ie. postload has fired) and we
 	 * can start looking at pixels.

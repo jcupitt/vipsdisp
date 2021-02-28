@@ -4,6 +4,8 @@ typedef struct _Conversionview {
 
 	Conversion *conversion;
 
+	GtkWidget *page_select;
+
 	Tslider *scale;
 	Tslider *offset;
 

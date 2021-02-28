@@ -57,6 +57,15 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
+- animated GIFs, multipage PDFs, ie. toilet / pyramid / animated modes
+
+- ^O shortcut for replace, cf. ^W
+
+  maybe need an action for replace?
+
+  we have ^N and ^D for new and duplicate, show them in menu? how do visible
+  menu shortcuts work in gtk3?
+
 - header display
 
 - load options? save options? eg. load SVG at $x DPI

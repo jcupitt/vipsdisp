@@ -380,7 +380,6 @@ tslider_init( Tslider *tslider )
 
 	tslider->entry = build_entry( 5 );
 	gtk_entry_set_max_length( GTK_ENTRY( tslider->entry ), 10 );
-        set_tooltip( tslider->entry, _( "Slider value ... edit!" ) );
         gtk_box_pack_start( GTK_BOX( tslider ), 
 		tslider->entry, FALSE, FALSE, 0 );
         g_signal_connect( tslider->entry, "activate",
@@ -395,7 +394,6 @@ tslider_init( Tslider *tslider )
 	gtk_widget_set_size_request( GTK_WIDGET( tslider->slider ), 100, -1 );
         gtk_box_pack_start( GTK_BOX( tslider ), 
 		tslider->slider, TRUE, TRUE, 0 );
-        set_tooltip( tslider->slider, _( "Left-drag to set number" ) );
         g_signal_connect( tslider->adj, "value_changed", 
 		G_CALLBACK( tslider_value_changed_cb ), tslider );
 	g_signal_connect( tslider->slider, "scroll-event", 

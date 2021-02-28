@@ -19,16 +19,6 @@
 
     <section>
       <item>
-        <attribute name='label' translatable='yes'>Pyramid</attribute>
-        <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>pyramid</attribute>
-      </item>
-      <item>
-        <attribute name='label' translatable='yes'>Toilet roll</attribute>
-        <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>toilet</attribute>
-      </item>
-      <item>
         <attribute name='label' translatable='yes'>Multipage</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>multipage</attribute>
@@ -37,6 +27,16 @@
         <attribute name='label' translatable='yes'>Animation</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>animation</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Pyramid</attribute>
+        <attribute name='action'>win.mode</attribute>
+        <attribute name='target'>pyramid</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Toilet roll</attribute>
+        <attribute name='action'>win.mode</attribute>
+        <attribute name='target'>toilet</attribute>
       </item>
     </section>
 
