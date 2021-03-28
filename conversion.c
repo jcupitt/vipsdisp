@@ -328,6 +328,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 {
 	const char *loader;
 	VipsImage *image;
+        int i;
 
 #ifdef DEBUG
         printf( "conversion_set_source: starting ..\n" );
@@ -406,11 +407,51 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
                                 conversion->page_pyramid = FALSE;
                 }
         }
-        
+
+	/* jp2k as well.
+	 */
+
+	/* Are all pages the same size? We can only use animation and 
+	 * toilet-roll mode in this case.
+
+		FIXME
+
+		This isn't correct for this test ... need to adjyustr 
+		copnversion_open , or maybe have a separate page-only 
+		version
+
+		consider eg. a multi-page TIFF with subifd pyramids ... should 
+		the param to conversion_open select pyr layer, or 
+		image page?
+
+	 */
+	conversion->pages_same_size = TRUE;
+	for( i = 1; i < conversion->n_pages; i++ ) {
+		VipsImage *page;
+		int page_width;
+		int page_height;
+
+		if( !(page = conversion_open( conversion, i )) ) 
+			return( -1 );
+		page_width = page->Xsize;
+		page_height = page->Ysize;
+		VIPS_UNREF( page );
+
+		if( page_width != conversion->width ||
+			page_height != conversion->height ) {
+			conversion->pages_same_size = FALSE;
+			break;
+		}
+	}
+
+	/* Read out the delay list, if any.
+	 */
+
+	/* Pick a default mode for this image.
+	 */
+
 #ifdef DEBUG
 {
-        int i;
-
         printf( "conversion_set_image:\n" );
         printf( "\tloader = %s\n", conversion->loader );
         printf( "\twidth = %d\n", conversion->width );
@@ -603,9 +644,9 @@ conversion_render_notify_idle( void *user_data )
 #endif /*DEBUG*/
 
         /* Again, stuff can run here long after the image has vanished, check
-         * before we update.
+         * before we update. 
          */
-        if( update->image == conversion->display ) 
+        if( update->image == conversion->display )
                 conversion_area_changed( conversion, &update->rect );
 
         g_free( update );

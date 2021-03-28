@@ -72,6 +72,11 @@ typedef struct _Conversion {
          */
         gboolean page_pyramid;
 
+	/* If all the pages are the same size, we can display as a toilet roll
+	 * or animation.
+	 */
+	gboolean pages_same_size;
+
 	/* For pyramidal formats, we need to read out the size of each level.
 	 * Largest level first.
          */
