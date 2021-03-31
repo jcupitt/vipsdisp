@@ -12,8 +12,9 @@
 #include "disp.h"
 
 /*
-#define DEBUG
+#define DEBUG_VERBOSE
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */
@@ -146,6 +147,12 @@ conversion_open( Conversion *conversion, int level )
                         "level", level,
                         NULL );
         }
+        else if( vips_isprefix( "VipsForeignLoadJp2k", conversion->loader ) ) {
+		image = vips_image_new_from_source( conversion->source,
+			"", 
+			"page", level,
+			NULL );
+	}
         else if( vips_isprefix( "VipsForeignLoadTiff", conversion->loader ) ) {
                 /* We support three modes: subifd pyramids, page-based
                  * pyramids, and simple multi-page TIFFs (no pyramid).
@@ -178,12 +185,12 @@ conversion_open( Conversion *conversion, int level )
  * This may not be a pyr tiff, so no error if we can't find the layers.
  */
 static void
-conversion_get_tiff_pyramid_subifd( Conversion *conversion )
+conversion_get_pyramid_subifd( Conversion *conversion )
 {
         int i;
 
 #ifdef DEBUG
-        printf( "conversion_get_tiff_pyramid_subifd:\n" );
+        printf( "conversion_get_pyramid_subifd:\n" );
 #endif /*DEBUG*/
 
         for( i = 0; i < conversion->n_subifds; i++ ) {
@@ -222,17 +229,17 @@ conversion_get_tiff_pyramid_subifd( Conversion *conversion )
         conversion->level_count = conversion->n_subifds;
 }
 
-/* Detect a TIFF pyramid made of pages following a roughly /2 shrink.
+/* Detect a pyramid made of pages following a roughly /2 shrink.
  *
  * This may not be a pyr tiff, so no error if we can't find the layers.
  */
 static void
-conversion_get_tiff_pyramid_page( Conversion *conversion )
+conversion_get_pyramid_page( Conversion *conversion )
 {
         int i;
 
 #ifdef DEBUG
-        printf( "conversion_get_tiff_pyramid_page:\n" );
+        printf( "conversion_get_pyramid_page:\n" );
 #endif /*DEBUG*/
 
         /* Single-page docs can't be pyramids.
@@ -395,21 +402,29 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
                  * one page.
                  */
                 conversion->subifd_pyramid = TRUE;
-                conversion_get_tiff_pyramid_subifd( conversion );
+                conversion_get_pyramid_subifd( conversion );
 
                 if( conversion->level_count == 0 ) {
                         conversion->subifd_pyramid = FALSE;
                         conversion->page_pyramid = TRUE;
 
-                        conversion_get_tiff_pyramid_page( conversion );
+                        conversion_get_pyramid_page( conversion );
 
                         if( conversion->level_count == 0 )
                                 conversion->page_pyramid = FALSE;
                 }
         }
 
-	/* jp2k as well.
-	 */
+        /* jp2k is always page-based.
+         */
+        if( vips_isprefix( "VipsForeignLoadJp2k", conversion->loader ) ) {
+		conversion->page_pyramid = TRUE;
+
+		conversion_get_pyramid_page( conversion );
+
+		if( conversion->level_count == 0 )
+			conversion->page_pyramid = FALSE;
+        }
 
 	/* Are all pages the same size? We can only use animation and 
 	 * toilet-roll mode in this case.
@@ -636,15 +651,15 @@ conversion_render_notify_idle( void *user_data )
         ConversionUpdate *update = (ConversionUpdate *) user_data;
         Conversion *conversion = update->conversion;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         printf( "conversion_render_notify_idle: "
                 "left = %d, top = %d, width = %d, height = %d\n",
                 update->rect.left, update->rect.top,
                 update->rect.width, update->rect.height );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
         /* Again, stuff can run here long after the image has vanished, check
-         * before we update. 
+         * before we update.
          */
         if( update->image == conversion->display )
                 conversion_area_changed( conversion, &update->rect );
