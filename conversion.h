@@ -48,7 +48,7 @@ typedef struct _Conversion {
 	GObject parent_instance;
 
 	/* The loader and the source we have loaded. We may need to reload on
-	 * a zoom change, so we need to keep the source.
+	 * a zoom or page change, so we need to keep the source.
 	 */
 	const char *loader;
 	VipsSource *source;
@@ -71,6 +71,11 @@ typedef struct _Conversion {
         /* For TIFF sources, open pages to get pyr layers.
          */
         gboolean page_pyramid;
+
+	/* If the image has a pages dimension, ie. the "page" field can be
+	 * used to pick a page out, and pages is not being used for a pyramid.
+	 */
+	gboolean has_pages;
 
 	/* If all the pages are the same size, we can display as a toilet roll
 	 * or animation.

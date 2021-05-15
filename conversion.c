@@ -29,6 +29,7 @@ enum {
         PROP_MAG,
         PROP_SCALE,
         PROP_OFFSET,
+        PROP_PAGE,
         PROP_FALSECOLOUR,
         PROP_LOG,
         PROP_LOADED,
@@ -141,25 +142,22 @@ conversion_open( Conversion *conversion, int level )
 {
         VipsImage *image;
 
-        if( vips_isprefix( "VipsForeignLoadOpenslide", conversion->loader ) ) {
+        if( vips_isprefix( "openslide", conversion->loader ) ) {
+		/* These only have a "level" dimension.
+		 */
                 image = vips_image_new_from_source( conversion->source, 
 			"", 
                         "level", level,
                         NULL );
         }
-        else if( vips_isprefix( "VipsForeignLoadJp2k", conversion->loader ) ) {
-		image = vips_image_new_from_source( conversion->source,
-			"", 
-			"page", level,
-			NULL );
-	}
-        else if( vips_isprefix( "VipsForeignLoadTiff", conversion->loader ) ) {
+        else if( vips_isprefix( "tiff", conversion->loader ) ) {
                 /* We support three modes: subifd pyramids, page-based
                  * pyramids, and simple multi-page TIFFs (no pyramid).
                  */
                 if( conversion->subifd_pyramid )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
+				"page", conversion->page,
                                 "subifd", level,
                                 NULL );
                 else if( conversion->page_pyramid )
@@ -170,8 +168,19 @@ conversion_open( Conversion *conversion, int level )
                 else
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
+				"page", conversion->page,
                                 NULL );
         }
+	else if( vips_isprefix( "jp2k", conversion->loader ) ||
+		vips_isprefix( "pdf", conversion->loader ) ||
+		vips_isprefix( "gif", conversion->loader ) ) {
+		/* These only have a "page" dimension.
+		 */
+		image = vips_image_new_from_source( conversion->source,
+			"", 
+			"page", level,
+			NULL );
+	}
         else 
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
@@ -281,7 +290,6 @@ conversion_get_pyramid_page( Conversion *conversion )
         conversion->level_count = conversion->n_pages;
 }
 
-
 static void
 conversion_preeval( VipsImage *image, 
         VipsProgress *progress, Conversion *conversion )
@@ -363,7 +371,11 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 		return( -1 );
 	}
 
-	conversion->loader = loader; 
+	/* vips_foreign_find_load_source() gives us eg.
+	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
+	 * generic name.
+	 */
+	conversion->loader = vips_nickname_find( g_type_from_name( loader ) );
         conversion->image = image;
         conversion->width = image->Xsize;
         conversion->height = image->Ysize;
@@ -372,7 +384,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
         /* For openslide, read out the level structure too.
          */
-        if( vips_isprefix( "VipsForeignLoadOpenslide", conversion->loader ) ) {
+        if( vips_isprefix( "openslide", conversion->loader ) ) {
                 int level_count;
                 int level;
 
@@ -397,7 +409,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
         /* For tiff, scan the image and try to spot page-based and ifd-based
          * pyramids.
          */
-        if( vips_isprefix( "VipsForeignLoadTiff", conversion->loader ) ) {
+        if( vips_isprefix( "tiff", conversion->loader ) ) {
                 /* Test for a subifd pyr first, since we can do that from just
                  * one page.
                  */
@@ -417,7 +429,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
         /* jp2k is always page-based.
          */
-        if( vips_isprefix( "VipsForeignLoadJp2k", conversion->loader ) ) {
+        if( vips_isprefix( "jp2k", conversion->loader ) ) {
 		conversion->page_pyramid = TRUE;
 
 		conversion_get_pyramid_page( conversion );
@@ -431,8 +443,8 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
 		FIXME
 
-		This isn't correct for this test ... need to adjyustr 
-		copnversion_open , or maybe have a separate page-only 
+		This isn't correct for this test ... need to adjust 
+		conversion_open, or maybe have a separate page-only 
 		version
 
 		consider eg. a multi-page TIFF with subifd pyramids ... should 
@@ -458,6 +470,12 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 			break;
 		}
 	}
+
+	/* Does the image has a set of pages we can flip though with a "pages"
+	 * param and which is not being used for magnification?
+	 */
+	conversion->has_pages = conversion->n_pages > 1 && 
+		!conversion->page_pyramid;
 
 	/* Read out the delay list, if any.
 	 */
@@ -574,9 +592,6 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         VipsImage *image;
         VipsImage *x;
 
-        /* image redisplays the head of the pipeline. Hold a ref to it as we
-         * work.
-         */
         image = in;
         g_object_ref( image ); 
 
@@ -721,7 +736,21 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 				break;
 		level = VIPS_CLIP( 0, i - 1, conversion->level_count - 1 );
 
+#ifdef DEBUG
+		printf( "conversion_display_image: loading level %d\n", 
+			level ); 
+#endif /*DEBUG*/
+
 		if( !(image = conversion_open( conversion, level )) )
+			return( NULL );
+	}
+	else if( conversion->has_pages ) {
+#ifdef DEBUG
+		printf( "conversion_display_image: loading page %d\n", 
+			conversion->page ); 
+#endif /*DEBUG*/
+
+		if( !(image = conversion_open( conversion, conversion->page )) )
 			return( NULL );
 	}
 	else {
@@ -964,6 +993,20 @@ conversion_set_property( GObject *object,
                 }
                 break;
 
+        case PROP_PAGE:
+                i = g_value_get_int( value );
+                if( i >= 0 &&
+                        i <= 1000000 &&
+                        conversion->page != i ) {
+#ifdef DEBUG
+                        printf( "conversion_set_page: %d\n", i ); 
+#endif /*DEBUG*/
+
+                        conversion->page = i;
+                        conversion_update_display( conversion );
+                }
+                break;
+
         case PROP_FALSECOLOUR:
                 b = g_value_get_boolean( value );
                 if( conversion->falsecolour != b ) { 
@@ -1029,6 +1072,10 @@ conversion_get_property( GObject *object,
 
         case PROP_OFFSET:
                 g_value_set_double( value, conversion->offset );
+                break;
+
+        case PROP_PAGE:
+                g_value_set_int( value, conversion->page );
                 break;
 
         case PROP_FALSECOLOUR:
@@ -1124,14 +1171,14 @@ conversion_class_init( ConversionClass *class )
 
         g_object_class_install_property( gobject_class, PROP_RGB,
                 g_param_spec_object( "rgb",
-                        _( "rgb" ),
+                        _( "RGB" ),
                         _( "The converted image" ),
                         VIPS_TYPE_IMAGE,
                         G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_MAG,
                 g_param_spec_int( "mag",
-                        _( "mag" ),
+                        _( "Mag" ),
                         _( "Magnification factor" ),
                         -1000000, 1000000, 1,
                         G_PARAM_READWRITE ) );
@@ -1148,6 +1195,13 @@ conversion_class_init( ConversionClass *class )
                         _( "offset" ),
                         _( "Offset" ),
                         -1000000, 1000000, 0,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_PAGE,
+                g_param_spec_int( "page",
+                        _( "Page" ),
+                        _( "Page number" ),
+                        0, 1000000, 0,
                         G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_FALSECOLOUR,
