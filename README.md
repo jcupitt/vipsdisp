@@ -7,6 +7,8 @@ a slightly useful image viewer.
 
 See vipsdisp-tiny for a minimal example.
 
+<div style="clear: both;"/>
+
 ### Screenshots
 
 It all works, though see the TODO list below.
