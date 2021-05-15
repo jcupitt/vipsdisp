@@ -607,6 +607,9 @@ imageview_init( Imageview *imageview )
 	GtkWidget *grid;
 	GVariant *state;
 
+	if( disp_icon )
+		gtk_window_set_icon( GTK_WINDOW( imageview ), disp_icon );
+
 	g_action_map_add_action_entries( G_ACTION_MAP( imageview ), 
 		imageview_entries, G_N_ELEMENTS( imageview_entries ), 
 		imageview );

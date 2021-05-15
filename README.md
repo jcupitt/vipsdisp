@@ -1,5 +1,7 @@
 # vipsdisp
 
+<img align="left" width="200" height="200" src="vipsdisp-icon.png">
+
 C program to display an image with vips8 and gtk+3. This is supposed to be
 a slightly useful image viewer. 
 

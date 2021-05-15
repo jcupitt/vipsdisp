@@ -10,6 +10,8 @@
 
 #include "disp.h"
 
+GdkPixbuf *disp_icon = NULL;
+
 G_DEFINE_TYPE( Disp, disp, GTK_TYPE_APPLICATION );
 
 static void
@@ -59,15 +61,13 @@ disp_about_activated( GSimpleAction *action,
 		NULL
 	};
 
-	//GdkPixbuf *logo = gdk_pixbuf_new_from_file( "logo.png", NULL );
-
 #ifdef DEBUG
 	printf( "disp_about_activated:\n" ); 
 #endif /*DEBUG*/
 
 	gtk_show_about_dialog( NULL,
 		"program-name", "vipsdisp",
-		//"logo", logo,
+		"logo", disp_icon,
 		"title", _( "About vipsdisp" ),
 		"authors", authors,
 		"comments", _( "An image viewer for very large images" ),
@@ -113,6 +113,8 @@ disp_startup( GApplication *application )
 	for( i = 0; i < G_N_ELEMENTS( accels ); i++)
 		gtk_application_set_accels_for_action( app, 
 			accels[i].action_and_target, accels[i].accelerators );
+
+	disp_icon = gdk_pixbuf_new_from_file( "vipsdisp-icon.png", NULL );
 }
 
 static void

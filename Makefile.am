@@ -26,6 +26,9 @@ AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
 AM_LDFLAGS = @LDFLAGS@ 
 
+vddir = $(datadir)/icons/hicolor/512x512/apps
+vd_DATA = vipsdisp-icon.png
+
 resource_files = \
 	disp.gresources.xml \
 	gtk/conversionview-popover.ui \

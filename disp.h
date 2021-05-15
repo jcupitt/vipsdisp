@@ -7,6 +7,8 @@
  */
 #define _(S) (S)
 
+extern GdkPixbuf *disp_icon;
+
 typedef struct _Disp {
 	GtkApplication parent_instance;
 
