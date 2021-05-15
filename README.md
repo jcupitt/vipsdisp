@@ -1,13 +1,11 @@
 # vipsdisp
 
-<img align="left" width="200" height="200" src="vipsdisp-icon.png">
+<img src="vipsdisp-icon.png" width="150" height="150">
 
 C program to display an image with vips8 and gtk+3. This is supposed to be
 a slightly useful image viewer. 
 
 See vipsdisp-tiny for a minimal example.
-
-<div style="clear: both;"/>
 
 ### Screenshots
 
