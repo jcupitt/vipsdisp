@@ -140,6 +140,11 @@ get_int( VipsImage *image, const char *field, int default_value )
 static VipsImage *
 conversion_open( Conversion *conversion, int level )
 {
+	/* If the image has pages all the same size, we open them all. 
+	 * Flipping between pages is done by the viewer.
+	 */
+	int n = conversion->pages_same_size ? -1 : 1;
+
         VipsImage *image;
 
         if( vips_isprefix( "openslide", conversion->loader ) ) {
@@ -148,6 +153,7 @@ conversion_open( Conversion *conversion, int level )
                 image = vips_image_new_from_source( conversion->source, 
 			"", 
                         "level", level,
+                        "n", n,
                         NULL );
         }
         else if( vips_isprefix( "tiff", conversion->loader ) ) {
@@ -159,8 +165,11 @@ conversion_open( Conversion *conversion, int level )
                                 "", 
 				"page", conversion->page,
                                 "subifd", level,
+				"n", n,
                                 NULL );
                 else if( conversion->page_pyramid )
+			/* No "n" here since pages are mag levels.
+			 */
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
                                 "page", level,
@@ -169,6 +178,7 @@ conversion_open( Conversion *conversion, int level )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
 				"page", conversion->page,
+				"n", n,
                                 NULL );
         }
 	else if( vips_isprefix( "jp2k", conversion->loader ) ||
@@ -179,11 +189,13 @@ conversion_open( Conversion *conversion, int level )
 		image = vips_image_new_from_source( conversion->source,
 			"", 
 			"page", level,
+			"n", n,
 			NULL );
 	}
         else 
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
+			"n", n,
 			NULL );
 
         return( image );
@@ -471,11 +483,12 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 		}
 	}
 
-	/* Does the image has a set of pages we can flip though with a "pages"
-	 * param and which is not being used for magnification?
+	/* If this is a toilet-roll image, open the whole thing.
 	 */
-	conversion->has_pages = conversion->n_pages > 1 && 
-		!conversion->page_pyramid;
+	if( conversion->pages_same_size ) { 
+		VIPS_UNREF( conversion->image );
+		conversion->image = conversion_open( conversion, 0 );
+	}
 
 	/* Read out the delay list, if any.
 	 */
@@ -744,7 +757,7 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		if( !(image = conversion_open( conversion, level )) )
 			return( NULL );
 	}
-	else if( conversion->has_pages ) {
+	else if( !conversion->pages_same_size ) {
 #ifdef DEBUG
 		printf( "conversion_display_image: loading page %d\n", 
 			conversion->page ); 

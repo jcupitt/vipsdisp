@@ -72,11 +72,6 @@ typedef struct _Conversion {
          */
         gboolean page_pyramid;
 
-	/* If the image has a pages dimension, ie. the "page" field can be
-	 * used to pick a page out, and pages is not being used for a pyramid.
-	 */
-	gboolean has_pages;
-
 	/* If all the pages are the same size, we can display as a toilet roll
 	 * or animation.
 	 */

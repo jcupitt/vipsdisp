@@ -29,11 +29,6 @@
         <attribute name='target'>animation</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Pyramid</attribute>
-        <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>pyramid</attribute>
-      </item>
-      <item>
         <attribute name='label' translatable='yes'>Toilet roll</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>toilet</attribute>
