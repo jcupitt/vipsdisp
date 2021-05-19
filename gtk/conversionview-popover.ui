@@ -19,19 +19,19 @@
 
     <section>
       <item>
+        <attribute name='label' translatable='yes'>Toilet roll</attribute>
+        <attribute name='action'>win.mode</attribute>
+        <attribute name='target'>toilet-roll</attribute>
+      </item>
+      <item>
         <attribute name='label' translatable='yes'>Multipage</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>multipage</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Animation</attribute>
+        <attribute name='label' translatable='yes'>Animated</attribute>
         <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>animation</attribute>
-      </item>
-      <item>
-        <attribute name='label' translatable='yes'>Toilet roll</attribute>
-        <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>toilet</attribute>
+        <attribute name='target'>animated</attribute>
       </item>
     </section>
 

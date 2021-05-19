@@ -15,33 +15,63 @@
  */
 #define MAX_LEVELS (256)
 
-/* Conversion modes. This is how we turn pages into images.
+/* The three basic types of images that we support.
  *
- * MULTIPAGE
- * 	If there's more than one page and pages are not all the same size, we
- * 	have a select-page gtk_spin_button.
+ * PAGE_PYRAMID 
  *
- * ANIMATION
- * 	If there's more than one page, they are all the same size, and there's
- * 	a "delay" metadata item, we show pages as a looped animation.
- *
- * PYRAMID
- * 	If the image has a pyramid structure (subifd or page based), use pages
- * 	or layers to implement zooming. 
+ * 	"page" param is pyr levels. We load a single page and reload on
+ * 	magnification change.
  *
  * TOILET_ROLL
- * 	If there's more than one page, and they are all the same size, we show 
- * 	the image as a very tall, thin strip. 
  *
- * The user can sometimes override the default conversion mode, eg. you can use
- * the select-page box to view layers of a pyramid, or toilet roll mode to
- * examine frames of an animation.
+ * 	We load as a single, tall, thin strip and the viewer does any
+ * 	presenting as pages during conversion to the screen display image.
+ * 	These images can have subifd pyramids. Includes single-page images.
+ *
+ * MULTIPAGE
+ *
+ * 	Pages differ in size or perhaps format, so must be loaded as separate
+ * 	images. Pages can have subifd pyramids. Includes single-page images.
+ */
+typedef enum _ConversionType {
+	CONVERSION_TYPE_PAGE_PYRAMID,
+	CONVERSION_TYPE_TOILET_ROLL,
+	CONVERSION_TYPE_MULTIPAGE
+} ConversionType;
+
+/* The three types of image display we support.
+ *
+ * TOILET_ROLL
+ *
+ * 	Just show the whole image (no crop). Page control disabled. Reload on
+ * 	mag change if there's a pyramid.
+ *
+ * MULTIPAGE
+ *
+ * 	Behaviour depends on ConversionImage:
+ *
+ * 	CONVERSION_TYPE_PAGE_PYRAMID
+ * 		
+ * 		Disable page controls. No crop. Reload on mag change.
+ *
+ * 	CONVERSION_TYPE_TOILET_ROLL
+ *
+ * 		Enable page control iff > 1 page. Crop in display conversion
+ * 		to select page.
+ *
+ * 	CONVERSION_TYPE_MULTIPAGE
+ *
+ * 		Enable page control iff > 1 page.
+ *
+ * ANIMATED
+ *
+ * 	Just like MULTIPAGE, except page flip is driven by a timeout.
  */
 typedef enum _ConversionMode {
-	CONVERSION_MULTIPAGE,
-	CONVERSION_ANIMATION,
-	CONVERSION_PYRAMID,
-	CONVERSION_TOILET_ROLL
+	CONVERSION_MODE_TOILET_ROLL,
+	CONVERSION_MODE_MULTIPAGE,
+	CONVERSION_MODE_ANIMATED,
+	CONVERSION_MODE_LAST
 } ConversionMode;
 
 typedef struct _Conversion {
@@ -59,9 +89,12 @@ typedef struct _Conversion {
         int height;
         int n_pages;
         int n_subifds;
+        int *delay;
+        int n_delay;
 
-	/* The viewing mode.
+	/* The image class and the viewing mode.
 	 */
+	ConversionType type;
 	ConversionMode mode;
 
         /* For TIFF sources, open subifds to get pyr layers.
@@ -72,8 +105,8 @@ typedef struct _Conversion {
          */
         gboolean page_pyramid;
 
-	/* If all the pages are the same size, we can display as a toilet roll
-	 * or animation.
+	/* If all the pages are the same size and format, we can load as a 
+	 * toilet roll.
 	 */
 	gboolean pages_same_size;
 

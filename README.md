@@ -59,46 +59,6 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- display modes:
-
-  image coming in ... three cases:
-
-    1. page-pyramid ... "page" param is pyr levels
-
-        we use mag to flip pages and must reload on mag change
-        reload on mag change since this is a pyramid 
-      
-    2. toilet-roll image ... "page" is a real page, and pages are all the 
-       same size (single image images are a subset of this)
-
-        load all pages together with n=-1
-        don't reload on page change
-        reload on mag change if this is a pyramid (might be subifd)
-        do render layout in viewer
-
-    3. mutipage ... pages differ in size, but are not a pyramid
-
-        load pages individually
-        reload on page change
-        reload on mag change if this is a pyramid (might be subifd)
-
-  image going out to screen:
-
-    1. in toilet-roll mode, just show the whole image, disable page control
-
-    2. in multipage-mode, depends on image case
-
-        1. page pyramid ... just show the whole image, ignore page
-           controls
-
-        2. toilet-roll image ... viewer displays selected page with a crop
-           controlled by the page switcher
-
-        3. multipage image ... reload on page control change
-
-    3. in animation mode ... exactly as multipage mode, but page flipping is
-       driven by a timeout
-
 - ^O shortcut for replace, cf. ^W
 
   maybe need an action for replace?

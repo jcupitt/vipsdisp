@@ -472,14 +472,26 @@ static void
 imageview_mode( GSimpleAction *action,
 	GVariant *state, gpointer user_data )
 {
-	//Imageview *imageview = (Imageview *) user_data;
-	//const gchar *str;
-	//str = g_variant_get_string( state, NULL );
-	//if( g_str_equal( str, "toilet" ) ) 
-	//   ...
-	//else
-	//   /* Ignore attempted change */
-	//   return;
+	Imageview *imageview = (Imageview *) user_data;
+
+	const gchar *str;
+	ConversionMode mode;
+
+	str = g_variant_get_string( state, NULL );
+	if( g_str_equal( str, "toilet-roll" ) ) 
+		mode = CONVERSION_MODE_TOILET_ROLL;
+	else if( g_str_equal( str, "multipage" ) ) 
+		mode = CONVERSION_MODE_MULTIPAGE;
+	else if( g_str_equal( str, "animated" ) ) 
+		mode = CONVERSION_MODE_ANIMATED;
+	else
+		/* Ignore attempted change.
+		 */
+		return;
+
+	g_object_set( imageview->imagepresent->conversion,
+		"mode", mode,
+		NULL );
 
 	g_simple_action_set_state( action, state );
 }
@@ -515,7 +527,7 @@ static GActionEntry imageview_entries[] = {
 	{ "log", imageview_toggle, NULL, "false", imageview_log },
 	{ "falsecolour", 
 		imageview_toggle, NULL, "false", imageview_falsecolour },
-	{ "mode", imageview_radio, "s", "'toilet'", imageview_mode },
+	{ "mode", imageview_radio, "s", "'multipage'", imageview_mode },
 	{ "reset", imageview_reset },
 };
 

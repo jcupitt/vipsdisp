@@ -139,7 +139,8 @@ conversionview_display_changed( Conversion *conversion,
 			GTK_SPIN_BUTTON( conversionview->page_select ), 
 			0, n_pages - 1 );
 		gtk_widget_set_sensitive( conversionview->page_select, 
-			n_pages > 1 );
+			n_pages > 1 && 
+			conversion->mode == CONVERSION_MODE_MULTIPAGE );
 	}
 }
 

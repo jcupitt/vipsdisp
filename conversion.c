@@ -26,6 +26,7 @@ enum {
         /* Properties.
          */
         PROP_RGB = 1,
+        PROP_MODE,
         PROP_MAG,
         PROP_SCALE,
         PROP_OFFSET,
@@ -140,10 +141,9 @@ get_int( VipsImage *image, const char *field, int default_value )
 static VipsImage *
 conversion_open( Conversion *conversion, int level )
 {
-	/* If the image has pages all the same size, we open them all. 
-	 * Flipping between pages is done by the viewer.
+	/* In toilet-roll mode, we open all pages.
 	 */
-	int n = conversion->pages_same_size ? -1 : 1;
+	int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? -1 : 1;
 
         VipsImage *image;
 
@@ -193,9 +193,11 @@ conversion_open( Conversion *conversion, int level )
 			NULL );
 	}
         else 
+		/* Don't pass "n" ... it might eg. be a jpeg and not have a
+		 * page dimension.
+		 */
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
-			"n", n,
 			NULL );
 
         return( image );
@@ -394,6 +396,13 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
         conversion->n_pages = vips_image_get_n_pages( image );
         conversion->n_subifds = vips_image_get_n_subifds( image );
 
+	/* Read out the delay list, if any.
+	 */
+        if( vips_image_get_typeof( image, "delay" ) &&
+                vips_image_get_array_int( image, "delay",
+                        &conversion->delay, &conversion->n_delay ) )
+                return( -1 );
+
         /* For openslide, read out the level structure too.
          */
         if( vips_isprefix( "openslide", conversion->loader ) ) {
@@ -452,49 +461,39 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
 	/* Are all pages the same size? We can only use animation and 
 	 * toilet-roll mode in this case.
-
-		FIXME
-
-		This isn't correct for this test ... need to adjust 
-		conversion_open, or maybe have a separate page-only 
-		version
-
-		consider eg. a multi-page TIFF with subifd pyramids ... should 
-		the param to conversion_open select pyr layer, or 
-		image page?
-
+	 *
+	 * Load with -1 for "n" and see if we get the entire image.
 	 */
-	conversion->pages_same_size = TRUE;
-	for( i = 1; i < conversion->n_pages; i++ ) {
-		VipsImage *page;
-		int page_width;
-		int page_height;
-
-		if( !(page = conversion_open( conversion, i )) ) 
-			return( -1 );
-		page_width = page->Xsize;
-		page_height = page->Ysize;
-		VIPS_UNREF( page );
-
-		if( page_width != conversion->width ||
-			page_height != conversion->height ) {
-			conversion->pages_same_size = FALSE;
-			break;
-		}
-	}
-
-	/* If this is a toilet-roll image, open the whole thing.
-	 */
-	if( conversion->pages_same_size ) { 
+	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+	if( !(image = conversion_open( conversion, 0 )) )
+		return( -1 );
+	if( image->Ysize == conversion->height * conversion->n_pages ) {
+		conversion->pages_same_size = TRUE;
 		VIPS_UNREF( conversion->image );
-		conversion->image = conversion_open( conversion, 0 );
+		conversion->image = image;
+		g_object_ref( image );
+	}
+	VIPS_UNREF( image );
+
+	if( conversion->pages_same_size )
+		conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+	else {
+		if( conversion->page_pyramid )
+			conversion->type = CONVERSION_TYPE_PAGE_PYRAMID;
+		else
+			conversion->type = CONVERSION_TYPE_MULTIPAGE;
 	}
 
-	/* Read out the delay list, if any.
-	 */
 
 	/* Pick a default mode for this image.
+	 *
+	 * has delay stuff and is toilet-roll
+	 *
+	 * 	animated
+	 *
+	 * otherwise multipage
 	 */
+	conversion->mode = CONVERSION_MODE_MULTIPAGE;
 
 #ifdef DEBUG
 {
@@ -513,6 +512,10 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
                         i,
                         conversion->level_width[i], 
                         conversion->level_height[i] ); 
+
+        printf( "\tpages_same_size = %d\n", conversion->pages_same_size );
+        printf( "\ttype = %d\n", conversion->type );
+        printf( "\tmode = %d\n", conversion->mode );
 }
 #endif /*DEBUG*/
 
@@ -757,7 +760,7 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		if( !(image = conversion_open( conversion, level )) )
 			return( NULL );
 	}
-	else if( !conversion->pages_same_size ) {
+	else if( conversion->type == CONVERSION_TYPE_MULTIPAGE ) {
 #ifdef DEBUG
 		printf( "conversion_display_image: loading page %d\n", 
 			conversion->page ); 
@@ -771,6 +774,22 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		g_object_ref( image ); 
 	}
 
+	/* In multipage display mode, crop out the page we want.
+	 */
+	if( conversion->mode != CONVERSION_MODE_TOILET_ROLL &&
+		conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
+		VipsImage *x;
+
+		if( vips_crop( image, &x, 
+			0, conversion->page * conversion->height, 
+			conversion->width, conversion->height, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
+
 	/* Histogram type ... plot the histogram. 
          */
         if( image->Type == VIPS_INTERPRETATION_HISTOGRAM &&
@@ -779,33 +798,33 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		VipsImage **t = (VipsImage **) 
 			vips_object_local_array( VIPS_OBJECT( context ), 7 );
 
-                if( image->Coding == VIPS_CODING_LABQ ) {
-                        if( vips_LabQ2Lab( image, &t[0], NULL ) ) {
+		/* So image will be unreffed when we unref context.
+		 */
+		t[0] = image;
+		x = t[0];
+
+                if( x->Coding == VIPS_CODING_LABQ ) {
+                        if( vips_LabQ2Lab( x, &t[1], NULL ) ) {
                                 VIPS_UNREF( context );
                                 return( NULL );
                         }
-
-			g_object_unref( image );
-                        image = t[0];
+                        x = t[1];
                 }
 
-                if( image->Coding == VIPS_CODING_RAD ) {
-                        if( vips_rad2float( image, &t[1], NULL ) ) {
+                if( x->Coding == VIPS_CODING_RAD ) {
+                        if( vips_rad2float( x, &t[2], NULL ) ) {
                                 VIPS_UNREF( context );
                                 return( NULL );
                         }
-
-			g_object_unref( image );
-                        image = t[1];
+                        x = t[2];
                 }
 
-                if( vips_hist_norm( image, &t[2], NULL ) ||
-                        vips_hist_plot( t[2], &t[3], NULL ) ) {
+                if( vips_hist_norm( x, &t[3], NULL ) ||
+                        vips_hist_plot( t[3], &t[4], NULL ) ) {
 			VIPS_UNREF( context );
                         return( NULL );
                 }
-		g_object_unref( image );
-                image = t[3];
+                x = t[4];
 
                 /* Scale to a sensible size ... aim for a height of 256
                  * elements.
@@ -825,6 +844,7 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
                         t[2] = t[1];
                  */
 
+		image = x;
 		g_object_ref( image ); 
 		VIPS_UNREF( context );
         }
@@ -838,36 +858,36 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 			(conversion->width / -conversion->mag);
 
 		if( vips_subsample( image, &x, subsample, subsample, NULL ) ) {
-			g_object_unref( image );
+			VIPS_UNREF( image );
 			return( NULL ); 
 		}
-		g_object_unref( image );
+		VIPS_UNREF( image );
 		image = x;
 	}
 	else { 
 		if( vips_zoom( image, &x, 
 			conversion->mag, conversion->mag, NULL ) ) {
-			g_object_unref( image );
+			VIPS_UNREF( image );
 			return( NULL ); 
 		}
-		g_object_unref( image );
+		VIPS_UNREF( image );
 		image = x;
 	}
 
         if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
-                g_object_unref( image );
+                VIPS_UNREF( image );
                 return( NULL ); 
         }
-        g_object_unref( image );
+        VIPS_UNREF( image );
         image = x;
 
         /* Drop any alpha.
          */
         if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
-                g_object_unref( image );
+                VIPS_UNREF( image );
                 return( NULL ); 
         }
-        g_object_unref( image );
+        VIPS_UNREF( image );
         image = x;
 
         if( conversion->log ||
@@ -889,18 +909,18 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
                         g_object_unref( context );
                         return( NULL ); 
                 }
-		g_object_unref( context );
-                g_object_unref( image );
+		VIPS_UNREF( context );
+                VIPS_UNREF( image );
                 image = x;
 	}
 
         /* Do a huge blur .. this is a slow operation, and handy for
          * debugging.
         if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
-                g_object_unref( image );
+                VIPS_UNREF( image );
                 return( NULL ); 
         }
-        g_object_unref( image );
+        VIPS_UNREF( image );
         image = x;
          */
 
@@ -910,12 +930,12 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
                 x, mask, 
                 tile_size, tile_size, 400, 0, 
                 conversion_render_notify, conversion ) ) {
-                g_object_unref( x );
-                g_object_unref( mask );
-                g_object_unref( image );
+                VIPS_UNREF( x );
+                VIPS_UNREF( mask );
+                VIPS_UNREF( image );
                 return( NULL );
         }
-        g_object_unref( image );
+        VIPS_UNREF( image );
         image = x;
 
         *mask_out = mask;
@@ -962,6 +982,20 @@ conversion_set_property( GObject *object,
                 VIPS_UNREF( conversion->rgb ); 
                 conversion->rgb = g_value_get_object( value );
                 g_object_ref( conversion->rgb );
+                break;
+
+        case PROP_MODE:
+                i = g_value_get_int( value );
+                if( i >= 0 &&
+                        i < CONVERSION_MODE_LAST &&
+                        conversion->mode != i ) {
+#ifdef DEBUG
+                        printf( "conversion_set_mode: %d\n", i ); 
+#endif /*DEBUG*/
+
+                        conversion->mode = i;
+                        conversion_update_display( conversion );
+                }
                 break;
 
         case PROP_MAG:
@@ -1075,6 +1109,10 @@ conversion_get_property( GObject *object,
                 g_value_set_object( value, conversion->rgb );
                 break;
 
+        case PROP_MODE:
+                g_value_set_int( value, conversion->mode );
+                break;
+
         case PROP_MAG:
                 g_value_set_int( value, conversion->mag );
                 break;
@@ -1114,6 +1152,8 @@ conversion_init( Conversion *conversion )
 {
         conversion->mag = 1;
         conversion->scale = 1.0;
+	conversion->type = CONVERSION_TYPE_MULTIPAGE;
+	conversion->mode = CONVERSION_MODE_MULTIPAGE;
 }
 
 static void
@@ -1187,6 +1227,13 @@ conversion_class_init( ConversionClass *class )
                         _( "RGB" ),
                         _( "The converted image" ),
                         VIPS_TYPE_IMAGE,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_MODE,
+                g_param_spec_int( "mode",
+                        _( "Mode" ),
+                        _( "Display mode" ),
+                        0, CONVERSION_MODE_LAST - 1, CONVERSION_MODE_MULTIPAGE,
                         G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_MAG,
