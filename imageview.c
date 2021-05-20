@@ -1,6 +1,8 @@
 /* Display an image with gtk3 and libvips. 
  */
 
+#define DEBUG
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -17,7 +19,7 @@ static void
 imageview_destroy( GtkWidget *widget )
 {
 #ifdef DEBUG
-	printf( "imageview_destroy: %p\n", imageview ); 
+	printf( "imageview_destroy: %p\n", widget ); 
 #endif /*DEBUG*/
 
 	GTK_WIDGET_CLASS( imageview_parent_class )->destroy( widget );
@@ -100,12 +102,14 @@ imageview_posteval( Conversion *conversion,
 }
 
 static void
-imageview_changed( Conversion *conversion, Imageview *imageview )
+imageview_conversion_changed( Conversion *conversion, Imageview *imageview )
 {
 	const char *path;
+	GVariant *state;
+	const char *str;
 
 #ifdef DEBUG
-	printf( "imageview_changed:\n" ); 
+	printf( "imageview_conversion_changed:\n" ); 
 #endif /*DEBUG*/
 
 	if( (path = conversion_get_path( conversion )) ) { 
@@ -136,6 +140,25 @@ imageview_changed( Conversion *conversion, Imageview *imageview )
 			GTK_HEADER_BAR( imageview->header_bar ),
 			vips_buf_all( &buf ) ); 
 	}
+
+	if( conversion->mode == CONVERSION_MODE_TOILET_ROLL ) 
+		str = "toilet-roll";
+	else if( conversion->mode == CONVERSION_MODE_MULTIPAGE )
+		str = "multipage";
+	else if( conversion->mode == CONVERSION_MODE_ANIMATED )
+		str = "animated";
+	else
+		str = NULL;
+	if( str ) {
+		state = g_variant_new_string( str );
+		change_state( GTK_WIDGET( imageview ), "mode", state );
+	}
+
+	state = g_variant_new_boolean( conversion->falsecolour );
+	change_state( GTK_WIDGET( imageview ), "falsecolour", state );
+
+	state = g_variant_new_boolean( conversion->log );
+	change_state( GTK_WIDGET( imageview ), "log", state );
 }
 
 static void
@@ -704,7 +727,7 @@ imageview_init( Imageview *imageview )
 	gtk_box_pack_start( GTK_BOX( imageview->error_box ), 
 		imageview->error_label, TRUE, TRUE, 3 );
 	gtk_widget_show( imageview->error_label );
-	button = gtk_button_new_with_label( "Close" );
+	button = gtk_button_new_with_label( "OK" );
 	g_signal_connect( button, "clicked", 
 		G_CALLBACK( imageview_error_close_clicked ), imageview );
 	gtk_widget_set_valign( button, GTK_ALIGN_END );
@@ -730,7 +753,7 @@ imageview_init( Imageview *imageview )
 	g_signal_connect( imageview->imagepresent->conversion, "posteval",
 		G_CALLBACK( imageview_posteval ), imageview );
 	g_signal_connect( imageview->imagepresent->conversion, "changed",
-		G_CALLBACK( imageview_changed ), imageview );
+		G_CALLBACK( imageview_conversion_changed ), imageview );
 
 	imagepresent_set_menu( imageview->imagepresent, 
 		GTK_MENU( gtk_menu_new_from_model( model ) ) );

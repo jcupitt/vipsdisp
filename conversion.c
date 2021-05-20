@@ -366,6 +366,7 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	const char *loader;
 	VipsImage *image;
         int i;
+	ConversionMode mode;
 
 #ifdef DEBUG
         printf( "conversion_set_source: starting ..\n" );
@@ -500,12 +501,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 			conversion->type = CONVERSION_TYPE_MULTIPAGE;
 	}
 
-	if( conversion->delay &&
-		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
-		conversion->mode = CONVERSION_MODE_ANIMATED;
-	else
-		conversion->mode = CONVERSION_MODE_MULTIPAGE;
-
 #ifdef DEBUG
 {
         printf( "conversion_set_image:\n" );
@@ -540,10 +535,19 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
          */
         g_object_ref( conversion );
 
+	if( conversion->delay &&
+		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
+		mode = CONVERSION_MODE_ANIMATED;
+	else
+		mode = CONVERSION_MODE_MULTIPAGE;
+
         /* This will be set TRUE again at the end of the background
          * load. This will trigger conversion_update_display() for us.
          */
-        g_object_set( conversion, "loaded", FALSE, NULL );
+        g_object_set( conversion, 
+		"loaded", FALSE, 
+		"mode", mode, 
+		NULL );
 
         conversion_attach_progress( conversion ); 
 
@@ -990,13 +994,15 @@ conversion_page_flip( void *user_data )
 
 	int delay;
 
-	delay = 10;
+	/* Don't go faster than 30 fps.
+	 */
+	delay = 33;
 	if( conversion->delay ) {
 		int delay_index = VIPS_MIN( page, conversion->n_delay );
 
 		delay = conversion->delay[delay_index];
 	}
-	delay = VIPS_CLIP( 10, delay, 100000 );
+	delay = VIPS_CLIP( 33, delay, 100000 );
 
 	conversion->page_flip_id = 
 		g_timeout_add( delay, conversion_page_flip, conversion );
@@ -1035,6 +1041,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->mode = i;
+			conversion_changed( conversion );
                         conversion_update_display( conversion );
 
 			/* In animation mode, create the page flip timeout.
@@ -1058,6 +1065,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->mag = i;
+			conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1072,6 +1080,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->scale = d;
+			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1086,6 +1095,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->offset = d;
+			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1100,6 +1110,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->page = i;
+			conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1112,6 +1123,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->falsecolour = b;
+			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1124,6 +1136,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->log = b;
+			conversion_changed( conversion );
 			conversion_update_display( conversion );
                 }
                 break;
