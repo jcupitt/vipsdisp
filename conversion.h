@@ -150,7 +150,7 @@ typedef struct _Conversion {
 
 	/* For animations, the timeout we use for page flip.
 	 */
-	guint page_flip_timer;
+	guint page_flip_id;
 
 	/* TRUE when the image has fully loaded (ie. postload has fired) and we
 	 * can start looking at pixels.

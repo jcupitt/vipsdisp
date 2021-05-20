@@ -98,6 +98,7 @@ conversion_disconnect( Conversion *conversion )
 				conversion->posteval_sig ); 
 			conversion->posteval_sig = 0;
 		}
+
 	}
 
         VIPS_UNREF( conversion->image );
@@ -106,6 +107,9 @@ conversion_disconnect( Conversion *conversion )
         VIPS_UNREF( conversion->display );
         VIPS_UNREF( conversion->mask );
         VIPS_UNREF( conversion->rgb );
+
+        VIPS_FREE( conversion->delay );
+        conversion->n_delay = 0;
 }
 
 static void
@@ -116,6 +120,9 @@ conversion_dispose( GObject *object )
 #ifdef DEBUG
         printf( "conversion_dispose: %p\n", object );
 #endif /*DEBUG*/
+
+	if( conversion->page_flip_id )
+		VIPS_FREEF( g_source_remove, conversion->page_flip_id );
 
         conversion_disconnect( conversion ); 
 
@@ -183,6 +190,7 @@ conversion_open( Conversion *conversion, int level )
         }
 	else if( vips_isprefix( "jp2k", conversion->loader ) ||
 		vips_isprefix( "pdf", conversion->loader ) ||
+		vips_isprefix( "webp", conversion->loader ) ||
 		vips_isprefix( "gif", conversion->loader ) ) {
 		/* These only have a "page" dimension.
 		 */
@@ -385,6 +393,21 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 		return( -1 );
 	}
 
+        if( vips_image_get_typeof( image, "delay" ) ) {
+		int *delay;
+
+		if( vips_image_get_array_int( image, "delay",
+                        &delay, &conversion->n_delay ) )
+			return( -1 );
+
+		/* We have to make a copy of delay, since we may be reffing
+		 * and unreffing image for zoom etc.
+		 */
+		conversion->delay = g_new( int, conversion->n_delay );
+		memcpy( conversion->delay, delay, 
+			conversion->n_delay * sizeof( int ) );
+	}
+
 	/* vips_foreign_find_load_source() gives us eg.
 	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
 	 * generic name.
@@ -395,13 +418,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
         conversion->height = image->Ysize;
         conversion->n_pages = vips_image_get_n_pages( image );
         conversion->n_subifds = vips_image_get_n_subifds( image );
-
-	/* Read out the delay list, if any.
-	 */
-        if( vips_image_get_typeof( image, "delay" ) &&
-                vips_image_get_array_int( image, "delay",
-                        &conversion->delay, &conversion->n_delay ) )
-                return( -1 );
 
         /* For openslide, read out the level structure too.
          */
@@ -484,16 +500,11 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 			conversion->type = CONVERSION_TYPE_MULTIPAGE;
 	}
 
-
-	/* Pick a default mode for this image.
-	 *
-	 * has delay stuff and is toilet-roll
-	 *
-	 * 	animated
-	 *
-	 * otherwise multipage
-	 */
-	conversion->mode = CONVERSION_MODE_MULTIPAGE;
+	if( conversion->delay &&
+		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
+		conversion->mode = CONVERSION_MODE_ANIMATED;
+	else
+		conversion->mode = CONVERSION_MODE_MULTIPAGE;
 
 #ifdef DEBUG
 {
@@ -516,6 +527,8 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
         printf( "\tpages_same_size = %d\n", conversion->pages_same_size );
         printf( "\ttype = %d\n", conversion->type );
         printf( "\tmode = %d\n", conversion->mode );
+        printf( "\tdelay = %p\n", conversion->delay );
+        printf( "\tn_delay = %d\n", conversion->n_delay );
 }
 #endif /*DEBUG*/
 
@@ -967,6 +980,34 @@ conversion_update_display( Conversion *conversion )
         return( 0 );
 }
 
+/* Each timeout fires once, sets the next timeout, and flips the page.
+ */
+static gboolean
+conversion_page_flip( void *user_data )
+{
+	Conversion *conversion = (Conversion *) user_data;
+	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+
+	int delay;
+
+	delay = 10;
+	if( conversion->delay ) {
+		int delay_index = VIPS_MIN( page, conversion->n_delay );
+
+		delay = conversion->delay[delay_index];
+	}
+	delay = VIPS_CLIP( 10, delay, 100000 );
+
+	conversion->page_flip_id = 
+		g_timeout_add( delay, conversion_page_flip, conversion );
+
+	g_object_set( conversion,
+		"page", (page + 1) % conversion->n_pages,
+		NULL );
+
+	return( FALSE );
+}
+
 static void
 conversion_set_property( GObject *object, 
         guint prop_id, const GValue *value, GParamSpec *pspec )
@@ -995,6 +1036,15 @@ conversion_set_property( GObject *object,
 
                         conversion->mode = i;
                         conversion_update_display( conversion );
+
+			/* In animation mode, create the page flip timeout.
+			 */
+			if( conversion->page_flip_id )
+				VIPS_FREEF( g_source_remove, 
+					conversion->page_flip_id );
+			if( conversion->mode == CONVERSION_MODE_ANIMATED )
+				conversion->page_flip_id = g_timeout_add( 100, 
+					conversion_page_flip, conversion );
                 }
                 break;
 
