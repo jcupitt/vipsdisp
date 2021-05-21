@@ -27,10 +27,6 @@
 
 */
 
-/*
-#define DEBUG
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +36,10 @@
 #include <vips/vips.h>
 
 #include "disp.h"
+
+/*
+#define DEBUG
+ */
 
 /* Our signals. 
  */

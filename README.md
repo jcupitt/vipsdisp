@@ -59,14 +59,10 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- ^O shortcut for replace, cf. ^W
+- show checkerboard for transparency?
 
-  maybe need an action for replace?
-
-  we have ^N and ^D for new and duplicate, show them in menu? how do visible
-  menu shortcuts work in gtk3?
-
-  add replace to right-click menu
+- ^D reloads image and you get a progress bar etc., can we copy the ref
+  somehow?
 
 - header display
 

@@ -176,6 +176,10 @@ typedef struct _ConversionClass {
 	 */
 	void (*display_changed)( Conversion *conversion );
 
+	/* The page has flipped.
+	 */
+	void (*page_changed)( Conversion *conversion );
+
 	/* Part of the output image has changed.
 	 */
 	void (*area_changed)( Conversion *conversion, VipsRect *dirty );

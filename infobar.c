@@ -11,6 +11,10 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG
+ */
+
 G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_BOX );
 
 static void
@@ -182,6 +186,10 @@ void
 infobar_status_update( Infobar *infobar )
 {
 	Conversion *conversion = infobar->imagepresent->conversion;
+
+#ifdef DEBUG
+	printf( "infobar_status_update:\n" ); 
+#endif /*DEBUG*/
 
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );

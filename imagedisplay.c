@@ -12,6 +12,7 @@
 #include "disp.h"
 
 /*
+#define DEBUG_VERBOSE
 #define DEBUG
  */
 
@@ -136,12 +137,14 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		imagedisplay->paint_rect.height ); 
 }
 
+/* New display image, so we need new mask and RGB regions.
+ */
 static void
-imagedisplay_conversion_changed( Conversion *conversion, 
+imagedisplay_conversion_display_changed( Conversion *conversion, 
 	Imagedisplay *imagedisplay ) 
 {
 #ifdef DEBUG
-	printf( "imagedisplay_conversion_changed:\n" ); 
+	printf( "imagedisplay_conversion_display_changed:\n" ); 
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagedisplay->mask_region );
@@ -166,12 +169,12 @@ imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty,
 {
 	VipsRect expose;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf( "imagedisplay_conversion_area_changed: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		dirty->left, dirty->top,
 		dirty->width, dirty->height );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	expose = *dirty;
 	imagedisplay_image_to_gtk( imagedisplay, &expose );
@@ -192,8 +195,9 @@ imagedisplay_set_conversion( Imagedisplay *imagedisplay,
 	g_object_ref( imagedisplay->conversion );
 
 	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
-		"display-changed",
-		G_CALLBACK( imagedisplay_conversion_changed ), imagedisplay );
+		"display_changed",
+		G_CALLBACK( imagedisplay_conversion_display_changed ), 
+		imagedisplay );
 	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
 		"area-changed",
 		G_CALLBACK( imagedisplay_conversion_area_changed ), 
@@ -559,21 +563,21 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	 * will trigger a notify later which will reinvoke us.
 	 */
 	if( vips_region_prepare( imagedisplay->mask_region, &clip ) ) {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 		return;
 	}
 
 	if( vips_region_prepare( imagedisplay->rgb_region, &clip ) ) {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
 		abort();
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 		return;
 	}
@@ -587,11 +591,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		unsigned char *cairo_start = imagedisplay->cairo_buffer +
 			target.top * cairo_stride + target.left * 4;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 		printf( "imagedisplay_fill_tile: "
 			"painting %d x %d pixels to buffer\n", 
 			clip.width, clip.height );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 		imagedisplay_vips_to_cairo( imagedisplay, 
 			cairo_start,
@@ -611,12 +615,12 @@ imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 	int left, top, right, bottom;
 	int x, y;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf( "imagedisplay_fill_rect: "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		expose->left, expose->top,
 		expose->width, expose->height );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	left = VIPS_ROUND_DOWN( expose->left, tile_size );
 	top = VIPS_ROUND_DOWN( expose->top, tile_size );

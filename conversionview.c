@@ -11,6 +11,10 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG
+ */
+
 G_DEFINE_TYPE( Conversionview, conversionview, GTK_TYPE_BOX );
 
 static void
@@ -119,9 +123,13 @@ conversionview_class_init( ConversionviewClass *class )
 }
 
 static void
-conversionview_display_changed( Conversion *conversion, 
+conversionview_changed( Conversion *conversion, 
 	Conversionview *conversionview )
 {
+#ifdef DEBUG
+	printf( "conversionview_changed:\n" );
+#endif /*DEBUG*/
+
 	if( conversionview->scale->value != conversion->scale ) {
 		conversionview->scale->value = conversion->scale;
 		tslider_changed( conversionview->scale );
@@ -138,13 +146,23 @@ conversionview_display_changed( Conversion *conversion,
 		gtk_spin_button_set_range( 
 			GTK_SPIN_BUTTON( conversionview->page_select ), 
 			0, n_pages - 1 );
-		gtk_spin_button_set_value( 
-			GTK_SPIN_BUTTON( conversionview->page_select ), 
-			conversion->page );
 		gtk_widget_set_sensitive( conversionview->page_select, 
 			n_pages > 1 && 
 			conversion->mode == CONVERSION_MODE_MULTIPAGE );
 	}
+}
+
+static void
+conversionview_page_changed( Conversion *conversion, 
+	Conversionview *conversionview )
+{
+#ifdef DEBUG
+	printf( "conversionview_page_changed:\n" );
+#endif /*DEBUG*/
+
+	gtk_spin_button_set_value( 
+		GTK_SPIN_BUTTON( conversionview->page_select ), 
+		conversion->page );
 }
 
 Conversionview *
@@ -159,9 +177,10 @@ conversionview_new( Conversion *conversion )
 
 	/* If the conversion changes, we need to update our widgets.
 	 */
-	g_signal_connect( conversion,
-		"display-changed",
-		G_CALLBACK( conversionview_display_changed ), conversionview );
+	g_signal_connect( conversion, "changed",
+		G_CALLBACK( conversionview_changed ), conversionview );
+	g_signal_connect( conversion, "page-changed",
+		G_CALLBACK( conversionview_page_changed ), conversionview );
 
 	return( conversionview ); 
 }

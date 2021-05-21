@@ -10,6 +10,10 @@
 
 #include "disp.h"
 
+/*
+#define DEBUG
+ */
+
 GdkPixbuf *disp_icon = NULL;
 
 G_DEFINE_TYPE( Disp, disp, GTK_TYPE_APPLICATION );
@@ -99,6 +103,7 @@ disp_startup( GApplication *application )
 		{ "app.new", { "<Primary>n", NULL } },
 		{ "win.duplicate", { "<Primary>d", NULL } },
 		{ "win.close", { "<Primary>w", NULL } },
+		{ "win.replace", { "<Primary>o", NULL } },
 	};
 
 #ifdef DEBUG

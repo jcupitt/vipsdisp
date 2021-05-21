@@ -1,8 +1,6 @@
 /* Display an image with gtk3 and libvips. 
  */
 
-#define DEBUG
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -12,6 +10,11 @@
 #include <vips/vips.h>
 
 #include "disp.h"
+
+/*
+#define DEBUG_VERBOSE
+#define DEBUG
+ */
 
 G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 
@@ -65,9 +68,9 @@ imageview_eval( Conversion *conversion,
 {
 	static int previous_percent = -1;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf( "imageview_eval: %d%%\n", progress->percent ); 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	if( progress->percent != previous_percent ) {
 		char str[256];
@@ -83,11 +86,11 @@ imageview_eval( Conversion *conversion,
 			vips_buf_all( &buf ) );
 
 		previous_percent = progress->percent;
-	}
 
-	/* Run one loop iteration, don't block.
-	 */
-	(void) gtk_main_iteration_do( FALSE );
+		/* Run one loop iteration, don't block.
+		 */
+		(void) gtk_main_iteration_do( FALSE );
+	}
 }
 
 static void
@@ -277,8 +280,53 @@ imageview_duplicate( GSimpleAction *action,
 }
 
 static void
-imageview_saveas( GSimpleAction *action, 
-	GVariant *state, gpointer user_data )
+imageview_set_source( Imageview *imageview, VipsSource *source )
+{
+	if( conversion_set_source( imageview->imagepresent->conversion, 
+		source ) )
+		imageview_show_error( imageview ); 
+}
+
+static void
+imageview_replace( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
+
+	GtkWidget *dialog;
+	const char *path;
+	int result;
+
+	dialog = gtk_file_chooser_dialog_new( "Replace from file",
+		GTK_WINDOW( imageview ) , 
+		GTK_FILE_CHOOSER_ACTION_OPEN,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Replace", GTK_RESPONSE_ACCEPT,
+		NULL );
+
+	if( (path = conversion_get_path( conversion )) )
+		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
+			path );
+
+	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
+	if( result == GTK_RESPONSE_ACCEPT ) {
+		char *path;
+		VipsSource *source;
+
+		imageview_hide_error( imageview ); 
+		path = gtk_file_chooser_get_filename( 
+			GTK_FILE_CHOOSER( dialog ) );
+		source = vips_source_new_from_file( path );
+		g_free( path );
+		imageview_set_source( imageview, source );
+		g_object_unref( source ); 
+	}
+
+	gtk_widget_destroy( dialog );
+}
+
+static void
+imageview_saveas( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
 	Imageview *imageview = (Imageview *) user_data;
 	Conversion *conversion = imageview->imagepresent->conversion;
@@ -539,6 +587,7 @@ static GActionEntry imageview_entries[] = {
 	{ "normal", imageview_normal },
 	{ "bestfit", imageview_bestfit },
 	{ "duplicate", imageview_duplicate },
+	{ "replace", imageview_replace },
 	{ "saveas", imageview_saveas },
 	{ "close", imageview_close },
 
@@ -555,14 +604,6 @@ static GActionEntry imageview_entries[] = {
 };
 
 static void
-imageview_set_source( Imageview *imageview, VipsSource *source )
-{
-	if( conversion_set_source( imageview->imagepresent->conversion, 
-		source ) )
-		imageview_show_error( imageview ); 
-}
-
-static void
 imageview_set_file( Imageview *imageview, GFile *file )
 {
 	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
@@ -572,38 +613,10 @@ imageview_set_file( Imageview *imageview, GFile *file )
 static void
 imageview_replace_clicked( GtkWidget *button, Imageview *imageview )
 {
-	Conversion *conversion = imageview->imagepresent->conversion;
-
-	GtkWidget *dialog;
-	const char *path;
-	int result;
-
-	dialog = gtk_file_chooser_dialog_new( "Replace from file",
-		GTK_WINDOW( imageview ) , 
-		GTK_FILE_CHOOSER_ACTION_OPEN,
-		"_Cancel", GTK_RESPONSE_CANCEL,
-		"_Replace", GTK_RESPONSE_ACCEPT,
+	g_action_activate( 
+		g_action_map_lookup_action( G_ACTION_MAP( imageview ), 
+			"replace" ),
 		NULL );
-
-	if( (path = conversion_get_path( conversion )) )
-		gtk_file_chooser_set_filename( GTK_FILE_CHOOSER( dialog ),
-			path );
-
-	result = gtk_dialog_run( GTK_DIALOG( dialog ) );
-	if( result == GTK_RESPONSE_ACCEPT ) {
-		char *path;
-		VipsSource *source;
-
-		imageview_hide_error( imageview ); 
-		path = gtk_file_chooser_get_filename( 
-			GTK_FILE_CHOOSER( dialog ) );
-		source = vips_source_new_from_file( path );
-		g_free( path );
-		imageview_set_source( imageview, source );
-		g_object_unref( source ); 
-	}
-
-	gtk_widget_destroy( dialog );
 }
 
 static void

@@ -13,8 +13,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -40,6 +40,7 @@ enum {
         SIG_PREEVAL,
         SIG_EVAL,
         SIG_POSTEVAL,
+        SIG_PAGE_CHANGED,	/* The page number has changed (eg. animate) */
         SIG_CHANGED,		/* The whole conversion has changed */
         SIG_DISPLAY_CHANGED,	/* The whole display has changed */
         SIG_AREA_CHANGED,	/* A tile has changed in the image */
@@ -61,6 +62,13 @@ conversion_display_changed( Conversion *conversion )
 {
         g_signal_emit( conversion, 
                 conversion_signals[SIG_DISPLAY_CHANGED], 0 );
+}
+
+static void
+conversion_page_changed( Conversion *conversion )
+{
+        g_signal_emit( conversion, 
+                conversion_signals[SIG_PAGE_CHANGED], 0 );
 }
 
 static void
@@ -365,7 +373,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 {
 	const char *loader;
 	VipsImage *image;
-        int i;
 	ConversionMode mode;
 
 #ifdef DEBUG
@@ -503,6 +510,8 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
 #ifdef DEBUG
 {
+        int i;
+
         printf( "conversion_set_image:\n" );
         printf( "\tloader = %s\n", conversion->loader );
         printf( "\twidth = %d\n", conversion->width );
@@ -1110,7 +1119,7 @@ conversion_set_property( GObject *object,
 #endif /*DEBUG*/
 
                         conversion->page = i;
-			conversion_changed( conversion );
+			conversion_page_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1379,6 +1388,14 @@ conversion_class_init( ConversionClass *class )
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
                 G_STRUCT_OFFSET( ConversionClass, changed ), 
+                NULL, NULL,
+                g_cclosure_marshal_VOID__VOID,
+                G_TYPE_NONE, 0 ); 
+
+        conversion_signals[SIG_PAGE_CHANGED] = g_signal_new( "page_changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                G_STRUCT_OFFSET( ConversionClass, page_changed ), 
                 NULL, NULL,
                 g_cclosure_marshal_VOID__VOID,
                 G_TYPE_NONE, 0 ); 
