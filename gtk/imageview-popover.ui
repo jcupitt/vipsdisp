@@ -22,6 +22,20 @@
     </section>
 
     <section>
+      <attribute name="display-hint">horizontal-buttons</attribute>
+      <item>
+        <attribute name="label">Previous page</attribute>
+        <attribute name="action">win.prev</attribute>
+        <attribute name="verb-icon">media-seek-backward</attribute>
+      </item>
+      <item>
+        <attribute name="label">Next page</attribute>
+        <attribute name="action">win.next</attribute>
+        <attribute name="verb-icon">media-seek-forward</attribute>
+      </item>
+    </section>
+
+    <section>
       <item>
         <attribute name='label' translatable='yes'>New window</attribute>
         <attribute name='action'>app.new</attribute>

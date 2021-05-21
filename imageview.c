@@ -370,12 +370,35 @@ imageview_saveas( GSimpleAction *action, GVariant *state, gpointer user_data )
 }
 
 static void
-imageview_close( GSimpleAction *action, 
-	GVariant *state, gpointer user_data )
+imageview_close( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
 	Imageview *imageview = (Imageview *) user_data;
 
 	gtk_widget_destroy( GTK_WIDGET( imageview ) );  
+}
+
+static void
+imageview_next( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
+	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+
+	g_object_set( conversion,
+		"page", (page + 1) % conversion->n_pages,
+		NULL );
+}
+
+static void
+imageview_prev( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	Conversion *conversion = imageview->imagepresent->conversion;
+	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+
+	g_object_set( conversion,
+		"page", page == 0 ? conversion->n_pages - 1 : page - 1,
+		NULL );
 }
 
 static void
@@ -595,6 +618,8 @@ static GActionEntry imageview_entries[] = {
 	{ "control", imageview_toggle, NULL, "false", imageview_control },
 	{ "info", imageview_toggle, NULL, "false", imageview_info },
 
+	{ "next", imageview_next },
+	{ "prev", imageview_prev },
 	{ "scale", imageview_scale },
 	{ "log", imageview_toggle, NULL, "false", imageview_log },
 	{ "falsecolour", 

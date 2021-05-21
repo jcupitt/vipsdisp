@@ -2,6 +2,7 @@
 
 <interface>
   <menu id='conversionview-popover-menu'>
+
     <section>
       <item>
         <attribute name='label' translatable='yes'>Scale</attribute>

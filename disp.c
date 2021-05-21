@@ -104,6 +104,8 @@ disp_startup( GApplication *application )
 		{ "win.duplicate", { "<Primary>d", NULL } },
 		{ "win.close", { "<Primary>w", NULL } },
 		{ "win.replace", { "<Primary>o", NULL } },
+		{ "win.prev", { "comma", NULL } },
+		{ "win.next", { "period", NULL } },
 	};
 
 #ifdef DEBUG
