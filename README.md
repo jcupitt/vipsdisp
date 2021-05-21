@@ -32,9 +32,14 @@ $ ./vd ~/pics/k2.jpg
 * Cursor keys plus ctrl to move to image edges
 * Number keys to pick a particular magnification, 0 for best fit
 * i, + / o, - to zoom in and out
+* , . prev page, next page
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
+* ^O replace iamge
+* ^N new viewer
+* ^D duplicate view
+* F11 fullscreen
 
 ### Structure
 
