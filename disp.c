@@ -53,7 +53,7 @@ disp_new_activated( GSimpleAction *action,
 	printf( "disp_new_activated:\n" ); 
 #endif /*DEBUG*/
 
-	imageview_new( GTK_APPLICATION( app ), NULL );
+	imageview_new( GTK_APPLICATION( app ) );
 }
 
 static void
@@ -154,7 +154,7 @@ disp_activate( GApplication *application )
 	printf( "disp_activate:\n" ); 
 #endif /*DEBUG*/
 
-	imageview_new( GTK_APPLICATION( application ), NULL );
+	imageview_new( GTK_APPLICATION( application ) );
 }
 
 static void
@@ -167,8 +167,12 @@ disp_open( GApplication *application,
 	printf( "disp_open:\n" ); 
 #endif /*DEBUG*/
 
-	for( i = 0; i < n_files; i++ )
-		imageview_new( GTK_APPLICATION( application ), files[i] );
+	for( i = 0; i < n_files; i++ ) {
+		Imageview *imageview = 
+			imageview_new( GTK_APPLICATION( application ) );
+
+		imageview_set_file( imageview, files[i] );
+	}
 }
 
 static void

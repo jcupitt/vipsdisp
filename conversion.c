@@ -13,8 +13,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */
@@ -109,15 +109,14 @@ conversion_disconnect( Conversion *conversion )
 
 	}
 
+        VIPS_FREE( conversion->delay );
+        conversion->n_delay = 0;
         VIPS_UNREF( conversion->image );
         VIPS_UNREF( conversion->source );
         VIPS_UNREF( conversion->image_region );
         VIPS_UNREF( conversion->display );
         VIPS_UNREF( conversion->mask );
         VIPS_UNREF( conversion->rgb );
-
-        VIPS_FREE( conversion->delay );
-        conversion->n_delay = 0;
 }
 
 static void
@@ -153,12 +152,17 @@ get_int( VipsImage *image, const char *field, int default_value )
         return( default_value );
 }
 
+/* Open at a specified magnification level. Take page from the conversion.
+ */
 static VipsImage *
 conversion_open( Conversion *conversion, int level )
 {
 	/* In toilet-roll mode, we open all pages.
 	 */
-	int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? -1 : 1;
+	int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
+		-1 : 1;
+	int page = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
+		0 : conversion->page;
 
         VipsImage *image;
 
@@ -178,7 +182,7 @@ conversion_open( Conversion *conversion, int level )
                 if( conversion->subifd_pyramid )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-				"page", conversion->page,
+				"page", page,
                                 "subifd", level,
 				"n", n,
                                 NULL );
@@ -190,17 +194,26 @@ conversion_open( Conversion *conversion, int level )
                                 "page", level,
                                 NULL );
                 else
+			/* Pages are regular pages.
+			 */
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-				"page", conversion->page,
+				"page", page,
 				"n", n,
                                 NULL );
         }
-	else if( vips_isprefix( "jp2k", conversion->loader ) ||
-		vips_isprefix( "pdf", conversion->loader ) ||
+	else if( vips_isprefix( "jp2k", conversion->loader ) ) {
+		/* These only have a "page" param.
+		 */
+		image = vips_image_new_from_source( conversion->source,
+			"", 
+			"page", level,
+			NULL );
+	}
+	else if( vips_isprefix( "pdf", conversion->loader ) ||
 		vips_isprefix( "webp", conversion->loader ) ||
 		vips_isprefix( "gif", conversion->loader ) ) {
-		/* These only have a "page" dimension.
+		/* Support page and n.
 		 */
 		image = vips_image_new_from_source( conversion->source,
 			"", 
@@ -209,8 +222,7 @@ conversion_open( Conversion *conversion, int level )
 			NULL );
 	}
         else 
-		/* Don't pass "n" ... it might eg. be a jpeg and not have a
-		 * page dimension.
+		/* Don't support any page spec.
 		 */
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
@@ -368,64 +380,45 @@ conversion_attach_progress( Conversion *conversion )
                 conversion );
 }
 
-int
-conversion_set_source( Conversion *conversion, VipsSource *source )
+/* image needs to have been opened with n == -1, ie. a toilet roll.
+ */
+static int
+conversion_set_image( Conversion *conversion, VipsImage *image )
 {
-	const char *loader;
-	VipsImage *image;
 	ConversionMode mode;
 
 #ifdef DEBUG
-        printf( "conversion_set_source: starting ..\n" );
+        printf( "conversion_set_image: starting ..\n" );
 #endif /*DEBUG*/
 
-	/* Don't update if we're still loading.
+	/* You must conversion_disconnect() before calling this.
 	 */
-	if( conversion->image &&
-		!conversion->loaded )
-		return( 0 );
-
-        conversion_disconnect( conversion );
-
-	/* Always set the source so we can display a filename in the header
-	 * bar even if load fails.
-	 */
-	conversion->source = source; 
-	g_object_ref( source );
-
-	if( !(loader = vips_foreign_find_load_source( source )) ||
-		!(image = vips_image_new_from_source( source, "", NULL )) ) {
-		/* Signal changed so eg. header bars can update.
-		 */
-		conversion_changed( conversion );
-		return( -1 );
-	}
+	g_assert( !conversion->image );
 
         if( vips_image_get_typeof( image, "delay" ) ) {
 		int *delay;
+		int n_delay;
 
 		if( vips_image_get_array_int( image, "delay",
-                        &delay, &conversion->n_delay ) )
+                        &delay, &n_delay ) )
 			return( -1 );
 
-		/* We have to make a copy of delay, since we may be reffing
-		 * and unreffing image for zoom etc.
-		 */
-		conversion->delay = g_new( int, conversion->n_delay );
-		memcpy( conversion->delay, delay, 
-			conversion->n_delay * sizeof( int ) );
+		conversion->delay = g_new( int, n_delay );
+		memcpy( conversion->delay, delay, n_delay * sizeof( int ) );
+		conversion->n_delay = n_delay;
 	}
 
-	/* vips_foreign_find_load_source() gives us eg.
-	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
-	 * generic name.
-	 */
-	conversion->loader = vips_nickname_find( g_type_from_name( loader ) );
         conversion->image = image;
         conversion->width = image->Xsize;
-        conversion->height = image->Ysize;
+        conversion->height = vips_image_get_page_height( image );
         conversion->n_pages = vips_image_get_n_pages( image );
         conversion->n_subifds = vips_image_get_n_subifds( image );
+
+	/* Are all pages the same size? We can only use animation and 
+	 * toilet-roll mode in this case.
+	 */
+	if( image->Ysize == conversion->height * conversion->n_pages )
+		conversion->pages_same_size = TRUE;
 
         /* For openslide, read out the level structure too.
          */
@@ -483,22 +476,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 			conversion->page_pyramid = FALSE;
         }
 
-	/* Are all pages the same size? We can only use animation and 
-	 * toilet-roll mode in this case.
-	 *
-	 * Load with -1 for "n" and see if we get the entire image.
-	 */
-	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
-	if( !(image = conversion_open( conversion, 0 )) )
-		return( -1 );
-	if( image->Ysize == conversion->height * conversion->n_pages ) {
-		conversion->pages_same_size = TRUE;
-		VIPS_UNREF( conversion->image );
-		conversion->image = image;
-		g_object_ref( image );
-	}
-	VIPS_UNREF( image );
-
 	if( conversion->pages_same_size )
 		conversion->type = CONVERSION_TYPE_TOILET_ROLL;
 	else {
@@ -538,24 +515,27 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
         conversion->image_region = vips_region_new( conversion->image );
 
-        /* We ref this conversion so it won't die before the
-         * background load is done. The matching unref is at the end
-         * of bg load.
-         */
-        g_object_ref( conversion );
-
 	if( conversion->delay &&
 		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
 		mode = CONVERSION_MODE_ANIMATED;
 	else
 		mode = CONVERSION_MODE_MULTIPAGE;
 
+        g_object_set( conversion, 
+		"mode", mode, 
+		NULL );
+
+        /* We ref this conversion so it won't die before the
+         * background load is done. The matching unref is at the end
+         * of bg load.
+         */
+        g_object_ref( conversion );
+
         /* This will be set TRUE again at the end of the background
          * load. This will trigger conversion_update_display() for us.
          */
         g_object_set( conversion, 
 		"loaded", FALSE, 
-		"mode", mode, 
 		NULL );
 
         conversion_attach_progress( conversion ); 
@@ -563,6 +543,105 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
         g_thread_pool_push( conversion_background_load_pool, conversion, NULL );
 
         return( 0 );
+}
+
+/* Duplicate another conversion.
+ */
+int
+conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
+{
+	/* Don't update if we're still loading.
+	 */
+	if( conversion->image &&
+		!conversion->loaded )
+		return( 0 );
+
+        conversion_disconnect( conversion );
+
+	conversion->source = old_conversion->source; 
+	g_object_ref( conversion->source );
+	conversion->loader = old_conversion->loader; 
+
+	if( conversion_set_image( conversion, old_conversion->image ) )
+		return( -1 );
+
+	g_object_set( conversion,
+		"falsecolour", old_conversion->falsecolour,
+		"log", old_conversion->log,
+		"mag", old_conversion->mag,
+		"scale", old_conversion->scale,
+		"offset", old_conversion->offset,
+		NULL );
+
+	return( 0 );
+}
+
+/* All libvips loaders which support page/n arguments. jp2k has page, but not
+ * n.
+ *
+ * FIXME ... could use introspection to make this list.
+ */
+static const char *
+conversion_page_formats[] = {
+	"tiff",
+	"pdf",
+	"webp",
+	"gif"
+};
+
+int
+conversion_set_source( Conversion *conversion, VipsSource *source )
+{
+	const char *loader;
+        VipsImage *image;
+	int i;
+
+	/* Don't update if we're still loading.
+	 */
+	if( conversion->image &&
+		!conversion->loaded )
+		return( 0 );
+
+#ifdef DEBUG
+        printf( "conversion_set_source: starting ..\n" );
+#endif /*DEBUG*/
+
+        conversion_disconnect( conversion );
+
+	/* Always set the source so we can display a filename in the header
+	 * bar even if load fails.
+	 */
+	conversion->source = source; 
+	g_object_ref( source );
+
+	if( !(loader = vips_foreign_find_load_source( source )) ) {
+		/* Signal changed so eg. header bars can update.
+		 */
+		conversion_changed( conversion );
+		return( -1 );
+	}
+
+	/* vips_foreign_find_load_source() gives us eg.
+	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
+	 * generic name.
+	 */
+	loader = vips_nickname_find( g_type_from_name( loader ) );
+	conversion->loader = loader;
+
+	for( i = 0; i < VIPS_NUMBER( conversion_page_formats ); i++ ) {
+		if( vips_isprefix( conversion_page_formats[i], loader ) ) {
+			image = vips_image_new_from_source( source, "",
+				"n", -1, NULL );
+			break;
+		}
+	}
+	if( i == VIPS_NUMBER( conversion_page_formats ) )
+                image = vips_image_new_from_source( source, "", NULL );
+
+	if( !image )
+		return( -1 );
+
+	return( conversion_set_image( conversion, image ) );
 }
 
 int
@@ -1001,20 +1080,26 @@ conversion_page_flip( void *user_data )
 	Conversion *conversion = (Conversion *) user_data;
 	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
 
-	int delay;
+	int timeout;
+
+	timeout = 33;
+
+	if( conversion->delay ) {
+		int i = VIPS_MIN( page, conversion->n_delay - 1 );
+
+		timeout = conversion->delay[i];
+	}
 
 	/* Don't go faster than 30 fps.
 	 */
-	delay = 33;
-	if( conversion->delay ) {
-		int delay_index = VIPS_MIN( page, conversion->n_delay );
-
-		delay = conversion->delay[delay_index];
-	}
-	delay = VIPS_CLIP( 33, delay, 100000 );
+	timeout = VIPS_CLIP( 33, timeout, 100000 );
 
 	conversion->page_flip_id = 
-		g_timeout_add( delay, conversion_page_flip, conversion );
+		g_timeout_add( timeout, conversion_page_flip, conversion );
+
+#ifdef DEBUG
+	printf( "conversion_page_flip: timeout %d ms\n", timeout ); 
+#endif /*DEBUG*/
 
 	g_object_set( conversion,
 		"page", (page + 1) % conversion->n_pages,
@@ -1251,6 +1336,10 @@ static gboolean
 conversion_background_load_done_cb( void *user_data )
 {
         Conversion *conversion = (Conversion *) user_data;
+
+#ifdef DEBUG
+        printf( "conversion_background_load_done_cb:\n" );
+#endif /*DEBUG*/
 
         /* You can now fetch pixels.
          */

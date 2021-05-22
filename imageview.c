@@ -231,36 +231,27 @@ imageview_duplicate( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	Imageview *imageview = (Imageview *) user_data;
-	Conversion *conversion = imageview->imagepresent->conversion;
 
 	Imageview *new_imageview;
 	int width, height;
 
-	new_imageview = imageview_new_from_source( 
-		GTK_APPLICATION( imageview->disp ), 
-		conversion->source );
+	new_imageview = imageview_new( GTK_APPLICATION( imageview->disp ) );
 
-	g_object_set( new_imageview->imagepresent->conversion,
-		"falsecolour", conversion->falsecolour,
-		"log", conversion->log,
-		"mag", conversion->mag,
-		"scale", conversion->scale,
-		"offset", conversion->offset,
-		NULL );
+	imageview_set_conversion( new_imageview, 
+		imageview->imagepresent->conversion );
 
 	gtk_window_get_size( GTK_WINDOW( imageview ), &width, &height );
 	gtk_window_resize( GTK_WINDOW( new_imageview ), width, height );
 
+	/* falsecolour etc. are copied when we copy the converion. We
+	 * just copy the window state here.
+	 */
 	copy_state( GTK_WIDGET( new_imageview ), 
 		GTK_WIDGET( imageview ), "control" );
 	copy_state( GTK_WIDGET( new_imageview ), 
 		GTK_WIDGET( imageview ), "info" );
 	copy_state( GTK_WIDGET( new_imageview ), 
 		GTK_WIDGET( imageview ), "fullscreen" );
-	copy_state( GTK_WIDGET( new_imageview ), 
-		GTK_WIDGET( imageview ), "log" );
-	copy_state( GTK_WIDGET( new_imageview ), 
-		GTK_WIDGET( imageview ), "falsecolour" );
 
 	/* We want to init the scroll position, but we can't do that until the
 	 * adj range is set, and that won't happen until the image is loaded.
@@ -277,14 +268,6 @@ imageview_duplicate( GSimpleAction *action,
 			GTK_SCROLLED_WINDOW( new_imageview->imagepresent ) ),
 		gtk_scrolled_window_get_vadjustment( 
 			GTK_SCROLLED_WINDOW( imageview->imagepresent ) ) );
-}
-
-static void
-imageview_set_source( Imageview *imageview, VipsSource *source )
-{
-	if( conversion_set_source( imageview->imagepresent->conversion, 
-		source ) )
-		imageview_show_error( imageview ); 
 }
 
 static void
@@ -629,13 +612,6 @@ static GActionEntry imageview_entries[] = {
 };
 
 static void
-imageview_set_file( Imageview *imageview, GFile *file )
-{
-	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
-		imageview_show_error( imageview ); 
-}
-
-static void
 imageview_replace_clicked( GtkWidget *button, Imageview *imageview )
 {
 	g_action_activate( 
@@ -835,14 +811,14 @@ imageview_class_init( ImageviewClass *class )
 }
 
 Imageview *
-imageview_new( GtkApplication *application, GFile *file )
+imageview_new( GtkApplication *application )
 {
 	Disp *disp = (Disp *) application;
 
 	Imageview *imageview;
 
 #ifdef DEBUG
-	printf( "imageview_new: file = %p\n", file ); 
+	printf( "imageview_new:\n" );
 #endif /*DEBUG*/
 
 	imageview = g_object_new( imageview_get_type(),
@@ -852,33 +828,29 @@ imageview_new( GtkApplication *application, GFile *file )
 	imageview->disp = disp;
 
 	gtk_widget_show( GTK_WIDGET( imageview ) );
-
-	imageview_set_file( imageview, file );
 
 	return( imageview ); 
 }
 
-Imageview *
-imageview_new_from_source( GtkApplication *application, VipsSource *source )
+void
+imageview_set_file( Imageview *imageview, GFile *file )
 {
-	Disp *disp = (Disp *) application;
+	if( conversion_set_file( imageview->imagepresent->conversion, file ) )
+		imageview_show_error( imageview ); 
+}
 
-	Imageview *imageview;
+void
+imageview_set_source( Imageview *imageview, VipsSource *source )
+{
+	if( conversion_set_source( imageview->imagepresent->conversion, 
+		source ) )
+		imageview_show_error( imageview ); 
+}
 
-#ifdef DEBUG
-	printf( "imageview_new_from_source: source = %p\n", source ); 
-#endif /*DEBUG*/
-
-	imageview = g_object_new( imageview_get_type(),
-		"application", application,
-		NULL );
-
-	imageview->disp = disp;
-
-	gtk_widget_show( GTK_WIDGET( imageview ) );
-
-	if( source )
-		imageview_set_source( imageview, source );
-
-	return( imageview ); 
+void
+imageview_set_conversion( Imageview *imageview, Conversion *conversion )
+{
+	if( conversion_set_conversion( imageview->imagepresent->conversion,
+		conversion ) ) 
+		imageview_show_error( imageview ); 
 }

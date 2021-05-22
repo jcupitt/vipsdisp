@@ -64,6 +64,11 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
+- load animation, ^D, ^W, ^W, null object
+
+- load image with long progress bar, ^D during load, progress bar stops
+  updating
+
 - show checkerboard for transparency?
 
 - ^D reloads image and you get a progress bar etc., can we copy the ref

@@ -188,6 +188,8 @@ typedef struct _ConversionClass {
 
 GType conversion_get_type( void );
 
+int conversion_set_conversion( Conversion *conversion, 
+	Conversion *old_conversion );
 int conversion_set_source( Conversion *conversion, VipsSource *source );
 int conversion_set_file( Conversion *conversion, GFile *file );
 

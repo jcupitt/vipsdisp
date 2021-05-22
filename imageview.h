@@ -24,6 +24,8 @@ typedef GtkApplicationWindowClass ImageviewClass;
 
 void imageview_status_update( Imageview *imageview );
 
-Imageview *imageview_new( GtkApplication *application, GFile *file );
-Imageview *imageview_new_from_source( GtkApplication *application, 
-	VipsSource *source );
+Imageview *imageview_new( GtkApplication *application );
+
+void imageview_set_file( Imageview *imageview, GFile *file );
+void imageview_set_source( Imageview *imageview, VipsSource *source );
+void imageview_set_conversion( Imageview *imageview, Conversion *conversion );
