@@ -10,6 +10,6 @@ typedef struct _Infobar {
 
 } Infobar;
 
-typedef GtkVBoxClass InfobarClass;
+typedef GtkBoxClass InfobarClass;
 
 Infobar *infobar_new( Imagepresent *imagepresent );

@@ -17,6 +17,23 @@ It all works, though see the TODO list below.
 
 [![Screenshot](images/shot3.jpg)](images/shot3.jpg)
 
+## gtk4
+
+You need gtk4. On Ubuntu 20.10, build with:
+
+```
+$ cd gtk
+$ meson _build . \
+  --prefix=/home/john/vips \
+  --libdir=/home/john/vips/lib \
+  -Dwayland-backend=false
+$ cd _build
+$ bninja
+$ ninja install
+```
+
+Since 20.10's wayland is too old.
+
 ### To run
 
 ```
@@ -63,6 +80,8 @@ and sets properties of `Conversion` to zoom etc.
 * `disp` is the `main()`, `Disp` is a `GtkApplication` subclass
 
 ### TODO
+
+- auto reload on file change, or support F5 for reload?
 
 - load animation, ^D, ^W, ^W, null object
 
