@@ -172,7 +172,6 @@ conversion_open( Conversion *conversion, int level )
                 image = vips_image_new_from_source( conversion->source, 
 			"", 
                         "level", level,
-                        "n", n,
                         NULL );
         }
         else if( vips_isprefix( "tiff", conversion->loader ) ) {
@@ -420,7 +419,7 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 	if( image->Ysize == conversion->height * conversion->n_pages )
 		conversion->pages_same_size = TRUE;
 
-        /* For openslide, read out the level structure too.
+        /* For openslide, read out the level structure.
          */
         if( vips_isprefix( "openslide", conversion->loader ) ) {
                 int level_count;
@@ -879,15 +878,20 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		g_object_ref( image ); 
 	}
 
-	/* In multipage display mode, crop out the page we want.
+	/* In multipage display mode, crop out the page we want. We need to
+	 * crop using the page size on image, since it might have been shrunk
+	 * by shrink-on-load above ^^
 	 */
 	if( conversion->mode != CONVERSION_MODE_TOILET_ROLL &&
 		conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
+		int page_width = image->Xsize;
+		int page_height = vips_image_get_page_height( image );
+
 		VipsImage *x;
 
 		if( vips_crop( image, &x, 
-			0, conversion->page * conversion->height, 
-			conversion->width, conversion->height, NULL ) ) {
+			0, conversion->page * page_height, 
+			page_width, page_height, NULL ) ) {
 			VIPS_UNREF( image );
 			return( NULL );
 		}
