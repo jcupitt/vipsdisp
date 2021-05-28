@@ -3,7 +3,8 @@
 <img src="vipsdisp-icon.png" width="150" height="150">
 
 C program to display an image with vips8 and gtk+3. This is supposed to be
-a slightly useful image viewer. 
+a slightly useful image viewer. It can display huge (many, many GB) images
+quickly and without using much memory.
 
 See vipsdisp-tiny for a minimal example.
 
@@ -64,15 +65,14 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- load animation, ^D, ^W, ^W, null object
+- move to gtk4 (see gtk4 branch of vipsdisp)
+
+- load animation, ^D, ^W, ^W, null object error
 
 - load image with long progress bar, ^D during load, progress bar stops
   updating
 
 - show checkerboard for transparency?
-
-- ^D reloads image and you get a progress bar etc., can we copy the ref
-  somehow?
 
 - header display
 
