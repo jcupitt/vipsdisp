@@ -481,8 +481,6 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 	printf( "imagepresent_draw:\n" ); 
 #endif /*DEBUG_VERBOSE*/
 
-	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
-
 	if( gtk_cairo_should_draw_window( cr, window ) ) {
 		if( gtk_widget_has_focus( widget ) ) 
 			gtk_render_focus( context, cr, 0, 0, 
@@ -711,7 +709,6 @@ imagepresent_class_init( ImagepresentClass *class )
 {
 	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
 
-	widget_class->draw = imagepresent_draw;
 	widget_class->destroy = imagepresent_destroy;
 
 	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
