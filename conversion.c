@@ -13,8 +13,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -1112,6 +1112,53 @@ conversion_page_flip( void *user_data )
 	return( FALSE );
 }
 
+#ifdef DEBUG
+static const char *
+conversion_property_name( guint prop_id )
+{
+	switch( prop_id ) {
+	case PROP_RGB:
+		return( "RGB" );
+		break;
+
+	case PROP_MODE:
+		return( "MODE" );
+		break;
+
+	case PROP_MAG:
+		return( "MAG" );
+		break;
+
+	case PROP_SCALE:
+		return( "SCALE" );
+		break;
+
+	case PROP_OFFSET:
+		return( "OFFSET" );
+		break;
+
+	case PROP_PAGE:
+		return( "PAGE" );
+		break;
+
+	case PROP_FALSECOLOUR:
+		return( "FALSECOLOUR" );
+		break;
+
+	case PROP_LOG:
+		return( "LOG" );
+		break;
+
+	case PROP_LOADED:
+		return( "LOADED" );
+		break;
+
+	default:
+		return( "<unknown>" );
+	}
+}
+#endif /*DEBUG*/
+
 static void
 conversion_set_property( GObject *object, 
         guint prop_id, const GValue *value, GParamSpec *pspec )
@@ -1121,6 +1168,18 @@ conversion_set_property( GObject *object,
         int i;
         double d;
         gboolean b;
+
+#ifdef DEBUG
+{
+	char *str;
+
+	str = g_strdup_value_contents( value );
+	printf( "conversion_set_property: %s %s\n", 
+		conversion_property_name( prop_id ), str ); 
+	g_free( str );
+}
+#endif /*DEBUG*/
+
 
         switch( prop_id ) {
         case PROP_RGB:
@@ -1134,10 +1193,6 @@ conversion_set_property( GObject *object,
                 if( i >= 0 &&
                         i < CONVERSION_MODE_LAST &&
                         conversion->mode != i ) {
-#ifdef DEBUG
-                        printf( "conversion_set_mode: %d\n", i ); 
-#endif /*DEBUG*/
-
                         conversion->mode = i;
 			conversion_changed( conversion );
                         conversion_update_display( conversion );
@@ -1158,10 +1213,6 @@ conversion_set_property( GObject *object,
                 if( i >= -600 &&
                         i <= 1000000 &&
                         conversion->mag != i ) {
-#ifdef DEBUG
-                        printf( "conversion_set_mag: %d\n", i ); 
-#endif /*DEBUG*/
-
                         conversion->mag = i;
 			conversion_changed( conversion );
                         conversion_update_display( conversion );
@@ -1173,10 +1224,6 @@ conversion_set_property( GObject *object,
                 if( d > 0 &&
                         d <= 1000000 &&
                         conversion->scale != d ) { 
-#ifdef DEBUG
-                        printf( "conversion_set_scale: %g\n", d ); 
-#endif /*DEBUG*/
-
                         conversion->scale = d;
 			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
@@ -1188,10 +1235,6 @@ conversion_set_property( GObject *object,
                 if( d >= -100000 &&
                         d <= 1000000 &&
                         conversion->offset != d ) { 
-#ifdef DEBUG
-                        printf( "conversion_set_offset: %g\n", d ); 
-#endif /*DEBUG*/
-
                         conversion->offset = d;
 			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
@@ -1203,10 +1246,6 @@ conversion_set_property( GObject *object,
                 if( i >= 0 &&
                         i <= 1000000 &&
                         conversion->page != i ) {
-#ifdef DEBUG
-                        printf( "conversion_set_page: %d\n", i ); 
-#endif /*DEBUG*/
-
                         conversion->page = i;
 			conversion_page_changed( conversion );
                         conversion_update_display( conversion );
@@ -1216,10 +1255,6 @@ conversion_set_property( GObject *object,
         case PROP_FALSECOLOUR:
                 b = g_value_get_boolean( value );
                 if( conversion->falsecolour != b ) { 
-#ifdef DEBUG
-                        printf( "conversion_set_falsecolour: %d\n", b ); 
-#endif /*DEBUG*/
-
                         conversion->falsecolour = b;
 			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
@@ -1229,10 +1264,6 @@ conversion_set_property( GObject *object,
         case PROP_LOG:
                 b = g_value_get_boolean( value );
                 if( conversion->log != b ) { 
-#ifdef DEBUG
-                        printf( "conversion_set_log: %d\n", b ); 
-#endif /*DEBUG*/
-
                         conversion->log = b;
 			conversion_changed( conversion );
 			conversion_update_display( conversion );
@@ -1242,12 +1273,7 @@ conversion_set_property( GObject *object,
         case PROP_LOADED:
                 b = g_value_get_boolean( value );
                 if( conversion->loaded != b ) { 
-#ifdef DEBUG
-                        printf( "conversion_set_loaded: %d\n", b ); 
-#endif /*DEBUG*/
-
                         conversion->loaded = b;
-
 			conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
@@ -1306,6 +1332,17 @@ conversion_get_property( GObject *object,
                 G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
                 break;
         }
+
+#ifdef DEBUG
+{
+	char *str;
+
+	str = g_strdup_value_contents( value );
+	printf( "conversion_get_property: %s %s\n", 
+		conversion_property_name( prop_id ), str ); 
+	g_free( str );
+}
+#endif /*DEBUG*/
 }
 
 static void

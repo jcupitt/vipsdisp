@@ -434,6 +434,13 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 	if( vips_rect_isempty( &clip ) )
 		return;
 
+#ifdef DEBUG_VERBOSE
+	printf( "imagedisplay_fill_tile: vips computes "
+		"left = %d, top = %d, width = %d, height = %d\n",
+		clip.left, clip.top,
+		clip.width, clip.height );
+#endif /*DEBUG_VERBOSE*/
+
 	/* Request pixels. We ask the mask first, to get an idea of what's 
 	 * currently in cache, then request tiles of pixels. We must always
 	 * request pixels, even if the mask is blank, because the request
@@ -469,8 +476,9 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 			target.top * cairo_stride + target.left * 4;
 
 #ifdef DEBUG_VERBOSE
-		printf( "imagedisplay_fill_tile: "
-			"painting %d x %d pixels to buffer\n", 
+		printf( "imagedisplay_fill_tile: copy to backing buffer "
+			"left = %d, top = %d, width = %d, height = %d\n",
+			clip.left, clip.top,
 			clip.width, clip.height );
 #endif /*DEBUG_VERBOSE*/
 
@@ -491,13 +499,6 @@ imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 {
 	int left, top, right, bottom;
 	int x, y;
-
-#ifdef DEBUG_VERBOSE
-	printf( "imagedisplay_fill_rect: "
-		"left = %d, top = %d, width = %d, height = %d\n",
-		expose->left, expose->top,
-		expose->width, expose->height );
-#endif /*DEBUG_VERBOSE*/
 
 	left = VIPS_ROUND_DOWN( expose->left, tile_size );
 	top = VIPS_ROUND_DOWN( expose->top, tile_size );
@@ -538,6 +539,13 @@ imagedisplay_draw_cairo( Imagedisplay *imagedisplay,
 		unsigned char *cairo_start = imagedisplay->cairo_buffer +
 			buffer.top * cairo_stride + buffer.left * 4;
 		cairo_surface_t *surface;
+
+#ifdef DEBUG_VERBOSE
+		printf( "imagedisplay_draw_cairo: drawing "
+			"left = %d, top = %d, width = %d, height = %d\n",
+			gtk.left, gtk.top,
+			buffer.width, buffer.height );
+#endif /*DEBUG_VERBOSE*/
 
 		surface = cairo_image_surface_create_for_data( cairo_start, 
 			CAIRO_FORMAT_RGB24, buffer.width, buffer.height, 
