@@ -471,17 +471,13 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 	return( handled ); 
 }
 
+/* How does gtk4 draw the focus highlight?
+ *
 static gboolean
 imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 {
 	GdkWindow *window = gtk_widget_get_window( widget );
 	GtkStyleContext *context = gtk_widget_get_style_context( widget );
-
-#ifdef DEBUG_VERBOSE
-	printf( "imagepresent_draw:\n" ); 
-#endif /*DEBUG_VERBOSE*/
-
-	GTK_WIDGET_CLASS( imagepresent_parent_class )->draw( widget, cr );
 
 	if( gtk_cairo_should_draw_window( cr, window ) ) {
 		if( gtk_widget_has_focus( widget ) ) 
@@ -492,6 +488,8 @@ imagepresent_draw( GtkWidget *widget, cairo_t *cr )
 
 	return( FALSE ); 
 }
+ *
+ */
 
 static gboolean
 imagepresent_button_press_event( GtkWidget *widget, GdkEventButton *event, 
@@ -678,10 +676,11 @@ imagepresent_init( Imagepresent *imagepresent )
 	g_signal_connect( imagepresent, "key-press-event",
 		G_CALLBACK( imagepresent_key_press_event ), imagepresent ); 
 
+	// FIXME ... how do we draw the focus highlight?
 	/* Draw the focus indicator after rendering the image.
-	 */
 	g_signal_connect_after( imagepresent, "draw",
 		G_CALLBACK( imagepresent_draw ), imagepresent );
+	 */
 
 	imagepresent->conversion = conversion_new();
 	imagepresent->imagedisplay = 
@@ -709,10 +708,10 @@ imagepresent_init( Imagepresent *imagepresent )
 static void
 imagepresent_class_init( ImagepresentClass *class )
 {
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
 
-	widget_class->draw = imagepresent_draw;
-	widget_class->destroy = imagepresent_destroy;
+	gobject_class->dispose = imagedisplay_dispose;
 
 	imagepresent_signals[SIG_POSITION_CHANGED] = g_signal_new( 
 		"position_changed",

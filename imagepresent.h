@@ -14,7 +14,7 @@ typedef enum _ImagepresentState {
 } ImagepresentState;
 
 typedef struct _Imagepresent {
-	GtkScrolledWindow parent_instance;
+	GtkWidget parent_instance;
 
 	Imagedisplay *imagedisplay;
 
@@ -36,13 +36,13 @@ typedef struct _Imagepresent {
 	int drag_start_y;
 
 	/* Rightclick menu we display.
-	 */
 	GtkMenu *menu;
+	 */
 
 } Imagepresent;
 
 typedef struct _ImagepresentClass {
-	GtkScrolledWindowClass parent_class;
+	GtkWidgetClass parent_class;
 
 	void (*position_changed)( Imagepresent *imagepresent ); 
 
@@ -56,7 +56,7 @@ void imagepresent_set_window_position( Imagepresent *imagepresent,
 gboolean imagepresent_get_image_size( Imagepresent *imagepresent, 
 	int *width, int *height );
 
-void imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu );
+// void imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu );
 
 void imagepresent_set_mag( Imagepresent *imagepresent, int mag );
 void imagepresent_magin( Imagepresent *imagepresent, int x, int y );
