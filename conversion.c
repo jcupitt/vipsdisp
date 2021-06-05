@@ -839,6 +839,37 @@ conversion_render_notify( VipsImage *image, VipsRect *rect, void *client )
         }
 }
 
+/* Make a checkerboard background for showing transparent images.
+ */
+static VipsImage *
+conversion_checkerboard( int width, int height )
+{
+	const int size = 20;
+	VipsObject *context = VIPS_OBJECT( vips_image_new() );
+	VipsImage **t = (VipsImage **) vips_object_local_array( context, 5 );
+
+	VipsImage *out;
+
+	if( !(t[0] = vips_image_new_matrixv( 2, 2, 
+		128.0, 204.0, 204.0, 128.0 )) ||
+		vips_cast_uchar( t[0], &t[1], NULL ) ||
+		vips_zoom( t[1], &t[2], size / 2, size / 2, NULL ) ||
+		vips_replicate( t[2], &t[3], 
+			(width + size) / size, 
+			(height + size) / size, NULL ) ||
+		vips_crop( t[3], &t[4], 0, 0, width, height, NULL ) ) {
+		g_object_unref( context );
+		return( NULL );
+	}
+
+	out = t[4];
+	g_object_ref( out );
+	out->Type = VIPS_INTERPRETATION_B_W;
+	g_object_unref( context );
+
+	return( out );
+}
+
 /* Make the screen image. This is the thing we display pixel values from in
  * the status bar.
  */
@@ -1001,14 +1032,36 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         VIPS_UNREF( image );
         image = x;
 
-        /* Drop any alpha.
+        /* If there's an alpha, composite over a checkerboard.
          */
-        if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
-                VIPS_UNREF( image );
-                return( NULL ); 
+        if( vips_image_hasalpha( image ) ) {
+		VipsImage *bg;
+
+		if( !(bg = conversion_checkerboard( 
+			image->Xsize, image->Ysize )) ) {
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+
+		vips_image_write_to_file( bg, "x.v", NULL );
+
+		if( vips_composite2( bg, image, &x, 
+			VIPS_BLEND_MODE_OVER, NULL ) ) {
+			VIPS_UNREF( bg );
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+		VIPS_UNREF( bg );
+		VIPS_UNREF( image );
+		image = x;
+
+		if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
         }
-        VIPS_UNREF( image );
-        image = x;
 
         if( conversion->log ||
 		image->Type == VIPS_INTERPRETATION_FOURIER ) { 
