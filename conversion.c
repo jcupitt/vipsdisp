@@ -382,7 +382,8 @@ conversion_attach_progress( Conversion *conversion )
 /* image needs to have been opened with n == -1, ie. a toilet roll.
  */
 static int
-conversion_set_image( Conversion *conversion, VipsImage *image )
+conversion_set_image( Conversion *conversion, 
+	const char *loader, VipsImage *image )
 {
 	ConversionMode mode;
 
@@ -393,6 +394,14 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 	/* You must conversion_disconnect() before calling this.
 	 */
 	g_assert( !conversion->image );
+
+        conversion->image = image;
+	g_object_ref( image );
+        conversion->loader = loader;
+        conversion->width = image->Xsize;
+        conversion->height = vips_image_get_page_height( image );
+        conversion->n_pages = vips_image_get_n_pages( image );
+        conversion->n_subifds = vips_image_get_n_subifds( image );
 
         if( vips_image_get_typeof( image, "delay" ) ) {
 		int *delay;
@@ -406,12 +415,6 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 		memcpy( conversion->delay, delay, n_delay * sizeof( int ) );
 		conversion->n_delay = n_delay;
 	}
-
-        conversion->image = image;
-        conversion->width = image->Xsize;
-        conversion->height = vips_image_get_page_height( image );
-        conversion->n_pages = vips_image_get_n_pages( image );
-        conversion->n_subifds = vips_image_get_n_subifds( image );
 
 	/* Are all pages the same size? We can only use animation and 
 	 * toilet-roll mode in this case.
@@ -557,11 +560,14 @@ conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
 
         conversion_disconnect( conversion );
 
+	/* Always set the source so we can display a filename in the header
+	 * bar even if load fails.
+	 */
 	conversion->source = old_conversion->source; 
 	g_object_ref( conversion->source );
-	conversion->loader = old_conversion->loader; 
 
-	if( conversion_set_image( conversion, old_conversion->image ) )
+	if( conversion_set_image( conversion, 
+		old_conversion->loader, old_conversion->image ) )
 		return( -1 );
 
 	g_object_set( conversion,
@@ -625,7 +631,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	 * generic name.
 	 */
 	loader = vips_nickname_find( g_type_from_name( loader ) );
-	conversion->loader = loader;
 
 	for( i = 0; i < VIPS_NUMBER( conversion_page_formats ); i++ ) {
 		if( vips_isprefix( conversion_page_formats[i], loader ) ) {
@@ -640,7 +645,13 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	if( !image )
 		return( -1 );
 
-	return( conversion_set_image( conversion, image ) );
+	if( conversion_set_image( conversion, loader, image ) ) {
+		g_object_unref( image );
+		return( -1 );
+	}
+	g_object_unref( image );
+
+	return( 0 );
 }
 
 int

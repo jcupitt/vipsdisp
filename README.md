@@ -67,8 +67,6 @@ and sets properties of `Conversion` to zoom etc.
 
 - move to gtk4 (see gtk4 branch of vipsdisp)
 
-- load animation, ^D, ^W, ^W, null object error
-
 - load image with long progress bar, ^D during load, progress bar stops
   updating
 
@@ -82,5 +80,3 @@ and sets properties of `Conversion` to zoom etc.
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
-
-- dark theme?
