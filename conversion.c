@@ -1043,8 +1043,6 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 			return( NULL );
 		}
 
-		vips_image_write_to_file( bg, "x.v", NULL );
-
 		if( vips_composite2( bg, image, &x, 
 			VIPS_BLEND_MODE_OVER, NULL ) ) {
 			VIPS_UNREF( bg );
