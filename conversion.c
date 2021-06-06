@@ -846,7 +846,7 @@ conversion_checkerboard( int width, int height )
 {
 	const int size = 20;
 	VipsObject *context = VIPS_OBJECT( vips_image_new() );
-	VipsImage **t = (VipsImage **) vips_object_local_array( context, 5 );
+	VipsImage **t = (VipsImage **) vips_object_local_array( context, 6 );
 
 	VipsImage *out;
 
@@ -857,14 +857,15 @@ conversion_checkerboard( int width, int height )
 		vips_replicate( t[2], &t[3], 
 			(width + size) / size, 
 			(height + size) / size, NULL ) ||
-		vips_crop( t[3], &t[4], 0, 0, width, height, NULL ) ) {
+		vips_crop( t[3], &t[4], 0, 0, width, height, NULL ) ||
+		vips_copy( t[4], &t[5], 
+			"interpretation", VIPS_INTERPRETATION_B_W, NULL ) ) {
 		g_object_unref( context );
 		return( NULL );
 	}
 
-	out = t[4];
+	out = t[5];
 	g_object_ref( out );
-	out->Type = VIPS_INTERPRETATION_B_W;
 	g_object_unref( context );
 
 	return( out );
