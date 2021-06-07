@@ -8,7 +8,7 @@ typedef struct _Imagedisplay {
 
 	/* Watch the conversion with these.
 	 */
-	guint conversion_changed_sig;
+	guint conversion_display_changed_sig;
 	guint conversion_area_changed_sig;
 
 	/* We implement a scrollable interface.

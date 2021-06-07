@@ -179,20 +179,22 @@ imagedisplay_set_conversion( Imagedisplay *imagedisplay,
 	Conversion *conversion )
 {
 	g_assert( !imagedisplay->conversion );
-	g_assert( !imagedisplay->conversion_changed_sig );
+	g_assert( !imagedisplay->conversion_display_changed_sig );
 	g_assert( !imagedisplay->conversion_area_changed_sig );
 
 	imagedisplay->conversion = conversion;
 	g_object_ref( imagedisplay->conversion );
 
-	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
-		"display_changed",
-		G_CALLBACK( imagedisplay_conversion_display_changed ), 
-		imagedisplay );
-	imagedisplay->conversion_changed_sig = g_signal_connect( conversion,
-		"area-changed",
-		G_CALLBACK( imagedisplay_conversion_area_changed ), 
-		imagedisplay );
+	imagedisplay->conversion_display_changed_sig = 
+		g_signal_connect( conversion,
+			"display-changed",
+			G_CALLBACK( imagedisplay_conversion_display_changed ), 
+			imagedisplay );
+	imagedisplay->conversion_area_changed_sig = 
+		g_signal_connect( conversion,
+			"area-changed",
+			G_CALLBACK( imagedisplay_conversion_area_changed ), 
+			imagedisplay );
 }
 
 static void
@@ -295,10 +297,10 @@ imagedisplay_dispose( GObject *object )
 	printf( "imagedisplay_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	if( imagedisplay->conversion_changed_sig ) { 
+	if( imagedisplay->conversion_display_changed_sig ) { 
 		g_signal_handler_disconnect( imagedisplay->conversion, 
-			imagedisplay->conversion_changed_sig ); 
-		imagedisplay->conversion_changed_sig = 0;
+			imagedisplay->conversion_display_changed_sig ); 
+		imagedisplay->conversion_display_changed_sig = 0;
 	}
 
 	if( imagedisplay->conversion_area_changed_sig ) { 

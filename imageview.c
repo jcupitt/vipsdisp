@@ -21,9 +21,41 @@ G_DEFINE_TYPE( Imageview, imageview, GTK_TYPE_APPLICATION_WINDOW );
 static void
 imageview_destroy( GtkWidget *widget )
 {
+	Imageview *imageview = (Imageview *) widget;
+
 #ifdef DEBUG
-	printf( "imageview_destroy: %p\n", widget ); 
 #endif /*DEBUG*/
+	printf( "imageview_destroy: %p\n", widget ); 
+
+	if( imageview->imagepresent &&
+		imageview->imagepresent->conversion ) {
+		Conversion *conversion = imageview->imagepresent->conversion;
+
+		if( imageview->preeval_sig ) { 
+			g_signal_handler_disconnect( conversion, 
+				imageview->preeval_sig ); 
+			imageview->preeval_sig = 0;
+		}
+
+		if( imageview->eval_sig ) { 
+			g_signal_handler_disconnect( conversion, 
+				imageview->eval_sig ); 
+			imageview->eval_sig = 0;
+		}
+
+		if( imageview->posteval_sig ) { 
+			g_signal_handler_disconnect( conversion, 
+				imageview->posteval_sig ); 
+			imageview->posteval_sig = 0;
+		}
+
+		if( imageview->changed_sig ) { 
+			g_signal_handler_disconnect( conversion, 
+				imageview->changed_sig ); 
+			imageview->changed_sig = 0;
+		}
+
+	}
 
 	GTK_WIDGET_CLASS( imageview_parent_class )->destroy( widget );
 }
@@ -587,6 +619,21 @@ imageview_reset( GSimpleAction *action,
 		NULL );
 }
 
+static void
+imageview_hide_display_control_bar( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	GActionMap *map = G_ACTION_MAP( imageview );
+
+	GAction *control;
+
+	control = g_action_map_lookup_action( map, "control" );
+	if( control )
+		g_action_change_state( control, 
+			g_variant_new_boolean( FALSE ) );
+}
+
 static GActionEntry imageview_entries[] = {
 	{ "magin", imageview_magin },
 	{ "magout", imageview_magout },
@@ -609,6 +656,7 @@ static GActionEntry imageview_entries[] = {
 		imageview_toggle, NULL, "false", imageview_falsecolour },
 	{ "mode", imageview_radio, "s", "'multipage'", imageview_mode },
 	{ "reset", imageview_reset },
+	{ "hide_display_control_bar", imageview_hide_display_control_bar },
 };
 
 static void
@@ -648,6 +696,7 @@ imageview_size_allocate( GtkWidget *widget, GtkAllocation *allocation )
 static void
 imageview_init( Imageview *imageview )
 {
+	Conversion *conversion;
 	GtkWidget *button;
 	GtkWidget *image;
 	GtkWidget *menu_button;
@@ -760,13 +809,14 @@ imageview_init( Imageview *imageview )
 		GTK_WIDGET( imageview->imagepresent ), 0, 2, 1, 1 ); 
 	gtk_widget_show( GTK_WIDGET( imageview->imagepresent ) );
 
-	g_signal_connect( imageview->imagepresent->conversion, "preeval",
+	conversion = imageview->imagepresent->conversion;
+	imageview->preeval_sig = g_signal_connect( conversion, "preeval",
 		G_CALLBACK( imageview_preeval ), imageview );
-	g_signal_connect( imageview->imagepresent->conversion, "eval",
+	imageview->eval_sig = g_signal_connect( conversion, "eval",
 		G_CALLBACK( imageview_eval ), imageview );
-	g_signal_connect( imageview->imagepresent->conversion, "posteval",
+	imageview->posteval_sig = g_signal_connect( conversion, "posteval",
 		G_CALLBACK( imageview_posteval ), imageview );
-	g_signal_connect( imageview->imagepresent->conversion, "changed",
+	imageview->changed_sig = g_signal_connect( conversion, "changed",
 		G_CALLBACK( imageview_conversion_changed ), imageview );
 
 	imagepresent_set_menu( imageview->imagepresent, 
@@ -774,8 +824,7 @@ imageview_init( Imageview *imageview )
 
 	/* Display control.
 	 */
-	imageview->conversionview = 
-		conversionview_new( imageview->imagepresent->conversion );
+	imageview->conversionview = conversionview_new( conversion );
 	gtk_grid_attach( GTK_GRID( grid ), 
 		GTK_WIDGET( imageview->conversionview ), 0, 3, 1, 1 );
 

@@ -382,7 +382,8 @@ conversion_attach_progress( Conversion *conversion )
 /* image needs to have been opened with n == -1, ie. a toilet roll.
  */
 static int
-conversion_set_image( Conversion *conversion, VipsImage *image )
+conversion_set_image( Conversion *conversion, 
+	const char *loader, VipsImage *image )
 {
 	ConversionMode mode;
 
@@ -393,6 +394,14 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 	/* You must conversion_disconnect() before calling this.
 	 */
 	g_assert( !conversion->image );
+
+        conversion->image = image;
+	g_object_ref( image );
+        conversion->loader = loader;
+        conversion->width = image->Xsize;
+        conversion->height = vips_image_get_page_height( image );
+        conversion->n_pages = vips_image_get_n_pages( image );
+        conversion->n_subifds = vips_image_get_n_subifds( image );
 
         if( vips_image_get_typeof( image, "delay" ) ) {
 		int *delay;
@@ -406,12 +415,6 @@ conversion_set_image( Conversion *conversion, VipsImage *image )
 		memcpy( conversion->delay, delay, n_delay * sizeof( int ) );
 		conversion->n_delay = n_delay;
 	}
-
-        conversion->image = image;
-        conversion->width = image->Xsize;
-        conversion->height = vips_image_get_page_height( image );
-        conversion->n_pages = vips_image_get_n_pages( image );
-        conversion->n_subifds = vips_image_get_n_subifds( image );
 
 	/* Are all pages the same size? We can only use animation and 
 	 * toilet-roll mode in this case.
@@ -557,11 +560,14 @@ conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
 
         conversion_disconnect( conversion );
 
+	/* Always set the source so we can display a filename in the header
+	 * bar even if load fails.
+	 */
 	conversion->source = old_conversion->source; 
 	g_object_ref( conversion->source );
-	conversion->loader = old_conversion->loader; 
 
-	if( conversion_set_image( conversion, old_conversion->image ) )
+	if( conversion_set_image( conversion, 
+		old_conversion->loader, old_conversion->image ) )
 		return( -1 );
 
 	g_object_set( conversion,
@@ -625,7 +631,6 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	 * generic name.
 	 */
 	loader = vips_nickname_find( g_type_from_name( loader ) );
-	conversion->loader = loader;
 
 	for( i = 0; i < VIPS_NUMBER( conversion_page_formats ); i++ ) {
 		if( vips_isprefix( conversion_page_formats[i], loader ) ) {
@@ -640,7 +645,13 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	if( !image )
 		return( -1 );
 
-	return( conversion_set_image( conversion, image ) );
+	if( conversion_set_image( conversion, loader, image ) ) {
+		g_object_unref( image );
+		return( -1 );
+	}
+	g_object_unref( image );
+
+	return( 0 );
 }
 
 int
@@ -701,6 +712,38 @@ conversion_set_file( Conversion *conversion, GFile *file )
         VIPS_UNREF( source );
 
         return( 0 );
+}
+
+/* Make a checkerboard background for showing transparent images.
+ */
+static VipsImage *
+conversion_checkerboard( int width, int height )
+{
+	const int size = 20;
+	VipsObject *context = VIPS_OBJECT( vips_image_new() );
+	VipsImage **t = (VipsImage **) vips_object_local_array( context, 6 );
+
+	VipsImage *out;
+
+	if( !(t[0] = vips_image_new_matrixv( 2, 2, 
+		128.0, 204.0, 204.0, 128.0 )) ||
+		vips_cast_uchar( t[0], &t[1], NULL ) ||
+		vips_zoom( t[1], &t[2], size / 2, size / 2, NULL ) ||
+		vips_replicate( t[2], &t[3], 
+			(width + size) / size, 
+			(height + size) / size, NULL ) ||
+		vips_crop( t[3], &t[4], 0, 0, width, height, NULL ) ||
+		vips_copy( t[4], &t[5], 
+			"interpretation", VIPS_INTERPRETATION_B_W, NULL ) ) {
+		g_object_unref( context );
+		return( NULL );
+	}
+
+	out = t[5];
+	g_object_ref( out );
+	g_object_unref( context );
+
+	return( out );
 }
 
 /* Make the rgb image we paint with. This runs synchronously and is not
@@ -990,14 +1033,34 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         VIPS_UNREF( image );
         image = x;
 
-        /* Drop any alpha.
+        /* If there's an alpha, composite over a checkerboard.
          */
-        if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
-                VIPS_UNREF( image );
-                return( NULL ); 
+        if( vips_image_hasalpha( image ) ) {
+		VipsImage *bg;
+
+		if( !(bg = conversion_checkerboard( 
+			image->Xsize, image->Ysize )) ) {
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+
+		if( vips_composite2( bg, image, &x, 
+			VIPS_BLEND_MODE_OVER, NULL ) ) {
+			VIPS_UNREF( bg );
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+		VIPS_UNREF( bg );
+		VIPS_UNREF( image );
+		image = x;
+
+		if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
         }
-        VIPS_UNREF( image );
-        image = x;
 
         if( conversion->log ||
 		image->Type == VIPS_INTERPRETATION_FOURIER ) { 
@@ -1022,16 +1085,6 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
                 VIPS_UNREF( image );
                 image = x;
 	}
-
-        /* Do a huge blur .. this is a slow operation, and handy for
-         * debugging.
-        if( vips_gaussblur( image, &x, 100.0, NULL ) ) {
-                VIPS_UNREF( image );
-                return( NULL ); 
-        }
-        VIPS_UNREF( image );
-        image = x;
-         */
 
         x = vips_image_new();
         mask = vips_image_new();
@@ -1086,15 +1139,20 @@ conversion_page_flip( void *user_data )
 
 	int timeout;
 
-	timeout = 33;
+	/* By convention, GIFs default to 10fps.
+	 */
+	timeout = 100;
 
 	if( conversion->delay ) {
 		int i = VIPS_MIN( page, conversion->n_delay - 1 );
 
-		timeout = conversion->delay[i];
+		/* By GIF convention, timeout 0 means unset.
+		 */
+		if( conversion->delay[i] )
+			timeout = conversion->delay[i];
 	}
 
-	/* Don't go faster than 30 fps.
+	/* vipsdisp struggles at more than 30fps.
 	 */
 	timeout = VIPS_CLIP( 33, timeout, 100000 );
 
@@ -1374,7 +1432,7 @@ conversion_force_load( Conversion *conversion )
  * the image is coming from cache.
  */
 static gboolean
-conversion_background_load_done_cb( void *user_data )
+conversion_background_load_done_idle( void *user_data )
 {
         Conversion *conversion = (Conversion *) user_data;
 
@@ -1408,7 +1466,7 @@ conversion_background_load( void *data, void *user_data )
 
         conversion_force_load( conversion );
 
-        g_idle_add( conversion_background_load_done_cb, conversion );
+        g_idle_add( conversion_background_load_done_idle, conversion );
 
 #ifdef DEBUG
         printf( "conversion_background_load: .. done\n" );

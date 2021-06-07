@@ -9,6 +9,9 @@ typedef struct _Conversionview {
 	Tslider *scale;
 	Tslider *offset;
 
+	guint changed_sig;
+	guint page_changed_sig;
+
 } Conversionview;
 
 typedef GtkBoxClass ConversionviewClass;
