@@ -65,8 +65,6 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- display control bar could have a Hide entry
-
 - move to gtk4 (see gtk4 branch of vipsdisp)
 
 - load image with long progress bar, ^D during load, progress bar stops

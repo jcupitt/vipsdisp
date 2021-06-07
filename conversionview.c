@@ -18,6 +18,36 @@
 G_DEFINE_TYPE( Conversionview, conversionview, GTK_TYPE_BOX );
 
 static void
+conversionview_destroy( GtkWidget *widget )
+{
+	Conversionview *conversionview = (Conversionview *) widget;
+
+#ifdef DEBUG
+#endif /*DEBUG*/
+	printf( "conversionview_destroy: %p\n", widget ); 
+
+	if( conversionview->conversion ) {
+
+		if( conversionview->changed_sig ) { 
+			g_signal_handler_disconnect( 
+				conversionview->conversion, 
+				conversionview->changed_sig ); 
+			conversionview->changed_sig = 0;
+		}
+
+		if( conversionview->page_changed_sig ) { 
+			g_signal_handler_disconnect( 
+				conversionview->conversion, 
+				conversionview->page_changed_sig ); 
+			conversionview->page_changed_sig = 0;
+		}
+
+	}
+
+	GTK_WIDGET_CLASS( conversionview_parent_class )->destroy( widget );
+}
+
+static void
 conversionview_scale_value_changed( Tslider *slider, 
 	Conversionview *conversionview )
 {
@@ -120,6 +150,9 @@ conversionview_init( Conversionview *conversionview )
 static void
 conversionview_class_init( ConversionviewClass *class )
 {
+	GtkWidgetClass *widget_class = (GtkWidgetClass*) class;
+
+	widget_class->destroy = conversionview_destroy;
 }
 
 static void
@@ -177,10 +210,12 @@ conversionview_new( Conversion *conversion )
 
 	/* If the conversion changes, we need to update our widgets.
 	 */
-	g_signal_connect( conversion, "changed",
+	conversionview->changed_sig = g_signal_connect( conversion, "changed",
 		G_CALLBACK( conversionview_changed ), conversionview );
-	g_signal_connect( conversion, "page-changed",
-		G_CALLBACK( conversionview_page_changed ), conversionview );
+	conversionview->page_changed_sig = 
+		g_signal_connect( conversion, "page-changed",
+			G_CALLBACK( conversionview_page_changed ), 
+			conversionview );
 
 	return( conversionview ); 
 }

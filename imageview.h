@@ -18,6 +18,11 @@ typedef struct _Imageview {
 
 	Infobar *infobar;
 
+	guint preeval_sig;
+	guint eval_sig;
+	guint posteval_sig;
+	guint changed_sig;
+
 } Imageview;
 
 typedef GtkApplicationWindowClass ImageviewClass;
