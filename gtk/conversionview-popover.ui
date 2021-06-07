@@ -41,6 +41,10 @@
         <attribute name='label' translatable='yes'>Reset</attribute>
         <attribute name='action'>win.reset</attribute>
       </item>
+      <item>
+        <attribute name='label' translatable='yes'>Hide</attribute>
+        <attribute name='action'>win.hide_display_control_bar</attribute>
+      </item>
     </section>
   </menu>
 </interface>

@@ -269,12 +269,13 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 	printf( "imagepresent_bestfit:\n" ); 
 #endif /*DEBUG*/
 
-	if( imagepresent_get_image_size( imagepresent, 
+	if( imagepresent_get_display_image_size( imagepresent, 
 		&image_width, &image_height ) ) {
 		GtkAllocation allocation;
 		double hfac;
 		double vfac;
 		double fac;
+		int mag;
 
 		gtk_widget_get_allocation( 
 			GTK_WIDGET( imagepresent->imagedisplay ), &allocation );
@@ -282,15 +283,20 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 		vfac = (double) allocation.height / image_height;
 		fac = VIPS_MIN( hfac, vfac );
 
-		if( fac >= 1 )
-			imagepresent_set_mag( imagepresent, (int) fac );
-		else
-			/* 0.999 means we don't round up on an exact fit.
-			 *
-			 * FIXME ... yuk
-			 */
-			imagepresent_set_mag( imagepresent, 
-				-((int) (0.99999999 + 1.0 / fac)) );
+		/* 0.999 means we don't round up on an exact fit.
+		 *
+		 * FIXME ... yuk
+		 */
+		mag = fac >= 1 ? fac : -((int) (0.99999999 + 1.0 / fac));
+
+		/* Don't let it make the image smaller than 1 pixel on an axis,
+		 * or larger than x1000.
+		 */
+		mag = VIPS_CLIP( -VIPS_MIN( image_width, image_height ), 
+			mag, 
+			1000 );
+
+		imagepresent_set_mag( imagepresent, mag );
 	}
 }
 

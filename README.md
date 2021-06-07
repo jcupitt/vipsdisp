@@ -65,7 +65,7 @@ and sets properties of `Conversion` to zoom etc.
 
 ### TODO
 
-- improve performance with checkerboard bg
+- display control bar could have a Hide entry
 
 - move to gtk4 (see gtk4 branch of vipsdisp)
 

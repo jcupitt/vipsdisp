@@ -587,6 +587,21 @@ imageview_reset( GSimpleAction *action,
 		NULL );
 }
 
+static void
+imageview_hide_display_control_bar( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	Imageview *imageview = (Imageview *) user_data;
+	GActionMap *map = G_ACTION_MAP( imageview );
+
+	GAction *control;
+
+	control = g_action_map_lookup_action( map, "control" );
+	if( control )
+		g_action_change_state( control, 
+			g_variant_new_boolean( FALSE ) );
+}
+
 static GActionEntry imageview_entries[] = {
 	{ "magin", imageview_magin },
 	{ "magout", imageview_magout },
@@ -609,6 +624,7 @@ static GActionEntry imageview_entries[] = {
 		imageview_toggle, NULL, "false", imageview_falsecolour },
 	{ "mode", imageview_radio, "s", "'multipage'", imageview_mode },
 	{ "reset", imageview_reset },
+	{ "hide_display_control_bar", imageview_hide_display_control_bar },
 };
 
 static void
