@@ -1139,15 +1139,20 @@ conversion_page_flip( void *user_data )
 
 	int timeout;
 
-	timeout = 33;
+	/* By convention, GIFs default to 10fps.
+	 */
+	timeout = 100;
 
 	if( conversion->delay ) {
 		int i = VIPS_MIN( page, conversion->n_delay - 1 );
 
-		timeout = conversion->delay[i];
+		/* By GIF convention, timeout 0 means unset.
+		 */
+		if( conversion->delay[i] )
+			timeout = conversion->delay[i];
 	}
 
-	/* Don't go faster than 30 fps.
+	/* vipsdisp struggles at more than 30fps.
 	 */
 	timeout = VIPS_CLIP( 33, timeout, 100000 );
 
