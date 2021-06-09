@@ -80,6 +80,23 @@ and sets properties of `Conversion` to zoom etc.
 
 * `disp` is the `main()`, `Disp` is a `GtkApplication` subclass
 
+## gtk4
+
+Build with:
+
+```
+$ meson _build . --prefix=/home/john/vips --libdir=/home/john/vips/lib \
+  -Dwayland-backend=false
+$ cd _build
+$ ninja
+$ ninja install
+$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
+$ gtk4-demo
+```
+
+Have a look at the "scrolling a big image" demo, is there anything we can
+reuse?
+
 ### TODO
 
 - auto reload on file change, or support F5 for reload?

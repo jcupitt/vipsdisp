@@ -24,8 +24,8 @@ imageview_destroy( GtkWidget *widget )
 	Imageview *imageview = (Imageview *) widget;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "imageview_destroy: %p\n", widget ); 
+#endif /*DEBUG*/
 
 	if( imageview->imagepresent &&
 		imageview->imagepresent->conversion ) {
