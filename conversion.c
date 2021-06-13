@@ -1642,32 +1642,32 @@ conversion_get_display_image_size( Conversion *conversion,
 /* Map to underlying image coordinates from display image coordinates.
  */
 void
-conversion_to_image_cods( Conversion *conversion,
+conversion_to_image_cods( int mag,
         int display_x, int display_y, int *image_x, int *image_y )
 {
-        if( conversion->mag > 0 ) {
-                *image_x = display_x / conversion->mag;
-                *image_y = display_y / conversion->mag;
+        if( mag > 0 ) {
+                *image_x = display_x / mag;
+                *image_y = display_y / mag;
         }
         else {
-                *image_x = display_x * -conversion->mag;
-                *image_y = display_y * -conversion->mag;
+                *image_x = display_x * -mag;
+                *image_y = display_y * -mag;
         }
 }
 
 /* Map to display cods from underlying image coordinates.
  */
 void
-conversion_to_display_cods( Conversion *conversion,
+conversion_to_display_cods( int mag, 
         int image_x, int image_y, int *display_x, int *display_y )
 {
-        if( conversion->mag > 0 ) {
-                *display_x = image_x * conversion->mag;
-                *display_y = image_y * conversion->mag;
+        if( mag > 0 ) {
+                *display_x = image_x * mag;
+                *display_y = image_y * mag;
         }
         else {
-                *display_x = image_x / -conversion->mag;
-                *display_y = image_y / -conversion->mag;
+                *display_x = image_x / -mag;
+                *display_y = image_y / -mag;
         }
 }
 

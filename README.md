@@ -16,7 +16,7 @@ It all works, though see the TODO list below.
 
 [![Screenshot](images/shot2.jpg)](images/shot2.jpg)
 
-[![Screenshot](images/shot3.jpg)](images/shot3.jpg)
+[![Screenshot](images/shot3.png)](images/shot3.png)
 
 ## gtk4
 

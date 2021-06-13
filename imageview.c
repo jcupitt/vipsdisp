@@ -211,7 +211,7 @@ imageview_magin( GSimpleAction *action,
 
 	imagepresent_get_window_position( imageview->imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
-	conversion_to_image_cods( imageview->imagepresent->conversion,
+	conversion_to_image_cods( imageview->imagepresent->conversion->mag,
 		window_left + window_width / 2, window_top + window_height / 2, 
 		&image_x, &image_y ); 
 
@@ -233,7 +233,7 @@ imageview_magout( GSimpleAction *action,
 
 	imagepresent_get_window_position( imageview->imagepresent, 
 		&window_left, &window_top, &window_width, &window_height );
-	conversion_to_image_cods( imageview->imagepresent->conversion,
+	conversion_to_image_cods( imageview->imagepresent->conversion->mag,
 		window_left + window_width / 2, window_top + window_height / 2, 
 		&image_x, &image_y ); 
 
@@ -521,9 +521,9 @@ imageview_scale( GSimpleAction *action,
 	right = left + width;
 	bottom = top + height;
 
-	conversion_to_image_cods( conversion, 
+	conversion_to_image_cods( conversion->mag, 
 		left, top, &left, &top );
-	conversion_to_image_cods( conversion, 
+	conversion_to_image_cods( conversion->mag, 
 		right, bottom, &right, &bottom );
 
 	width = right - left;
