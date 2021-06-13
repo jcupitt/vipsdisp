@@ -23,8 +23,8 @@ conversionview_destroy( GtkWidget *widget )
 	Conversionview *conversionview = (Conversionview *) widget;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "conversionview_destroy: %p\n", widget ); 
+#endif /*DEBUG*/
 
 	if( conversionview->conversion ) {
 

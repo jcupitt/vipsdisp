@@ -199,7 +199,7 @@ infobar_status_update( Infobar *infobar )
 	int image_height;
 	int mag;
 
-	conversion_to_image_cods( conversion,
+	conversion_to_image_cods( conversion->mag,
 		infobar->imagepresent->last_x, 
 		infobar->imagepresent->last_y,
 		&image_x, &image_y );

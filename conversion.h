@@ -198,9 +198,9 @@ gboolean conversion_get_image_size( Conversion *conversion,
 gboolean conversion_get_display_image_size( Conversion *conversion, 
 	int *width, int *height );
 
-void conversion_to_image_cods( Conversion *conversion,
+void conversion_to_image_cods( int mag,
 	int display_x, int display_y, int *image_x, int *image_y );
-void conversion_to_display_cods( Conversion *conversion,
+void conversion_to_display_cods( int mag,
 	int image_x, int image_y, int *display_x, int *display_y ); 
 
 VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );

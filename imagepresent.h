@@ -58,7 +58,7 @@ gboolean imagepresent_get_image_size( Imagepresent *imagepresent,
 
 void imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu );
 
-void imagepresent_set_mag( Imagepresent *imagepresent, int mag );
+int imagepresent_set_mag( Imagepresent *imagepresent, int mag );
 void imagepresent_magin( Imagepresent *imagepresent, int x, int y );
 void imagepresent_magout( Imagepresent *imagepresent, int x, int y );
 void imagepresent_bestfit( Imagepresent *imagepresent );

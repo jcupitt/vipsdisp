@@ -109,9 +109,13 @@ imagepresent_set_menu( Imagepresent *imagepresent, GtkMenu *menu )
 	gtk_menu_attach_to_widget( menu, GTK_WIDGET( imagepresent ), NULL );
 }
 
-void
+int
 imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 {
+	Conversion *conversion = imagepresent->conversion;
+
+	int display_width;
+	int display_height;
 	int image_x;
 	int image_y;
 	int width;
@@ -121,13 +125,23 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 	printf( "imagepresent_set_mag: %d\n", mag ); 
 #endif /*DEBUG*/
 
+	/* Limit mag range to keep the displayed image within 1 and 
+	 * VIPS_MAX_COORD on both axis.
+	 */
+	conversion_to_display_cods( mag,
+		conversion->width, conversion->height,
+		&display_width, &display_height );
+	if( VIPS_MIN( display_width, display_height ) < 2 ||
+		VIPS_MAX( display_width, display_height ) >= VIPS_MAX_COORD )
+		return( -1 );
+
 	/* We need to update last_x/_y ... go via image cods.
 	 */
-	conversion_to_image_cods( imagepresent->conversion,
+	conversion_to_image_cods( conversion->mag,
 		imagepresent->last_x, imagepresent->last_y, 
 		&image_x, &image_y ); 
 
-	g_object_set( imagepresent->conversion, "mag", mag, NULL ); 
+	g_object_set( conversion, "mag", mag, NULL ); 
 
 	/* Update the adjustment range.
 	 *
@@ -151,13 +165,15 @@ imagepresent_set_mag( Imagepresent *imagepresent, int mag )
 		gtk_adjustment_set_upper( vadj, height );
 	}
 
-	conversion_to_display_cods( imagepresent->conversion,
+	conversion_to_display_cods( conversion->mag,
 		image_x, image_y,
 		&imagepresent->last_x, &imagepresent->last_y );
 
 	/* mag has changed.
 	 */
 	imagepresent_position_changed( imagepresent );
+
+	return( 0 );
 }
 
 /* Set a new mag, keeping the pixel at x/y in image coordinates at the same 
@@ -167,6 +183,8 @@ static void
 imagepresent_set_mag_position( Imagepresent *imagepresent, 
 	int mag, int x, int y )
 {
+	Conversion *conversion = imagepresent->conversion;
+
 	VipsRect old_point;
 	VipsRect new_point;
 
@@ -177,17 +195,20 @@ imagepresent_set_mag_position( Imagepresent *imagepresent,
 	/* Map the image pixel at (x, y) to gtk space, ie. the space the user
 	 * sees.
 	 */
-	conversion_to_display_cods( imagepresent->conversion,
+	conversion_to_display_cods( conversion->mag,
 		x, y,
 		&old_point.left, &old_point.top ); 
 	imagedisplay_image_to_gtk( imagepresent->imagedisplay, &old_point );
 
-	imagepresent_set_mag( imagepresent, mag );
+	/* Mag set can be out of range.
+	 */
+	if( imagepresent_set_mag( imagepresent, mag ) )
+		return;
 
 	/* Map image (x, y) to display coordinates, then move up and left by
 	 * the cursor poition to leave the same point at the same place.
 	 */
-	conversion_to_display_cods( imagepresent->conversion,
+	conversion_to_display_cods( conversion->mag,
 		x, y,
 		&new_point.left, &new_point.top ); 
 
@@ -208,10 +229,6 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 	printf( "imagepresent_magin: %d %d\n", x, y ); 
 #endif /*DEBUG*/
 
-	/* Limit max mag to 512. We use int for image width and height, so 9
-	 * bits for magnification leaves us 22 for size, or about 4m x 4m
-	 * pixels. 
-	 */
 	g_object_get( imagepresent->conversion, "mag", &mag, NULL ); 
 	if( mag <= 0 ) {
 		if( mag >= -2 )
@@ -220,7 +237,7 @@ imagepresent_magin( Imagepresent *imagepresent, int x, int y )
 			imagepresent_set_mag_position( imagepresent, 
 				mag / 2, x, y );
 	}
-	else if( mag < 512 )
+	else 
 		imagepresent_set_mag_position( imagepresent, mag * 2, x, y );
 }
 
@@ -288,13 +305,6 @@ imagepresent_bestfit( Imagepresent *imagepresent )
 		 * FIXME ... yuk
 		 */
 		mag = fac >= 1 ? fac : -((int) (0.99999999 + 1.0 / fac));
-
-		/* Don't let it make the image smaller than 1 pixel on an axis,
-		 * or larger than x1000.
-		 */
-		mag = VIPS_CLIP( -VIPS_MIN( image_width, image_height ), 
-			mag, 
-			1000 );
 
 		imagepresent_set_mag( imagepresent, mag );
 	}
@@ -409,7 +419,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	case GDK_KEY_i:
 	case GDK_KEY_plus:
-		conversion_to_image_cods( imagepresent->conversion,
+		conversion_to_image_cods( imagepresent->conversion->mag,
 			imagepresent->last_x, imagepresent->last_y,
 			&image_x, &image_y ); 
 		imagepresent_magin( imagepresent, image_x, image_y );
@@ -419,7 +429,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 
 	case GDK_KEY_o:
 	case GDK_KEY_minus:
-		conversion_to_image_cods( imagepresent->conversion,
+		conversion_to_image_cods( imagepresent->conversion->mag,
 			imagepresent->last_x, imagepresent->last_y,
 			&image_x, &image_y ); 
 		imagepresent_magout( imagepresent, image_x, image_y ); 
@@ -461,7 +471,7 @@ imagepresent_key_press_event( GtkWidget *widget, GdkEventKey *event,
 					&window_width, &window_height );
 
 				conversion_to_image_cods( 
-					imagepresent->conversion,
+					imagepresent->conversion->mag,
 					window_left + window_width / 2, 
 					window_top + window_height / 2,
 					&image_x, &image_y ); 
@@ -637,7 +647,7 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 		point.width = 0;
 		point.height = 0;
 		imagedisplay_gtk_to_image( imagepresent->imagedisplay, &point );
-		conversion_to_image_cods( imagepresent->conversion,
+		conversion_to_image_cods( imagepresent->conversion->mag,
 			point.left, point.top,
 			&image_x, &image_y ); 
 		imagepresent_magin( imagepresent, image_x, image_y );
@@ -651,7 +661,7 @@ imagepresent_scroll_event( GtkWidget *widget, GdkEventScroll *event,
 		point.width = 0;
 		point.height = 0;
 		imagedisplay_gtk_to_image( imagepresent->imagedisplay, &point );
-		conversion_to_image_cods( imagepresent->conversion,
+		conversion_to_image_cods( imagepresent->conversion->mag,
 			point.left, point.top,
 			&image_x, &image_y ); 
 		imagepresent_magout( imagepresent, image_x, image_y ); 
