@@ -1,5 +1,3 @@
-#ifndef __CONVERSION_H
-#define __CONVERSION_H
 
 #define TYPE_CONVERSION (conversion_get_type())
 #define CONVERSION( obj ) \
@@ -212,5 +210,3 @@ const char *conversion_get_path( Conversion *conversion );
 int conversion_write_to_file( Conversion *conversion, const char *file );
 
 Conversion *conversion_new( void ); 
-
-#endif /* __CONVERSION_H */

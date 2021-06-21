@@ -29,7 +29,7 @@ $ meson _build . \
   --libdir=/home/john/vips/lib \
   -Dwayland-backend=false
 $ cd _build
-$ bninja
+$ ninja
 $ ninja install
 ```
 

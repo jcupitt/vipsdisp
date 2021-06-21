@@ -86,7 +86,8 @@ build_entry( int nchars )
         GtkWidget *entry;
 
         entry = gtk_entry_new();
-        gtk_entry_set_width_chars( GTK_ENTRY( entry ), nchars );
+        // FIXME 
+        // gtk_entry_set_width_chars( GTK_ENTRY( entry ), nchars );
 
         return( entry );
 }

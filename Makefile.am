@@ -1,44 +1,39 @@
-bin_PROGRAMS = vd
+bin_PROGRAMS = vipsdisp
 
-vd_SOURCES = \
-	disp-gresources.c \
-	settings.c \
-	disp.c \
-	disp.h \
-	gtkutil.h \
-	gtkutil.c \
-	tslider.h \
-	tslider.c \
-	infobar.c \
-	infobar.h \
-	imageview.c \
-	imageview.h \
-	imagepresent.c \
-	imagepresent.h \
+vipsdisp_SOURCES = \
+	vipsdisp.n \
 	conversion.c \
 	conversion.h \
-	conversionview.c \
-	conversionview.h \
 	imagedisplay.c \
-	imagedisplay.h
+	imagedisplay.h \
+	vipsdisp-gresources.c \
+	imagewindow.c \
+	imagewindow.h \
+	main.c \
+	vipsdispapp.c \
+	vipsdispapp.h
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
 AM_LDFLAGS = @LDFLAGS@ 
 
-vddir = $(datadir)/icons/hicolor/512x512/apps
-vd_DATA = vipsdisp-icon.png
+vipsdispdir = $(datadir)/icons/hicolor/512x512/apps
+vipsdispappdir = $(datadir)/applications
+
+vipsdisp_DATA = vipsdisp.png
+vipsdispapp_DATA = vipsdisp.desktop
 
 resource_files = \
-	disp.gresources.xml \
-	gtk/conversionview-popover.ui \
-	gtk/imageview-popover.ui 
+	vipsdisp.gresources.xml 
 
-disp-gresources.c: $(resource_files)
-	glib-compile-resources --target=$@ --sourcedir=$(srcdir) --generate-source $<
+vipsdisp-gresources.c: $(resource_files)
+	glib-compile-resources --target=$@ --sourcedir=gtk --generate-source $<
 
-CLEANFILES = disp-gresources.c
+CLEANFILES = vipsdisp-gresources.c
 
-EXTRA_DIST = $(resource_files)
+EXTRA_DIST = \
+	gtk \
+	$(resource_files) \
+	vipsdisp.desktop.in
 
 

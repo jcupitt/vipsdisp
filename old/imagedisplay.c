@@ -1,60 +1,20 @@
-#include "vipsdisp.h"
+/* Display an image with gtk3 and libvips. 
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <gtk/gtk.h>
+
+#include <vips/vips.h>
+
+#include "disp.h"
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
-
-struct _Imagedisplay {
-	GtkDrawingArea parent_instance;
-
-	/* The conversion whose output we display.
-	 */
-	Conversion *conversion;
-
-	/* We implement a scrollable interface.
-	 */
-	GtkAdjustment *hadjustment;
-	GtkAdjustment *vadjustment;
-	guint hscroll_policy;
-	guint vscroll_policy;
-
-	/* Our geometry. 
-	 *
-	 * image_rect is the bounds of image space .. 0,0 to image->Xsize,
-	 * image->Ysize
-	 *
-	 * widget_rect is the bounds of the widget .. 0,0 to GtkAllocation
-	 *
-	 * paint_rect is the sub-part of the widget that we paint to .. if we
-	 * zoom out a long way, for example, we display the image centred in
-	 * the widget. 
-	 */
-	VipsRect image_rect;
-	VipsRect widget_rect;
-	VipsRect paint_rect;
-
-	/* A backing buffer the size of paint_rect. We use
-	 * this from the draw handler to paint the screen, and we also paint to
-	 * this from libvips as it calculates pixels.
-	 *
-	 * This is always Cairo-style ARGB.
-	 */
-	unsigned char *cairo_buffer;
-
-	/* left/top is the position of the top-left corner of paint_rect within
-	 * the image. Set from our adjustments. 
-	 */
-	int left;
-	int top;
-
-	/* The regions we use for fetching pixels from the rgb image and from
-	 * the mask.
-	 */
-	VipsRegion *rgb_region;
-	VipsRegion *mask_region;
-
-};
+ */
 
 /* imagedisplay is actually a drawing area the size of the widget on screen: we 
  * do all scrolling ourselves.
@@ -210,8 +170,7 @@ imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty,
 		dirty->width, dirty->height );
 #endif /*DEBUG_VERBOSE*/
 
-	/* Sadly gtk4 only has this.
-	 */
+	// gtk4 only has this
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
@@ -220,16 +179,22 @@ imagedisplay_set_conversion( Imagedisplay *imagedisplay,
 	Conversion *conversion )
 {
 	g_assert( !imagedisplay->conversion );
+	g_assert( !imagedisplay->conversion_display_changed_sig );
+	g_assert( !imagedisplay->conversion_area_changed_sig );
 
 	imagedisplay->conversion = conversion;
 	g_object_ref( imagedisplay->conversion );
 
-	g_signal_connect_object( conversion, "display-changed", 
-		G_CALLBACK( imagedisplay_conversion_display_changed ), 
-		imagedisplay, 0 );
-	g_signal_connect_object( conversion, "area-changed", 
-		G_CALLBACK( imagedisplay_conversion_area_changed ), 
-		imagedisplay, 0 );
+	imagedisplay->conversion_display_changed_sig = 
+		g_signal_connect( conversion,
+			"display-changed",
+			G_CALLBACK( imagedisplay_conversion_display_changed ), 
+			imagedisplay );
+	imagedisplay->conversion_area_changed_sig = 
+		g_signal_connect( conversion,
+			"area-changed",
+			G_CALLBACK( imagedisplay_conversion_area_changed ), 
+			imagedisplay );
 }
 
 static void
@@ -331,6 +296,18 @@ imagedisplay_dispose( GObject *object )
 #ifdef DEBUG
 	printf( "imagedisplay_dispose:\n" ); 
 #endif /*DEBUG*/
+
+	if( imagedisplay->conversion_display_changed_sig ) { 
+		g_signal_handler_disconnect( imagedisplay->conversion, 
+			imagedisplay->conversion_display_changed_sig ); 
+		imagedisplay->conversion_display_changed_sig = 0;
+	}
+
+	if( imagedisplay->conversion_area_changed_sig ) { 
+		g_signal_handler_disconnect( imagedisplay->conversion, 
+			imagedisplay->conversion_area_changed_sig ); 
+		imagedisplay->conversion_area_changed_sig = 0;
+	}
 
 	VIPS_UNREF( imagedisplay->rgb_region );
 	VIPS_UNREF( imagedisplay->mask_region );
@@ -440,14 +417,14 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 
 	/* Must fit in a single tile, and within the image.
 	 */
-	g_assert( tile->width <= TILE_SIZE );
-	g_assert( tile->height <= TILE_SIZE );
-	g_assert( VIPS_ROUND_UP( tile->left, TILE_SIZE ) - 
-		VIPS_ROUND_DOWN( VIPS_RECT_RIGHT( tile ), TILE_SIZE ) <= 
-			TILE_SIZE );
-	g_assert( VIPS_ROUND_UP( tile->top, TILE_SIZE ) - 
-		VIPS_ROUND_DOWN( VIPS_RECT_BOTTOM( tile ), TILE_SIZE ) <= 
-			TILE_SIZE );
+	g_assert( tile->width <= tile_size );
+	g_assert( tile->height <= tile_size );
+	g_assert( VIPS_ROUND_UP( tile->left, tile_size ) - 
+		VIPS_ROUND_DOWN( VIPS_RECT_RIGHT( tile ), tile_size ) <= 
+			tile_size );
+	g_assert( VIPS_ROUND_UP( tile->top, tile_size ) - 
+		VIPS_ROUND_DOWN( VIPS_RECT_BOTTOM( tile ), tile_size ) <= 
+			tile_size );
 	g_assert( vips_rect_includesrect( &imagedisplay->image_rect, tile ) ); 
 
 	/* Map into buffer space and clip.
@@ -525,19 +502,19 @@ imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 	int left, top, right, bottom;
 	int x, y;
 
-	left = VIPS_ROUND_DOWN( expose->left, TILE_SIZE );
-	top = VIPS_ROUND_DOWN( expose->top, TILE_SIZE );
-	right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( expose ), TILE_SIZE );
-	bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( expose ), TILE_SIZE );
+	left = VIPS_ROUND_DOWN( expose->left, tile_size );
+	top = VIPS_ROUND_DOWN( expose->top, tile_size );
+	right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( expose ), tile_size );
+	bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( expose ), tile_size );
 
-	for( y = top; y < bottom; y += TILE_SIZE ) 
-		for( x = left; x < right; x += TILE_SIZE ) {
+	for( y = top; y < bottom; y += tile_size ) 
+		for( x = left; x < right; x += tile_size ) {
 			VipsRect tile;
 
 			tile.left = x;
 			tile.top = y;
-			tile.width = TILE_SIZE;
-			tile.height = TILE_SIZE;
+			tile.width = tile_size;
+			tile.height = tile_size;
 			vips_rect_intersectrect( &tile, expose, &tile );
 
 			if( !vips_rect_isempty( &tile ) )

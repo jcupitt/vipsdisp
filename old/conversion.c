@@ -1,4 +1,15 @@
-#include "vipsdisp.h"
+/* Manage conversion of images for display: zoom, colour, load, etc.
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <gtk/gtk.h>
+
+#include <vips/vips.h>
+
+#include "disp.h"
 
 /*
 #define DEBUG_VERBOSE
@@ -75,6 +86,28 @@ conversion_disconnect( Conversion *conversion )
 #ifdef DEBUG
 	printf( "conversion_disconnect:\n" );
 #endif /*DEBUG*/
+
+        if( conversion->image ) {
+                g_assert( conversion->preeval_sig );
+		if( conversion->preeval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->preeval_sig ); 
+			conversion->preeval_sig = 0;
+		}
+
+		if( conversion->eval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->eval_sig ); 
+			conversion->eval_sig = 0;
+		}
+
+		if( conversion->posteval_sig ) { 
+			g_signal_handler_disconnect( conversion->image, 
+				conversion->posteval_sig ); 
+			conversion->posteval_sig = 0;
+		}
+
+	}
 
         VIPS_FREE( conversion->delay );
         conversion->n_delay = 0;
@@ -332,12 +365,18 @@ conversion_attach_progress( Conversion *conversion )
         g_assert( conversion->preeval_sig == 0 ); 
 
         vips_image_set_progress( conversion->image, TRUE ); 
-        g_signal_connect_object( conversion->image, "preeval", 
-                G_CALLBACK( conversion_preeval ), conversion, 0 );
-        g_signal_connect_object( conversion->image, "eval",
-                G_CALLBACK( conversion_eval ), conversion, 0 );
-        g_signal_connect_object( conversion->image, "posteval",
-                G_CALLBACK( conversion_posteval ), conversion, 0 );
+        conversion->preeval_sig = g_signal_connect( conversion->image, 
+                "preeval", 
+                G_CALLBACK( conversion_preeval ), 
+                conversion );
+        conversion->eval_sig = g_signal_connect( conversion->image, 
+                "eval",
+                G_CALLBACK( conversion_eval ), 
+                conversion );
+        conversion->posteval_sig = g_signal_connect( conversion->image, 
+                "posteval",
+                G_CALLBACK( conversion_posteval ), 
+                conversion );
 }
 
 /* image needs to have been opened with n == -1, ie. a toilet roll.
@@ -1051,7 +1090,7 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         mask = vips_image_new();
         if( vips_sink_screen( image, 
                 x, mask, 
-                TILE_SIZE, TILE_SIZE, 400, 0, 
+                tile_size, tile_size, 400, 0, 
                 conversion_render_notify, conversion ) ) {
                 VIPS_UNREF( x );
                 VIPS_UNREF( mask );

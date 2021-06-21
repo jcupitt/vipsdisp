@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="ImageWindow" parent="GtkApplicationWindow">
+    <property name="title" translatable="yes">Image window</property>
+    <property name="default-width">600</property>
+    <property name="default-height">400</property>
+
+    <child type="titlebar">
+      <object class="GtkHeaderBar" id="header">
+        <child type="title">
+          <object class="GtkBox" id="content_box">
+            <property name="valign">center</property>
+            <property name="spacing">2</property>
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="title">
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
+                <property name="label">/home/john/pics/k2.jpg</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="subtitle">
+                <attributes>
+                  <attribute name="weight" value="light"/>
+                </attributes>
+                <property name="label">1450x2048 uchar, 3 bands, srgb, jpegload</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child type="end">
+          <object class="GtkMenuButton" id="gears">
+            <property name="direction">none</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+
+        <child>
+          <object class="GtkActionBar" id="progress_bar">
+            <property name="revealed">false</property>
+
+            <child type="center">
+              <object class="GtkProgressBar" id="progress">
+                <property name="hexpand">true</property>
+                <property name="show-text">true</property>
+                <property name="text">45% complete, 127s to go</property>
+                <property name="fraction">0.45</property>
+              </object>
+            </child>
+
+            <child type="end">
+              <object class="GtkButton" id="progress_cancel">
+                <property name="label">Cancel</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkInfoBar" id="error_bar">
+            <property name="message-type">error</property>
+            <property name="show-close-button">true</property>
+            <property name="revealed">false</property>
+            <child>
+              <object class="GtkLabel" id="error_label">
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
+                <property name="label">Some kind of error message</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkScrolledWindow" id="scrolled_window">
+            <property name="hexpand">true</property>
+            <property name="vexpand">true</property>
+            <child>
+              <object class="Imagedisplay" id="imagedisplay">
+                <property name="content-width">100</property>
+                <property name="content-height">100</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkActionBar" id="conversion_bar">
+            <property name="revealed">false</property>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkActionBar" id="info_bar">
+            <property name="revealed">false</property>
+          </object>
+        </child>
+
+      </object>
+    </child>
+
+  </template>
+</interface>

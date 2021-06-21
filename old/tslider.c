@@ -376,8 +376,6 @@ tslider_init( Tslider *tslider )
 	tslider->last_svalue = -1;
 	tslider->ignore_scroll = TRUE;
 
-        gtk_box_set_spacing( GTK_BOX( tslider ), 2 );
-
 	tslider->entry = build_entry( 5 );
 	gtk_entry_set_max_length( GTK_ENTRY( tslider->entry ), 10 );
         gtk_box_pack_start( GTK_BOX( tslider ), 

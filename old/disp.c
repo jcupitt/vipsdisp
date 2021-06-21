@@ -141,7 +141,7 @@ disp_shutdown( GApplication *application )
 		GTK_APPLICATION( application ) )) ) {
 		Imageview *imageview = (Imageview *) windows->data;
 
-		gtk_widget_destroy( GTK_WIDGET( imageview ) );
+		gtk_window_destroy( GTK_WINDOW( imageview ) );
 	}
 
 	G_APPLICATION_CLASS( disp_parent_class )->shutdown( application );
