@@ -17,7 +17,7 @@
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
-                <property name="label">/home/john/pics/k2.jpg</property>
+                <property name="ellipsize">start</property>
               </object>
             </child>
             <child>
@@ -25,7 +25,7 @@
                 <attributes>
                   <attribute name="weight" value="light"/>
                 </attributes>
-                <property name="label">1450x2048 uchar, 3 bands, srgb, jpegload</property>
+                <property name="ellipsize">end</property>
               </object>
             </child>
           </object>
@@ -50,8 +50,6 @@
               <object class="GtkProgressBar" id="progress">
                 <property name="hexpand">true</property>
                 <property name="show-text">true</property>
-                <property name="text">45% complete, 127s to go</property>
-                <property name="fraction">0.45</property>
               </object>
             </child>
 
@@ -73,7 +71,6 @@
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
-                <property name="label">Some kind of error message</property>
               </object>
             </child>
           </object>
@@ -85,8 +82,6 @@
             <property name="vexpand">true</property>
             <child>
               <object class="Imagedisplay" id="imagedisplay">
-                <property name="content-width">100</property>
-                <property name="content-height">100</property>
               </object>
             </child>
           </object>

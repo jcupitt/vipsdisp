@@ -107,10 +107,263 @@ image_window_error( ImageWindow *win )
 }
 
 static void
+image_window_conversion_changed( Conversion *conversion, ImageWindow *win )
+{
+        const char *title;
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
+
+#ifdef DEBUG
+        printf( "image_window_conversion_changed:\n" );
+#endif /*DEBUG*/
+
+        if( !(title = conversion_get_path( conversion )) ) 
+                title = "Untitled";
+	gtk_label_set_text( GTK_LABEL( win->title ), title );
+
+        if( conversion->image ) {
+                VipsImage *image = conversion->image;
+
+                vips_object_summary( VIPS_OBJECT( image ), &buf );
+                vips_buf_appendf( &buf, ", " );
+                vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+                vips_buf_appendf( &buf, ", %g x %g p/mm",
+                        image->Xres, image->Yres );
+        }
+	gtk_label_set_text( GTK_LABEL( win->subtitle ), vips_buf_all( &buf ) );
+
+	/*
+        GVariant *state;
+        const char *str;
+
+        if( conversion->mode == CONVERSION_MODE_TOILET_ROLL )
+                str = "toilet-roll";
+        else if( conversion->mode == CONVERSION_MODE_MULTIPAGE )
+                str = "multipage";
+        else if( conversion->mode == CONVERSION_MODE_ANIMATED )
+                str = "animated";
+        else
+                str = NULL;
+        if( str ) {
+                state = g_variant_new_string( str );
+                change_state( GTK_WIDGET( win ), "mode", state );
+        }
+
+        state = g_variant_new_boolean( conversion->falsecolour );
+        change_state( GTK_WIDGET( win ), "falsecolour", state );
+
+        state = g_variant_new_boolean( conversion->log );
+        change_state( GTK_WIDGET( win ), "log", state );
+
+	 */
+}
+
+static void
 image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 {
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
 }
+
+static void
+image_window_get_window_position( ImageWindow *win,
+        int *left, int *top, int *width, int *height )
+{
+        GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
+                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+        GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+
+        *left = gtk_adjustment_get_value( hadj );
+        *top = gtk_adjustment_get_value( vadj );
+        *width = gtk_adjustment_get_page_size( hadj );
+        *height = gtk_adjustment_get_page_size( vadj );
+
+#ifdef DEBUG
+        printf( "image_window_get_window_position: %d %d %d %d\n",
+                *left, *top, *width, *height );
+#endif /*DEBUG*/
+}
+
+static int
+image_window_set_mag( ImageWindow *win, int mag )
+{
+        Conversion *conversion = imagepresent->conversion;
+
+        int display_width;
+        int display_height;
+        int image_x;
+        int image_y;
+        int width;
+        int height;
+
+#ifdef DEBUG
+        printf( "image_window_set_mag: %d\n", mag );
+#endif /*DEBUG*/
+
+        /* Limit mag range to keep the displayed image within 1 and
+         * VIPS_MAX_COORD on both axis.
+         */
+        conversion_to_display_cods( mag,
+                conversion->width, conversion->height,
+                &display_width, &display_height );
+        if( VIPS_MIN( display_width, display_height ) < 2 ||
+                VIPS_MAX( display_width, display_height ) >= VIPS_MAX_COORD )
+                return( -1 );
+
+        /* We need to update last_x/_y ... go via image cods.
+         */
+        conversion_to_image_cods( conversion->mag,
+                imagepresent->last_x, imagepresent->last_y,
+                &image_x, &image_y );
+
+        g_object_set( conversion, "mag", mag, NULL );
+
+        /* Update the adjustment range.
+         *
+         * After we change the drawingarea size, the adjustments won't get
+         * updated until we hit the gtk+ main loop again, but that will be too
+         * late, and any image_window_set_window_position after this will fail
+         * to work correctly.
+         */
+        if( image_window_get_display_image_size( win, &width, &height ) ) {
+                GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
+                        GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+                GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+                        GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+#ifdef DEBUG
+                printf( "imagepresent_init_adjustments: new size %d %d\n",
+                        width, height );
+#endif /*DEBUG*/
+
+                gtk_adjustment_set_upper( hadj, width );
+                gtk_adjustment_set_upper( vadj, height );
+        }
+
+        conversion_to_display_cods( conversion->mag,
+                image_x, image_y,
+                &imagepresent->last_x, &imagepresent->last_y );
+
+        /* mag has changed.
+         */
+        imagepresent_position_changed( imagepresent );
+
+        return( 0 );
+}
+
+/* Set a new mag, keeping the pixel at x/y in image coordinates at the same
+ * position on the screen, if we can.
+ */
+static void     
+image_window_set_mag_position( ImageWindow *win, 
+        int mag, int x, int y )
+{                       
+        Conversion *conversion = win->conversion;
+
+        VipsRect old_point;
+        VipsRect new_point;
+
+#ifdef DEBUG
+        printf( "image_window_set_mag_position: %d %d %d\n", mag, x, y );
+#endif /*DEBUG*/ 
+  
+        /* Map the image pixel at (x, y) to gtk space, ie. the space the user
+         * sees.
+         */
+        conversion_to_display_cods( conversion->mag,
+                x, y,
+                &old_point.left, &old_point.top ); 
+        imagedisplay_image_to_gtk( win->imagedisplay, &old_point );
+        
+        /* Mag set can be out of range.
+         */
+        if( imagepresent_set_mag( imagepresent, mag ) )
+                return;
+
+        /* Map image (x, y) to display coordinates, then move up and left by
+         * the cursor poition to leave the same point at the same place.
+         */
+        conversion_to_display_cods( conversion->mag,
+                x, y,
+                &new_point.left, &new_point.top );
+
+        imagepresent_set_window_position( imagepresent,
+                new_point.left - old_point.left,
+                new_point.top - old_point.top );
+}
+
+/* Zoom in, keeping the pixel at x/y in image coordinates at the same position
+ * on the screen.
+ */
+static void
+image_window_magin_point( ImageWindow *win, int x, int y )
+{
+        int mag;
+
+#ifdef DEBUG
+        printf( "image_window_magin_point: %d %d\n", x, y );
+#endif /*DEBUG*/
+
+        g_object_get( win->conversion, "mag", &mag, NULL );
+        if( mag <= 0 ) {
+                if( mag >= -2 )
+                        image_window_set_mag_position( win, 1, x, y );
+                else
+                        image_window_set_mag_position( win, mag / 2, x, y );
+        }
+        else
+                image_window_set_mag_position( win, mag * 2, x, y );
+}
+
+static void
+imageview_magin( GSimpleAction *action,
+        GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = IMAGE_WINDOW( user_data );
+
+        int window_left;
+        int window_top;
+        int window_width;
+        int window_height;
+        int image_x;
+        int image_y;
+
+        imagepresent_get_window_position( win,
+                &window_left, &window_top, &window_width, &window_height );
+        conversion_to_image_cods( win->conversion->mag,
+                window_left + window_width / 2, window_top + window_height / 2,
+                &image_x, &image_y );
+
+        imagepresent_magin_point( imageview->imagepresent, image_x, image_y );
+}
+
+static GActionEntry image_window_entries[] = {
+        { "magin", image_window_magin },
+	/*
+        { "magout", image_window_magout },
+        { "normal", image_window_normal },
+        { "bestfit", image_window_bestfit },
+        { "duplicate", image_window_duplicate },
+        { "replace", image_window_replace },
+        { "saveas", image_window_saveas },
+        { "close", image_window_close },
+
+        { "fullscreen", 
+		image_window_toggle, NULL, "false", image_window_fullscreen },
+        { "control", image_window_toggle, NULL, "false", image_window_control },
+        { "info", image_window_toggle, NULL, "false", image_window_info },
+
+        { "next", image_window_next },
+        { "prev", image_window_prev },
+        { "scale", image_window_scale },
+        { "log", image_window_toggle, NULL, "false", image_window_log },
+        { "falsecolour",
+                image_window_toggle, NULL, "false", image_window_falsecolour },
+        { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
+        { "reset", image_window_reset },
+        { "hide_display_control_bar", image_window_hide_display_control_bar },
+	 */
+};
+
 
 static void
 image_window_init( ImageWindow *win )
@@ -141,8 +394,15 @@ image_window_init( ImageWindow *win )
         g_signal_connect_object( win->progress_cancel, "clicked", 
                 G_CALLBACK( image_window_cancel_clicked ), win, 0 );
 
+        g_signal_connect_object( win->conversion, "changed", 
+                G_CALLBACK( image_window_conversion_changed ), win, 0 );
+
         g_signal_connect_object( win->error_bar, "response", 
                 G_CALLBACK( image_window_error_response ), win, 0 );
+
+	g_action_map_add_action_entries( G_ACTION_MAP( win ),
+                image_window_entries, G_N_ELEMENTS( image_window_entries ),
+                win );
 
 }
 
