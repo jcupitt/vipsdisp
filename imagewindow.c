@@ -5,6 +5,8 @@ struct _ImageWindow
 	GtkApplicationWindow parent;
 
 	Conversion *conversion;
+	int last_x;
+	int last_y;
 
 	GtkWidget *title;
 	GtkWidget *subtitle;
@@ -18,9 +20,19 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *conversion_bar;
 	GtkWidget *info_bar;
+
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
+
+/* Our signals. 
+ */
+enum {
+	SIG_POSITION_CHANGED,
+	SIG_LAST
+};
+
+static guint image_window_signals[SIG_LAST] = { 0 };
 
 static void
 image_window_dispose( GObject *object )
@@ -184,10 +196,17 @@ image_window_get_window_position( ImageWindow *win,
 #endif /*DEBUG*/
 }
 
+static void
+image_window_position_changed( ImageWindow *win )
+{
+	g_signal_emit( win, 
+		image_window_signals[SIG_POSITION_CHANGED], 0 );
+}
+
 static int
 image_window_set_mag( ImageWindow *win, int mag )
 {
-        Conversion *conversion = imagepresent->conversion;
+        Conversion *conversion = win->conversion;
 
         int display_width;
         int display_height;
@@ -213,8 +232,7 @@ image_window_set_mag( ImageWindow *win, int mag )
         /* We need to update last_x/_y ... go via image cods.
          */
         conversion_to_image_cods( conversion->mag,
-                imagepresent->last_x, imagepresent->last_y,
-                &image_x, &image_y );
+                win->last_x, win->last_y, &image_x, &image_y );
 
         g_object_set( conversion, "mag", mag, NULL );
 
@@ -224,8 +242,10 @@ image_window_set_mag( ImageWindow *win, int mag )
          * updated until we hit the gtk+ main loop again, but that will be too
          * late, and any image_window_set_window_position after this will fail
          * to work correctly.
+	 *
+	 * FIXME ... check this with gtk4
          */
-        if( image_window_get_display_image_size( win, &width, &height ) ) {
+        if( conversion_get_display_image_size( conversion, &width, &height ) ) {
                 GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
                         GTK_SCROLLED_WINDOW( win->scrolled_window ) );
                 GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
@@ -241,21 +261,36 @@ image_window_set_mag( ImageWindow *win, int mag )
 
         conversion_to_display_cods( conversion->mag,
                 image_x, image_y,
-                &imagepresent->last_x, &imagepresent->last_y );
+                &win->last_x, &win->last_y );
 
         /* mag has changed.
          */
-        imagepresent_position_changed( imagepresent );
+        image_window_position_changed( win );
 
         return( 0 );
+}
+
+void
+image_window_set_window_position( ImageWindow *win, int left, int top )
+{
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
+		GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment( 
+		GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+
+#ifdef DEBUG
+	printf( "image_window_set_window_position: %d %d\n", left, top ); 
+#endif /*DEBUG*/
+
+	gtk_adjustment_set_value( hadj, left );
+	gtk_adjustment_set_value( vadj, top );
 }
 
 /* Set a new mag, keeping the pixel at x/y in image coordinates at the same
  * position on the screen, if we can.
  */
 static void     
-image_window_set_mag_position( ImageWindow *win, 
-        int mag, int x, int y )
+image_window_set_mag_position( ImageWindow *win, int mag, int x, int y )
 {                       
         Conversion *conversion = win->conversion;
 
@@ -272,11 +307,12 @@ image_window_set_mag_position( ImageWindow *win,
         conversion_to_display_cods( conversion->mag,
                 x, y,
                 &old_point.left, &old_point.top ); 
-        imagedisplay_image_to_gtk( win->imagedisplay, &old_point );
+        imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
+		&old_point );
         
         /* Mag set can be out of range.
          */
-        if( imagepresent_set_mag( imagepresent, mag ) )
+        if( image_window_set_mag( win, mag ) )
                 return;
 
         /* Map image (x, y) to display coordinates, then move up and left by
@@ -286,7 +322,7 @@ image_window_set_mag_position( ImageWindow *win,
                 x, y,
                 &new_point.left, &new_point.top );
 
-        imagepresent_set_window_position( imagepresent,
+        image_window_set_window_position( win,
                 new_point.left - old_point.left,
                 new_point.top - old_point.top );
 }
@@ -315,10 +351,10 @@ image_window_magin_point( ImageWindow *win, int x, int y )
 }
 
 static void
-imageview_magin( GSimpleAction *action,
+image_window_magin( GSimpleAction *action,
         GVariant *parameter, gpointer user_data )
 {
-        ImageWindow *win = IMAGE_WINDOW( user_data );
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         int window_left;
         int window_top;
@@ -327,13 +363,13 @@ imageview_magin( GSimpleAction *action,
         int image_x;
         int image_y;
 
-        imagepresent_get_window_position( win,
+        image_window_get_window_position( win,
                 &window_left, &window_top, &window_width, &window_height );
         conversion_to_image_cods( win->conversion->mag,
                 window_left + window_width / 2, window_top + window_height / 2,
                 &image_x, &image_y );
 
-        imagepresent_magin_point( imageview->imagepresent, image_x, image_y );
+        image_window_magin_point( win, image_x, image_y );
 }
 
 static GActionEntry image_window_entries[] = {
@@ -430,6 +466,14 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( imagedisplay );
 	BIND( conversion_bar );
 	BIND( info_bar );
+
+	image_window_signals[SIG_POSITION_CHANGED] = g_signal_new( 
+		"position-changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
 }
 
 ImageWindow *
