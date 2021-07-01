@@ -1,3 +1,7 @@
+/*
+ */
+#define DEBUG
+
 #include "vipsdisp.h"
 
 struct _ImageWindow
@@ -350,8 +354,78 @@ image_window_magin_point( ImageWindow *win, int x, int y )
                 image_window_set_mag_position( win, mag * 2, x, y );
 }
 
+/* Zoom out, keeping the pixel at x/y in image coordinates at the same position
+ * on the screen.
+ */
+void
+image_window_magout( ImageWindow *win, int x, int y )
+{
+        Conversion *conversion = win->conversion;
+
+	int image_width;
+	int image_height;
+	int mag;
+
+#ifdef DEBUG
+	printf( "image_window_magout:\n" ); 
+#endif /*DEBUG*/
+
+	/* Don't let the image get too small.
+	 */
+	if( !conversion_get_display_image_size( conversion, 
+		&image_width, &image_height ) ) 
+		return;
+	if( image_width == 1 ||
+		image_height == 1 )
+		return;
+
+	g_object_get( conversion, "mag", &mag, NULL ); 
+	if( mag >= 0 )  {
+		if( mag < 2 ) 
+			image_window_set_mag_position( win, -2, x, y );
+		else
+			image_window_set_mag_position( win, mag / 2, x, y );
+	}
+	else 
+		image_window_set_mag_position( win, mag * 2, x, y );
+}
+
+void
+image_window_bestfit( ImageWindow *win )
+{
+        Conversion *conversion = win->conversion;
+
+	int image_width;
+	int image_height;
+
+#ifdef DEBUG
+	printf( "image_window_bestfit:\n" ); 
+#endif /*DEBUG*/
+
+	if( conversion_get_display_image_size( conversion, 
+		&image_width, &image_height ) ) {
+		int allocated_width = 
+			gtk_widget_get_allocated_width( win->imagedisplay );
+		int allocated_height = 
+			gtk_widget_get_allocated_height( win->imagedisplay );
+		double hfac = (double) allocated_width / image_width;
+		double vfac = (double) allocated_height / image_height;
+		double fac = VIPS_MIN( hfac, vfac );
+
+		int mag;
+
+		/* 0.999 means we don't round up on an exact fit.
+		 *
+		 * FIXME ... yuk
+		 */
+		mag = fac >= 1 ? fac : -((int) (0.99999999 + 1.0 / fac));
+
+		image_window_set_mag( win, mag );
+	}
+}
+
 static void
-image_window_magin( GSimpleAction *action,
+image_window_magin_action( GSimpleAction *action,
         GVariant *parameter, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -372,12 +446,52 @@ image_window_magin( GSimpleAction *action,
         image_window_magin_point( win, image_x, image_y );
 }
 
+static void
+image_window_magout_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+	int image_x;
+	int image_y;
+
+        image_window_get_window_position( win,
+                &window_left, &window_top, &window_width, &window_height );
+        conversion_to_image_cods( win->conversion->mag,
+                window_left + window_width / 2, window_top + window_height / 2,
+                &image_x, &image_y );
+
+	image_window_magout( win, image_x, image_y ); 
+}
+
+static void
+image_window_normal_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_set_mag( win, 1 );
+}
+
+static void
+image_window_bestfit_action( GSimpleAction *action,
+        GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_bestfit( win );
+}
+
 static GActionEntry image_window_entries[] = {
-        { "magin", image_window_magin },
+        { "magin", image_window_magin_action },
+        { "magout", image_window_magout_action },
+        { "bestfit", image_window_bestfit_action },
+        { "normal", image_window_normal_action },
 	/*
-        { "magout", image_window_magout },
-        { "normal", image_window_normal },
-        { "bestfit", image_window_bestfit },
         { "duplicate", image_window_duplicate },
         { "replace", image_window_replace },
         { "saveas", image_window_saveas },

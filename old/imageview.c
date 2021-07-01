@@ -275,7 +275,7 @@ imageview_duplicate( GSimpleAction *action,
 	gtk_window_get_size( GTK_WINDOW( imageview ), &width, &height );
 	gtk_window_resize( GTK_WINDOW( new_imageview ), width, height );
 
-	/* falsecolour etc. are copied when we copy the converion. We
+	/* falsecolour etc. are copied when we copy the conversion. We
 	 * just copy the window state here.
 	 */
 	copy_state( GTK_WIDGET( new_imageview ), 
