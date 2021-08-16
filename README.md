@@ -97,6 +97,14 @@ $ gtk4-demo
 Have a look at the "scrolling a big image" demo, is there anything we can
 reuse?
 
+### Working on
+
+- zoom accels set in vipsdisp_app_startup() should be on the imagedisplay
+  widget, not the whole window?
+
+- when do we recompute imagedisplay layout? need to do this on zoom as well as
+  on resize
+
 ### TODO
 
 - auto reload on file change, or support F5 for reload?

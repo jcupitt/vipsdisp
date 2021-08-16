@@ -216,8 +216,6 @@ image_window_set_mag( ImageWindow *win, int mag )
         int display_height;
         int image_x;
         int image_y;
-        int width;
-        int height;
 
 #ifdef DEBUG
         printf( "image_window_set_mag: %d\n", mag );
@@ -239,29 +237,6 @@ image_window_set_mag( ImageWindow *win, int mag )
                 win->last_x, win->last_y, &image_x, &image_y );
 
         g_object_set( conversion, "mag", mag, NULL );
-
-        /* Update the adjustment range.
-         *
-         * After we change the drawingarea size, the adjustments won't get
-         * updated until we hit the gtk+ main loop again, but that will be too
-         * late, and any image_window_set_window_position after this will fail
-         * to work correctly.
-	 *
-	 * FIXME ... check this with gtk4
-         */
-        if( conversion_get_display_image_size( conversion, &width, &height ) ) {
-                GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
-                        GTK_SCROLLED_WINDOW( win->scrolled_window ) );
-                GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
-                        GTK_SCROLLED_WINDOW( win->scrolled_window ) );
-#ifdef DEBUG
-                printf( "imagepresent_init_adjustments: new size %d %d\n",
-                        width, height );
-#endif /*DEBUG*/
-
-                gtk_adjustment_set_upper( hadj, width );
-                gtk_adjustment_set_upper( vadj, height );
-        }
 
         conversion_to_display_cods( conversion->mag,
                 image_x, image_y,
@@ -402,7 +377,7 @@ image_window_bestfit( ImageWindow *win )
 	printf( "image_window_bestfit:\n" ); 
 #endif /*DEBUG*/
 
-	if( conversion_get_display_image_size( conversion, 
+	if( conversion_get_image_size( conversion, 
 		&image_width, &image_height ) ) {
 		int allocated_width = 
 			gtk_widget_get_allocated_width( win->imagedisplay );
@@ -469,7 +444,7 @@ image_window_magout_action( GSimpleAction *action,
 }
 
 static void
-image_window_normal_action( GSimpleAction *action, 
+image_window_oneone_action( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -490,7 +465,7 @@ static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
         { "bestfit", image_window_bestfit_action },
-        { "normal", image_window_normal_action },
+        { "oneone", image_window_oneone_action },
 	/*
         { "duplicate", image_window_duplicate },
         { "replace", image_window_replace },
