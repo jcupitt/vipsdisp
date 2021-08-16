@@ -461,6 +461,41 @@ image_window_bestfit_action( GSimpleAction *action,
 	image_window_bestfit( win );
 }
 
+static void click_cb( GtkGestureClick *gesture, 
+	int n_press, double x, double y, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	printf( "click_cb\n");
+}
+
+static gboolean key_pressed_cb( GtkEventControllerKey *self,
+	guint keyval, guint keycode, GdkModifierType state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gboolean handled;
+
+	printf( "key_pressed_cb: key = %d, mods = %d\n", keycode, state );
+
+	handled = FALSE;
+	switch( keycode ) {
+	case GDK_KEY_i:
+		printf( "seen i\n" );
+		handled = TRUE;
+		break;
+	}
+
+	return( handled );
+}
+
+static void im_update_cb( GtkGestureClick *gesture, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	printf( "im_update_cb\n");
+}
+
 static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
@@ -490,12 +525,12 @@ static GActionEntry image_window_entries[] = {
 	 */
 };
 
-
 static void
 image_window_init( ImageWindow *win )
 {
 	GtkBuilder *builder;
 	GMenuModel *menu;
+	GtkEventController *controller;
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -529,6 +564,18 @@ image_window_init( ImageWindow *win )
 	g_action_map_add_action_entries( G_ACTION_MAP( win ),
                 image_window_entries, G_N_ELEMENTS( image_window_entries ),
                 win );
+
+	controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
+	g_signal_connect_object( controller, "pressed", 
+		G_CALLBACK( click_cb ), win, 0 );
+	gtk_widget_add_controller( win->imagedisplay, controller );
+
+	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_key_new() );
+	g_signal_connect_object( controller, "key-pressed", 
+		G_CALLBACK( key_pressed_cb ), win, 0 );
+	g_signal_connect_object( controller, "im-update", 
+		G_CALLBACK( im_update_cb ), win, 0 );
+	gtk_widget_add_controller( win->imagedisplay, controller );
 
 }
 

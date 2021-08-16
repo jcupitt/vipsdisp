@@ -82,6 +82,7 @@
             <property name="vexpand">true</property>
             <child>
               <object class="Imagedisplay" id="imagedisplay">
+                <property name="focusable">true</property>
               </object>
             </child>
           </object>

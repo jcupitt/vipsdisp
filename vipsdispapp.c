@@ -99,9 +99,9 @@ vipsdisp_app_startup( GApplication *app )
                 { "win.prev", { "comma", NULL } },
                 { "win.next", { "period", NULL } },
 
-                { "win.magin", { "i", NULL } },
+                { "win.magin", { "<Primary>i", NULL } },
                 { "win.magin", { "plus", NULL } },
-                { "win.magout", { "o", NULL } },
+                { "win.magout", { "<Primary>o", NULL } },
                 { "win.magout", { "minus", NULL } },
                 { "win.bestfit", { "0", NULL } },
                 { "win.zoomto::1", { "1", NULL } },

@@ -94,17 +94,16 @@ $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ gtk4-demo
 ```
 
-Have a look at the "scrolling a big image" demo, is there anything we can
-reuse?
-
 ### Working on
 
-- zoom accels set in vipsdisp_app_startup() should be on the imagedisplay
-  widget, not the whole window?
+- need to draw focus indicator for imagedisplay ... gtk_render_focus() doesn't
+  seem to work?
 
 ### TODO
 
 - use a shader to implement composite with BG?
+
+  the drawingarea gt demo uses cairo to composite over a checkerboard
 
 - auto reload on file change, or support F5 for reload?
 

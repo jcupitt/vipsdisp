@@ -667,6 +667,7 @@ imagedisplay_draw( GtkDrawingArea *area,
 	cairo_t *cr, int width, int height, gpointer user_data )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) area;
+	GtkWidget *widget = GTK_WIDGET( imagedisplay );
 
 	if( imagedisplay->conversion->loaded && 
 		imagedisplay->rgb_region ) {
@@ -700,6 +701,16 @@ imagedisplay_draw( GtkDrawingArea *area,
 		}
 
 		cairo_rectangle_list_destroy( rectangle_list );
+	}
+
+	if( gtk_widget_has_focus( widget ) ) {
+		GtkStyleContext *context = 
+			gtk_widget_get_style_context( widget );
+
+		printf( "drawing focus indicator\n" );
+		gtk_render_focus( context, cr, 3, 3,
+			gtk_widget_get_allocated_width( widget ) - 6,
+			gtk_widget_get_allocated_height( widget ) - 6 );
 	}
 }
 
