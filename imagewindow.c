@@ -1,6 +1,6 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -44,8 +44,8 @@ image_window_dispose( GObject *object )
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( object );
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "image_window_dispose:\n" ); 
+#endif /*DEBUG*/
 
 	VIPS_UNREF( win->conversion );
 
@@ -466,6 +466,7 @@ static GActionEntry image_window_entries[] = {
         { "magout", image_window_magout_action },
         { "bestfit", image_window_bestfit_action },
         { "oneone", image_window_oneone_action },
+
 	/*
         { "duplicate", image_window_duplicate },
         { "replace", image_window_replace },

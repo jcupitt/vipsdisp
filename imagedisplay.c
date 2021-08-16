@@ -177,6 +177,85 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		imagedisplay->paint_rect.height ); 
 }
 
+/* Copy over any pixels from the old buffer. If the new buffer is larger than 
+ * the old one, we tile the old pixels ... it's better than having the screen
+ * flash black.
+ *
+ * FIXME -- we could zoom / shrink / pan the old buffer? Or fill the new one
+ * with a grid pattern?
+ */
+static void
+imagedisplay_init_buffer( Imagedisplay *imagedisplay,
+	VipsPel *new_buffer, int new_width, int new_height,
+	VipsPel *old_buffer, int old_width, int old_height )
+{
+	int x, y;
+
+	if( !old_buffer ) 
+		return;
+
+	for( y = 0; y < new_height; y++ )
+		for( x = 0; x < new_width; x += old_width ) {
+			int source_y = y % old_height;
+			int pixels_to_copy = 
+				VIPS_MIN( old_width, new_width - x );
+
+			memcpy( new_buffer + 4 * (y * new_width + x),
+				old_buffer + 4 * (source_y * old_width), 
+				4 * pixels_to_copy );
+		}
+}
+
+static void
+imagedisplay_layout( Imagedisplay *imagedisplay )
+{
+	int old_buffer_width = imagedisplay->paint_rect.width;
+	int old_buffer_height = imagedisplay->paint_rect.height;
+
+	int buffer_width;
+	int buffer_height;
+
+#ifdef DEBUG
+	printf( "imagedisplay_layout:\n" );
+#endif /*DEBUG*/
+
+	buffer_width = VIPS_MIN( imagedisplay->widget_rect.width,
+                imagedisplay->image_rect.width );
+	buffer_height = VIPS_MIN( imagedisplay->widget_rect.height,
+                imagedisplay->image_rect.height );
+
+	/* If the image is smaller than the widget, centre it.
+	 */
+	imagedisplay->paint_rect.width = buffer_width;
+	imagedisplay->paint_rect.height = buffer_height;
+	imagedisplay->paint_rect.left = VIPS_MAX( 0,
+		(imagedisplay->widget_rect.width - buffer_width) / 2 ); 
+	imagedisplay->paint_rect.top = VIPS_MAX( 0,
+		(imagedisplay->widget_rect.height - buffer_height) / 2 ); 
+
+	imagedisplay_set_hadjustment_values( imagedisplay );
+	imagedisplay_set_vadjustment_values( imagedisplay );
+
+	/* Reallocate the backing buffer, if necessary.
+	 */
+	if( !imagedisplay->cairo_buffer ||
+		imagedisplay->paint_rect.width != old_buffer_width ||
+		imagedisplay->paint_rect.height != old_buffer_height ) {
+		unsigned char *new_buffer = g_malloc0( 
+			imagedisplay->paint_rect.width * 
+			imagedisplay->paint_rect.height * 4 );
+
+		/* Fill the new buffer with default pixels somehow.
+		 */
+		imagedisplay_init_buffer( imagedisplay,
+			new_buffer, buffer_width, buffer_height,
+			imagedisplay->cairo_buffer, 
+				old_buffer_width, old_buffer_height );
+		g_free( imagedisplay->cairo_buffer );
+		imagedisplay->cairo_buffer = new_buffer;
+	}
+}
+
 /* New display image, so we need new mask and RGB regions.
  */
 static void
@@ -195,6 +274,8 @@ imagedisplay_conversion_display_changed( Conversion *conversion,
 
 	imagedisplay->image_rect.width = conversion->rgb->Xsize;
 	imagedisplay->image_rect.height = conversion->rgb->Ysize;
+
+	imagedisplay_layout( imagedisplay );
 
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
@@ -622,44 +703,10 @@ imagedisplay_draw( GtkDrawingArea *area,
 	}
 }
 
-/* Copy over any pixels from the old buffer. If the new buffer is larger than 
- * the old one, we tile the old pixels ... it's better than having the screen
- * flash black.
- *
- * FIXME -- we could zoom / shrink / pan the old buffer? Or fill the new one
- * with a grid pattern?
- */
-static void
-imagedisplay_init_buffer( Imagedisplay *imagedisplay,
-	VipsPel *new_buffer, int new_width, int new_height,
-	VipsPel *old_buffer, int old_width, int old_height )
-{
-	int x, y;
-
-	if( !old_buffer ) 
-		return;
-
-	for( y = 0; y < new_height; y++ )
-		for( x = 0; x < new_width; x += old_width ) {
-			int source_y = y % old_height;
-			int pixels_to_copy = 
-				VIPS_MIN( old_width, new_width - x );
-
-			memcpy( new_buffer + 4 * (y * new_width + x),
-				old_buffer + 4 * (source_y * old_width), 
-				4 * pixels_to_copy );
-		}
-}
-
 static void
 imagedisplay_resize( GtkWidget *widget, int width, int height )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
-	int old_buffer_width = imagedisplay->paint_rect.width;
-	int old_buffer_height = imagedisplay->paint_rect.height;
-
-	int buffer_width;
-	int buffer_height;
 
 #ifdef DEBUG
 	printf( "imagedisplay_resize: %d x %d\n",
@@ -668,41 +715,7 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 
 	imagedisplay->widget_rect.width = width;
 	imagedisplay->widget_rect.height = height;
-	buffer_width = VIPS_MIN( imagedisplay->widget_rect.width,
-                imagedisplay->image_rect.width );
-	buffer_height = VIPS_MIN( imagedisplay->widget_rect.height,
-                imagedisplay->image_rect.height );
-
-	/* If the image is smaller than the widget, centre it.
-	 */
-	imagedisplay->paint_rect.width = buffer_width;
-	imagedisplay->paint_rect.height = buffer_height;
-	imagedisplay->paint_rect.left = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.width - buffer_width) / 2 ); 
-	imagedisplay->paint_rect.top = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.height - buffer_height) / 2 ); 
-
-	imagedisplay_set_hadjustment_values( imagedisplay );
-	imagedisplay_set_vadjustment_values( imagedisplay );
-
-	/* Reallocate the backing buffer, if necessary.
-	 */
-	if( !imagedisplay->cairo_buffer ||
-		imagedisplay->paint_rect.width != old_buffer_width ||
-		imagedisplay->paint_rect.height != old_buffer_height ) {
-		unsigned char *new_buffer = g_malloc0( 
-			imagedisplay->paint_rect.width * 
-			imagedisplay->paint_rect.height * 4 );
-
-		/* Fill the new buffer with default pixels somehow.
-		 */
-		imagedisplay_init_buffer( imagedisplay,
-			new_buffer, buffer_width, buffer_height,
-			imagedisplay->cairo_buffer, 
-				old_buffer_width, old_buffer_height );
-		g_free( imagedisplay->cairo_buffer );
-		imagedisplay->cairo_buffer = new_buffer;
-	}
+	imagedisplay_layout( imagedisplay );
 }
 
 static void

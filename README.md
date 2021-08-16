@@ -102,10 +102,9 @@ reuse?
 - zoom accels set in vipsdisp_app_startup() should be on the imagedisplay
   widget, not the whole window?
 
-- when do we recompute imagedisplay layout? need to do this on zoom as well as
-  on resize
-
 ### TODO
+
+- use a shader to implement composite with BG?
 
 - auto reload on file change, or support F5 for reload?
 
