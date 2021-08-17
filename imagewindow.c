@@ -453,6 +453,21 @@ image_window_bestfit_action( GSimpleAction *action,
 	image_window_bestfit( win );
 }
 
+static struct {
+        int keyval;
+        int mag;
+} magnify_keys[] = {
+        { GDK_KEY_1, 1 },
+        { GDK_KEY_2, 2 },
+        { GDK_KEY_3, 3 },
+        { GDK_KEY_4, 4 },
+        { GDK_KEY_5, 5 },
+        { GDK_KEY_6, 6 },
+        { GDK_KEY_7, 7 },
+        { GDK_KEY_8, 8 },
+        { GDK_KEY_9, 9 }
+};
+
 static gboolean 
 image_window_key_pressed( GtkEventControllerKey *self,
 	guint keyval, guint keycode, GdkModifierType state, gpointer user_data )
@@ -466,8 +481,6 @@ image_window_key_pressed( GtkEventControllerKey *self,
         int vstep = gtk_adjustment_get_step_increment( vadj );
 
 	gboolean handled;
-	int image_x;
-	int image_y;
         int window_left;
 	int window_top;
 	int window_width;
@@ -551,7 +564,31 @@ image_window_key_pressed( GtkEventControllerKey *self,
 		handled = TRUE;
 		break;
 
+	case GDK_KEY_0:
+		image_window_bestfit( win );
+		handled = TRUE;
+		break;
+
+	default:
+		break;
 	}
+
+	if( !handled ) {
+                int i;
+
+                for( i = 0; i < VIPS_NUMBER( magnify_keys ); i++ )
+                        if( magnify_keys[i].keyval == keyval ) {
+                                int mag;
+
+                                mag = magnify_keys[i].mag;
+                                if( state & GDK_CONTROL_MASK )
+                                        mag *= -1;
+
+				image_window_set_mag( win, mag );
+                                handled = TRUE;
+                                break;
+                        }
+        }
 
 	return( handled );
 }

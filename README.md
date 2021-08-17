@@ -96,8 +96,7 @@ $ gtk4-demo
 
 ### Working on
 
-- need to draw focus indicator for imagedisplay ... gtk_render_focus() doesn't
-  seem to work?
+- drag to pan
 
 ### TODO
 
@@ -107,16 +106,12 @@ $ gtk4-demo
 
 - auto reload on file change, or support F5 for reload?
 
-- move to gtk4 (see gtk4 branch of vipsdisp)
-
 - load image with long progress bar, ^D during load, progress bar stops
   updating
 
 - header display
 
 - load options? save options? eg. load SVG at $x DPI
-
-- see https://wiki.gnome.org/HowDoI/CustomWidgets and make sure we do all that
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
