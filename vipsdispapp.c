@@ -98,18 +98,6 @@ vipsdisp_app_startup( GApplication *app )
                 { "win.replace", { "<Primary>o", NULL } },
                 { "win.prev", { "comma", NULL } },
                 { "win.next", { "period", NULL } },
-
-                { "win.magin", { "<Primary>i", NULL } },
-                { "win.magin", { "plus", NULL } },
-                { "win.magout", { "<Primary>o", NULL } },
-                { "win.magout", { "minus", NULL } },
-                { "win.bestfit", { "0", NULL } },
-                { "win.zoomto::1", { "1", NULL } },
-                { "win.zoomto::2", { "2", NULL } },
-                { "win.zoomto::3", { "3", NULL } },
-                { "win.zoomto::4", { "4", NULL } },
-                { "win.zoomto::5", { "5", NULL } },
-                { "win.zoomto::6", { "6", NULL } },
         };
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );

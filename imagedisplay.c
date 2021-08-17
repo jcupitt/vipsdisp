@@ -704,13 +704,15 @@ imagedisplay_draw( GtkDrawingArea *area,
 	}
 
 	if( gtk_widget_has_focus( widget ) ) {
-		GtkStyleContext *context = 
-			gtk_widget_get_style_context( widget );
-
-		printf( "drawing focus indicator\n" );
-		gtk_render_focus( context, cr, 3, 3,
+		/* It'd be great to get the colour and style from the theme,
+		 * somehow.
+		 */
+		cairo_set_source_rgb( cr, 0.5, 0.5, 1 );
+		cairo_set_line_width( cr, 1 );
+		cairo_rectangle( cr, 3, 3,
 			gtk_widget_get_allocated_width( widget ) - 6,
 			gtk_widget_get_allocated_height( widget ) - 6 );
+		cairo_stroke( cr );
 	}
 }
 
@@ -730,16 +732,54 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 }
 
 static void
+imagedisplay_focus_enter( GtkEventController *controller, 
+	Imagedisplay *imagedisplay )
+{
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+}
+
+static void
+imagedisplay_focus_leave( GtkEventController *controller, 
+	Imagedisplay *imagedisplay )
+{
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+}
+
+static void 
+imagedisplay_click( GtkEventController *controller, 
+	int n_press, double x, double y, Imagedisplay *imagedisplay )
+{
+	printf( "imagedisplay_click:\n");
+
+	gtk_widget_grab_focus( GTK_WIDGET( imagedisplay ) );
+}
+
+static void
 imagedisplay_init( Imagedisplay *imagedisplay )
 {
+	GtkEventController *controller;
+
 #ifdef DEBUG
 	printf( "imagedisplay_init:\n" ); 
 #endif /*DEBUG*/
 
+	gtk_widget_set_focusable( GTK_WIDGET( imagedisplay ), TRUE );
 	gtk_drawing_area_set_draw_func( GTK_DRAWING_AREA( imagedisplay ),
 		imagedisplay_draw, NULL, NULL );
 	g_signal_connect( GTK_DRAWING_AREA( imagedisplay ), "resize",
 		G_CALLBACK( imagedisplay_resize ), NULL);
+
+	controller = gtk_event_controller_focus_new();
+	g_signal_connect( controller, "enter", 
+		G_CALLBACK( imagedisplay_focus_enter ), imagedisplay );
+	g_signal_connect( controller, "leave", 
+		G_CALLBACK( imagedisplay_focus_leave ), imagedisplay );
+	gtk_widget_add_controller( GTK_WIDGET( imagedisplay ), controller );
+
+	controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
+	g_signal_connect( controller, "pressed", 
+		G_CALLBACK( imagedisplay_click ), imagedisplay );
+	gtk_widget_add_controller( GTK_WIDGET( imagedisplay ), controller );
 }
 
 static void
@@ -770,7 +810,6 @@ imagedisplay_class_init( ImagedisplayClass *class )
 		PROP_HSCROLL_POLICY, "hscroll-policy" );
 	g_object_class_override_property( gobject_class, 
 		PROP_VSCROLL_POLICY, "vscroll-policy" );
-
 }
 
 Imagedisplay *

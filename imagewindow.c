@@ -9,6 +9,9 @@ struct _ImageWindow
 	GtkApplicationWindow parent;
 
 	Conversion *conversion;
+
+	/* Last known mouse poistion, in image coordinates.
+	 */
 	int last_x;
 	int last_y;
 
@@ -214,8 +217,6 @@ image_window_set_mag( ImageWindow *win, int mag )
 
         int display_width;
         int display_height;
-        int image_x;
-        int image_y;
 
 #ifdef DEBUG
         printf( "image_window_set_mag: %d\n", mag );
@@ -231,16 +232,7 @@ image_window_set_mag( ImageWindow *win, int mag )
                 VIPS_MAX( display_width, display_height ) >= VIPS_MAX_COORD )
                 return( -1 );
 
-        /* We need to update last_x/_y ... go via image cods.
-         */
-        conversion_to_image_cods( conversion->mag,
-                win->last_x, win->last_y, &image_x, &image_y );
-
         g_object_set( conversion, "mag", mag, NULL );
-
-        conversion_to_display_cods( conversion->mag,
-                image_x, image_y,
-                &win->last_x, &win->last_y );
 
         /* mag has changed.
          */
@@ -461,39 +453,122 @@ image_window_bestfit_action( GSimpleAction *action,
 	image_window_bestfit( win );
 }
 
-static void click_cb( GtkGestureClick *gesture, 
-	int n_press, double x, double y, gpointer user_data )
-{
-        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	printf( "click_cb\n");
-}
-
-static gboolean key_pressed_cb( GtkEventControllerKey *self,
+static gboolean 
+image_window_key_pressed( GtkEventControllerKey *self,
 	guint keyval, guint keycode, GdkModifierType state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
+                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+        GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
+                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
+        int hstep = gtk_adjustment_get_step_increment( hadj );
+        int vstep = gtk_adjustment_get_step_increment( vadj );
 
 	gboolean handled;
+	int image_x;
+	int image_y;
+        int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+	int image_width;
+	int image_height;
 
-	printf( "key_pressed_cb: key = %d, mods = %d\n", keycode, state );
+	printf( "image_window_key_pressed: keyval = %d, state = %d\n", 
+		keyval, state );
+
+	image_window_get_window_position( win, 
+		&window_left, &window_top, &window_width, &window_height );
+	if( !conversion_get_display_image_size( win->conversion, 
+		&image_width, &image_height ) )
+		return( FALSE );
 
 	handled = FALSE;
-	switch( keycode ) {
+
+	switch( keyval ) {
+	case GDK_KEY_plus:
 	case GDK_KEY_i:
-		printf( "seen i\n" );
+		image_window_magin_point( win, win->last_x, win->last_y );
 		handled = TRUE;
 		break;
+
+	case GDK_KEY_o:
+	case GDK_KEY_minus:
+		image_window_magout( win, win->last_x, win->last_y );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Left:
+		if( state & GDK_SHIFT_MASK )
+			image_window_set_window_position( win, 
+				window_left - window_width, window_top );
+		else if( state & GDK_CONTROL_MASK )
+			image_window_set_window_position( win, 
+				0, window_top );
+		else
+			image_window_set_window_position( win, 
+				window_left - hstep, window_top );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Right:
+		if( state & GDK_SHIFT_MASK )
+			image_window_set_window_position( win, 
+				window_left + window_width, window_top );
+		else if( state & GDK_CONTROL_MASK )
+			image_window_set_window_position( win, 
+				image_width - window_width, window_top );
+		else
+			image_window_set_window_position( win, 
+				window_left + hstep, window_top );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Up:
+		if( state & GDK_SHIFT_MASK )
+			image_window_set_window_position( win, 
+				window_left, window_top - window_height );
+		else if( state & GDK_CONTROL_MASK )
+			image_window_set_window_position( win, 
+				window_left, 0 );
+		else
+			image_window_set_window_position( win, 
+				window_left, window_top - vstep );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_Down:
+		if( state & GDK_SHIFT_MASK )
+			image_window_set_window_position( win, 
+				window_left, window_top + window_height );
+		else if( state & GDK_CONTROL_MASK )
+			image_window_set_window_position( win, 
+				window_left, image_height - window_height );
+		else
+			image_window_set_window_position( win, 
+				window_left, window_top + vstep );
+		handled = TRUE;
+		break;
+
 	}
 
 	return( handled );
 }
 
-static void im_update_cb( GtkGestureClick *gesture, gpointer user_data )
+static void
+image_window_motion( GtkEventControllerMotion* self,
+	gdouble x, gdouble y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	printf( "im_update_cb\n");
+	VipsRect point;
+
+	point.left = x;
+	point.top = y;
+	imagedisplay_gtk_to_image( (Imagedisplay *) win->imagedisplay, &point );
+	conversion_to_image_cods( win->conversion->mag,
+		point.left, point.top, &win->last_x, &win->last_y );
 }
 
 static GActionEntry image_window_entries[] = {
@@ -565,16 +640,14 @@ image_window_init( ImageWindow *win )
                 image_window_entries, G_N_ELEMENTS( image_window_entries ),
                 win );
 
-	controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
-	g_signal_connect_object( controller, "pressed", 
-		G_CALLBACK( click_cb ), win, 0 );
+	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_key_new() );
+	g_signal_connect( controller, "key-pressed", 
+		G_CALLBACK( image_window_key_pressed ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
-	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_key_new() );
-	g_signal_connect_object( controller, "key-pressed", 
-		G_CALLBACK( key_pressed_cb ), win, 0 );
-	g_signal_connect_object( controller, "im-update", 
-		G_CALLBACK( im_update_cb ), win, 0 );
+	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_motion_new() );
+	g_signal_connect( controller, "motion", 
+		G_CALLBACK( image_window_motion ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
 }
