@@ -208,8 +208,9 @@ void conversion_to_display_cods( int mag,
 VipsPel *conversion_get_ink( Conversion *conversion, int x, int y );
 
 const char *conversion_get_path( Conversion *conversion );
+GFile *conversion_get_file( Conversion *conversion );
 
-int conversion_write_to_file( Conversion *conversion, const char *file );
+int conversion_write_to_file( Conversion *conversion, GFile *file );
 
 Conversion *conversion_new( void ); 
 

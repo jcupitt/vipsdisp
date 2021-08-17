@@ -10,10 +10,15 @@ struct _ImageWindow
 
 	Conversion *conversion;
 
-	/* Last known mouse poistion, in image coordinates.
+	/* Last known mouse postion, in image coordinates.
 	 */
 	int last_x;
 	int last_y;
+
+	/* For drag, the window position where we started, in gtk coordinates.
+	 */
+	int drag_start_x;
+        int drag_start_y;
 
 	GtkWidget *title;
 	GtkWidget *subtitle;
@@ -123,6 +128,12 @@ image_window_error( ImageWindow *win )
         g_free( err );
 
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), TRUE );
+}
+
+static void
+image_window_error_hide( ImageWindow *win )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
 }
 
 static void
@@ -436,6 +447,15 @@ image_window_magout_action( GSimpleAction *action,
 }
 
 static void
+image_window_bestfit_action( GSimpleAction *action,
+        GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_bestfit( win );
+}
+
+static void
 image_window_oneone_action( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
@@ -445,12 +465,162 @@ image_window_oneone_action( GSimpleAction *action,
 }
 
 static void
-image_window_bestfit_action( GSimpleAction *action,
-        GVariant *parameter, gpointer user_data )
+image_window_duplicate_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	image_window_bestfit( win );
+	VipsdispApp *app;
+	ImageWindow *new;
+	int width, height;
+
+	g_object_get( win, "application", &app, NULL );
+	new = image_window_new( app ); 
+	gtk_window_present( GTK_WINDOW( new ) );
+
+	if( conversion_set_conversion( new->conversion, win->conversion ) ) {
+		image_window_error( new ); 
+		return;
+	}
+
+	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
+
+	/* falsecolour etc. are copied when we copy the conversion. We
+	 * just copy the window state here.
+	 */
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "fullscreen" );
+
+	/* We want to init the scroll position, but we can't do that until the
+	 * adj range is set, and that won't happen until the image is loaded.
+	 *
+	 * Just copy the adj settings from the current window.
+	 */
+	copy_adj( 
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
+	copy_adj( 
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
+}
+
+static void
+image_window_replace_response( GtkDialog *dialog, 
+	gint response_id, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( response_id == GTK_RESPONSE_ACCEPT ) {
+		GFile *file;
+
+		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+		image_window_error_hide( win ); 
+                image_window_open( win, file );
+		VIPS_UNREF( file ); 
+	}
+
+	gtk_window_destroy( GTK_WINDOW( dialog ) );
+}
+
+static void
+image_window_replace_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+
+	GtkWidget *dialog;
+	GFile *file;
+
+	dialog = gtk_file_chooser_dialog_new( "Replace from file",
+		GTK_WINDOW( win ) , 
+		GTK_FILE_CHOOSER_ACTION_OPEN,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Replace", GTK_RESPONSE_ACCEPT,
+		NULL );
+	gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+
+	if( (file = conversion_get_file( conversion )) ) {
+		gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			file, NULL );
+		VIPS_UNREF( file );
+	}
+
+        g_signal_connect( dialog, "response", 
+                G_CALLBACK( image_window_replace_response ), win );
+
+	gtk_widget_show( dialog );
+}
+
+static void
+image_window_saveas_response( GtkDialog *dialog, 
+	gint response_id, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+
+	GFile *file;
+
+	/* We need to pop down immediately so we expose the cancel
+	 * button.
+	 */
+	file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+	image_window_error_hide( win ); 
+	gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+	if( response_id == GTK_RESPONSE_ACCEPT &&
+		conversion_write_to_file( conversion, file ) ) 
+		image_window_error( win );
+
+	VIPS_UNREF( file ); 
+}
+
+static void
+image_window_saveas_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+
+	GtkWidget *dialog;
+	GFile *file;
+
+	if( !conversion->image )
+		return;
+
+	dialog = gtk_file_chooser_dialog_new( "Save file",
+		GTK_WINDOW( win ) , 
+		GTK_FILE_CHOOSER_ACTION_SAVE,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Save", GTK_RESPONSE_ACCEPT,
+		NULL );
+	gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+
+	if( (file = conversion_get_file( conversion )) ) {
+		gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			file, NULL );
+		VIPS_UNREF( file );
+	}
+
+        g_signal_connect( dialog, "response", 
+                G_CALLBACK( image_window_saveas_response ), win );
+
+	gtk_widget_show( dialog );
+}
+
+static void
+image_window_close_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
 static struct {
@@ -594,18 +764,56 @@ image_window_key_pressed( GtkEventControllerKey *self,
 }
 
 static void
+image_window_gtk_to_image( ImageWindow *win, 
+	int gtk_x, int gtk_y, int *image_x, int *image_y )
+{
+	VipsRect point;
+
+	point.left = gtk_x;
+	point.top = gtk_y;
+	point.width = 0;
+	point.height = 0;
+	imagedisplay_gtk_to_image( (Imagedisplay *) win->imagedisplay, &point );
+	conversion_to_image_cods( win->conversion->mag,
+		point.left, point.top, image_x, image_y );
+}
+
+static void
 image_window_motion( GtkEventControllerMotion* self,
 	gdouble x, gdouble y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	VipsRect point;
+	image_window_gtk_to_image( win, x, y, &win->last_x, &win->last_y );
+}
 
-	point.left = x;
-	point.top = y;
-	imagedisplay_gtk_to_image( (Imagedisplay *) win->imagedisplay, &point );
-	conversion_to_image_cods( win->conversion->mag,
-		point.left, point.top, &win->last_x, &win->last_y );
+static void
+image_window_drag_begin( GtkEventControllerMotion* self,
+	gdouble start_x, gdouble start_y, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+        int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
+
+	image_window_get_window_position( win, 
+		&window_left, &window_top, &window_width, &window_height );
+
+	win->drag_start_x = window_left;
+	win->drag_start_y = window_top;
+}
+
+static void
+image_window_drag_update( GtkEventControllerMotion* self,
+	gdouble offset_x, gdouble offset_y, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_set_window_position( win, 
+		win->drag_start_x - offset_x,
+		win->drag_start_y - offset_y );
 }
 
 static GActionEntry image_window_entries[] = {
@@ -614,11 +822,12 @@ static GActionEntry image_window_entries[] = {
         { "bestfit", image_window_bestfit_action },
         { "oneone", image_window_oneone_action },
 
+        { "duplicate", image_window_duplicate_action },
+        { "replace", image_window_replace_action },
+        { "saveas", image_window_saveas_action },
+        { "close", image_window_close_action },
+
 	/*
-        { "duplicate", image_window_duplicate },
-        { "replace", image_window_replace },
-        { "saveas", image_window_saveas },
-        { "close", image_window_close },
 
         { "fullscreen", 
 		image_window_toggle, NULL, "false", image_window_fullscreen },
@@ -685,6 +894,13 @@ image_window_init( ImageWindow *win )
 	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_motion_new() );
 	g_signal_connect( controller, "motion", 
 		G_CALLBACK( image_window_motion ), win );
+	gtk_widget_add_controller( win->imagedisplay, controller );
+
+	controller = GTK_EVENT_CONTROLLER( gtk_gesture_drag_new() );
+	g_signal_connect( controller, "drag-begin", 
+		G_CALLBACK( image_window_drag_begin ), win );
+	g_signal_connect( controller, "drag-update", 
+		G_CALLBACK( image_window_drag_update ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
 }

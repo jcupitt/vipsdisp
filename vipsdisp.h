@@ -17,6 +17,7 @@
  */
 #define TILE_SIZE (128)
 
+#include "gtkutil.h"
 #include "vipsdispapp.h"
 #include "conversion.h"
 #include "imagedisplay.h"

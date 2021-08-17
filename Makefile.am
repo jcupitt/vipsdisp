@@ -9,6 +9,8 @@ vipsdisp_SOURCES = \
 	vipsdisp-gresources.c \
 	imagewindow.c \
 	imagewindow.h \
+	gtkutil.h \
+	gtkutil.c \
 	main.c \
 	vipsdispapp.c \
 	vipsdispapp.h

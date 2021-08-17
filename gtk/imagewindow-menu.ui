@@ -70,7 +70,7 @@
           </item>
           <item>
             <attribute name="label" translatable="yes">1:1</attribute>
-            <attribute name="action">win.normal</attribute>
+            <attribute name="action">win.oneone</attribute>
           </item>
           <item>
             <attribute name="label" translatable="yes">Best fit</attribute>
@@ -95,9 +95,17 @@
 
     <section>
       <item>
+        <attribute name='label' translatable='yes'>Close</attribute>
+        <attribute name='action'>win.close</attribute>
+      </item>
+    </section>
+
+    <section>
+      <item>
         <attribute name='label' translatable='yes'>About vipsdisp</attribute>
         <attribute name='action'>app.about</attribute>
       </item>
     </section>
+
   </menu>
 </interface>

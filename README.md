@@ -96,7 +96,9 @@ $ gtk4-demo
 
 ### Working on
 
-- drag to pan
+- fullscreen toggle
+
+- then start the display control bar
 
 ### TODO
 

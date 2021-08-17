@@ -1660,13 +1660,29 @@ conversion_get_path( Conversion *conversion )
 	return( NULL );
 }
 
-int
-conversion_write_to_file( Conversion *conversion, const char *file )
+GFile *
+conversion_get_file( Conversion *conversion )
 {
+	const char *path;
+
+	if( (path = conversion_get_path( conversion )) ) 
+		return( g_file_new_for_path( path ) );
+
+	return( NULL );
+}
+
+int
+conversion_write_to_file( Conversion *conversion, GFile *file )
+{
+	char *path;
 	int result;
 
+	if( !(path = g_file_get_path( file )) )
+		return( -1 );
+
         vips_image_set_progress( conversion->image, TRUE ); 
-	result = vips_image_write_to_file( conversion->image, file, NULL );
+	result = vips_image_write_to_file( conversion->image, path, NULL );
+	g_free( path );
 
 	return( result );
 }

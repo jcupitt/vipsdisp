@@ -98,6 +98,7 @@ vipsdisp_app_startup( GApplication *app )
                 { "win.replace", { "<Primary>o", NULL } },
                 { "win.prev", { "comma", NULL } },
                 { "win.next", { "period", NULL } },
+                { "win.close", { "<Primary>W", NULL } },
         };
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );
