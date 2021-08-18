@@ -7,14 +7,11 @@
 
     <child type="titlebar">
       <object class="GtkHeaderBar" id="header">
-
         <child type="start">
-          <object class="GtkButton">
+          <object class="GtkButton" action="win.replace">
             <property name="label">Replace</property>
-            <property name="action-name">win.replace</property>
           </object>
         </child>
-
         <child type="title">
           <object class="GtkBox" id="content_box">
             <property name="valign">center</property>
@@ -38,13 +35,11 @@
             </child>
           </object>
         </child>
-
         <child type="end">
           <object class="GtkMenuButton" id="gears">
             <property name="direction">none</property>
           </object>
         </child>
-
       </object>
     </child>
 

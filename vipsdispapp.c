@@ -85,6 +85,7 @@ static void
 vipsdisp_app_startup( GApplication *app )
 {
 	int i;
+	GtkSettings *settings;
 
         struct {
                 const gchar *action_and_target;
@@ -102,6 +103,14 @@ vipsdisp_app_startup( GApplication *app )
         };
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );
+
+	/* Image display programs are supposed to default to a dark theme,
+	 * according to the HIG.
+	 */
+	settings = gtk_settings_get_default(); 
+	g_object_set( settings, 
+		"gtk-application-prefer-dark-theme", TRUE,
+		NULL );
 
 	/* Build our classes.
 	 */

@@ -48,7 +48,9 @@ $ ./vd ~/pics/k2.jpg
 * Cursor keys to scroll around
 * Cursor keys plus shift to move by a screen size
 * Cursor keys plus ctrl to move to image edges
-* Number keys to pick a particular magnification, 0 for best fit
+* Number keys to pick a particular magnification
+* Ctrl + number keys to pick a particular zoom out
+* 0 for best fit
 * i, + / o, - to zoom in and out
 * , . prev page, next page
 * Mouse drag to pan
@@ -70,15 +72,12 @@ and the display will update automatically.
 
 * `Conversionview` is the view for the conversion model.
 
-* `Imagepresent` is a `GtkScrolledWindow` subclass that contains an
+* `Imagewindow` is a GtkWindow that contains an
 `Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It
 uses the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
 and sets properties of `Conversion` to zoom etc.
 
-* `Imageview` is a `GtkApplicationWindow` subclass that contains an
-`Imagepresent` plus a header bar and some other UI bits.
-
-* `disp` is the `main()`, `Disp` is a `GtkApplication` subclass
+* `disp` is the `main()`, `VipsdispApp` is a `GtkApplication` subclass
 
 ## gtk4
 
@@ -100,11 +99,16 @@ $ gtk4-demo
 
 - then start the display control bar
 
+- GIFs get very slow for large windows, even if the GIF animation area is
+  small ... why?
+
 ### TODO
 
 - use a shader to implement composite with BG?
 
   the drawingarea gt demo uses cairo to composite over a checkerboard
+
+- improve upscale for buffer rebuild to reduce percieved flicker
 
 - auto reload on file change, or support F5 for reload?
 

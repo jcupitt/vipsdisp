@@ -779,7 +779,7 @@ image_window_gtk_to_image( ImageWindow *win,
 }
 
 static void
-image_window_motion( GtkEventControllerMotion* self,
+image_window_motion( GtkEventControllerMotion *self,
 	gdouble x, gdouble y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -787,8 +787,22 @@ image_window_motion( GtkEventControllerMotion* self,
 	image_window_gtk_to_image( win, x, y, &win->last_x, &win->last_y );
 }
 
+static gboolean
+image_window_scroll( GtkEventControllerMotion *self,
+	double dx, double dy, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( dy > 0 ) 
+		image_window_magin_point( win, win->last_x, win->last_y );
+	else 
+		image_window_magout( win, win->last_x, win->last_y );
+
+	return( TRUE );
+}
+
 static void
-image_window_drag_begin( GtkEventControllerMotion* self,
+image_window_drag_begin( GtkEventControllerMotion *self,
 	gdouble start_x, gdouble start_y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -806,7 +820,7 @@ image_window_drag_begin( GtkEventControllerMotion* self,
 }
 
 static void
-image_window_drag_update( GtkEventControllerMotion* self,
+image_window_drag_update( GtkEventControllerMotion *self,
 	gdouble offset_x, gdouble offset_y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -896,6 +910,17 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_motion ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
+	/* Panning windows should use scroll to zoom, according to the HIG.
+	 */
+	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_scroll_new( 
+		GTK_EVENT_CONTROLLER_SCROLL_DISCRETE |
+		GTK_EVENT_CONTROLLER_SCROLL_VERTICAL ) );
+	g_signal_connect( controller, "scroll", 
+		G_CALLBACK( image_window_scroll ), win );
+	gtk_widget_add_controller( win->imagedisplay, controller );
+
+	/* And drag to pan.
+	 */
 	controller = GTK_EVENT_CONTROLLER( gtk_gesture_drag_new() );
 	g_signal_connect( controller, "drag-begin", 
 		G_CALLBACK( image_window_drag_begin ), win );
