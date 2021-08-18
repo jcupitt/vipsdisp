@@ -794,9 +794,9 @@ image_window_scroll( GtkEventControllerMotion *self,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
 	if( dy > 0 ) 
-		image_window_magin_point( win, win->last_x, win->last_y );
-	else 
 		image_window_magout( win, win->last_x, win->last_y );
+	else 
+		image_window_magin_point( win, win->last_x, win->last_y );
 
 	return( TRUE );
 }
