@@ -830,6 +830,37 @@ image_window_drag_update( GtkEventControllerMotion *self,
 		win->drag_start_y - offset_y );
 }
 
+static void
+image_window_toggle( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	GVariant *state;
+
+	state = g_action_get_state( G_ACTION( action ) );
+	g_action_change_state( G_ACTION( action ), 
+		g_variant_new_boolean( !g_variant_get_boolean( state ) ) );
+	g_variant_unref( state );
+} 
+
+static void
+image_window_fullscreen( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( g_variant_get_boolean( state ) )
+		gtk_window_fullscreen( GTK_WINDOW( win ) );
+	else
+		gtk_window_unfullscreen( GTK_WINDOW( win ) );
+
+	/* Update settings for save
+	settings_setb( "image-display",
+		"fullscreen", g_variant_get_boolean( state ) );
+	 */
+
+	g_simple_action_set_state( action, state );
+}
+
 static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
@@ -840,6 +871,9 @@ static GActionEntry image_window_entries[] = {
         { "replace", image_window_replace_action },
         { "saveas", image_window_saveas_action },
         { "close", image_window_close_action },
+
+	{ "fullscreen", image_window_toggle, NULL, "false", 
+		image_window_fullscreen },
 
 	/*
 
