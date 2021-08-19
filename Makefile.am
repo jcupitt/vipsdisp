@@ -4,6 +4,8 @@ vipsdisp_SOURCES = \
 	vipsdisp.n \
 	conversion.c \
 	conversion.h \
+	conversionview.c \
+	conversionview.h \
 	imagedisplay.c \
 	imagedisplay.h \
 	vipsdisp-gresources.c \

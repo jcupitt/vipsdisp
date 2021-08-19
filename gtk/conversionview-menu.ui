@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<interface>
+  <menu id="conversionview-menu">
+    <section>
+      <item>
+        <attribute name='label' translatable='yes'>New window</attribute>
+        <attribute name='action'>app.new</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Duplicate window</attribute>
+        <attribute name='action'>win.duplicate</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Replace image ...</attribute>
+        <attribute name='action'>win.replace</attribute>
+      </item>
+    </section>
+
+    <section>
+      <item>
+        <attribute name='label' translatable='yes'>Save as ...</attribute>
+        <attribute name='action'>win.saveas</attribute>
+      </item>
+    </section>
+
+  </menu>
+</interface>

@@ -116,6 +116,7 @@ vipsdisp_app_startup( GApplication *app )
 	/* Build our classes.
 	 */
 	IMAGEDISPLAY_TYPE;
+	CONVERSIONVIEW_TYPE;
 
 	g_action_map_add_action_entries( G_ACTION_MAP( app ),
 		app_entries, G_N_ELEMENTS( app_entries ),

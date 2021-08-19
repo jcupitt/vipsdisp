@@ -20,7 +20,7 @@ main( int argc, char **argv )
 		G_LOG_FLAG_FATAL |
 		G_LOG_LEVEL_ERROR |
 		G_LOG_LEVEL_CRITICAL |
-		// G_LOG_LEVEL_WARNING  |
+		G_LOG_LEVEL_WARNING  |
 		0 );
 #endif /*DEBUG*/
 

@@ -867,7 +867,7 @@ image_window_control( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->conversion_bar ), 
+	conversionview_set_reveal( CONVERSIONVIEW( win->conversion_bar ), 
 		g_variant_get_boolean( state ) );
 
 	/* Update settings for save
@@ -943,6 +943,9 @@ image_window_init( ImageWindow *win )
 
 	win->conversion = conversion_new();
 	g_object_set( win->imagedisplay,
+		"conversion", win->conversion,
+		NULL );
+	g_object_set( win->conversion_bar,
 		"conversion", win->conversion,
 		NULL );
 

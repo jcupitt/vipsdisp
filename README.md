@@ -97,6 +97,9 @@ $ gtk4-demo
 
 - display control bar
 
+  unable to generate first snapshot? display control bar has no allocation,
+  bizarrely
+
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
 

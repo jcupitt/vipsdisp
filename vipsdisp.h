@@ -20,6 +20,7 @@
 #include "gtkutil.h"
 #include "vipsdispapp.h"
 #include "conversion.h"
+#include "conversionview.h"
 #include "imagedisplay.h"
 #include "imagewindow.h"
 
