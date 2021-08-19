@@ -861,6 +861,40 @@ image_window_fullscreen( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static void
+image_window_control( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->conversion_bar ), 
+		g_variant_get_boolean( state ) );
+
+	/* Update settings for save
+	settings_setb( "image-display", 
+		"show-display-control-bar", g_variant_get_boolean( state ) );
+	 */
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
+image_window_info( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->info_bar ), 
+		g_variant_get_boolean( state ) );
+
+	/* Update settings for save
+	settings_setb( "image-display", 
+		"show-display-info-bar", g_variant_get_boolean( state ) );
+	 */
+
+	g_simple_action_set_state( action, state );
+}
+
 static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
@@ -874,14 +908,12 @@ static GActionEntry image_window_entries[] = {
 
 	{ "fullscreen", image_window_toggle, NULL, "false", 
 		image_window_fullscreen },
+	{ "control", image_window_toggle, NULL, "false", 
+		image_window_control },
+	{ "info", image_window_toggle, NULL, "false", 
+		image_window_info },
 
 	/*
-
-        { "fullscreen", 
-		image_window_toggle, NULL, "false", image_window_fullscreen },
-        { "control", image_window_toggle, NULL, "false", image_window_control },
-        { "info", image_window_toggle, NULL, "false", image_window_info },
-
         { "next", image_window_next },
         { "prev", image_window_prev },
         { "scale", image_window_scale },
@@ -890,7 +922,6 @@ static GActionEntry image_window_entries[] = {
                 image_window_toggle, NULL, "false", image_window_falsecolour },
         { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
         { "reset", image_window_reset },
-        { "hide_display_control_bar", image_window_hide_display_control_bar },
 	 */
 };
 

@@ -95,14 +95,20 @@ $ gtk4-demo
 
 ### Working on
 
-- fullscreen toggle
-
-- then start the display control bar
+- display control bar
 
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
 
 ### TODO
+
+- right-click menu on image?
+
+- view TIFF with pages not all the same size ... error!
+
+  need to pick an appropriate mode automatically
+
+- settings ... can we use the gtk settings infrastructure for this?
 
 - use a shader to implement composite with BG?
 

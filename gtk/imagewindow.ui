@@ -100,12 +100,27 @@
         <child>
           <object class="GtkActionBar" id="conversion_bar">
             <property name="revealed">false</property>
+
+            <child type="start">
+              <object class="GtkButton">
+                <property name="label">Replace</property>
+                <property name="action-name">win.replace</property>
+              </object>
+            </child>
+
           </object>
         </child>
 
         <child>
           <object class="GtkActionBar" id="info_bar">
             <property name="revealed">false</property>
+
+            <child type="start">
+              <object class="GtkButton">
+                <property name="label">Replace</property>
+                <property name="action-name">win.replace</property>
+              </object>
+            </child>
           </object>
         </child>
 
