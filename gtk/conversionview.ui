@@ -3,7 +3,7 @@
   <template class="Conversionview" parent="GtkWidget">
     <child>
       <object class="GtkActionBar" id="action_bar">
-        <property name="revealed">true</property>
+        <property name="revealed">false</property>
     
         <child type="start">
           <object class="GtkMenuButton" id="gears">
@@ -11,13 +11,6 @@
           </object>
         </child>
     
-        <child type="start">
-          <object class="GtkButton">
-	    <property name="label">Replace</property>
-	    <property name="action-name">win.replace</property>
-          </object>
-        </child>
-
       </object>
     </child>
 

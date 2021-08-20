@@ -99,8 +99,8 @@ conversionview_dispose( GObject *object )
 	printf( "conversionview_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	// do we need this?
 	VIPS_UNREF( conversionview->conversion );
+	VIPS_FREEF( gtk_widget_unparent, conversionview->action_bar );
 
 	G_OBJECT_CLASS( conversionview_parent_class )->dispose( object );
 }
@@ -135,6 +135,7 @@ static void
 conversionview_class_init( ConversionviewClass *class )
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
 	printf( "conversionview_class_init:\n" ); 
@@ -142,6 +143,8 @@ conversionview_class_init( ConversionviewClass *class )
 
 	G_OBJECT_CLASS( class )->dispose = conversionview_dispose;
 
+	gtk_widget_class_set_layout_manager_type( widget_class, 
+		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
 		"/org/libvips/vipsdisp/conversionview.ui");
 
