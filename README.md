@@ -95,11 +95,14 @@ $ gtk4-demo
 
 ### Working on
 
-- tslider widget
-
 - display control bar
 
+  size tsliders correctly, link to conversion
+
 - "source id not found" errors for progress bar update
+
+  probably a race in updates -- try throttling update speed to a few per
+  second
 
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?

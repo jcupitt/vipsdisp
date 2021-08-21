@@ -1,10 +1,7 @@
 tags
-test-driver
 vipsdisp
-vd
 vipsdisp-*.tar.gz
 disp-gresources.c
-bp/bloatpad
 .deps
 */.deps
 */.libs
@@ -26,9 +23,9 @@ libtool
 ltmain.sh
 missing
 mkinstalldirs
-nip2.desktop
-nip2.spec
 po/POTFILES
 fred
 stamp-h1
-test/test_all.sh
+vipsdisp-gresources.c
+vipsdisp.desktop
+

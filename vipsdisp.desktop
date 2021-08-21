@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Vipsdisp
-Icon=vipsdisp
-StartupNotify=true
-Exec=${exec_prefix}/bin/vipsdisp

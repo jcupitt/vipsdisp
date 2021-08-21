@@ -4,13 +4,23 @@
     <child>
       <object class="GtkActionBar" id="action_bar">
         <property name="revealed">false</property>
-    
+
         <child type="start">
           <object class="GtkMenuButton" id="gears">
             <property name="direction">none</property>
           </object>
         </child>
-    
+
+        <child type="start">
+          <object class="Tslider" id="scale">
+          </object>
+        </child>
+
+        <child type="start">
+          <object class="Tslider" id="offset">
+          </object>
+        </child>
+
       </object>
     </child>
 

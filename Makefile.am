@@ -1,21 +1,23 @@
 bin_PROGRAMS = vipsdisp
 
 vipsdisp_SOURCES = \
-	vipsdisp.n \
 	conversion.c \
 	conversion.h \
 	conversionview.c \
 	conversionview.h \
+	gtkutil.c \
+	gtkutil.h \
 	imagedisplay.c \
 	imagedisplay.h \
-	vipsdisp-gresources.c \
 	imagewindow.c \
 	imagewindow.h \
-	gtkutil.h \
-	gtkutil.c \
 	main.c \
+	tslider.c \
+	tslider.h \
 	vipsdispapp.c \
-	vipsdispapp.h
+	vipsdispapp.h \
+	vipsdisp-gresources.c \
+	vipsdisp.n 
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
