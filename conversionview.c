@@ -14,6 +14,8 @@ struct _Conversionview {
 
 	GtkWidget *action_bar;
 	GtkWidget *gears;
+	GtkWidget *scale;
+	GtkWidget *offset;
 
 };
 
@@ -100,6 +102,7 @@ conversionview_dispose( GObject *object )
 #endif /*DEBUG*/
 
 	VIPS_UNREF( conversionview->conversion );
+
 	VIPS_FREEF( gtk_widget_unparent, conversionview->action_bar );
 
 	G_OBJECT_CLASS( conversionview_parent_class )->dispose( object );
@@ -116,6 +119,18 @@ conversionview_init( Conversionview *conversionview )
 #endif /*DEBUG*/
 
 	gtk_widget_init_template( GTK_WIDGET( conversionview ) );
+
+	Tslider *tslider = TSLIDER( conversionview->scale );
+	tslider->from = 0;
+	tslider->to = 256;
+	tslider->value = 128;
+	tslider_changed( tslider );
+
+	tslider = TSLIDER( conversionview->offset );
+	tslider->from = 0;
+	tslider->to = 256;
+	tslider->value = 128;
+	tslider_changed( tslider );
 
 	builder = gtk_builder_new_from_resource( 
 		"/org/libvips/vipsdisp/conversionview-menu.ui" );
@@ -150,6 +165,8 @@ conversionview_class_init( ConversionviewClass *class )
 
 	BIND( action_bar );
 	BIND( gears );
+	BIND( scale );
+	BIND( offset );
 
 	gobject_class->set_property = conversionview_set_property;
 	gobject_class->get_property = conversionview_get_property;

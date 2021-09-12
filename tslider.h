@@ -33,8 +33,9 @@ typedef struct _Tslider {
 	double last_from, last_to, last_svalue;
 
 	GtkAdjustment *adj;
+	GtkWidget *box;
 	GtkWidget *entry;
-	GtkWidget *slider;
+	GtkWidget *scale;
 
 	/* Optional functions ... how to make a value from a slider
 	 * position, how to make a slider position from a value.

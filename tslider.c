@@ -32,7 +32,7 @@ tslider_dispose( GObject *object )
 	printf( "tslider_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	//VIPS_FREEF( gtk_widget_unparent, tslider->box );
+	VIPS_FREEF( gtk_widget_unparent, tslider->box );
 
 	G_OBJECT_CLASS( tslider_parent_class )->dispose( object );
 }
@@ -113,7 +113,7 @@ tslider_real_changed( Tslider *tslider )
 	 */
 	set_gentry( tslider->entry, "%.*f", 
 		VIPS_CLIP( 0, tslider->digits, 100 ), tslider->value );
-	gtk_scale_set_digits( GTK_SCALE( tslider->slider ), tslider->digits );
+	gtk_scale_set_digits( GTK_SCALE( tslider->scale ), tslider->digits );
 
 	if( !DEQ( tslider->from, tslider->last_from ) || 
 		!DEQ( tslider->to, tslider->last_to ) ) {
@@ -198,6 +198,10 @@ tslider_value_activate_cb( GtkWidget *entry, Tslider *tslider )
 {
 	double value;
 
+#ifdef DEBUG
+	printf( "tslider_value_activate_cb:\n" );
+#endif /*DEBUG*/
+
 	if( get_geditable_double( entry, &value ) &&
 		tslider->value != value ) {
 		tslider->value = value;
@@ -215,7 +219,7 @@ static void
 tslider_value_changed_cb( GtkAdjustment *adj, Tslider *tslider )
 {
 #ifdef DEBUG
-	printf( "tslider_value_changed_cb\n" );
+	printf( "tslider_value_changed_cb:\n" );
 #endif /*DEBUG*/
 
 	if( tslider->svalue != gtk_adjustment_get_value( adj ) ) {
@@ -238,7 +242,7 @@ static void
 tslider_text_changed_cb( GtkWidget *widget, Tslider *tslider )
 {
 #ifdef DEBUG
-	printf( "tslider_text_changed_cb\n" );
+	printf( "tslider_text_changed_cb:\n" );
 #endif /*DEBUG*/
 
 	tslider_text_changed( tslider );
@@ -274,7 +278,7 @@ tslider_init( Tslider *tslider )
 	tslider->last_svalue = -1;
 
 	gtk_widget_init_template( GTK_WIDGET( tslider ) );
-
+	
         g_signal_connect( tslider->entry, "activate",
                 G_CALLBACK( tslider_value_activate_cb ), tslider );
         g_signal_connect( tslider->entry, "changed",
@@ -314,8 +318,9 @@ tslider_class_init( TsliderClass *class )
 		"/org/libvips/vipsdisp/tslider.ui");
 
 	BIND( adj );
+	BIND( box );
 	BIND( entry );
-	BIND( slider );
+	BIND( scale );
 
 	/* Create signals.
 	 */

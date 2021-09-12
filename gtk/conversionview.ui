@@ -4,25 +4,38 @@
     <child>
       <object class="GtkActionBar" id="action_bar">
         <property name="revealed">false</property>
+        <property name="margin-start">0</property>
 
-        <child type="start">
-          <object class="GtkMenuButton" id="gears">
-            <property name="direction">none</property>
-          </object>
-        </child>
+        <child type="center">
+          <object class="GtkBox">
+            <property name="hexpand">True</property>
+            <property name="spacing">5</property>
+            <property name="margin-start">0</property>
 
-        <child type="start">
-          <object class="Tslider" id="scale">
-          </object>
-        </child>
+            <child>
+  	      <object class="GtkMenuButton" id="gears">
+	        <property name="hexpand">False</property>
+	        <property name="direction">none</property>
+                <property name="margin-start">0</property>
+	      </object>
+            </child>
 
-        <child type="start">
-          <object class="Tslider" id="offset">
+            <child>
+              <object class="Tslider" id="scale">
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+
+            <child>
+              <object class="Tslider" id="offset">
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+
           </object>
         </child>
 
       </object>
     </child>
-
   </template>
 </interface>
