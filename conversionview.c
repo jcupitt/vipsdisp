@@ -109,10 +109,29 @@ conversionview_dispose( GObject *object )
 }
 
 static void
+conversionview_scale_value_changed( Tslider *slider, 
+	Conversionview *conversionview )
+{
+	g_object_set( conversionview->conversion,
+		"scale", slider->value,
+		NULL );
+}
+
+static void
+conversionview_offset_value_changed( Tslider *slider, 
+	Conversionview *conversionview )
+{
+	g_object_set( conversionview->conversion,
+		"offset", slider->value,
+		NULL );
+}
+
+static void
 conversionview_init( Conversionview *conversionview )
 {
 	GtkBuilder *builder;
 	GMenuModel *menu;
+	Tslider *tslider;
 
 #ifdef DEBUG
 	printf( "conversionview_init:\n" ); 
@@ -120,17 +139,31 @@ conversionview_init( Conversionview *conversionview )
 
 	gtk_widget_init_template( GTK_WIDGET( conversionview ) );
 
-	Tslider *tslider = TSLIDER( conversionview->scale );
-	tslider->from = 0;
-	tslider->to = 256;
-	tslider->value = 128;
+	tslider = TSLIDER( conversionview->scale );
+	tslider_set_conversions( tslider,
+		tslider_log_value_to_slider, tslider_log_slider_to_value );
+	tslider->from = 0.001;
+	tslider->to = 255;
+	tslider->value = 1.0;
+        tslider->svalue = 128;
+        tslider->digits = 3;
 	tslider_changed( tslider );
+	set_tooltip( GTK_WIDGET( tslider ),_( "Brightness scale factor" ) );
 
 	tslider = TSLIDER( conversionview->offset );
-	tslider->from = 0;
-	tslider->to = 256;
-	tslider->value = 128;
+	tslider->from = -128;
+	tslider->to = 128;
+	tslider->value = 0;
+        tslider->svalue = 0;
+        tslider->digits = 1;
 	tslider_changed( tslider );
+
+        g_signal_connect( conversionview->scale, "changed",
+                G_CALLBACK( conversionview_scale_value_changed ), 
+		conversionview );
+        g_signal_connect( conversionview->offset, "changed",
+                G_CALLBACK( conversionview_offset_value_changed ), 
+		conversionview );
 
 	builder = gtk_builder_new_from_resource( 
 		"/org/libvips/vipsdisp/conversionview-menu.ui" );

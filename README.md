@@ -95,9 +95,7 @@ $ gtk4-demo
 
 ### Working on
 
-- display control bar
-
-  size tsliders correctly, link to conversion
+- display control bar menu
 
 - "source id not found" errors for progress bar update
 
