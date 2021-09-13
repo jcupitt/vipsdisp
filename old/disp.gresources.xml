@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<gresources>
-  <gresource prefix="/vips/disp">
-    <file preprocess="xml-stripblanks">gtk/imageview-popover.ui</file>
-    <file preprocess="xml-stripblanks">gtk/conversionview-popover.ui</file>
-  </gresource>
-</gresources>
