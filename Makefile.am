@@ -5,6 +5,8 @@ vipsdisp_SOURCES = \
 	conversion.h \
 	conversionview.c \
 	conversionview.h \
+	infobar.c \
+	infobar.h \
 	gtkutil.c \
 	gtkutil.h \
 	imagedisplay.c \

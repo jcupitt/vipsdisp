@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 enum {
 	CHANGED,		

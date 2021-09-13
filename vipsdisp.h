@@ -24,5 +24,6 @@
 #include "conversionview.h"
 #include "imagedisplay.h"
 #include "imagewindow.h"
+#include "infobar.h"
 
 #endif /* __VIPSDISP_H */

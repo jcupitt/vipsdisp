@@ -93,9 +93,7 @@ $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ gtk4-demo
 ```
 
-### Working on
-
-- info bar
+### TODO
 
 - "source id not found" errors for progress bar update
 
@@ -104,10 +102,6 @@ $ gtk4-demo
 
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
-
-- fix flashing on zoom in if image smaller than window
-
-### TODO
 
 - right-click menu on image?
 

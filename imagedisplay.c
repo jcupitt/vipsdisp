@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
@@ -749,8 +749,6 @@ static void
 imagedisplay_click( GtkEventController *controller, 
 	int n_press, double x, double y, Imagedisplay *imagedisplay )
 {
-	printf( "imagedisplay_click:\n");
-
 	gtk_widget_grab_focus( GTK_WIDGET( imagedisplay ) );
 }
 

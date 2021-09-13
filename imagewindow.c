@@ -783,6 +783,7 @@ image_window_motion( GtkEventControllerMotion *self,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
 	image_window_gtk_to_image( win, x, y, &win->last_x, &win->last_y );
+        image_window_position_changed( win );
 }
 
 static gboolean
@@ -882,7 +883,7 @@ image_window_info( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->info_bar ), 
+	infobar_set_reveal( INFOBAR( win->info_bar ), 
 		g_variant_get_boolean( state ) );
 
 	/* Update settings for save
@@ -1112,6 +1113,9 @@ image_window_init( ImageWindow *win )
 	g_object_set( win->conversion_bar,
 		"conversion", win->conversion,
 		NULL );
+	g_object_set( win->info_bar,
+		"image_window", win,
+		NULL );
 
         g_signal_connect_object( win->conversion, "preeval", 
                 G_CALLBACK( image_window_preeval ), win, 0 );
@@ -1207,4 +1211,17 @@ image_window_open( ImageWindow *win, GFile *file )
 {
 	if( conversion_set_file( win->conversion, file ) )
 		image_window_error( win ); 
+}
+
+Conversion *
+image_window_get_conversion( ImageWindow *win )
+{
+        return( win->conversion );
+}
+
+void
+image_window_get_last( ImageWindow *win, int *last_x, int *last_y )
+{
+        *last_x = win->last_x;
+        *last_y = win->last_y;
 }
