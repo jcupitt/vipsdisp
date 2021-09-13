@@ -1,12 +1,11 @@
 # vipsdisp
 
-<img src="vipsdisp-icon.png" width="150" height="150">
-
 C program to display an image with vips8 and gtk+4. This is supposed to be
 a slightly useful image viewer. It can display huge (many, many GB) images
 quickly and without using much memory.
 
-See vipsdisp-tiny for a minimal example.
+See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for a minimal
+example.
 
 ### Screenshots
 
