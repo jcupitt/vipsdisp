@@ -33,6 +33,10 @@ struct _ImageWindow
 	GtkWidget *conversion_bar;
 	GtkWidget *info_bar;
 
+	/* Throttle progress bar updates to a few per second with this.
+	 */
+	GTimer *progress_timer;
+	double last_progress_time;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -56,6 +60,7 @@ image_window_dispose( GObject *object )
 #endif /*DEBUG*/
 
 	VIPS_UNREF( win->conversion );
+	VIPS_FREEF( g_timer_destroy, win->progress_timer );
 
 	G_OBJECT_CLASS( image_window_parent_class )->dispose( object );
 }
@@ -74,27 +79,37 @@ image_window_eval( VipsImage *image,
 {
 	static int previous_percent = -1;
 
+	double time_now = g_timer_elapsed( win->progress_timer, NULL );
+
 #ifdef DEBUG_VERBOSE
         printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-        if( progress->percent != previous_percent ) {
+	/* Don't update at more than a few hz, it triggers races in gtk.
+	 */
+        if( progress->percent != previous_percent &&
+		time_now - win->last_progress_time > 0.5 ) { 
                 char str[256];
                 VipsBuf buf = VIPS_BUF_STATIC( str );
 
-                gtk_progress_bar_set_fraction(
-                        GTK_PROGRESS_BAR( win->progress ),
-                        progress->percent / 100.0 );
+		win->last_progress_time = time_now;
+
                 vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
                         progress->percent, progress->eta );
                 gtk_progress_bar_set_text( GTK_PROGRESS_BAR( win->progress ),
                         vips_buf_all( &buf ) );
 
-                previous_percent = progress->percent;
+		/* You get a lot of "Source ID 152 was not found when
+		 * attempting to remove it" errors from the animation loop
+		 * with this enabled :-( strange
+		 *
+                gtk_progress_bar_set_fraction(
+                        GTK_PROGRESS_BAR( win->progress ),
+                        progress->percent / 100.0 );
+		 *
+		 */
 
-                /* Run one loop iteration, don't block.
-                 */
-                g_main_context_iteration( NULL, FALSE );
+                previous_percent = progress->percent;
         }
 }
 
@@ -1098,6 +1113,9 @@ image_window_init( ImageWindow *win )
 	GtkBuilder *builder;
 	GMenuModel *menu;
 	GtkEventController *controller;
+
+	win->progress_timer = g_timer_new();
+	win->last_progress_time = -1;
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
