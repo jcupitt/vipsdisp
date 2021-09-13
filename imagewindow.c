@@ -143,6 +143,9 @@ image_window_conversion_changed( Conversion *conversion, ImageWindow *win )
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
 
+        GVariant *state;
+        const char *str_mode;
+
 #ifdef DEBUG
         printf( "image_window_conversion_changed:\n" );
 #endif /*DEBUG*/
@@ -162,30 +165,25 @@ image_window_conversion_changed( Conversion *conversion, ImageWindow *win )
         }
 	gtk_label_set_text( GTK_LABEL( win->subtitle ), vips_buf_all( &buf ) );
 
-	/*
-        GVariant *state;
-        const char *str;
-
-        if( conversion->mode == CONVERSION_MODE_TOILET_ROLL )
-                str = "toilet-roll";
-        else if( conversion->mode == CONVERSION_MODE_MULTIPAGE )
-                str = "multipage";
-        else if( conversion->mode == CONVERSION_MODE_ANIMATED )
-                str = "animated";
-        else
-                str = NULL;
-        if( str ) {
-                state = g_variant_new_string( str );
-                change_state( GTK_WIDGET( win ), "mode", state );
-        }
-
         state = g_variant_new_boolean( conversion->falsecolour );
         change_state( GTK_WIDGET( win ), "falsecolour", state );
 
         state = g_variant_new_boolean( conversion->log );
         change_state( GTK_WIDGET( win ), "log", state );
 
-	 */
+        if( conversion->mode == CONVERSION_MODE_TOILET_ROLL )
+                str_mode = "toilet-roll";
+        else if( conversion->mode == CONVERSION_MODE_MULTIPAGE )
+                str_mode = "multipage";
+        else if( conversion->mode == CONVERSION_MODE_ANIMATED )
+                str_mode = "animated";
+        else
+                str_mode = NULL;
+
+        if( str_mode ) {
+                state = g_variant_new_string( str_mode );
+                change_state( GTK_WIDGET( win ), "mode", state );
+        }
 }
 
 static void
@@ -895,6 +893,159 @@ image_window_info( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static void
+image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+
+	g_object_set( conversion,
+		"page", (page + 1) % conversion->n_pages,
+		NULL );
+}
+
+static void
+image_window_prev( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+
+	g_object_set( conversion,
+		"page", page == 0 ? conversion->n_pages - 1 : page - 1,
+		NULL );
+}
+
+static int
+image_window_find_scale( ImageWindow *win, VipsObject *context, 
+	int left, int top, int width, int height,
+	double *scale, double *offset )
+{
+	Conversion *conversion = win->conversion;
+	VipsImage **t = (VipsImage **) vips_object_local_array( context, 7 );
+
+	double min, max;
+
+	if( vips_extract_area( conversion->image, &t[0], 
+		left, top, width, height, NULL ) ||
+		vips_stats( t[0], &t[1], NULL ) )
+		return( -1 );
+
+	min = *VIPS_MATRIX( t[1], 0, 0 );
+	max = *VIPS_MATRIX( t[1], 1, 0 );
+	if( max == min ) {
+		vips_error( "Find scale", _( "Min and max are equal" ) );
+		return( -1 );
+	}
+
+	*scale = 255.0 / (max - min);
+	*offset = -(min * *scale) + 0.5;
+
+	return( 0 );
+}
+
+static void
+image_window_scale( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	Conversion *conversion = win->conversion;
+
+	int left, top, width, height;
+	int right, bottom;
+	VipsImage *context;
+	double scale, offset;
+
+	if( !conversion->image )
+		return;
+
+	image_window_get_window_position( win, &left, &top, &width, &height );
+	right = left + width;
+	bottom = top + height;
+
+	conversion_to_image_cods( conversion->mag, 
+		left, top, &left, &top );
+	conversion_to_image_cods( conversion->mag, 
+		right, bottom, &right, &bottom );
+	width = right - left;
+	height = bottom - top;
+
+	context = vips_image_new();
+	if( image_window_find_scale( win, VIPS_OBJECT( context ), 
+		left, top, width, height, &scale, &offset ) ) {
+		image_window_error( win );
+		g_object_unref( context );
+		return;
+	}
+	g_object_unref( context );
+
+	g_object_set( conversion,
+		"scale", scale,
+		"offset", offset,
+		NULL );
+}
+
+static void
+image_window_log( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	g_object_set( win->conversion,
+		"log", g_variant_get_boolean( state ),
+		NULL );
+	
+	g_simple_action_set_state( action, state );
+}
+
+static void
+image_window_falsecolour( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	g_object_set( win->conversion,
+		"falsecolour", g_variant_get_boolean( state ),
+		NULL );
+	
+	g_simple_action_set_state( action, state );
+}
+
+static void
+image_window_radio( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	g_action_change_state( G_ACTION( action ), parameter );
+}
+
+static void
+image_window_mode( GSimpleAction *action,
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	const gchar *str;
+	ConversionMode mode;
+
+	str = g_variant_get_string( state, NULL );
+	if( g_str_equal( str, "toilet-roll" ) ) 
+		mode = CONVERSION_MODE_TOILET_ROLL;
+	else if( g_str_equal( str, "multipage" ) ) 
+		mode = CONVERSION_MODE_MULTIPAGE;
+	else if( g_str_equal( str, "animated" ) ) 
+		mode = CONVERSION_MODE_ANIMATED;
+	else
+		/* Ignore attempted change.
+		 */
+		return;
+
+	g_object_set( win->conversion,
+		"mode", mode,
+		NULL );
+
+	g_simple_action_set_state( action, state );
+}
+
 static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
@@ -913,7 +1064,6 @@ static GActionEntry image_window_entries[] = {
 	{ "info", image_window_toggle, NULL, "false", 
 		image_window_info },
 
-	/*
         { "next", image_window_next },
         { "prev", image_window_prev },
         { "scale", image_window_scale },
@@ -921,6 +1071,8 @@ static GActionEntry image_window_entries[] = {
         { "falsecolour",
                 image_window_toggle, NULL, "false", image_window_falsecolour },
         { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
+
+	/*
         { "reset", image_window_reset },
 	 */
 };

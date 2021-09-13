@@ -14,6 +14,7 @@ struct _Conversionview {
 
 	GtkWidget *action_bar;
 	GtkWidget *gears;
+	GtkWidget *page;
 	GtkWidget *scale;
 	GtkWidget *offset;
 
@@ -37,6 +38,39 @@ conversionview_conversion_changed( Conversion *conversion,
 	printf( "conversionview_conversion_changed:\n" ); 
 #endif /*DEBUG*/
 
+	if( TSLIDER( conversionview->scale )->value != conversion->scale ) {
+		TSLIDER( conversionview->scale )->value = conversion->scale;
+		tslider_changed( TSLIDER( conversionview->scale ) );
+	}
+
+	if( TSLIDER( conversionview->offset )->value != conversion->offset ) {
+		TSLIDER( conversionview->offset )->value = conversion->offset;
+		tslider_changed( TSLIDER( conversionview->offset ) );
+	}
+
+	if( conversion->image ) {
+		int n_pages = vips_image_get_n_pages( conversion->image );
+
+		gtk_spin_button_set_range( 
+			GTK_SPIN_BUTTON( conversionview->page ), 
+			0, n_pages - 1 );
+		gtk_widget_set_sensitive( conversionview->page, 
+			n_pages > 1 && 
+			conversion->mode == CONVERSION_MODE_MULTIPAGE );
+	}
+}
+
+static void
+conversionview_page_changed( Conversion *conversion, 
+	Conversionview *conversionview )
+{
+#ifdef DEBUG
+	printf( "conversionview_page_changed:\n" );
+#endif /*DEBUG*/
+
+	gtk_spin_button_set_value( 
+		GTK_SPIN_BUTTON( conversionview->page ), 
+		conversion->page );
 }
 
 static void
@@ -54,6 +88,9 @@ conversionview_set_conversion( Conversionview *conversionview,
 
         g_signal_connect_object( conversion, "changed", 
                 G_CALLBACK( conversionview_conversion_changed ), 
+		conversionview, 0 );
+	g_signal_connect_object( conversion, "page-changed",
+		G_CALLBACK( conversionview_page_changed ), 
 		conversionview, 0 );
 }
 
@@ -109,6 +146,21 @@ conversionview_dispose( GObject *object )
 }
 
 static void
+conversionview_page_value_changed( GtkSpinButton *spin_button,
+	Conversionview *conversionview )
+{
+	int new_page = gtk_spin_button_get_value_as_int( spin_button );
+
+#ifdef DEBUG
+	printf( "conversionview_page_value_changed: %d\n", new_page );
+#endif /*DEBUG*/
+
+	g_object_set( conversionview->conversion,
+		"page", new_page,
+		NULL );
+}
+
+static void
 conversionview_scale_value_changed( Tslider *slider, 
 	Conversionview *conversionview )
 {
@@ -139,6 +191,8 @@ conversionview_init( Conversionview *conversionview )
 
 	gtk_widget_init_template( GTK_WIDGET( conversionview ) );
 
+	set_tooltip( GTK_WIDGET( conversionview->page ), _( "Page select" ) );
+
 	tslider = TSLIDER( conversionview->scale );
 	tslider_set_conversions( tslider,
 		tslider_log_value_to_slider, tslider_log_slider_to_value );
@@ -148,7 +202,7 @@ conversionview_init( Conversionview *conversionview )
         tslider->svalue = 128;
         tslider->digits = 3;
 	tslider_changed( tslider );
-	set_tooltip( GTK_WIDGET( tslider ),_( "Brightness scale factor" ) );
+	set_tooltip( GTK_WIDGET( tslider ), _( "Brightness scale factor" ) );
 
 	tslider = TSLIDER( conversionview->offset );
 	tslider->from = -128;
@@ -157,7 +211,11 @@ conversionview_init( Conversionview *conversionview )
         tslider->svalue = 0;
         tslider->digits = 1;
 	tslider_changed( tslider );
+	set_tooltip( GTK_WIDGET( tslider ), _( "Brightness offset" ) );
 
+        g_signal_connect( conversionview->page, "value-changed",
+                G_CALLBACK( conversionview_page_value_changed ), 
+		conversionview );
         g_signal_connect( conversionview->scale, "changed",
                 G_CALLBACK( conversionview_scale_value_changed ), 
 		conversionview );
@@ -198,6 +256,7 @@ conversionview_class_init( ConversionviewClass *class )
 
 	BIND( action_bar );
 	BIND( gears );
+	BIND( page );
 	BIND( scale );
 	BIND( offset );
 

@@ -97,6 +97,14 @@ $ gtk4-demo
 
 - display control bar menu
 
+  log and falsecolour
+
+  mode switch
+
+  scale
+
+  reset
+
 - "source id not found" errors for progress bar update
 
   probably a race in updates -- try throttling update speed to a few per

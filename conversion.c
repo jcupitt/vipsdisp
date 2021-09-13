@@ -537,6 +537,7 @@ conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
 		"mag", old_conversion->mag,
 		"scale", old_conversion->scale,
 		"offset", old_conversion->offset,
+		"mode", old_conversion->mode,
 		NULL );
 
 	return( 0 );
@@ -1369,8 +1370,8 @@ conversion_init( Conversion *conversion )
 {
         conversion->mag = 1;
         conversion->scale = 1.0;
-	conversion->type = CONVERSION_TYPE_MULTIPAGE;
-	conversion->mode = CONVERSION_MODE_MULTIPAGE;
+        conversion->type = CONVERSION_TYPE_MULTIPAGE;
+        conversion->mode = CONVERSION_MODE_MULTIPAGE;
 }
 
 static void

@@ -69,8 +69,14 @@ static void
 conversionview_page_value_changed( GtkSpinButton *spin_button,
 	Conversionview *conversionview )
 {
+	int new_page = gtk_spin_button_get_value_as_int( spin_button );
+
+#ifdef DEBUG
+	printf( "conversionview_page_value_changed: %d\n", new_page );
+#endif /*DEBUG*/
+
 	g_object_set( conversionview->conversion,
-		"page", gtk_spin_button_get_value_as_int( spin_button ),
+		"page", new_page,
 		NULL );
 }
 
