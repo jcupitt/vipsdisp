@@ -656,8 +656,10 @@ image_window_key_pressed( GtkEventControllerKey *self,
 	int image_width;
 	int image_height;
 
+#ifdef DEBUG
 	printf( "image_window_key_pressed: keyval = %d, state = %d\n", 
 		keyval, state );
+#endif /*DEBUG*/
 
 	image_window_get_window_position( win, 
 		&window_left, &window_top, &window_width, &window_height );

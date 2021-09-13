@@ -2,7 +2,7 @@
 
 <img src="vipsdisp-icon.png" width="150" height="150">
 
-C program to display an image with vips8 and gtk+3. This is supposed to be
+C program to display an image with vips8 and gtk+4. This is supposed to be
 a slightly useful image viewer. It can display huge (many, many GB) images
 quickly and without using much memory.
 
@@ -20,10 +20,11 @@ It all works, though see the TODO list below.
 
 ## gtk4
 
-You need gtk4. On Ubuntu 20.10, build with:
+You need gtk4. On Ubuntu 21.04, build with:
 
 ```
 $ cd gtk
+$ git checkout 4.3.2
 $ meson _build . \
   --prefix=/home/john/vips \
   --libdir=/home/john/vips/lib \
@@ -33,14 +34,14 @@ $ ninja
 $ ninja install
 ```
 
-Since 20.10's wayland is too old.
+Since 20.10's wayland is too old. Use 4.3.2, or you'll need a new pango.
 
 ### To run
 
 ```
 $ ./autogen.sh --prefix=/home/john/vips 
 $ make
-$ ./vd ~/pics/k2.jpg
+$ ./vipsdisp ~/pics/k2.jpg
 ```
 
 ### Shortcuts
@@ -56,7 +57,7 @@ $ ./vd ~/pics/k2.jpg
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
-* ^O replace iamge
+* ^O replace image
 * ^N new viewer
 * ^D duplicate view
 * F11 fullscreen
