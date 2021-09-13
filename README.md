@@ -95,15 +95,7 @@ $ gtk4-demo
 
 ### Working on
 
-- display control bar menu
-
-  log and falsecolour
-
-  mode switch
-
-  scale
-
-  reset
+- info bar
 
 - "source id not found" errors for progress bar update
 
@@ -112,6 +104,8 @@ $ gtk4-demo
 
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
+
+- fix flashing on zoom in if image smaller than window
 
 ### TODO
 

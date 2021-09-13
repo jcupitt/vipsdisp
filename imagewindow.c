@@ -1046,6 +1046,20 @@ image_window_mode( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static void
+image_window_reset( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	g_object_set( win->conversion,
+		"falsecolour", FALSE,
+		"log", FALSE,
+		"scale", 1.0,
+		"offset", 0.0,
+		NULL );
+}
+
 static GActionEntry image_window_entries[] = {
         { "magin", image_window_magin_action },
         { "magout", image_window_magout_action },
@@ -1072,9 +1086,7 @@ static GActionEntry image_window_entries[] = {
                 image_window_toggle, NULL, "false", image_window_falsecolour },
         { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
 
-	/*
         { "reset", image_window_reset },
-	 */
 };
 
 static void
