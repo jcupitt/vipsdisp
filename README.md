@@ -1,8 +1,11 @@
 # vipsdisp
 
-This is a C program to display an image with vips8 and gtk+4. This is
+This is a C program to display an image with libvips and gtk+4. This is
 supposed to be a slightly useful image viewer. It can display huge (many,
-many GB) images quickly and without using much memory.
+many GB) images quickly and without using much memory. It supports many
+scientific and technical image formats, including TIFF, WEBP, JP2K, JXL, PNG, 
+JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
+supports pixel types from 1 bit mono to 128-bit double precision complex.
 
 All of the UI can make finding the details of image display in the sourcecode
 difficult. See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for
@@ -22,11 +25,10 @@ It all works, though see the TODO list below.
 
 ## Features
 
-* Supports many image formats, including TIFF, WEBP, JP2K, JXL, PNG, JPEG,
-  SVS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, DICOM, etc. etc. Supports
-  pixel types from 1 bit to 128-bit double precision complex.
+* It supports many image formats, supports many numeric pixel types,
+  supports any number of image bands, supports many image colour spaces.
 
-* Supports Save as, so you can use it for image format conversion. Though
+* It supports Save as, so you can use it for image format conversion. Though
   there's currently no GUI for save options, sadly.
 
 * It doesn't need to keep the whole image in memory. It will only read parts 
@@ -35,7 +37,8 @@ It all works, though see the TODO list below.
 
 * It has threaded, asynchronous image repaint, so display pixels are
   computed in the background by a pool of workers and tiles are rendered to
-  the screen as they are finished.
+  the screen as they are finished. The interface stays live even under very
+  heavy load.
 
 * Select *Display control bar* from the top-right menu and a useful
   set of visualization options appear. It supports three main display modes:
