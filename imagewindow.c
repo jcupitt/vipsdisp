@@ -110,16 +110,16 @@ image_window_eval( VipsImage *image,
 	double time_now;
 	EvalUpdate *update;
 
-	/* We can be ^Q'd during load.
+	/* We can be ^Q'd during load. This is NULLed in _dispose.
 	 */
-	if( !VIPSDISP_IS_IMAGEDISPLAY( win ) )
+	if( !win->progress_timer )
 		return;
 
 	time_now = g_timer_elapsed( win->progress_timer, NULL );
 
-	/* Throttle somewhat.
+	/* Throttle to 10Hz.
 	 */
-        if( time_now - win->last_progress_time < 0.05 )
+        if( time_now - win->last_progress_time < 0.1 )
 		return;
 	win->last_progress_time = time_now;
 

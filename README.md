@@ -25,10 +25,12 @@ It all works, though see the TODO list below.
 
 ## Features
 
-* It supports many image formats, supports many numeric pixel types,
-  supports any number of image bands, supports many image colour spaces.
+* It supports many scientific and technical image formats, including TIFF,
+  WEBP, JP2K, JXL, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS,
+  Matlab, NIfTI, Analyze, etc. It supports many numeric pixel types, any
+  number of image bands, many colour spaces.
 
-* It supports Save as, so you can use it for image format conversion. Though
+* It has Save as, so you can use it for image format conversion. Though
   there's currently no GUI for save options, sadly.
 
 * It doesn't need to keep the whole image in memory. It will only read parts 
@@ -74,7 +76,8 @@ $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ gtk4-demo
 ```
 
-Since 21.04's wayland is too old. Use 4.3.2 or you'll need a new pango.
+Disable wayland, since 21.04's wayland is too old. Use 4.3.2 or you'll need
+a new pango.
 
 Then for vipsdisp:
 
