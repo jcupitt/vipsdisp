@@ -1,13 +1,15 @@
 # vipsdisp
 
-C program to display an image with vips8 and gtk+4. This is supposed to be
-a slightly useful image viewer. It can display huge (many, many GB) images
-quickly and without using much memory.
+This is a C program to display an image with vips8 and gtk+4. This is
+supposed to be a slightly useful image viewer. It can display huge (many,
+many GB) images quickly and without using much memory.
 
-See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for a minimal
-example.
+All of the UI can make finding the details of image display in the sourcecode
+difficult. See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for
+a minimal example --- that's a libvips image viewer in about 300 lines of
+very commented C.
 
-### Screenshots
+## Screenshots
 
 It all works, though see the TODO list below.
 
@@ -17,7 +19,41 @@ It all works, though see the TODO list below.
 
 [![Screenshot](images/shot3.png)](images/shot3.png)
 
-## gtk4
+
+## Features
+
+* Supports many image formats, including TIFF, WEBP, JP2K, JXL, PNG, JPEG,
+  SVS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, DICOM, etc. etc. Supports
+  pixel types from 1 bit to 128-bit double precision complex.
+
+* Supports Save as, so you can use it for image format conversion. Though
+  there's currently no GUI for save options, sadly.
+
+* It doesn't need to keep the whole image in memory. It will only read parts 
+  that it needs for display, and it understands most pyramidal image formats.
+  This means you can open and view huge images quickly.
+
+* It has threaded, asynchronous image repaint, so display pixels are
+  computed in the background by a pool of workers and tiles are rendered to
+  the screen as they are finished.
+
+* Select *Display control bar* from the top-right menu and a useful
+  set of visualization options appear. It supports three main display modes:
+  Toilet roll (sorry), Multipage and Animated.
+
+* In Toilet roll mode, a multi-page image is presented as a tall, thin strip
+  of images. In Multipage, you see a single page at a time, with a page-select
+  spinner (you can also use the `<` and `>` keys to flip pages). In animated
+  mode, pages flip automatically on a timeout. 
+
+* You can select falsecolour and log-scale filters, useful for many scientific
+  images. Scale and offset sliders let you adjust image brightness to see into
+  darker areas (useful for HDR and many scientific images).
+
+* It uses the gtk4 GUI toolkit, so the interface is fast, attractive
+  and nicely animated.
+
+## Install
 
 You need gtk4. On Ubuntu 21.04, build with:
 
@@ -31,11 +67,13 @@ $ meson _build . \
 $ cd _build
 $ ninja
 $ ninja install
+$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
+$ gtk4-demo
 ```
 
-Since 20.10's wayland is too old. Use 4.3.2, or you'll need a new pango.
+Since 21.04's wayland is too old. Use 4.3.2 or you'll need a new pango.
 
-### To run
+Then for vipsdisp:
 
 ```
 $ ./autogen.sh --prefix=/home/john/vips 
@@ -43,7 +81,7 @@ $ make
 $ ./vipsdisp ~/pics/k2.jpg
 ```
 
-### Shortcuts
+## Shortcuts
 
 * Cursor keys to scroll around
 * Cursor keys plus shift to move by a screen size
@@ -61,42 +99,60 @@ $ ./vipsdisp ~/pics/k2.jpg
 * ^D duplicate view
 * F11 fullscreen
 
-### Structure
+## Structure
 
 * `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`. It
-implements a scrollable interface.
+  implements a scrollable interface. You can use this as an image view
+  widget in your own code.
 
 * `Conversion` is a GObject which manages the image that is being
-displayed. Set things like magnification, file, scale, offset etc. on this
-and the display will update automatically.
+  displayed. Set things like magnification, file, scale, offset etc. on
+  this and the display will update automatically.
 
-* `Conversionview` is the view for the conversion model.
+* `Conversionview` is the view for the conversion model (it's the display
+  control bar).
 
-* `Imagewindow` is a GtkWindow that contains an
-`Imagedisplay` and a `Conversion` and adds a lot of navigation stuff. It
-uses the scolled window `GtkAdjustment` to slide `Imagedisplay` around,
-and sets properties of `Conversion` to zoom etc.
+* `Imagewindow` is a GtkWindow that contains an `Imagedisplay` and a
+  `Conversionview` and adds a lot of navigation stuff. It uses the scolled
+  window `GtkAdjustment` to slide `Imagedisplay` around, and sets properties
+  of `Conversion` to zoom etc.
 
 * `disp` is the `main()`, `VipsdispApp` is a `GtkApplication` subclass
 
-## gtk4
+* The UI layout is in the `gtk/*.ui` xml.
 
-Build with:
-
-```
-$ meson _build . --prefix=/home/john/vips --libdir=/home/john/vips/lib \
-  -Dwayland-backend=false
-$ cd _build
-$ ninja
-$ ninja install
-$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ gtk4-demo
-```
-
-### TODO
+## TODO
 
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
+
+  we're not overcomputing, so it's not our fault, I think, it's just gtk4
+  getting slower for very large windows
+
+  once the framerate drops below 30 fps, the final paint is almost always
+  interrupted by the arrival of the next frame
+
+  only schedule the next paint when the current one finishes?
+
+  see `conversion_page_flip()` -- try: 
+  
+  1. start a timer
+
+  2. set page flip going
+
+  3. in repaint, set an idle task when we paint the final tile (how do we
+     know? no idea)
+
+  4. idle task checks the timer, computes elapsed time, sets the next page
+     flip timeout for (delay - time elapsed)
+
+     could skip frames for very slow updates? track `t` rather than having a
+     timeout, and pick a frame from that?
+
+- progress feedback --- perhaps update from an idle callback cf. tile paint?
+
+  might be a threading thing, perhaps? though eval etc. should be triggered by
+  the main thread
 
 - right-click menu on image?
 
