@@ -180,3 +180,36 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
+
+## flatpak
+
+Add the `flathub` repo:
+
+```
+flatpak remote-add --if-not-exists \
+  flathub https://flathub.org/repo/flathub.flatpakrepo
+```
+
+Install the gtk4 SDK:
+
+```
+flatpak install org.gnome.Sdk//40
+```
+
+Build:
+
+```
+flatpak-builder build-dir org.libvips.vipsdisp.json 
+```
+
+It'll build libvips without HEIC, AVIF, libgsf, JXL, OpenEXR OpenJPEG,
+poppler, openslide, matio, cfitsio, libimagequant, NIfTI, FITS etc. as they
+are not included in the SDK we use.
+
+Install the binary you just made to your local account and try running it:
+
+```
+flatpak-builder --user --install build-dir org.libvips.vipsdisp.json
+flatpak run org.libvips.vipsdisp
+```
+

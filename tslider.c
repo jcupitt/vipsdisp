@@ -315,7 +315,7 @@ tslider_class_init( TsliderClass *class )
 	gtk_widget_class_set_layout_manager_type( widget_class, 
 		GTK_TYPE_BOX_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/tslider.ui");
+		"/org/libvips/vipsdisp/gtk/tslider.ui");
 
 	BIND( adj );
 	BIND( box );

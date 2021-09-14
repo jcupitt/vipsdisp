@@ -1,4 +1,6 @@
 tags
+build-dir
+.flatpak-builder
 vipsdisp
 vipsdisp-*.tar.gz
 disp-gresources.c

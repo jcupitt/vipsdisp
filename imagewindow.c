@@ -1153,7 +1153,7 @@ image_window_init( ImageWindow *win )
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
 	builder = gtk_builder_new_from_resource( 
-		"/org/libvips/vipsdisp/imagewindow-menu.ui" );
+		"/org/libvips/vipsdisp/gtk/imagewindow-menu.ui" );
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"imagewindow-menu" ) );
 	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
@@ -1229,7 +1229,7 @@ image_window_class_init( ImageWindowClass *class )
 	G_OBJECT_CLASS( class )->dispose = image_window_dispose;
 
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/imagewindow.ui");
+		"/org/libvips/vipsdisp/gtk/imagewindow.ui");
 
 	BIND( title );
 	BIND( subtitle );

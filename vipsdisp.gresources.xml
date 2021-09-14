@@ -2,11 +2,11 @@
 
 <gresources>
   <gresource prefix="/org/libvips/vipsdisp">
-    <file preprocess="xml-stripblanks">imagewindow.ui</file>
-    <file preprocess="xml-stripblanks">imagewindow-menu.ui</file>
-    <file preprocess="xml-stripblanks">infobar.ui</file>
-    <file preprocess="xml-stripblanks">conversionview.ui</file>
-    <file preprocess="xml-stripblanks">conversionview-menu.ui</file>
-    <file preprocess="xml-stripblanks">tslider.ui</file>
+    <file preprocess="xml-stripblanks">gtk/imagewindow.ui</file>
+    <file preprocess="xml-stripblanks">gtk/imagewindow-menu.ui</file>
+    <file preprocess="xml-stripblanks">gtk/infobar.ui</file>
+    <file preprocess="xml-stripblanks">gtk/conversionview.ui</file>
+    <file preprocess="xml-stripblanks">gtk/conversionview-menu.ui</file>
+    <file preprocess="xml-stripblanks">gtk/tslider.ui</file>
   </gresource>
 </gresources>

@@ -35,7 +35,7 @@ resource_files = \
 	vipsdisp.gresources.xml 
 
 vipsdisp-gresources.c: $(resource_files)
-	glib-compile-resources --target=$@ --sourcedir=gtk --generate-source $<
+	glib-compile-resources --target=$@ --generate-source $<
 
 CLEANFILES = vipsdisp-gresources.c
 
