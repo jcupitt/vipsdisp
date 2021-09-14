@@ -202,10 +202,21 @@ Build:
 flatpak-builder --force-clean build-dir org.libvips.vipsdisp.json
 ```
 
-It's missing support for many file formats, eg. HEIC, AVIF, libgsf, OpenEXR,
-OpenJPEG, poppler, openslide, matio, cfitsio, libimagequant, NIfTI, FITS etc. 
-as they are not included in the SDK we use. We'd need to add extra modules to 
-the manifest.
+Current libvips configure output for missing packages from flatpak build is:
+
+```
+HEIC/AVIF load/save with libheif:       no (dynamic module: no)
+EXR load with OpenEXR:                  no
+OpenSlide support:                      no (dynamic module: no)
+ (requires openslide-3.3.0 or later)
+Matlab load with matio:                 no
+NIfTI load/save with niftiio:           no
+FITS load/save with cfitsio:            no
+Magick package:                         none (dynamic module: no)
+Magick API version:                     none
+load with libMagickCore:                no
+save with libMagickCore:                no
+```
 
 Install the binary you just made to your local account and try running it:
 

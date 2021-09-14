@@ -29,7 +29,6 @@
         "*.a"
     ],
     "modules" : [
-
         {
             "name" : "libjxl",
             "builddir" : true,
@@ -40,6 +39,88 @@
                     "url" : "https://github.com/libjxl/libjxl.git",
 		    "tag": "v0.5",
 		    "commit": "c4e0877f93506e880cd922f6c94644d79ae9adff"
+                }
+            ]
+        },
+
+        {
+            "name" : "openjpeg",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/uclouvain/openjpeg.git",
+		    "tag": "v2.4.0",
+		    "commit": "37ac30ceff6640bbab502388c5e0fa0bff23f505"
+                }
+            ]
+        },
+
+        {
+            "name" : "libimagequant",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/ImageOptim/libimagequant.git",
+		    "tag": "2.15.1",
+		    "commit": "2cf79d535d86daeb9983e5d037fc544b4354f3b1"
+                }
+            ]
+        },
+
+        {
+            "name" : "libspng",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/randy408/libspng.git",
+		    "tag": "v0.6.3",
+		    "commit": "de6f83bc641477352de6ff6be08012df024dcfe0"
+                }
+            ]
+        },
+
+        {
+            "name" : "libgsf",
+            "builddir" : true,
+            "buildsystem" : "autotools",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/GNOME/libgsf.git",
+		    "tag": "LIBGSF_1_14_47",
+		    "commit": "d203263342e21f51fed1c39fec2fd6e9708e6ed8"
+                }
+            ]
+        },
+
+        {
+            "name" : "poppler-glib",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "config-opts" : [
+		    "-DENABLE_ZLIB=ON",
+		    "-DENABLE_LIBTIFF=ON",
+		    "-DENABLE_LIBPNG=ON",
+		    "-DENABLE_GLIB=ON",
+		    "-DENABLE_CMS='lcms2'",
+		    "-DENABLE_LIBOPENJPEG='openjpeg2'",
+		    "-DENABLE_DCTDECODER='libjpeg'",
+		    "-DENABLE_SPLASH=OFF",
+		    "-DENABLE_BOOST=OFF",
+		    "-DENABLE_CPP=OFF"
+	    ],
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://anongit.freedesktop.org/git/poppler/poppler.git",
+		    "tag": "poppler-21.09.0",
+		    "commit": "f70e352429e3b565262251b1150e77e8638bed6c"
                 }
             ]
         },
