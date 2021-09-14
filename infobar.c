@@ -330,7 +330,7 @@ infobar_class_init( InfobarClass *class )
 	gtk_widget_class_set_layout_manager_type( widget_class, 
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/gtk/infobar.ui");
+		"/org/libvips/vipsdisp/infobar.ui");
 
 	BIND( action_bar );
 	BIND( x );

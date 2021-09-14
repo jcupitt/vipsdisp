@@ -224,7 +224,7 @@ conversionview_init( Conversionview *conversionview )
 		conversionview );
 
 	builder = gtk_builder_new_from_resource( 
-		"/org/libvips/vipsdisp/gtk/conversionview-menu.ui" );
+		"/org/libvips/vipsdisp/conversionview-menu.ui" );
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"conversionview-menu" ) );
 	gtk_menu_button_set_menu_model( 
@@ -252,7 +252,7 @@ conversionview_class_init( ConversionviewClass *class )
 	gtk_widget_class_set_layout_manager_type( widget_class, 
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/gtk/conversionview.ui");
+		"/org/libvips/vipsdisp/conversionview.ui");
 
 	BIND( action_bar );
 	BIND( gears );
