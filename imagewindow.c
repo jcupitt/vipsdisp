@@ -73,44 +73,77 @@ image_window_preeval( VipsImage *image,
 		TRUE );
 }
 
+typedef struct _EvalUpdate {
+        ImageWindow *win;
+	int eta;
+	int percent;
+} EvalUpdate;
+
+static gboolean
+image_window_eval_idle( void *user_data )
+{
+        EvalUpdate *update = (EvalUpdate *) user_data;
+	ImageWindow *win = update->win;
+
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
+
+	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
+		update->percent, update->eta );
+	gtk_progress_bar_set_text( GTK_PROGRESS_BAR( win->progress ),
+		vips_buf_all( &buf ) );
+
+	gtk_progress_bar_set_fraction( GTK_PROGRESS_BAR( win->progress ),
+		update->percent / 100.0 );
+
+	g_object_unref( win );
+
+        g_free( update );
+        
+	return( FALSE );
+}
+
 static void
 image_window_eval( VipsImage *image, 
         VipsProgress *progress, ImageWindow *win )
 {
-	static int previous_percent = -1;
+	double time_now;
+	EvalUpdate *update;
 
-	double time_now = g_timer_elapsed( win->progress_timer, NULL );
+	/* We can be ^Q'd during load.
+	 */
+	if( !VIPSDISP_IS_IMAGEDISPLAY( win ) )
+		return;
+
+	time_now = g_timer_elapsed( win->progress_timer, NULL );
+
+	/* Throttle somewhat.
+	 */
+        if( time_now - win->last_progress_time < 0.05 )
+		return;
+	win->last_progress_time = time_now;
 
 #ifdef DEBUG_VERBOSE
         printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-	/* Don't update at more than a few hz, it triggers races in gtk.
+	/* You'd think we could just update the progress bar now, but it
+	 * seems to trigger a lot of races. Instead, set an idle handler and 
+	 * do the update there.	
 	 */
-        if( progress->percent != previous_percent &&
-		time_now - win->last_progress_time > 0.5 ) { 
-                char str[256];
-                VipsBuf buf = VIPS_BUF_STATIC( str );
 
-		win->last_progress_time = time_now;
+	update = g_new( EvalUpdate, 1 );
 
-                vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
-                        progress->percent, progress->eta );
-                gtk_progress_bar_set_text( GTK_PROGRESS_BAR( win->progress ),
-                        vips_buf_all( &buf ) );
+	update->win = win;
+	update->percent = progress->percent;
+	update->eta = progress->eta;
 
-		/* You get a lot of "Source ID 152 was not found when
-		 * attempting to remove it" errors from the animation loop
-		 * with this enabled :-( strange
-		 *
-                gtk_progress_bar_set_fraction(
-                        GTK_PROGRESS_BAR( win->progress ),
-                        progress->percent / 100.0 );
-		 *
-		 */
+	/* We don't want win to vanish before we process this update. The
+	 * matching unref is in the handler above.
+	 */
+	g_object_ref( win );
 
-                previous_percent = progress->percent;
-        }
+	g_idle_add( image_window_eval_idle, update );
 }
 
 static void

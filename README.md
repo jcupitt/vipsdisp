@@ -149,11 +149,6 @@ $ ./vipsdisp ~/pics/k2.jpg
      could skip frames for very slow updates? track `t` rather than having a
      timeout, and pick a frame from that?
 
-- progress feedback --- perhaps update from an idle callback cf. tile paint?
-
-  might be a threading thing, perhaps? though eval etc. should be triggered by
-  the main thread
-
 - right-click menu on image?
 
 - view TIFF with pages not all the same size ... error!
