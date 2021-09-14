@@ -199,7 +199,7 @@ flatpak install org.gnome.Sdk//40
 Build:
 
 ```
-flatpak-builder build-dir org.libvips.vipsdisp.json 
+flatpak-builder build-dir io.github.jcupitt.vipsdisp.json
 ```
 
 It'll build libvips without HEIC, AVIF, libgsf, JXL, OpenEXR OpenJPEG,
@@ -209,7 +209,8 @@ are not included in the SDK we use.
 Install the binary you just made to your local account and try running it:
 
 ```
-flatpak-builder --user --install build-dir org.libvips.vipsdisp.json
-flatpak run org.libvips.vipsdisp
+flatpak-builder --user --install build-dir io.github.jcupitt.vipsdisp.json
+flatpak run io.github.jcupitt.vipsdisp ~/pics/k2.jpg
 ```
 
+It'll be missing the dark theme for some reason.

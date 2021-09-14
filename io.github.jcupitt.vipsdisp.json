@@ -1,5 +1,5 @@
 {
-    "app-id" : "org.libvips.vipsdisp",
+    "app-id" : "io.github.jcupitt.vipsdisp",
     "runtime" : "org.gnome.Sdk",
     "runtime-version" : "40",
     "sdk" : "org.gnome.Sdk",
@@ -37,6 +37,17 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git"
+                }
+            ]
+        },
+        {
+            "name" : "libadwaita",
+            "buildsystem" : "meson",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://gitlab.gnome.org/GNOME/libadwaita.git",
+                    "branch" : "main"
                 }
             ]
         },
