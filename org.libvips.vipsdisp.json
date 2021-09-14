@@ -29,6 +29,21 @@
         "*.a"
     ],
     "modules" : [
+
+        {
+            "name" : "libjxl",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/libjxl/libjxl.git",
+		    "tag": "v0.5",
+		    "commit": "c4e0877f93506e880cd922f6c94644d79ae9adff"
+                }
+            ]
+        },
+
         {
             "name" : "libvips",
             "builddir" : true,
@@ -42,6 +57,7 @@
                 }
             ]
         },
+
         {
             "name" : "vipsdisp",
             "builddir" : true,

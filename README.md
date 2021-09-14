@@ -199,12 +199,13 @@ flatpak install org.gnome.Sdk//40
 Build:
 
 ```
-flatpak-builder build-dir org.libvips.vipsdisp.json
+flatpak-builder --force-clean build-dir org.libvips.vipsdisp.json
 ```
 
-It'll build libvips without HEIC, AVIF, libgsf, JXL, OpenEXR OpenJPEG,
-poppler, openslide, matio, cfitsio, libimagequant, NIfTI, FITS etc. as they
-are not included in the SDK we use.
+It's missing support for many file formats, eg. HEIC, AVIF, libgsf, OpenEXR,
+OpenJPEG, poppler, openslide, matio, cfitsio, libimagequant, NIfTI, FITS etc. 
+as they are not included in the SDK we use. We'd need to add extra modules to 
+the manifest.
 
 Install the binary you just made to your local account and try running it:
 
