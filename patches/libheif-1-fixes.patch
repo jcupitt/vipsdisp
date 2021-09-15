@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lovell Fuller <github@lovell.info>
+Date: Sat, 31 Oct 2020 15:41:05 +0000
+Subject: [PATCH 1/2] Ensure box clap values are sanitised
+
+Prevents possible integer overflows and floating point exceptions
+
+Upstream-Status: Accepted [https://github.com/strukturag/libheif/commit/45503a7e12d5b3bcb4abf5c75bf8074a4dbc379c]
+
+diff --git a/libheif/box.cc b/libheif/box.cc
+index 1111111..2222222 100644
+--- a/libheif/box.cc
++++ b/libheif/box.cc
+@@ -2260,14 +2260,20 @@ Error Box_clap::parse(BitstreamRange& range)
+ {
+   //parse_full_box_header(range);
+ 
+-  m_clean_aperture_width.numerator = range.read32();
+-  m_clean_aperture_width.denominator = range.read32();
+-  m_clean_aperture_height.numerator = range.read32();
+-  m_clean_aperture_height.denominator = range.read32();
+-  m_horizontal_offset.numerator = range.read32();
+-  m_horizontal_offset.denominator = range.read32();
+-  m_vertical_offset.numerator = range.read32();
+-  m_vertical_offset.denominator = range.read32();
++  int32_t clean_aperture_width_num = range.read32();
++  int32_t clean_aperture_width_den = range.read32();
++  int32_t clean_aperture_height_num = range.read32();
++  int32_t clean_aperture_height_den = range.read32();
++  int32_t horizontal_offset_num = range.read32();
++  int32_t horizontal_offset_den = range.read32();
++  int32_t vertical_offset_num = range.read32();
++  int32_t vertical_offset_den = range.read32();
++  m_clean_aperture_width = Fraction(clean_aperture_width_num,
++                                    clean_aperture_width_den);
++  m_clean_aperture_height = Fraction(clean_aperture_height_num,
++                                     clean_aperture_height_den);
++  m_horizontal_offset = Fraction(horizontal_offset_num, horizontal_offset_den);
++  m_vertical_offset = Fraction(vertical_offset_num, vertical_offset_den);
+   if (!m_clean_aperture_width.is_valid() || !m_clean_aperture_height.is_valid() ||
+       !m_horizontal_offset.is_valid() || !m_vertical_offset.is_valid()) {
+     return Error(heif_error_Invalid_input,
+
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dirk Farin <dirk.farin@gmail.com>
+Date: Thu, 12 Nov 2020 18:04:18 +0100
+Subject: [PATCH 2/2] remove software version comment from hdlr box as this is not
+ the right place (#356)
+
+Upstream-Status: Accepted [https://github.com/strukturag/libheif/commit/b3989b8f3573d73a149e787ba6246a02903d4c8b]
+
+diff --git a/libheif/heif_context.cc b/libheif/heif_context.cc
+index 1111111..2222222 100644
+--- a/libheif/heif_context.cc
++++ b/libheif/heif_context.cc
+@@ -1739,7 +1739,8 @@ Error HeifContext::encode_image(std::shared_ptr<HeifPixelImage> pixel_image,
+ 
+   m_heif_file->set_brand(encoder->plugin->compression_format);
+ 
+-  m_heif_file->set_hdlr_library_info(encoder->plugin->get_plugin_name());
++  // TODO: the hdlr box is not the right place for comments
++  // m_heif_file->set_hdlr_library_info(encoder->plugin->get_plugin_name());
+ 
+   switch (encoder->plugin->compression_format) {
+     case heif_compression_HEVC: {
+diff --git a/libheif/heif_file.cc b/libheif/heif_file.cc
+index 1111111..2222222 100644
+--- a/libheif/heif_file.cc
++++ b/libheif/heif_file.cc
+@@ -823,6 +823,7 @@ void HeifFile::set_color_profile(heif_item_id id, const std::shared_ptr<const co
+ }
+ 
+ 
++// TODO: the hdlr box is probably not the right place for this. Into which box should we write comments?
+ void HeifFile::set_hdlr_library_info(std::string encoder_plugin_version)
+ {
+   std::stringstream sstr;
+diff --git a/libheif/heif_file.h b/libheif/heif_file.h
+index 1111111..2222222 100644
+--- a/libheif/heif_file.h
++++ b/libheif/heif_file.h
+@@ -150,6 +150,7 @@ namespace heif {
+ 
+     void set_color_profile(heif_item_id id, const std::shared_ptr<const color_profile> profile);
+ 
++    // TODO: the hdlr box is probably not the right place for this. Into which box should we write comments?
+     void set_hdlr_library_info(std::string encoder_plugin_version);
+ 
+   private:

@@ -225,3 +225,11 @@ flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.js
 flatpak run org.libvips.vipsdisp ~/pics/k2.jpg
 ```
 
+## Notes on flatpak manifest
+
+- We want openslide, but this is becoming a hard package to build. We have to
+  patch `configure.ac`, this means we need to run autoreconf, this means we
+  need a matching autotools installed, and this means we need our own 
+  pkg-config to get all the relevant autotools macros for openslide.
+
+

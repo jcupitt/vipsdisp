@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "fix@me" <fix@me>
+Date: Sunday, 25 Feb 2018 21:37:44 +0200
+Subject: [PATCH 1/1] Fix DLL naming (libzlib.dll -> libz.dll)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1111111..2222222 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -199,6 +199,11 @@ if(NOT CYGWIN)
+     set_target_properties(zlib PROPERTIES VERSION ${ZLIB_FULL_VERSION})
+ endif()
+ 
++if(MINGW)
++    # when cross-compiling with mingw, we want to make libz, not libzlib
++    set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)
++endif(MINGW)
++
+ if(UNIX)
+     # On unix-like platforms the library is almost always called libz
+    set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)

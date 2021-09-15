@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kleis Auke Wolthuizen <github@kleisauke.nl>
+Date: Sun, 5 Jul 2020 23:00:00 +0200
+Subject: [PATCH 1/1] Only use the dllimport attribute for MSVC
+
+
+diff --git a/libintl.h b/libintl.h
+index 1111111..2222222 100644
+--- a/libintl.h
++++ b/libintl.h
+@@ -54,8 +54,10 @@
+ /* Export when producing library, import when linking against library */
+ #  ifdef G_INTL_COMPILATION
+ #    define G_INTL_EXPORT __declspec(dllexport)
+-#  else
++#  elif defined(_MSC_VER)
+ #    define G_INTL_EXPORT __declspec(dllimport)
++#  else
++#    define G_INTL_EXPORT extern
+ #  endif
+ #else
+ #  define G_INTL_EXPORT extern

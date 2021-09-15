@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kleis Auke Wolthuizen <github@kleisauke.nl>
+Date: Mon, 25 Nov 2019 15:30:00 +0100
+Subject: [PATCH 1/1] Remove -D_FORTIFY_SOURCE=2 flag
+
+See:
+https://github.com/msys2/MINGW-packages/issues/5803
+https://sourceforge.net/p/mingw-w64/bugs/818/
+
+diff --git a/build/configure.ac.warnings b/build/configure.ac.warnings
+index 1111111..2222222 100644
+--- a/build/configure.ac.warnings
++++ b/build/configure.ac.warnings
+@@ -38,9 +38,6 @@ dnl We also abuse the warning-flag facility to enable other compiler
+ dnl options.  Namely, the following:
+ MAYBE_WARN="$MAYBE_WARN -fno-strict-aliasing -fno-common"
+ 
+-dnl Also to turn various gcc/glibc-specific preprocessor checks
+-MAYBE_WARN="$MAYBE_WARN -Wp,-D_FORTIFY_SOURCE=2"
+-
+ # invalidate cached value if MAYBE_WARN has changed
+ if test "x$cairo_cv_warn_maybe" != "x$MAYBE_WARN"; then
+ 	unset cairo_cv_warn_cflags

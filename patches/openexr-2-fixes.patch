@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kleis Auke Wolthuizen <github@kleisauke.nl>
+Date: Wed, 2 Oct 2019 09:40:00 +0200
+Subject: [PATCH 1/1] Fix build errors on MinGW-w64
+
+
+diff --git a/OpenEXR/IlmImf/CMakeLists.txt b/OpenEXR/IlmImf/CMakeLists.txt
+index 1111111..2222222 100644
+--- a/OpenEXR/IlmImf/CMakeLists.txt
++++ b/OpenEXR/IlmImf/CMakeLists.txt
+@@ -2,7 +2,12 @@
+ # Copyright Contributors to the OpenEXR Project.
+ 
+ openexr_define_library(IlmImf
+-  PRIV_EXPORT ILMIMF_EXPORTS
++  PRIV_EXPORT
++    ILMIMF_EXPORTS
++    IEX_EXPORTS
++    HALF_EXPORTS
++    IMATH_EXPORTS
++    ILMTHREAD_EXPORTS
+   CURDIR ${CMAKE_CURRENT_SOURCE_DIR}
+   SOURCES
+     b44ExpLogTable.h
+diff --git a/OpenEXR/IlmImfExamples/CMakeLists.txt b/OpenEXR/IlmImfExamples/CMakeLists.txt
+index 1111111..2222222 100644
+--- a/OpenEXR/IlmImfExamples/CMakeLists.txt
++++ b/OpenEXR/IlmImfExamples/CMakeLists.txt
+@@ -12,6 +12,7 @@ add_executable(IlmImfExamples
+   rgbaInterfaceTiledExamples.cpp
+ )
+ target_link_libraries(IlmImfExamples OpenEXR::IlmImf)
++target_compile_definitions(IlmImfExamples PRIVATE IEX_EXPORTS HALF_EXPORTS)
+ 
+ # Examples
+ install(
+diff --git a/OpenEXR/IlmImfUtil/CMakeLists.txt b/OpenEXR/IlmImfUtil/CMakeLists.txt
+index 1111111..2222222 100644
+--- a/OpenEXR/IlmImfUtil/CMakeLists.txt
++++ b/OpenEXR/IlmImfUtil/CMakeLists.txt
+@@ -2,7 +2,10 @@
+ # Copyright Contributors to the OpenEXR Project.
+ 
+ openexr_define_library(IlmImfUtil
+-  PRIV_EXPORT ILMIMFUTIL_EXPORTS
++  PRIV_EXPORT
++    ILMIMFUTIL_EXPORTS
++    IEX_EXPORTS
++    HALF_EXPORTS
+   CURDIR ${CMAKE_CURRENT_SOURCE_DIR}
+   SOURCES
+     ImfImageChannel.cpp
+diff --git a/OpenEXR/config/LibraryDefine.cmake b/OpenEXR/config/LibraryDefine.cmake
+index 1111111..2222222 100644
+--- a/OpenEXR/config/LibraryDefine.cmake
++++ b/OpenEXR/config/LibraryDefine.cmake
+@@ -5,8 +5,8 @@
+ # in it, so be careful copying...
+ function(OPENEXR_DEFINE_LIBRARY libname)
+   set(options)
+-  set(oneValueArgs PRIV_EXPORT CURDIR CURBINDIR)
+-  set(multiValueArgs SOURCES HEADERS DEPENDENCIES PRIVATE_DEPS)
++  set(oneValueArgs CURDIR CURBINDIR)
++  set(multiValueArgs PRIV_EXPORT SOURCES HEADERS DEPENDENCIES PRIVATE_DEPS)
+   cmake_parse_arguments(OPENEXR_CURLIB "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+ 
+   # only do the object library mechanism in a few cases:

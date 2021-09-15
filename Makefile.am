@@ -45,6 +45,7 @@ CLEANFILES = vipsdisp-gresources.c
 
 EXTRA_DIST = \
 	gtk \
+	patches \
 	$(resource_files) \
 	vipsdisp.desktop.in
 

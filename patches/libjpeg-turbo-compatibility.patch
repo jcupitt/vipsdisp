@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexpux <alexey.pawlow@gmail.com>
+Date: Sun, 18 Jan 2015 16:49:05 +0300
+Subject: [PATCH 1/1] Fix compatibility with "basestd.h" header
+
+Taken from:
+https://github.com/Alexpux/MINGW-packages/blob/master/mingw-w64-libjpeg-turbo/0001-header-compat.mingw.patch
+
+diff --git a/jmorecfg.h b/jmorecfg.h
+index 1111111..2222222 100644
+--- a/jmorecfg.h
++++ b/jmorecfg.h
+@@ -14,6 +14,12 @@
+  * optimizations.  Most users will not need to touch this file.
+  */
+ 
++/* prevents conflicts */
++#if defined(__MINGW32__)
++#include <shlwapi.h> /* typedefs INT16 and INT32 */
++ 
++#define HAVE_BOOLEAN
++#endif
+ 
+ /*
+  * Maximum number of components (color channels) allowed in JPEG image.
+@@ -114,6 +120,7 @@ typedef char JOCTET;
+ #endif /* HAVE_UNSIGNED_CHAR */
+ 
+ 
++#ifndef _BASETSD_H_		/* basestd.h from mingw-w64 defines UINT8, UINT16, INT16, INT32 */
+ /* These typedefs are used for various table entries and so forth.
+  * They must be at least as wide as specified; but making them too big
+  * won't cost a huge amount of memory, so we don't provide special
+@@ -173,14 +180,11 @@ typedef short INT16;
+  */
+ 
+ #ifndef XMD_H                   /* X11/xmd.h correctly defines INT32 */
+-#ifndef _BASETSD_H_             /* Microsoft defines it in basetsd.h */
+-#ifndef _BASETSD_H              /* MinGW is slightly different */
+ #ifndef QGLOBAL_H               /* Qt defines it in qglobal.h */
+ typedef long INT32;
+ #endif
+ #endif
+ #endif
+-#endif
+ 
+ /* Datatype used for image dimensions.  The JPEG standard only supports
+  * images up to 64K*64K due to 16-bit fields in SOF markers.  Therefore

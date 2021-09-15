@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kleis Auke Wolthuizen <github@kleisauke.nl>
+Date: Thu, 18 Apr 2019 16:00:00 +0200
+Subject: [PATCH 1/1] Fix symbol visibility with MinGW-w64 / static library
+
+
+diff --git a/meson.build b/meson.build
+index 1111111..2222222 100644
+--- a/meson.build
++++ b/meson.build
+@@ -19,6 +19,7 @@ add_project_arguments('-DHAVE_CONFIG_H', language : 'c')
+ 
+ orc_inc = include_directories('.')
+ 
++host_os = host_machine.system()
+ cc = meson.get_compiler('c')
+ 
+ cdata = configuration_data()      # config.h
+@@ -33,13 +34,19 @@ if meson.version().version_compare('>= 0.46.0')
+ endif
+ 
+ # Symbol visibility
+-if cc.get_id() == 'msvc'
+-  export_define = '__declspec(dllexport) extern'
+-elif cc.has_argument('-fvisibility=hidden')
+-  add_project_arguments('-fvisibility=hidden', language: 'c')
+-  export_define = 'extern __attribute__ ((visibility ("default")))'
+-else
+-  export_define = 'extern'
++export_define = 'extern'
++if get_option('default_library') != 'static'
++  if host_os == 'windows' or host_os == 'cygwin'
++    if cc.get_id() == 'msvc'
++      export_define = '__declspec(dllexport) extern'
++    elif cc.has_argument('-fvisibility=hidden')
++      add_project_arguments('-fvisibility=hidden', language: 'c')
++      export_define = '__attribute__((visibility("default"))) __declspec(dllexport) extern'
++    endif
++  elif cc.has_argument('-fvisibility=hidden')
++    add_project_arguments('-fvisibility=hidden', language: 'c')
++    export_define = '__attribute__((visibility("default"))) extern'
++  endif
+ endif
+ # Passing this through the command line would be too messy
+ cdata.set('ORC_API_EXPORT', export_define)
+@@ -88,7 +95,6 @@ if cc.has_header_symbol('android/log.h', '__android_log_print')
+   liblog = [cc.find_library('log', required : true)]
+ endif
+ 
+-host_os = host_machine.system()
+ if host_os == 'windows'
+   cdata.set('HAVE_CODEMEM_VIRTUALALLOC', true)
+   cdata.set('HAVE_OS_WIN32', true)
+diff --git a/orc/orcutils.h b/orc/orcutils.h
+index 1111111..2222222 100644
+--- a/orc/orcutils.h
++++ b/orc/orcutils.h
+@@ -210,7 +210,7 @@ typedef unsigned int orc_bool;
+ /* FIXME: unused, remove */
+ #define ORC_EXPORT
+ 
+-#if (defined(_MSC_VER) || defined(_WIN32)) && !defined(ORC_STATIC_COMPILATION)
++#if defined(_MSC_VER) && !defined(ORC_STATIC_COMPILATION)
+ #define ORC_API_IMPORT __declspec(dllimport) extern
+ #else
+ #define ORC_API_IMPORT extern

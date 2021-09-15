@@ -1,0 +1,1720 @@
+diff -Naur libvips/libvips/deprecated/arith_dispatch.c libvips.new/libvips/deprecated/arith_dispatch.c
+--- libvips/libvips/deprecated/arith_dispatch.c	2012-12-20 14:52:51.774902224 +0000
++++ libvips.new/libvips/deprecated/arith_dispatch.c	2012-12-20 14:52:38.086902625 +0000
+@@ -1407,9 +1407,1716 @@
+ 	two_in_one_out 			/* Arg list */
+ };
+ 
++#define MAXVEC 12
++#define MAXWIN 10
++
++/* **************************************************************************
++/@
++/@ Short-title: estimates parameter of geometric image transformation
++/@
++/@ ==========================================================================
++/@
++/@
++/@      ALGORITHM
++/@
++/@      x = x' + dstvec[0]                            : order 0
++/@             + dstvec[2]x'   + dstvec[4]y'          : order 1
++/@             + dstvec[6]x'y'                        : order 2
++/@             + dstvec[8]x'x' + dstvec[10]y'y'       : order 3
++/@
++/@      y = y' + dstvec[1]
++/@             + dstvec[3]x'   + dstvec[5]y'
++/@             + dstvec[7]x'y'
++/@             + dstvec[9]x'x' + dstvec[11]y'y'
++/@
++/@
++/@      x ,y  coordinates sourceimage1
++/@      x',y' coordinates sourceimage2
++/@
++/@
++/@
++/@
++/@      PARAMETERS
++/@      srcim1     image  of type int8
++/@      srcim2     image  of type int8
++/@      dstvec     vector of type dfloat,vector lenght 12
++/@      order      order of transform-polynomial,possible values 0,1,2,3 (int32)
++/@      threshold   minimum gradient product (int32)
++/@      sizex   size of image in x-direction (int32)
++/@      nwin   number of windows (int32)
++/@      startxy   array[][2] of window origins, belong to window (int32)
++/@      stopxy    array[][2] of window ends, do not belong to window (int32)
++/@
++/@ *************************************************************************/
++
++#include <math.h>
++
++/* bvm/reimar/solve1.c */
++/* solves a system of linear equations Ax = r with symmetric positive
++   definite matrix A */
++static int
++solve1( double a[], double r[],int n)
++{
++	int j,k,l;	/* running variables */
++	int ib,in,kl;	/* array indices */
++	double sum;	/* intermediate results */
++
++	for(k=in=0;k<n;k++) { /* bring A into cholesky factorized form */
++	  sum = a[ib=in];
++	  for(j=kl=0;j<k;j++) {	/* falls through for k==0 */
++	    a[in++] = sum/a[kl++];
++	    sum = a[in];
++	    for(l=ib;l<in;l++) sum -= a[kl++]*a[l];
++	  }
++	  if(sum<0) {
++	    printf("solve: subdeterminant too small\n");
++	    a[in] = sum = 0;
++	  }
++	  else a[in] = sqrt(sum);
++	  in++;
++	}
++
++	for(k=kl=0;k<n;k++) {	/* solve for x, part 1 */
++	  sum = r[k];
++	  for(l=0;l<k;l++) sum -= a[kl++]*r[l];
++	  r[k] = sum/a[kl++];
++	}
++	/* k = n */
++	while(k--) {	/* part 2 */
++	  sum = r[k];
++	  in = kl + k;
++	  for(l=k+1;l<n;l++) {
++	    sum -= a[in++]*r[l];
++	    in += l;
++	  }
++	  r[k] = sum/a[--kl];
++	  kl -= k;
++	}
++	return(0);
++}
++
++int estparf( unsigned char srcim1[], unsigned char srcim2[],
++	double dstvec[], int order, int thresh, int sizex,
++	int nwin, int startxy[][2], int stopxy[][2], int stride )
++{
++  int ix;		/* image index */
++  int  x,y;		/* image coordinates  */
++  int  sx,sy;		/* average gradient  */
++  double den;		/* lenght of average gradient vector */
++  int  st;		/* temporal image gradient */
++  double stden;	/* product of st and den   */
++  int  sxi,syi,sxo,syo;	/* spatial image gradients */
++  int  np;			/* number of parameters,depends on order */
++  double p[MAXVEC];		/* parameter vector */
++  double a[78];			/* symmetric positiv definite matrix A */
++				/* holding the sum over gradient products */
++				/* is inverted to give resulting vector p */
++				/* a[0],a[1],...a[77] =
++				   A(1,1)
++				   A(2,1) A(2,2)
++				   A(3,1) A(3,2) A(3,3)
++				    ....
++						    ... A(12,12)    */
++  int  i,k,in,iwin;		/* array indices */
++  double q[MAXVEC];		/* holds gradient-coordinate products */
++  int count = 0;		/* anzahl der berechneten punkte */
++
++  /* Initialisierungen */
++
++  thresh = 2 * thresh * thresh;
++
++  switch( order )
++  {
++    case 0 : np = 2; break;  
++    case 1 : np = 6; break;
++    case 2 : np = 8; break;
++    case 3 : np = 12;break;
++  }
++
++  for( i = in = 0; i < np; i++)
++  {
++    p[i] = 0.0;
++    for( k = 0; k <= i; k++)
++      a[in++] = 0.0;
++  }
++
++  /* Ende Initialisierungen */
++
++for(iwin=0;iwin<nwin;iwin++) {	/* window loop */
++  for( y = startxy[iwin][1]; y < stopxy[iwin][1]; y++ )
++  {
++    ix = sizex*y*stride + startxy[iwin][0]*stride; /* index of center pixel */
++    if(stride == 3)
++	ix++; /* auf gruen setzen lr */
++    for( x = startxy[iwin][0]; x < stopxy[iwin][0]; x++ )
++    {
++      sxi = srcim1[ix+1*stride] - srcim1[ix-1*stride];
++      syi = srcim1[ix+sizex*stride] - srcim1[ix-sizex*stride];
++      sxo = srcim2[ix+1*stride] - srcim2[ix-1*stride];
++      syo = srcim2[ix+sizex*stride] - srcim2[ix-sizex*stride];
++
++      if(sxi*sxo + syi*syo > thresh )
++      {
++	count++;                         /* increment count */
++	sx = sxi + sxo;                     /* average gradient */
++	sy = syi + syo;
++		/* denominator */
++	den = 1.0/(sx*sx + sy*sy);
++	/* den = 1.0; */
++        st = 4*(srcim2[ix] - srcim1[ix]);
++	stden = st * den;
++
++	q[0] = sx;
++	q[1] = sy;
++	if( order > 0 )                /* calculate grad.-coord.products */
++	{
++	  q[2] = sx*x;
++	  q[3] = sy*x;
++	  q[4] = sx*y;
++	  q[5] = sy*y;
++	  if( order > 1 )
++	  {
++	    q[6] = q[2] * y;
++	    q[7] = q[3] * y;
++	    if( order > 2 )
++	    {
++	      q[8]  = q[2] * x;
++	      q[9]  = q[3] * x;
++	      q[10] = q[4] * y;
++	      q[11] = q[5] * y;
++	    }
++	  }
++	}
++	for(i=in=0;i<np;i++)
++	{
++	  p[i] += q[i] * stden;
++	  for(k=0;k<=i;k++)
++	    a[in++] += q[i] * q[k] * den;
++	}
++      }
++      ix+=stride;	/* increment pointer */
++    }	/* end x-loop */
++  }	/* end y-loop */
++}	/* end window loop */
++  if(solve1(a,p,np) == -1)	/* solve linear equation system A*x = p */
++  {				/* x is returned in p */
++    printf("Matrixinversion irregulaer\n");
++    return(-6);
++  }
++  for(i=0;i<np;i++)
++    dstvec[i] = p[i];
++  for(i=np;i<MAXVEC;i++)
++    dstvec[i] = 0.0;
++  printf("used dots: %d\n",count);
++
++  return(0);
++}
++
++/* **************************************************************************
++/@ imtranf.c
++/@
++/@      ALGORITHM
++/@
++/@      x',y' = coordinates of srcim
++/@      x,y   = coordinates of dstim
++/@
++/@
++/@      x = x' + srcvec[0]                         : order 0     image shift only
++/@             + srcvec[2]x'   + srcvec[4]y'       : order 1     + affine transf.
++/@             + srcvec[6]x'y'                     : order 2     + bilinear transf.
++/@             + srcvec[8]x'x' + srcvec[10]y'y'    : order 3     + quadratic transf.
++/@
++/@      y = y' + srcvec[1]
++/@             + srcvec[3]x'   + srcvec[5]y'
++/@             + srcvec[7]x'y'
++/@             + srcvec[9]x'x' + srcvec[11]y'y'
++/@
++/@
++/@
++/@
++/@      PARAMETERS
++/@      srcim      image  of type int8
++/@      dstim      image  of type int8
++/@      srcvec     vector of type lfloat,vector lenght 12
++/@      order      order of transform-polynomial,possible values 0,1,2,3 (int32)
++/@      ipol       interpolation flag of typ int32
++/@      wrap       wrap flag of typ int32
++/@
++************************************************************************/
++
++int 
++imtranf( unsigned char srcim[], unsigned char dstim[],
++	double dstvec[], int order,
++	int ipol, int wrap, int sizex, int sizey,
++	int nwin, int startxy[][2], int stopxy[][2],
++	int stride )
++{
++  int xi,yi;		/* input coordinates, srcimage  */
++  int xi1,yi1;	/* 1 + input coordinates */
++  int xo,yo;		/* output coordinates, dstimage */
++  int ix;		/* pointer auf Zielbild */
++  double fxi,fyi;               /* input coordinates */
++  double frx,fry;               /* fractinal part of input coord. */
++  double frx1,fry1;             /* 1.0 - fract. part of input coord. */
++  double dx,dy;                 /* xo derivative of input coord. */
++  double ddx,ddy;               /* 2nd xo derivative of input coord. */
++  double value;                 /* ergebnis Interpolation  */
++  int xlow,ylow;		/* begin of loop */
++  int xhigh,yhigh;		/* end of loop */
++  int sizex1, sizey1, iwin;
++  int i;
++
++sizex1 = sizex - 1;
++sizey1 = sizey - 1;
++
++for(iwin=0;iwin<nwin;iwin++) { /* window loop */
++ xlow = startxy[iwin][0];
++ ylow = startxy[iwin][1];
++ xhigh = stopxy[iwin][0];
++ yhigh = stopxy[iwin][1];
++
++  if( wrap && ipol )	/* wrap around and bilinear interpolation */
++  {
++    for( yo=ylow; yo<yhigh; yo++ )
++    {
++      fxi = xlow + dstvec[0];                /* order 0 */
++      fyi = yo + dstvec[1];    
++      dx  = 1.0;
++      dy  = 0.0;
++      switch(order)
++      {
++	case 3: fxi += dstvec[10] * yo * yo + dstvec[8] * xlow * xlow;
++		fyi += dstvec[11] * yo * yo + dstvec[9] * xlow * xlow;
++		dx  += dstvec[8];
++		ddx  = dstvec[8] * 2.0;
++		dy  += dstvec[9];
++		ddy  = dstvec[9] * 2.0;
++
++	case 2: fxi += dstvec[6] * xlow * yo;
++		fyi += dstvec[7] * xlow * yo;
++		dx  += dstvec[6] * yo;
++		dy  += dstvec[7] * yo;
++
++	case 1: fxi += dstvec[4] * yo + dstvec[2] * xlow;
++		fyi += dstvec[5] * yo + dstvec[3] * xlow;
++		dx  += dstvec[2];
++		dy  += dstvec[3];
++      }
++
++      ix = xlow*stride + sizex*yo*stride;	/* output image index */
++
++      for( xo = xlow; xo < xhigh; xo++ )
++      {
++	while(fxi<0) fxi += sizex;       /* wrap around */
++	while(fyi<0) fyi += sizey;       /* wrap around */
++	xi   = fxi;
++	frx  = fxi - xi;
++	frx1 = 1.0 - frx;
++	yi   = fyi;
++	fry  = fyi - yi;
++	fry1 = 1.0 - fry;
++	xi  %= sizex;
++	xi1  = (xi+1) % sizex;
++	yi  %= sizey;
++	yi1  = (yi+1) % sizey;
++	for(i=0;i<stride;i++) { /*lr*/
++	value =   frx1 * fry1 * (0xff&srcim[yi*sizex*stride + xi*stride+i])
++		+ frx  * fry1 * (0xff&srcim[yi*sizex*stride + xi1*stride+i])
++		+ frx1 * fry  * (0xff&srcim[yi1*sizex*stride + xi*stride+i])
++		+ frx  * fry  * (0xff&srcim[yi1*sizex*stride + xi1*stride+i]);
++	dstim[(ix++)] = (int) (value + 0.5);
++	}
++	fxi += dx;
++	fyi += dy;
++	if(order > 2)
++	{
++	  dx +=ddx;
++	  dy +=ddy;
++	}
++      }        /* end x loop  */
++    }          /* end y loop  */
++  }            /* end wrap && ipol */
++
++
++/**************************************************************************/
++
++  if( wrap && !ipol )	/* no interpolation, i.e. nearest neighbor */
++  {
++    for( yo=ylow; yo<yhigh; yo++ )
++    {
++      fxi = xlow + dstvec[0];                /* order 0 */
++      fyi = yo + dstvec[1];    
++      dx  = 1.0;
++      dy  = 0.0;
++      switch(order)
++      {
++	case 3: fxi += dstvec[10] * yo * yo + dstvec[8] * xlow * xlow;
++		fyi += dstvec[11] * yo * yo + dstvec[9] * xlow * xlow;
++		dx  += dstvec[8];
++		ddx  = dstvec[8] * 2.0;
++		dy  += dstvec[9];
++		ddy  = dstvec[9] * 2.0;
++
++	case 2: fxi += dstvec[6] * xlow * yo;
++		fyi += dstvec[7] * xlow * yo;
++		dx  += dstvec[6] * yo;
++		dy  += dstvec[7] * yo;
++
++	case 1: fxi += dstvec[4] * yo + dstvec[2] * xlow;
++		fyi += dstvec[5] * yo + dstvec[3] * xlow;
++		dx  += dstvec[2];
++		dy  += dstvec[3];
++      }
++
++      ix = xlow*stride + sizex*yo*stride;	/* output image index */
++
++      for( xo = xlow; xo < xhigh; xo++ )
++      {
++	while(fxi<0) fxi += sizex;       /* wrap around */
++	while(fyi<0) fyi += sizey;       /* wrap around */
++	xi  = fxi + 0.5;
++	yi  = fyi + 0.5;
++	xi %= sizex;
++	yi %= sizey;
++	for(i=0;i<stride;i++) { /*lr*/
++		dstim[ix++] = srcim[yi*sizex*stride + xi*stride+i];
++	}
++	fxi += dx;
++	fyi += dy;
++	if(order > 2)
++	{
++	  dx +=ddx;
++	  dy +=ddy;
++	}
++      }        /* end x loop  */
++    }          /* end y loop  */
++  }            /* end wrap && !ipol */
++
++
++/*************************************************************************/
++
++  if( ! wrap && ipol )
++  {
++    for( yo=ylow; yo<yhigh; yo++ )
++    {
++      fxi = xlow + dstvec[0];                /* order 0 */
++      fyi = yo + dstvec[1];    
++      dx  = 1.0;
++      dy  = 0.0;
++      switch(order)
++      {
++	case 3: fxi += dstvec[10] * yo * yo + dstvec[8] * xlow * xlow;
++		fyi += dstvec[11] * yo * yo + dstvec[9] * xlow * xlow;
++		dx  += dstvec[8];
++		ddx  = dstvec[8] * 2.0;
++		dy  += dstvec[9];
++		ddy  = dstvec[9] * 2.0;
++
++	case 2: fxi += dstvec[6] * xlow * yo;
++		fyi += dstvec[7] * xlow * yo;
++		dx  += dstvec[6] * yo;
++		dy  += dstvec[7] * yo;
++
++	case 1: fxi += dstvec[4] * yo + dstvec[2] * xlow;
++		fyi += dstvec[5] * yo + dstvec[3] * xlow;
++		dx  += dstvec[2];
++		dy  += dstvec[3];
++      }
++
++      ix = xlow*stride + sizex*yo*stride;	/* output image index */
++
++					/*  7 | 8 | 1 */
++					/*  --+---+-- */
++					/*  6 | 0 | 2 */
++					/*  --+---+-- */
++					/*  5 | 4 | 3 */
++					/* 0 Orginalbild */
++
++      for( xo = xlow; xo < xhigh; xo++ )
++      {
++	if(fxi < 0)
++	{
++	  if(fyi < 0)                                   /* 7 */
++	for(i=0;i<stride;i++)
++	    dstim[ix++] = srcim[0+i];
++	  else if(fyi >= sizey1)                       /* 5 */
++	for(i=0;i<stride;i++)
++	    dstim[ix++] = srcim[sizey1*sizex*stride+i];
++	  else                                          /* 6 */
++	  {
++	    yi  = fyi;
++	    yi1 = yi + 1;
++	for(i=0;i<stride;i++) {
++	    value = (yi1 - fyi) * (0xff&srcim[yi*sizex*stride+i])
++		  + (fyi - yi) * (0xff&srcim[yi1*sizex*stride+i]);
++	    dstim[ix++] = (int) (value + 0.5);
++	}
++	  }
++	}
++	else if(fxi >= sizex1)
++	{
++	  if(fyi < 0)                                         /* 1 */
++	for(i=0;i<stride;i++) 
++	    dstim[ix++] = srcim[sizex1*stride+i];
++	  else if(fyi >= sizey1)                             /* 3 */
++	for(i=0;i<stride;i++) 
++	    dstim[ix++] = srcim[sizex1+sizex*sizey1*stride+i];
++	  else                                                /* 2 */
++	  {
++	    yi  = fyi;
++	    yi1 = yi + 1;
++	for(i=0;i<stride;i++) {
++	    value = (yi1 - fyi) * (0xff&srcim[sizex1+yi*sizex*stride+i])
++		  + (fyi - yi) * (0xff&srcim[sizex1+yi1*sizex*stride+i]);
++	    dstim[ix++] = (int) (value + 0.5);
++	}
++	  }
++	}
++	else
++	{
++	  if(fyi < 0)                              /* 8 */
++	  {
++	    xi  = fxi;
++	    xi1 = xi + 1;
++	for(i=0;i<stride;i++)  {
++	    value = (xi1 - fxi) * (0xff&srcim[xi*stride+i])
++		  + (fxi - xi) * (0xff&srcim[xi1*stride+i]);
++	    dstim[ix++] = (int) (value + 0.5);
++	}
++	  }
++	  else if(fyi >= sizey1)
++	  {                                        /* 4 */
++	    xi  = fxi;
++	    xi1 = xi + 1;
++	for(i=0;i<stride;i++)  {
++	    value = (xi1 - fxi) * (0xff&srcim[xi*stride+sizey1*sizex*stride+i])
++		  + (fxi - xi) * (0xff&srcim[xi1*stride+sizey1*sizex*stride+i]);
++	    dstim[ix++] = (int) (value + 0.5);
++	}
++	  }
++	  else                                     /* 0 */
++	  {
++	    xi   = fxi;
++	    frx  = fxi - xi;
++	    frx1 = 1.0 - frx;
++	    yi   = fyi;
++	    fry  = fyi - yi;
++	    fry1 = 1.0 - fry;
++	    xi1  = xi+1;
++	    yi1  = yi+1;
++	for(i=0;i<stride;i++)  {
++	    value = frx1 * fry1 * (0xff&srcim[yi*sizex*stride + xi*stride+i])
++		+ frx  * fry1 * (0xff&srcim[yi*sizex*stride + xi1*stride+i])
++		+ frx1 * fry  * (0xff&srcim[yi1*sizex*stride + xi*stride+i])
++		+ frx  * fry  * (0xff&srcim[yi1*sizex*stride + xi1*stride+i]);
++	    dstim[ix++] = (int) (value + 0.5);
++	}
++	  }
++	}
++	fxi += dx;
++	fyi += dy;
++	if(order > 2)
++	{
++	  dx +=ddx;
++	  dy +=ddy;
++	}
++      }        /* end x loop  */
++    }          /* end y loop  */
++  }            /* end !wrap && ipol */
++
++/**************************************************************************/
++
++  if( ! wrap && ! ipol )
++  {
++    for( yo=ylow; yo<yhigh; yo++ )
++    {
++      fxi = xlow + dstvec[0];                /* order 0 */
++      fyi = yo + dstvec[1];    
++      dx  = 1.0;
++      dy  = 0.0;
++      switch(order)
++      {
++	case 3: fxi += dstvec[10] * yo * yo + dstvec[8] * xlow * xlow;
++		fyi += dstvec[11] * yo * yo + dstvec[9] * xlow * xlow;
++		dx  += dstvec[8];
++		ddx  = dstvec[8] * 2.0;
++		dy  += dstvec[9];
++		ddy  = dstvec[9] * 2.0;
++
++	case 2: fxi += dstvec[6] * xlow * yo;
++		fyi += dstvec[7] * xlow * yo;
++		dx  += dstvec[6] * yo;
++		dy  += dstvec[7] * yo;
++
++	case 1: fxi += dstvec[4] * yo + dstvec[2] * xlow;
++		fyi += dstvec[5] * yo + dstvec[3] * xlow;
++		dx  += dstvec[2];
++		dy  += dstvec[3];
++      }
++
++      ix = xlow*stride + sizex*yo*stride;	/* output image index */
++
++					/*  7 | 8 | 1 */
++					/*  --+---+-- */
++					/*  6 | 0 | 2 */
++					/*  --+---+-- */
++					/*  5 | 4 | 3 */
++					/* 0 Orginalbild */
++
++      for( xo = xlow; xo < xhigh; xo++ )
++      {
++	if(fxi < 0)
++	{
++	  if(fyi < 0)                                   /* 7 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[0+i];
++	  else if(fyi >= sizey1)                       /* 5 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizey1*sizex*stride+i];
++	  else                                          /* 6 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizex*(int)(fyi+0.5)*stride+i];
++	}
++	else if(fxi >= sizex1)
++	{
++	  if(fyi < 0)                                         /* 1 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizex1*stride+i];
++	  else if(fyi >= sizey1)                             /* 3 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizex1*stride+sizey1*sizex*stride+i];
++	  else                                                /* 2 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizex1*stride + sizex*(int)(fyi+0.5)*stride+i];
++	}
++	else
++	{
++	  if(fyi < 0)                                         /* 8 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[(int)(fxi+0.5)*stride+i];
++	  else if(fyi >= sizey1)                             /* 4 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[sizey1*sizex*stride + (int)(fxi+0.5)*stride+i];
++	  else                                                /* 0 */
++	for(i=0;i<stride;i++)  
++	    dstim[ix++] = srcim[(int)(fyi+0.5)*sizex*stride + (int)(fxi+0.5)*stride+i];
++	}
++	fxi += dx;
++	fyi += dy;
++	if(order > 2)
++	{
++	  dx +=ddx;
++	  dy +=ddy;
++	}
++      }        /* end x loop  */
++    }          /* end y loop  */
++  }            /* end !wrap && !ipol */
++ }	/* end iwin loop */
++ /*printf("fxi=%lf, fyi=%lf\n",fxi,fyi);*/
++ yhigh -= 1;
++ fxi = xhigh + dstvec[0] + dstvec[2]*xhigh + dstvec[4]*yhigh
++    + dstvec[6]*xhigh*yhigh + dstvec[8]*xhigh*xhigh + dstvec[10]*yhigh*yhigh;
++ fyi = yhigh + dstvec[1] + dstvec[3]*xhigh + dstvec[5]*yhigh
++    + dstvec[7]*xhigh*yhigh + dstvec[9]*xhigh*xhigh + dstvec[11]*yhigh*yhigh;
++ /*printf("fxi=%lf, fyi=%lf\n",fxi,fyi);*/
++ return(0);
++}
++/* Resample an image.
++ * Original code from Reimar Lenz,
++ * Adapted by Lars Raffelt for many bands,
++ * VIPSified by JC ... other numeric types, partial output
++ */
++
++/* Make sure we get addr range checks.
++#define DEBUG
++ */
++
++#include <vips/region.h>
++#include <assert.h>
++
++/* **************************************************************************
++/@ imtranf.c
++/@
++/@      ALGORITHM
++/@
++/@      x',y' = coordinates of srcim
++/@      x,y   = coordinates of dstim
++/@
++/@
++/@      x = x' + srcvec[0]                     : order 0     image shift only
++/@             + srcvec[2]x'   + srcvec[4]y'   : order 1     + affine transf.
++/@             + srcvec[6]x'y'                 : order 2     + bilinear transf.
++/@             + srcvec[8]x'x' + srcvec[10]y'y': order 3     + quadratic transf.
++/@
++/@      y = y' + srcvec[1]
++/@             + srcvec[3]x'   + srcvec[5]y'
++/@             + srcvec[7]x'y'
++/@             + srcvec[9]x'x' + srcvec[11]y'y'
++/@
++/@
++/@
++/@
++/@      PARAMETERS
++/@      srcim      source image  
++/@      dstim      destination image  
++/@      srcvec     vector of type lfloat, max vector lenght 12
++/@      order      order of transform-polynomial,possible values 0,1,2,3 (int32)
++/@      ipol       interpolation flag of typ int32
++/@      wrap       wrap flag of typ int32
++/@
++************************************************************************/
++
++/* Inner bilinear interpolation loop. Integer types.
++ */
++#define IPOL_INNERI( TYPE ) \
++{ \
++	TYPE *from = (TYPE *) p; \
++	TYPE *to = (TYPE *) q; \
++	int i; \
++	\
++	for( i = 0; i < bands; i++ ) { \
++		double value = f1 * from[t2 + t4 + i] + \
++			f2 * from[t2 + t5 + i] + \
++			f3 * from[t3 + t4 + i] + \
++			f4 * from[t3 + t5 + i]; \
++		to[ix++] = (int) (value + 0.5); \
++	} \
++}
++
++/* Inner bilinear interpolation loop. Float types.
++ */
++#define IPOL_INNERF( TYPE ) \
++{ \
++	TYPE *from = (TYPE *) p; \
++	TYPE *to = (TYPE *) q; \
++	int i; \
++	\
++	for( i = 0; i < bands; i++ ) { \
++		double value = f1 * from[t2 + t4 + i] + \
++			f2 * from[t2 + t5 + i] + \
++			f3 * from[t3 + t4 + i] + \
++			f4 * from[t3 + t5 + i]; \
++		to[ix++] = value; \
++	} \
++}
++
++#define TYPE_SWITCH_IPOL \
++	switch( bandfmt ) { \
++	case IM_BANDFMT_UCHAR:		IPOL_INNERI( unsigned char ); break; \
++	case IM_BANDFMT_USHORT:		IPOL_INNERI( unsigned short ); break; \
++	case IM_BANDFMT_UINT:		IPOL_INNERI( unsigned int ); break; \
++	case IM_BANDFMT_CHAR:		IPOL_INNERI( signed char ); break; \
++	case IM_BANDFMT_SHORT:		IPOL_INNERI( signed short ); break; \
++	case IM_BANDFMT_INT:		IPOL_INNERI( signed int ); break; \
++	case IM_BANDFMT_FLOAT:		IPOL_INNERF( float ); break; \
++	case IM_BANDFMT_DOUBLE:		IPOL_INNERF( double ); break; \
++ 	\
++	default: \
++		assert( 0 ); \
++		/*NOTREACHED*/ \
++	}
++
++/* 2-way interpolation, integer types.
++ */
++#define IPOL2_INNERI( TYPE ) \
++{ \
++	TYPE *from = (TYPE *) p; \
++	TYPE *to = (TYPE *) q; \
++	int i; \
++	\
++	for( i = 0; i < bands; i++ ) { \
++		double value = f1 * from[t1 + i] + f2 * from[t2 + i]; \
++		to[ix++] = (int) (value + 0.5); \
++	} \
++}
++
++/* 2-way interpolation, float types.
++ */
++#define IPOL2_INNERF( TYPE ) \
++{ \
++	TYPE *from = (TYPE *) p; \
++	TYPE *to = (TYPE *) q; \
++	int i; \
++	\
++	for( i = 0; i < bands; i++ ) { \
++		double value = f1 * from[t1 + i] + f2 * from[t2 + i]; \
++		to[ix++] = value; \
++	} \
++}
++
++#define TYPE_SWITCH_IPOL2 \
++	switch( bandfmt ) { \
++	case IM_BANDFMT_UCHAR:		IPOL2_INNERI( unsigned char ); break; \
++	case IM_BANDFMT_USHORT:		IPOL2_INNERI( unsigned short ); break; \
++	case IM_BANDFMT_UINT:		IPOL2_INNERI( unsigned int ); break; \
++	case IM_BANDFMT_CHAR:		IPOL2_INNERI( signed char ); break; \
++	case IM_BANDFMT_SHORT:		IPOL2_INNERI( signed short ); break; \
++	case IM_BANDFMT_INT:		IPOL2_INNERI( signed int ); break; \
++	case IM_BANDFMT_FLOAT:		IPOL2_INNERF( float ); break; \
++	case IM_BANDFMT_DOUBLE:		IPOL2_INNERF( double ); break; \
++ 	\
++	default: \
++		assert( 0 ); \
++		/*NOTREACHED*/ \
++	}
++
++#define NN_INNER( TYPE ) \
++{ \
++	TYPE *from = (TYPE *) p; \
++	TYPE *to = (TYPE *) q; \
++	int i; \
++	\
++	for( i = 0; i < bands; i++ ) \
++		to[ix++] = from[t1 + i];\
++}
++
++#define TYPE_SWITCH_NN \
++	switch( bandfmt ) { \
++	case IM_BANDFMT_UCHAR:		NN_INNER( unsigned char ); break; \
++	case IM_BANDFMT_USHORT:		NN_INNER( unsigned short ); break; \
++	case IM_BANDFMT_UINT:		NN_INNER( unsigned int ); break; \
++	case IM_BANDFMT_CHAR:		NN_INNER( signed char ); break; \
++	case IM_BANDFMT_SHORT:		NN_INNER( signed short ); break; \
++	case IM_BANDFMT_INT:		NN_INNER( signed int ); break; \
++	case IM_BANDFMT_FLOAT:		NN_INNER( float ); break; \
++	case IM_BANDFMT_DOUBLE:		NN_INNER( double ); break; \
++ 	\
++	default: \
++		assert( 0 ); \
++		/*NOTREACHED*/ \
++	}
++
++/* Keep run state here.
++ */
++typedef struct {
++	IMAGE *in;		/* From here */
++	IMAGE *out;		/* To here */
++	DOUBLEMASK *vec;	/* This transform */
++	int ipol;
++	int wrap;
++
++	int order;
++} ImtranInfo;
++
++/* wrap around and bilinear interpolation 
++ */
++static void
++transform_wrap_ipol( IMAGE *in, REGION *out, ImtranInfo *it )
++{
++	int xi, yi;		/* input coordinates, srcimage  */
++	int xi1, yi1;		/* 1 + input coordinates */
++	int xo, yo;		/* output coordinates, dstimage */
++	int ix;			/* pointer auf Zielbild */
++	double fxi, fyi; 	/* input coordinates */
++	double frx, fry;      	/* fractinal part of input coord. */
++	double frx1, fry1; 	/* 1.0 - fract. part of input coord. */
++	double dx, dy;        	/* xo derivative of input coord. */
++	double ddx, ddy;      	/* 2nd xo derivative of input coord. */
++
++	double *vec = it->vec->coeff;
++
++	int sizex = in->Xsize;
++	int sizey = in->Ysize;
++	int bands = in->Bands;
++	int bandfmt = in->BandFmt;
++
++	int xlow = out->valid.left;
++	int ylow = out->valid.top;
++	int xhigh = IM_RECT_RIGHT( &out->valid );
++	int yhigh = IM_RECT_BOTTOM( &out->valid );
++
++	PEL *p = (PEL *) in->data;
++	PEL *q;
++
++	for( yo = ylow; yo < yhigh; yo++ ) {
++		fxi = xlow + vec[0];                /* order 0 */
++		fyi = yo + vec[1];    
++		dx  = 1.0;
++		dy  = 0.0;
++
++		switch( it->order ) {
++		case 3: 
++			fxi += vec[10] * yo * yo + vec[8] * xlow * xlow;
++			fyi += vec[11] * yo * yo + vec[9] * xlow * xlow;
++			dx  += vec[8];
++			ddx  = vec[8] * 2.0;
++			dy  += vec[9];
++			ddy  = vec[9] * 2.0;
++
++		case 2: 
++			fxi += vec[6] * xlow * yo;
++			fyi += vec[7] * xlow * yo;
++			dx  += vec[6] * yo;
++			dy  += vec[7] * yo;
++
++		case 1: fxi += vec[4] * yo + vec[2] * xlow;
++			fyi += vec[5] * yo + vec[3] * xlow;
++			dx  += vec[2];
++			dy  += vec[3];
++		}
++
++		q = (PEL *) IM_REGION_ADDR( out, xlow, yo );
++
++		for( ix = 0, xo = xlow; xo < xhigh; xo++ ) {
++			int t1, t2, t3, t4, t5;
++			double f1, f2, f3, f4;
++
++			/* wrap around 
++			 */
++			while( fxi < 0 ) 
++				fxi += sizex;
++			while( fyi < 0 ) 
++				fyi += sizey;
++
++			xi   = fxi;
++			frx  = fxi - xi;
++			frx1 = 1.0 - frx;
++			yi   = fyi;
++			fry  = fyi - yi;
++			fry1 = 1.0 - fry;
++			xi  %= sizex;
++			xi1  = (xi + 1) % sizex;
++			yi  %= sizey;
++			yi1  = (yi + 1) % sizey;
++
++			/* Pre-calculate stuff for interpolation.
++			 */
++			t1 = sizex*bands;
++			t2 = yi*t1;
++			t3 = yi1*t1;
++			t4 = xi*bands;
++			t5 = xi1*bands;
++			f1 = frx1*fry1;
++			f2 = frx*fry1;
++			f3 = frx1*fry;
++			f4 = frx*fry;
++
++			/* Inner interpolate loop for all bandfmts.
++			 */
++			TYPE_SWITCH_IPOL;
++
++			fxi += dx;
++			fyi += dy;
++			if( it->order > 2 ) {
++				dx += ddx;
++				dy += ddy;
++			}
++		} 
++	}          
++}
++
++/* wrap around and nearest-neighbour 
++ */
++static void
++transform_wrap_nn( IMAGE *in, REGION *out, ImtranInfo *it )
++{
++	int xi, yi;		/* input coordinates, srcimage  */
++	int xo, yo;		/* output coordinates, dstimage */
++	int ix;			/* pointer auf Zielbild */
++	double fxi, fyi; 	/* input coordinates */
++	double dx, dy;        	/* xo derivative of input coord. */
++	double ddx, ddy;      	/* 2nd xo derivative of input coord. */
++
++	double *vec = it->vec->coeff;
++
++	int sizex = in->Xsize;
++	int sizey = in->Ysize;
++	int bands = in->Bands;
++	int bandfmt = in->BandFmt;
++
++	int xlow = out->valid.left;
++	int ylow = out->valid.top;
++	int xhigh = IM_RECT_RIGHT( &out->valid );
++	int yhigh = IM_RECT_BOTTOM( &out->valid );
++
++	PEL *p = (PEL *) in->data;
++	PEL *q;
++
++	for( yo = ylow; yo < yhigh; yo++ ) {
++		fxi = xlow + vec[0];                /* order 0 */
++		fyi = yo + vec[1];    
++		dx  = 1.0;
++		dy  = 0.0;
++
++		switch( it->order ) {
++		case 3: 
++			fxi += vec[10] * yo * yo + vec[8] * xlow * xlow;
++			fyi += vec[11] * yo * yo + vec[9] * xlow * xlow;
++			dx  += vec[8];
++			ddx  = vec[8] * 2.0;
++			dy  += vec[9];
++			ddy  = vec[9] * 2.0;
++
++		case 2: 
++			fxi += vec[6] * xlow * yo;
++			fyi += vec[7] * xlow * yo;
++			dx  += vec[6] * yo;
++			dy  += vec[7] * yo;
++
++		case 1: fxi += vec[4] * yo + vec[2] * xlow;
++			fyi += vec[5] * yo + vec[3] * xlow;
++			dx  += vec[2];
++			dy  += vec[3];
++		}
++
++		q = (PEL *) IM_REGION_ADDR( out, xlow, yo );
++
++		for( ix = 0, xo = xlow; xo < xhigh; xo++ ) {
++			int t1;
++
++			/* wrap around 
++			 */
++			while( fxi < 0 ) 
++				fxi += sizex;
++			while( fyi < 0 ) 
++				fyi += sizey;
++
++			xi  = ((int)(fxi + 0.5)) % sizex;
++			yi  = ((int)(fyi + 0.5)) % sizey;
++
++			t1 = yi*sizex*bands + xi*bands;
++
++			/* Inner for all types.
++			 */
++			TYPE_SWITCH_NN;
++
++			fxi += dx;
++			fyi += dy;
++			if( it->order > 2 ) {
++				dx += ddx;
++				dy += ddy;
++			}
++		}
++	}
++}
++
++/* no wrap around and bilinear interpolation 
++ */
++static void
++transform_nowrap_ipol( IMAGE *in, REGION *out, ImtranInfo *it )
++{
++	int xi, yi;		/* input coordinates, srcimage  */
++	int xi1, yi1;		/* 1 + input coordinates */
++	int xo, yo;		/* output coordinates, dstimage */
++	int ix;			/* pointer auf Zielbild */
++	double fxi, fyi; 	/* input coordinates */
++	double frx, fry;      	/* fractinal part of input coord. */
++	double frx1, fry1; 	/* 1.0 - fract. part of input coord. */
++	double dx, dy;        	/* xo derivative of input coord. */
++	double ddx, ddy;      	/* 2nd xo derivative of input coord. */
++
++	double *vec = it->vec->coeff;
++
++	int sizex = in->Xsize;
++	int sizey = in->Ysize;
++	int bands = in->Bands;
++	int bandfmt = in->BandFmt;
++
++	const int sizex1 = sizex - 1;
++	const int sizey1 = sizey - 1;
++
++	int xlow = out->valid.left;
++	int ylow = out->valid.top;
++	int xhigh = IM_RECT_RIGHT( &out->valid );
++	int yhigh = IM_RECT_BOTTOM( &out->valid );
++
++	PEL *p = (PEL *) in->data;
++	PEL *q;
++
++	for( yo = ylow; yo < yhigh; yo++ ) {
++		fxi = xlow + vec[0];                /* order 0 */
++		fyi = yo + vec[1];    
++		dx  = 1.0;
++		dy  = 0.0;
++
++		switch( it->order ) {
++		case 3: 
++			fxi += vec[10] * yo * yo + vec[8] * xlow * xlow;
++			fyi += vec[11] * yo * yo + vec[9] * xlow * xlow;
++			dx  += vec[8];
++			ddx  = vec[8] * 2.0;
++			dy  += vec[9];
++			ddy  = vec[9] * 2.0;
++
++		case 2: 
++			fxi += vec[6] * xlow * yo;
++			fyi += vec[7] * xlow * yo;
++			dx  += vec[6] * yo;
++			dy  += vec[7] * yo;
++
++		case 1: fxi += vec[4] * yo + vec[2] * xlow;
++			fyi += vec[5] * yo + vec[3] * xlow;
++			dx  += vec[2];
++			dy  += vec[3];
++		}
++
++		q = (PEL *) IM_REGION_ADDR( out, xlow, yo );
++
++		/*  7 | 8 | 1 */
++		/*  --+---+-- */
++		/*  6 | 0 | 2 */
++		/*  --+---+-- */
++		/*  5 | 4 | 3 */
++		/* 0 Orginalbild */
++
++		for( ix = 0, xo = xlow; xo < xhigh; xo++ ) {
++			int t1, t2, t3, t4, t5;
++			double f1, f2, f3, f4;
++
++			if( fxi < 0 ) {
++				if( fyi < 0 ) {                                  /* 7 */
++					t1 = 0;
++
++					TYPE_SWITCH_NN;
++				}
++				else if( fyi >= sizey1 ) {                       /* 5 */
++					t1 = sizey1*sizex*bands;
++					
++					TYPE_SWITCH_NN;
++				}
++				else {                                          /* 6 */
++					yi  = fyi;
++					yi1 = yi + 1;
++
++					t1 = yi*sizex*bands;
++					t2 = yi1*sizex*bands;
++					f1 = yi1 - fyi;
++					f2 = fyi - yi;
++
++					TYPE_SWITCH_IPOL2;
++				}
++			}
++			else if( fxi >= sizex1 ) {
++				if( fyi < 0 ) {                                         /* 1 */
++					t1 = sizex1*bands;
++					
++					TYPE_SWITCH_NN;
++				}
++				else if( fyi >= sizey1 ) {                            /* 3 */
++					t1 = sizex1*bands+sizex*sizey1*bands;
++
++					TYPE_SWITCH_NN;
++				}
++				else {                                                /* 2 */
++					yi  = fyi;
++					yi1 = yi + 1;
++
++					t1 = sizex1*bands+yi*sizex*bands;
++					t2 = sizex1*bands+yi1*sizex*bands;
++					f1 = yi1 - fyi;
++					f2 = fyi - yi;
++
++					TYPE_SWITCH_IPOL2;
++				}
++			}
++			else {
++				if( fyi < 0 ) {                             /* 8 */
++					xi  = fxi;
++					xi1 = xi + 1;
++
++					t1 = xi*bands;
++					t2 = xi1*bands;
++					f1 = xi1 - fxi;
++					f2 = fxi - xi;
++
++					TYPE_SWITCH_IPOL2;
++				}
++				else if( fyi >= sizey1 ) { 			/* 4 */
++					xi  = fxi;
++					xi1 = xi + 1;
++
++					t1 = xi*bands+sizey1*sizex*bands;
++					t2 = xi1*bands+sizey1*sizex*bands;
++					f1 = xi1 - fxi;
++					f2 = fxi - xi;
++
++					TYPE_SWITCH_IPOL2;
++				}
++				else {                                    /* 0 */
++					xi   = fxi;
++					frx  = fxi - xi;
++					frx1 = 1.0 - frx;
++					yi   = fyi;
++					fry  = fyi - yi;
++					fry1 = 1.0 - fry;
++					xi1  = xi+1;
++					yi1  = yi+1;
++
++					t1 = sizex*bands;
++					t2 = yi*t1;
++					t3 = yi1*t1;
++					t4 = xi*bands;
++					t5 = xi1*bands;
++					f1 = frx1*fry1;
++					f2 = frx*fry1;
++					f3 = frx1*fry;
++					f4 = frx*fry;
++
++					/* Inner ipol stuff.
++					 */
++					TYPE_SWITCH_IPOL;
++				}
++			}
++
++			fxi += dx;
++			fyi += dy;
++			if( it->order > 2 ) {
++				dx += ddx;
++				dy += ddy;
++			}
++		}
++	}
++}
++
++/* no wrap around and nearest-neighbour.
++ */
++static void
++transform_nowrap_nn( IMAGE *in, REGION *out, ImtranInfo *it )
++{
++	int xo, yo;		/* output coordinates, dstimage */
++	int ix;			/* pointer auf Zielbild */
++	double fxi, fyi; 	/* input coordinates */
++	double dx, dy;        	/* xo derivative of input coord. */
++	double ddx, ddy;      	/* 2nd xo derivative of input coord. */
++
++	double *vec = it->vec->coeff;
++
++	int sizex = in->Xsize;
++	int sizey = in->Ysize;
++	int bands = in->Bands;
++	int bandfmt = in->BandFmt;
++
++	const int sizex1 = sizex - 1;
++	const int sizey1 = sizey - 1;
++
++	int xlow = out->valid.left;
++	int ylow = out->valid.top;
++	int xhigh = IM_RECT_RIGHT( &out->valid );
++	int yhigh = IM_RECT_BOTTOM( &out->valid );
++
++	PEL *p = (PEL *) in->data;
++	PEL *q;
++
++	for( yo = ylow; yo < yhigh; yo++ ) {
++		fxi = xlow + vec[0];                /* order 0 */
++		fyi = yo + vec[1];    
++		dx  = 1.0;
++		dy  = 0.0;
++
++		switch( it->order ) {
++		case 3: 
++			fxi += vec[10] * yo * yo + vec[8] * xlow * xlow;
++			fyi += vec[11] * yo * yo + vec[9] * xlow * xlow;
++			dx  += vec[8];
++			ddx  = vec[8] * 2.0;
++			dy  += vec[9];
++			ddy  = vec[9] * 2.0;
++
++		case 2: 
++			fxi += vec[6] * xlow * yo;
++			fyi += vec[7] * xlow * yo;
++			dx  += vec[6] * yo;
++			dy  += vec[7] * yo;
++
++		case 1: fxi += vec[4] * yo + vec[2] * xlow;
++			fyi += vec[5] * yo + vec[3] * xlow;
++			dx  += vec[2];
++			dy  += vec[3];
++		}
++
++		q = (PEL *) IM_REGION_ADDR( out, xlow, yo );
++
++		/*  7 | 8 | 1 */
++		/*  --+---+-- */
++		/*  6 | 0 | 2 */
++		/*  --+---+-- */
++		/*  5 | 4 | 3 */
++		/* 0 Orginalbild */
++
++		for( ix = 0, xo = xlow; xo < xhigh; xo++ ) {
++			int t1;
++
++			if( fxi < 0 ) {
++				if( fyi < 0 )                                   /* 7 */
++					t1 = 0;
++				else if( fyi >= sizey1 )                       /* 5 */
++					t1 = sizey1*sizex*bands;
++				else                                           /* 6 */
++					t1 = sizex*(int)(fyi+0.5)*bands;
++			}
++			else if( fxi >= sizex1 ) {
++				if( fyi < 0 )                                         /* 1 */
++					t1 = sizex1*bands;
++				else if( fyi >= sizey1 )                             /* 3 */
++					t1 = sizex1*bands+sizex*sizey1*bands;
++				else                                                  /* 2 */
++					t1 = sizex1*bands + sizex*(int)(fyi+0.5)*bands;
++			}
++			else {
++				if( fyi < 0 )                               /* 8 */
++					t1 = (int)(fxi+0.5)*bands;
++				else if( fyi >= sizey1 )    			/* 4 */
++					t1 = sizey1*sizex*bands + (int)(fxi+0.5)*bands;
++				else                                       /* 0 */
++					t1 = (int)(fyi+0.5)*sizex*bands + (int)(fxi+0.5)*bands;
++			}
++
++			/* Copy pixels.
++			 */
++			TYPE_SWITCH_NN;
++
++			fxi += dx;
++			fyi += dy;
++			if( it->order > 2 ) {
++				dx += ddx;
++				dy += ddy;
++			}
++		}
++	}
++}
++
++/* Generate!
++ */
++static int
++gen_tran( REGION *or, REGION *ir, IMAGE *in, ImtranInfo *it )
++{
++	if( it->wrap && it->ipol )
++		transform_wrap_ipol( in, or, it );
++	else if( it->wrap && !it->ipol )
++		transform_wrap_nn( in, or, it );
++	else if( !it->wrap && it->ipol )
++		transform_nowrap_ipol( in, or, it );
++	else 
++		transform_nowrap_nn( in, or, it );
++
++	return( 0 );
++}
++
++int
++im_transform( IMAGE *in, IMAGE *out, DOUBLEMASK *vec, int ipol, int wrap )
++{
++	ImtranInfo *it;
++	int order;
++
++        /* Check args.
++         */
++        if( im_incheck( in ) || im_poutcheck( out ) )
++                return( -1 );
++        if( in->Coding != IM_CODING_NONE || im_iscomplex( in ) ) {
++                im_errormsg( "im_transform: uncoded non-complex only" );
++                return( -1 );
++        }
++	if( wrap < 0 || wrap > 1 || ipol < 0 || ipol > 1 ) {
++		im_errormsg( "im_transform: bad setting for option" );
++		return( -1 );
++	} 
++	if( vec->xsize != 2 ) {
++		im_errormsg( "im_transform: mask width not 2" );
++		return( -1 );
++	} 
++        switch( vec->ysize ) {
++	case 1: order = 0; break;
++	case 3: order = 1; break;
++	case 4: order = 2; break;
++	case 6: order = 3; break;
++	default:
++		im_errormsg( "im_transform: mask height not 1, 3, 4 or 6" );
++		return( -1 );
++	} 
++        if( im_cp_desc( out, in ) )
++                return( -1 );
++
++	if( !(it = IM_NEW( out, ImtranInfo )) )
++		return( -1 );
++	it->in = in;
++	it->out = out;
++	it->vec = NULL;
++	it->ipol = ipol;
++	it->wrap = wrap;
++	it->order = order;
++
++        /* Take a copy of vec.
++         */
++        if( !(it->vec = im_dup_dmask( vec, "conv_mask" )) )
++                return( -1 );
++        if( im_add_close_callback( out, 
++		(im_callback_fn) im_free_dmask, it->vec, NULL ) ) {
++                im_free_dmask( it->vec );
++                return( -1 );
++        }
++
++	/* Don't mind ... partial output only.
++	 */
++        if( im_demand_hint( out, IM_ANY, in, NULL ) )
++                return( -1 );
++
++        /* Generate!
++         */
++        if( im_generate( out, im_start_one, gen_tran, im_stop_one, in, it ) )
++                return( -1 );
++
++        return( 0 );
++}
++
++static int 
++resample_add_vec( double *in, double *out )
++{
++	int i;
++
++	for( i = 0; i < MAXVEC; i++ )
++		out[i] += in[i];
++
++	return( 0 );
++}
++
++int
++resample( IMAGE *src, IMAGE *dst, IMAGE *out, 
++	int *order_vec, int *ipol_vec, int *wrap_vec, double *error_vec,
++	int *max_it_vec, im_mask_object *par_vec, double *out_err_vec )
++{
++        int i;
++	int stride;
++        unsigned char *out_buf, *src_buf, *dst_buf;
++	IMAGE *tmp;
++	DOUBLEMASK *par;
++
++        int order = *order_vec;
++        int ipol = *ipol_vec; 
++        int wrap = *wrap_vec;
++        double max_err = *error_vec;
++	int max_it = *max_it_vec;
++
++        /* imtran init stuff
++         */
++	int it = 0;
++        int sizex, sizey, np;
++        double dstvec[MAXVEC], dstadd[MAXVEC], error;
++	int startxy[MAXVEC][2], stopxy[MAXVEC][2];
++	int nwin;
++
++        /* Check args.
++         */
++        if( im_incheck( src ) || im_incheck( dst ) )
++                return( -1 );
++
++        if( src->BandFmt != IM_BANDFMT_UCHAR ||  dst->BandFmt != IM_BANDFMT_UCHAR ){
++                im_errormsg( "imtran: uchar only" );
++                return( -1 );
++	}
++
++	if( src->Coding != IM_CODING_NONE ||  dst->Coding != IM_CODING_NONE) {
++                im_errormsg( "imtran: uncoded uchar only" );
++                return( -1 );
++        }
++
++	if( src->Bands != dst->Bands) {
++                im_errormsg( "imtran: images not same number of bands" );
++                return( -1 );
++        }
++
++	if( wrap < 0 || wrap > 1 || 
++		ipol < 0 || ipol > 1 || order < 0 || order > 3 ) {
++		im_errormsg( "resample: bad setting for option" );
++		return( -1 );
++	} 
++
++        if( src->Xsize != dst->Xsize || src->Ysize != dst->Ysize ) {
++                im_errormsg( "imtran: images not same size" );
++                return( -1 );
++        }
++
++        /* Make temp image for iteration. Zero it.
++         */
++	if( !(tmp = im_open_local( out, "fred", "t" )) || 
++		im_black( tmp, src->Xsize, src->Ysize, src->Bands ) )
++                return( -1 );
++
++/*========================================*/
++
++	src_buf = (unsigned char *) src->data;
++	dst_buf = (unsigned char *) dst->data;
++	out_buf = (unsigned char *) tmp->data;
++
++	sizex = src->Xsize;
++	sizey = src->Ysize;
++
++	stride = src->Bands;
++
++	for( i = 0; i < MAXVEC; i++ )
++		dstvec[i] = dstadd[i] = 0.0;
++
++	/* check parameter
++	 */
++        switch( order ) {
++                case 0: np = 2; break;
++                case 1: np = 6; break;
++                case 2: np = 8; break;
++                case 3: np =12; break;
++        }
++
++	nwin = 1;
++	startxy[0][0] = startxy[0][1] = 5;
++	stopxy[0][0] = sizex -5; stopxy[0][1] = sizey -5;
++
++	/* create output mask
++	 */
++	if( !(par = im_create_dmask( par_vec->name, 2, np/2 )) )
++		return( -1 );
++	par_vec->mask = par;
++
++	estparf( src_buf, dst_buf, dstadd,
++		order, 10, sizex, nwin, startxy, stopxy, stride );
++
++	do { /* main loop */
++		imtranf( src_buf, out_buf, dstadd, order, ipol, wrap,
++			sizex, sizey, 
++			nwin, startxy, stopxy, stride );
++		estparf( out_buf, dst_buf, dstvec,
++			order, 10, sizex, nwin, startxy, stopxy, stride );
++		resample_add_vec( dstvec, dstadd );
++
++		for( i = 0; i < np; i += 2 )
++			printf( "% 15.10f  % 15.10f\n",
++				dstvec[i], dstvec[i+1] );
++		printf( "\n" );
++
++		for( i = 0; i < np; i += 2 )
++			printf( "% 15.10f  % 15.10f\n", 
++				dstadd[i], dstadd[i+1] );
++		for( error = 0.0, i = 0; i < np; i++ )
++			error += (dstvec[i] * dstvec[i]);
++
++		error = sqrt( error );
++		printf( "iter. # %4i quad. error %.6g\n"
++			"--------------------------\n", ++it, error );
++	} while( error > max_err && it < max_it );
++
++	/* Final imtranf with final estparf parameters.
++	 */
++	imtranf( src_buf, out_buf, dstadd, order, ipol, wrap,
++		sizex, sizey, 
++		nwin, startxy, stopxy, stride );
++
++        /* write to output and clean up
++         */
++        if( im_copy( tmp, out ) ) 
++		return( -1 );
++
++	*out_err_vec = error;	
++
++	resample_add_vec( dstadd, par->coeff ); 
++
++	return( 0 );
++}
++
++int
++estpar( IMAGE *src, IMAGE *dst, im_mask_object *par_vec,
++	int *order_vec, int *ipol_vec, int *wrap_vec, double *displ_vec )
++{
++        int x,y;
++	int  stride;
++        unsigned char *src_buf, *dst_buf;
++
++        int order = *order_vec;
++        int ipol = *ipol_vec; 
++        int wrap = *wrap_vec;
++
++        /* estparf init stuff
++         */
++        int sizex, sizey, np, nwin;
++        int startxy[MAXVEC][2], stopxy[MAXVEC][2];
++        double dstvec[MAXVEC];
++        double dx = 0.0;
++        double dy = 0.0;
++	DOUBLEMASK *par;
++
++        /* Check args.
++         */
++        if( im_incheck( src ) )
++                return( -1 );
++        if( im_incheck( dst ) )
++                return( -1 );
++
++        if( src->Coding != IM_CODING_NONE || src->Coding != IM_BANDFMT_UCHAR ) {
++                im_errormsg( "estpar: uncoded uchar only" );
++                return( -1 );
++        }
++        if( dst->Coding != IM_CODING_NONE || dst->Coding != IM_BANDFMT_UCHAR ) {
++                im_errormsg( "estpar: uncoded uchar only" );
++                return( -1 );
++        }
++
++        if( src->Xsize != dst->Xsize || src->Ysize != dst->Ysize ) {
++                im_errormsg( "estpar: images not same size" );
++                return( -1 );
++        }
++        if( src->Bands != dst->Bands ) {
++                im_errormsg( "estpar: images not same number of bands" );
++                return( -1 );
++        }
++
++	if( wrap < 0 || wrap > 1 || 
++		ipol < 0 || ipol > 1 || order < 0 || order > 3 ) {
++		im_errormsg( "resample: bad setting for option" );
++		return( -1 );
++	} 
++
++	stride =  src->Bands;
++
++        src_buf = (unsigned char *) src->data;
++        dst_buf = (unsigned char *) dst->data;
++
++        sizex = src->Xsize;
++        sizey = src->Ysize;
++        nwin = 1;
++        startxy[0][0] = startxy[0][1] = 0;
++        stopxy[0][0] = sizex; stopxy[0][1] = sizey;
++
++        switch (order)
++        {
++                case 0: np = 2; break;
++                case 1: np = 6; break;
++                case 2: np = 8; break;
++                case 3: np =12; break;
++        }
++	if( !(par = im_create_dmask( par_vec->name, 2, np/2 )) )
++		return( -1 );
++	par_vec->mask = par;
++
++	estparf( src_buf, dst_buf, dstvec, 
++		order, 10, sizex, nwin, startxy, stopxy, stride );
++
++	resample_add_vec(dstvec,par->coeff); 
++
++	for(y=0;y<=sizey;y+=sizey) {
++		for(x=0;x<=sizex;x+=sizex) {
++			dx+=dstvec[0]+dstvec[2]*x+dstvec[4]*y+dstvec[6]*x*y+dstvec[8]*x*x+dstvec[10]*y*y;
++			dy+=dstvec[1]+dstvec[3]*x+dstvec[5]*y+dstvec[7]*x*y+dstvec[9]*x*x+dstvec[11]*y*y;
++		}
++	}
++	*displ_vec = sqrt(dx*dx+dy*dy);
++
++	return( 0);
++}
++
++
++static int
++im_transform_vec( im_object *argv )
++{
++	IMAGE *in = argv[0];
++	IMAGE *out = argv[1];
++	im_mask_object *obj = argv[2]; 	
++	int ipol = *((int*)argv[3]);
++	int wrap = *((int*)argv[4]);
++
++	if( im_transform( in, out, obj->mask, ipol, wrap ) )
++		return( -1 );
++
++	return( 0 );
++}
++
++static int
++estpar_vec( im_object *argv )
++{
++	IMAGE *src = argv[0];
++	IMAGE *dst = argv[1];
++	im_mask_object *obj = argv[2]; 	
++	int *order = argv[3];
++	int *ipol = argv[4];
++	int *wrap = argv[5];
++	double *avg_err = argv[6];
++
++	if( estpar( src, dst, obj, order, ipol, wrap, avg_err ) )
++		return( -1 );
++
++	return( 0 );
++}
++
++static int
++resample_vec( im_object *argv )
++{
++        IMAGE *src = argv[0];
++        IMAGE *dst = argv[1];
++        IMAGE *out = argv[2];
++	double *error = argv[3];
++	int *iter = argv[4];
++	int *order = argv[5];
++	int *ipol = argv[6];
++	int *wrap = argv[7];
++	im_mask_object *par = argv[8];  	
++	double *out_err = argv[9]; 
++
++        if( resample( src, dst, out,order,ipol,wrap,error,iter,par,out_err) )
++                return( -1);
++
++        return( 0 );
++}
++
++static im_arg_desc estpar_arg_types[] = {
++	IM_INPUT_IMAGE( "src" ),
++	IM_INPUT_IMAGE( "dst" ),
++	IM_OUTPUT_DMASK( "params" ),
++	IM_INPUT_INT( "order" ),
++	IM_INPUT_INT( "ipol" ),
++	IM_INPUT_INT( "wrap" ),
++	IM_OUTPUT_DOUBLE( "avg_displ" ) 
++};
++
++static im_arg_desc im_transform_arg_types[] = {
++	IM_INPUT_IMAGE( "in" ),
++	IM_OUTPUT_IMAGE( "out" ),
++	IM_INPUT_DMASK( "params" ),
++	IM_INPUT_INT( "ipol" ),
++	IM_INPUT_INT( "wrap" )
++};
++
++static im_arg_desc resample_arg_types[] = {
++        IM_INPUT_IMAGE( "src" ),
++        IM_INPUT_IMAGE( "dst" ),
++        IM_OUTPUT_IMAGE( "out" ),
++	IM_INPUT_DOUBLE( "error" ),
++	IM_INPUT_INT( "iterations" ),
++	IM_INPUT_INT( "order" ),
++	IM_INPUT_INT( "ipol" ),
++	IM_INPUT_INT( "wrap" ),
++	IM_OUTPUT_DMASK( "out_par" ), 
++	IM_OUTPUT_DOUBLE( "act_error" ) 
++
++};
++
++static im_function estpar_desc = {
++	"im_estpar",			/* Name */
++	"estimate transform pars",		/* Description */
++	0,				/* Flags */
++	estpar_vec, 			/* Dispatch function */
++	IM_NUMBER( estpar_arg_types ), 		/* Size of arg list */
++	estpar_arg_types 			/* Arg list */
++};
++
++static im_function im_transform_desc = {
++	"im_transform",			/* Name */
++	"transform an image",		/* Description */
++	0,				/* Flags */
++	im_transform_vec, 		/* Dispatch function */
++	IM_NUMBER( im_transform_arg_types ),/* Size of arg list */
++	im_transform_arg_types 		/* Arg list */
++};
++
++static im_function resample_desc = {
++        "im_transform_search",     	/* Name */
++        "search for a transform",      	/* Description */
++        0,                              /* Flags */
++        resample_vec,                     /* Dispatch function */
++        IM_NUMBER( resample_arg_types ),             /* Size of arg list */
++        resample_arg_types                        /* Arg list */
++};
++
+ /* Package up all these functions.
+  */
+ static im_function *arith_list[] = {
++	&estpar_desc,
++	&im_transform_desc,
++	&resample_desc,
+ 	&abs_desc,
+ 	&acostra_desc,
+ 	&add_desc,
