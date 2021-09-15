@@ -18,6 +18,9 @@
         "/include",
         "/lib/girepository-1.0",
         "/lib/pkgconfig",
+        "/lib/cmake",
+        "/lib/debug",
+        "/lib/openjpeg-*",
         "/man",
         "/share/aclocal",
         "/share/doc",
@@ -25,10 +28,50 @@
         "/share/gtk-doc",
         "/share/man",
         "/share/pkgconfig",
+        "/share/aclocal*",
+        "/share/autoconf*",
+        "/share/automake*",
+        "/share/info",
+        "/share/thumbnailers",
+	"/bin/a*",
+	"/bin/b*",
+	"/bin/c*",
+	"/bin/d*",
+	"/bin/e*",
+	"/bin/f*",
+	"/bin/g*",
+	"/bin/i*",
+	"/bin/l*",
+	"/bin/o*",
+	"/bin/p*",
+	"/bin/r*",
+	"/bin/s*",
+	"/bin/t*",
+	"/bin/x*",
+	"/bin/vips",
+	"/bin/vipsheader",
+	"/bin/vipsedit",
+	"/bin/vips-*",
+	"/bin/vipsprofile",
+	"/bin/vipsthumbnail",
         "*.la",
         "*.a"
     ],
     "modules" : [
+
+        {
+            "name" : "libtiff",
+            "builddir" : true,
+            "buildsystem" : "autotools",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "https://download.osgeo.org/libtiff/tiff-4.3.0.tar.gz",
+		    "sha256" : "0e46e5acb087ce7d1ac53cf4f56a09b221537fc86dfc5daaad1c2e89e1b37ac8"
+                }
+            ]
+        },
+
         {
             "name" : "libjxl",
             "builddir" : true,
@@ -217,6 +260,7 @@
 		    "type" : "script",
 		    "dest-filename" : "autogen.sh",
 		    "commands" : [ 
+			 "echo hello",
 			 "autoreconf --force --install"
 		    ]
 		}

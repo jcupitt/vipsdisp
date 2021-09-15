@@ -206,9 +206,6 @@ Current libvips configure output for missing packages from flatpak build is:
 
 ```
 HEIC/AVIF load/save with libheif:       no (dynamic module: no)
-EXR load with OpenEXR:                  no
-OpenSlide support:                      no (dynamic module: no)
- (requires openslide-3.3.0 or later)
 Matlab load with matio:                 no
 NIfTI load/save with niftiio:           no
 FITS load/save with cfitsio:            no
@@ -225,7 +222,28 @@ flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.js
 flatpak run org.libvips.vipsdisp ~/pics/k2.jpg
 ```
 
-## Notes on flatpak manifest
+Force a complete redownload and rebuild (should only rarely be necessary) with:
+
+```
+rm -rf .flatpak-builder
+```
+
+Check the files that are in the flatpak you built with:
+
+```
+ls build-dir/files
+```
+
+Uninstall with:
+
+```
+flatpak uninstall vipsdisp
+```
+
+## Notes on flatpak build process
+
+- The gnome SDK libtiff does not support JPEG compression, we have to
+  build our own.
 
 - We want openslide, but this is becoming a hard package to build. We have to
   patch `configure.ac`, this means we need to run autoreconf, this means we
