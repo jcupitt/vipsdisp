@@ -206,13 +206,7 @@ Current libvips configure output for missing packages from flatpak build is:
 
 ```
 HEIC/AVIF load/save with libheif:       no (dynamic module: no)
-Matlab load with matio:                 no
 NIfTI load/save with niftiio:           no
-FITS load/save with cfitsio:            no
-Magick package:                         none (dynamic module: no)
-Magick API version:                     none
-load with libMagickCore:                no
-save with libMagickCore:                no
 ```
 
 Install the binary you just made to your local account and try running it:
@@ -236,7 +230,6 @@ ls build-dir/files
 
 Uninstall with:
 
-```
 flatpak uninstall vipsdisp
 ```
 
@@ -248,6 +241,5 @@ flatpak uninstall vipsdisp
 - We want openslide, but this is becoming a hard package to build. We have to
   patch `configure.ac`, this means we need to run autoreconf, this means we
   need a matching autotools installed, and this means we need our own 
-  pkg-config to get all the relevant autotools macros for openslide.
-
+  pkg-config to get all the relevant autotools macros.
 

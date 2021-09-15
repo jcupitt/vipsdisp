@@ -21,6 +21,7 @@
         "/lib/cmake",
         "/lib/debug",
         "/lib/openjpeg-*",
+        "/lib/libhdf5.settings",
         "/man",
         "/share/aclocal",
         "/share/doc",
@@ -33,6 +34,10 @@
         "/share/automake*",
         "/share/info",
         "/share/thumbnailers",
+        "/share/USING_HDF5_CMake.txt",
+        "/share/COPYING",
+        "/share/RELEASE.txt",
+        "/share/cmake",
 	"/bin/a*",
 	"/bin/b*",
 	"/bin/c*",
@@ -40,8 +45,10 @@
 	"/bin/e*",
 	"/bin/f*",
 	"/bin/g*",
+	"/bin/h*",
 	"/bin/i*",
 	"/bin/l*",
+	"/bin/m*",
 	"/bin/o*",
 	"/bin/p*",
 	"/bin/r*",
@@ -263,6 +270,49 @@
 			 "echo hello",
 			 "autoreconf --force --install"
 		    ]
+		}
+            ]
+        },
+
+        {
+            "name" : "hdf5",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "http://www.hdfgroup.org/ftp/HDF5/current/src/hdf5-1.10.5.tar.gz",
+		    "sha256" : "6d4ce8bf902a97b050f6f491f4268634e252a63dadd6656a1a9be5b7b7726fa8"
+                }
+            ]
+        },
+
+        {
+            "name" : "matio",
+            "builddir" : true,
+            "buildsystem" : "autotools",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "http://downloads.sourceforge.net/sourceforge/matio/matio-1.5.21.tar.gz",
+		    "sha256" : "21809177e55839e7c94dada744ee55c1dea7d757ddaab89605776d50122fb065"
+                }
+            ]
+        },
+
+        {
+            "name" : "cfitsio",
+            "builddir" : true,
+            "buildsystem" : "cmake",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-3.49.tar.gz",
+		    "sha256" : "5b65a20d5c53494ec8f638267fca4a629836b7ac8dd0ef0266834eab270ed4b3"
+                },
+		{
+		    "type" : "patch",
+		    "path" : "patches/cfitsio-3-fixes.patch"
 		}
             ]
         },
