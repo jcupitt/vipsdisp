@@ -155,6 +155,8 @@ $ ./vipsdisp ~/pics/k2.jpg
      could skip frames for very slow updates? track `t` rather than having a
      timeout, and pick a frame from that?
 
+- we build de265 and libheif, but flatpak won't open .heic, why?
+
 - right-click menu on image?
 
 - view TIFF with pages not all the same size ... error!
@@ -202,13 +204,6 @@ Build:
 flatpak-builder --force-clean build-dir org.libvips.vipsdisp.json
 ```
 
-Current libvips configure output for missing packages from flatpak build is:
-
-```
-HEIC/AVIF load/save with libheif:       no (dynamic module: no)
-NIfTI load/save with niftiio:           no
-```
-
 Install the binary you just made to your local account and try running it:
 
 ```
@@ -238,8 +233,9 @@ flatpak uninstall vipsdisp
 - The gnome SDK libtiff does not support JPEG compression, we have to
   build our own.
 
+- niftiio is annoying to build, skip it.
+
 - We want openslide, but this is becoming a hard package to build. We have to
   patch `configure.ac`, this means we need to run autoreconf, this means we
   need a matching autotools installed, and this means we need our own 
   pkg-config to get all the relevant autotools macros.
-
