@@ -16,9 +16,9 @@ very commented C.
 
 It all works, though see the TODO list below.
 
-[![Screenshot](images/shot1.jpg)](images/shot1.jpg)
+[![Screenshot](images/shot1.png)](images/shot1.png)
 
-[![Screenshot](images/shot2.jpg)](images/shot2.jpg)
+[![Screenshot](images/shot2.png)](images/shot2.png)
 
 [![Screenshot](images/shot3.png)](images/shot3.png)
 
@@ -157,6 +157,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - we build de265 and libheif, but flatpak won't open .heic, why?
 
+- PDF display seems to have some font issues, do we need to add a font package
+  too?
+
+- add appdata 
+
 - right-click menu on image?
 
 - view TIFF with pages not all the same size ... error!
@@ -239,3 +244,12 @@ flatpak uninstall vipsdisp
   patch `configure.ac`, this means we need to run autoreconf, this means we
   need a matching autotools installed, and this means we need our own 
   pkg-config to get all the relevant autotools macros.
+
+## Packaging for flathub
+
+Install the appdata checker:
+
+```
+flatpak install flathub org.freedesktop.appstream-glib
+flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.metainfo.xml
+```

@@ -27,9 +27,11 @@ AM_LDFLAGS = @LDFLAGS@
 
 vipsdispdir = $(datadir)/icons/hicolor/512x512/apps
 vipsdispappdir = $(datadir)/applications
+vipsdispmetainfodir = $(datadir)/metainfo
 
 vipsdisp_DATA = vipsdisp.png
 vipsdispapp_DATA = vipsdisp.desktop
+vipsdispmetainfo_DATA = org.libvips.vipsdisp.metainfo.xml
 
 resource_files = \
 	vipsdisp.gresources.xml 

@@ -3,4 +3,4 @@ Type=Application
 Name=Vipsdisp
 Icon=vipsdisp
 StartupNotify=true
-Exec=@bindir@/vipsdisp
+Exec="\\@bindir@/vipsdisp"
