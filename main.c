@@ -34,5 +34,7 @@ main( int argc, char **argv )
 		vips_error_exit( "unable to save settings" );
 	 */
 
+	vips_shutdown();
+
 	return( status );
 }
