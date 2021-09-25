@@ -32,7 +32,6 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *conversion_bar;
 	GtkWidget *info_bar;
-	GtkWidget *popover;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -61,7 +60,6 @@ image_window_dispose( GObject *object )
 #endif /*DEBUG*/
 
 	VIPS_UNREF( win->conversion );
-	VIPS_UNREF( win->popover );
 	VIPS_FREEF( g_timer_destroy, win->progress_timer );
 
 	G_OBJECT_CLASS( image_window_parent_class )->dispose( object );
@@ -882,17 +880,6 @@ image_window_drag_update( GtkEventControllerMotion *self,
 }
 
 static void
-image_window_pressed( GtkGestureClick *self,
-	gint n_press, gdouble x, gdouble y, gpointer user_data )
-{
-        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	printf( "image_window_pressed:\n" );
-
-	gtk_popover_popup( GTK_POPOVER( win->popover ) );
-}
-
-static void
 image_window_toggle( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
@@ -1157,7 +1144,7 @@ static void
 image_window_init( ImageWindow *win )
 {
 	GtkBuilder *builder;
-	GMenuModel *model;
+	GMenuModel *menu;
 	GtkEventController *controller;
 
 	win->progress_timer = g_timer_new();
@@ -1167,12 +1154,10 @@ image_window_init( ImageWindow *win )
 
 	builder = gtk_builder_new_from_resource( 
 		"/org/libvips/vipsdisp/imagewindow-menu.ui" );
-	model = G_MENU_MODEL( gtk_builder_get_object( builder, 
+	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"imagewindow-menu" ) );
-	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), model );
+	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
 	g_object_unref( builder );
-
-	win->popover = gtk_popover_menu_new_from_model( model );
 
 	win->conversion = conversion_new();
 	g_object_set( win->imagedisplay,
@@ -1223,21 +1208,13 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_scroll ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
-	/* Drag to pan.
+	/* And drag to pan.
 	 */
 	controller = GTK_EVENT_CONTROLLER( gtk_gesture_drag_new() );
 	g_signal_connect( controller, "drag-begin", 
 		G_CALLBACK( image_window_drag_begin ), win );
 	g_signal_connect( controller, "drag-update", 
 		G_CALLBACK( image_window_drag_update ), win );
-	gtk_widget_add_controller( win->imagedisplay, controller );
-
-	/* Right-click menu.
-	 */
-	controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
-	gtk_gesture_single_set_button( GTK_GESTURE_SINGLE( controller ), 3 );
-	g_signal_connect( controller, "pressed", 
-		G_CALLBACK( image_window_pressed ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
 }

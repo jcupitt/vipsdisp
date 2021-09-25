@@ -129,8 +129,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- falsecolour colours the tramnsparent bg on GIFs
-
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
 
