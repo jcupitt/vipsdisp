@@ -157,12 +157,16 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - we build de265 and libheif, but flatpak won't open .heic, why?
 
+- falsecolour colours the tramnsparent bg on GIFs
+
 - PDF display seems to have some font issues, do we need to add a font package
   too?
 
 - add appdata 
 
 - right-click menu on image?
+ 
+  not supported by gtk4
 
 - view TIFF with pages not all the same size ... error!
 
