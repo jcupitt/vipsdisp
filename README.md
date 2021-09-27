@@ -129,15 +129,12 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- paint tiles in a spiral from the center
+- turn on trace in `imagedisplay_fill_tile()`, open a large image, 
+  and press "o"
 
-- GIFs get very slow for large windows, even if the GIF animation area is
-  small ... why?
+  we seem to paint the whole screen three times (!!!)
 
-  we're not overcomputing, so it's not our fault, I think, it's just gtk4
-  getting slower for very large windows
-
-  once the framerate drops below 30 fps, the final paint is almost always
+- once the framerate drops below 30 fps, the final paint is almost always
   interrupted by the arrival of the next frame
 
   only schedule the next paint when the current one finishes?
@@ -158,8 +155,6 @@ $ ./vipsdisp ~/pics/k2.jpg
      timeout, and pick a frame from that?
 
 - we build de265 and libheif, but flatpak won't open .heic, why?
-
-- falsecolour colours the transparent bg on GIFs
 
 - PDF display seems to have some font issues, do we need to add a font package
   too?

@@ -551,11 +551,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 
 #ifdef DEBUG_VERBOSE
+#endif /*DEBUG_VERBOSE*/
 	printf( "imagedisplay_fill_tile: vips computes "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		clip.left, clip.top,
 		clip.width, clip.height );
-#endif /*DEBUG_VERBOSE*/
 
 	/* Request pixels. We ask the mask first, to get an idea of what's 
 	 * currently in cache, then request tiles of pixels. We must always
@@ -609,31 +609,95 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 }
 
 /* Fill a rectangle with a set of libvips tiles.
+ *
+ * render processes tiles in FIFO order, so we need to add in reverse order
+ * of processing. We want repaint to happen in a spiral from the centre out,
+ * so we have to add in a spiral from the outside in.
  */
 static void
 imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 {
 	int left, top, right, bottom;
-	int x, y;
 
 	left = VIPS_ROUND_DOWN( expose->left, TILE_SIZE );
 	top = VIPS_ROUND_DOWN( expose->top, TILE_SIZE );
 	right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( expose ), TILE_SIZE );
 	bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( expose ), TILE_SIZE );
 
-	for( y = top; y < bottom; y += TILE_SIZE ) 
+	/* Do the four edges, then step in. Loop until the centre is empty.
+	 */
+	for(;;) {
+		VipsRect tile;
+		VipsRect clip;
+		int x, y;
+
+		tile.width = TILE_SIZE;
+		tile.height = TILE_SIZE;
+
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Top edge.
+		 */
 		for( x = left; x < right; x += TILE_SIZE ) {
-			VipsRect tile;
-
 			tile.left = x;
-			tile.top = y;
-			tile.width = TILE_SIZE;
-			tile.height = TILE_SIZE;
-			vips_rect_intersectrect( &tile, expose, &tile );
-
-			if( !vips_rect_isempty( &tile ) )
-				imagedisplay_fill_tile( imagedisplay, &tile );
+			tile.top = top;
+			vips_rect_intersectrect( &tile, expose, &clip );
+			if( !vips_rect_isempty( &clip ) )
+				imagedisplay_fill_tile( imagedisplay, &clip );
 		}
+		top += TILE_SIZE;
+
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Bottom edge.
+		 */
+		for( x = left; x < right; x += TILE_SIZE ) {
+			tile.left = x;
+			tile.top = bottom - TILE_SIZE;
+			vips_rect_intersectrect( &tile, expose, &clip );
+			if( !vips_rect_isempty( &clip ) )
+				imagedisplay_fill_tile( imagedisplay, &clip );
+		}
+		bottom -= TILE_SIZE;
+
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Left edge.
+		 */
+		for( y = top; y < bottom; y += TILE_SIZE ) {
+			tile.left = left;
+			tile.top = y;
+			vips_rect_intersectrect( &tile, expose, &clip );
+			if( !vips_rect_isempty( &clip ) )
+				imagedisplay_fill_tile( imagedisplay, &clip );
+		}
+		left += TILE_SIZE;
+
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Right edge.
+		 */
+		for( y = top; y < bottom; y += TILE_SIZE ) {
+			tile.left = right - TILE_SIZE;
+			tile.top = y;
+			vips_rect_intersectrect( &tile, expose, &clip );
+			if( !vips_rect_isempty( &clip ) )
+				imagedisplay_fill_tile( imagedisplay, &clip );
+		}
+		right -= TILE_SIZE;
+
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+	}
 }
 
 /* Fill the given area with checks in the standard style for showing 
