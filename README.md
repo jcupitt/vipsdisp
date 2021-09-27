@@ -129,6 +129,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- paint tiles in a spiral from the center
+
 - GIFs get very slow for large windows, even if the GIF animation area is
   small ... why?
 
@@ -157,7 +159,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - we build de265 and libheif, but flatpak won't open .heic, why?
 
-- falsecolour colours the tramnsparent bg on GIFs
+- falsecolour colours the transparent bg on GIFs
 
 - PDF display seems to have some font issues, do we need to add a font package
   too?
@@ -173,10 +175,6 @@ $ ./vipsdisp ~/pics/k2.jpg
   need to pick an appropriate mode automatically
 
 - settings ... can we use the gtk settings infrastructure for this?
-
-- use a shader to implement composite with BG?
-
-  the drawingarea gt demo uses cairo to composite over a checkerboard
 
 - improve upscale for buffer rebuild to reduce percieved flicker
 

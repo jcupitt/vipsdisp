@@ -5,6 +5,11 @@
 #define DEBUG
  */
 
+/* The size of the checkerboard pattern we use for compositing. Must be a
+ * power of two.
+ */
+#define CHECK_SIZE 16
+
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
@@ -48,10 +53,10 @@ struct _Imagedisplay {
 	int left;
 	int top;
 
-	/* The regions we use for fetching pixels from the rgb image and from
+	/* The regions we use for fetching pixels from the rgba image and from
 	 * the mask.
 	 */
-	VipsRegion *rgb_region;
+	VipsRegion *rgba_region;
 	VipsRegion *mask_region;
 
 };
@@ -267,9 +272,9 @@ imagedisplay_conversion_display_changed( Conversion *conversion,
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagedisplay->mask_region );
-	VIPS_UNREF( imagedisplay->rgb_region );
+	VIPS_UNREF( imagedisplay->rgba_region );
 
-	imagedisplay->rgb_region = vips_region_new( conversion->rgb );
+	imagedisplay->rgba_region = vips_region_new( conversion->rgb );
 	imagedisplay->mask_region = vips_region_new( conversion->mask );
 
 	imagedisplay->image_rect.width = conversion->rgb->Xsize;
@@ -413,7 +418,7 @@ imagedisplay_dispose( GObject *object )
 	printf( "imagedisplay_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	VIPS_UNREF( imagedisplay->rgb_region );
+	VIPS_UNREF( imagedisplay->rgba_region );
 	VIPS_UNREF( imagedisplay->mask_region );
 	VIPS_UNREF( imagedisplay->conversion );
 	VIPS_FREE( imagedisplay->cairo_buffer ); 
@@ -421,7 +426,7 @@ imagedisplay_dispose( GObject *object )
 	G_OBJECT_CLASS( imagedisplay_parent_class )->dispose( object );
 }
 
-/* libvips is RGB, cairo is ABGR, so we have to repack the data.
+/* libvips is RGBA, cairo is premultiplied ABGR, so we have to repack the data.
  */
 static void
 imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay, 
@@ -436,12 +441,17 @@ imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay,
 		unsigned char * restrict q = cairo + y * cairo_stride;
 
 		for( x = 0; x < width; x++ ) {
-			q[0] = p[2];
-			q[1] = p[1];
-			q[2] = p[0];
-			q[3] = 0;
+			int r = p[0];
+			int g = p[1];
+			int b = p[2];
+			int a = p[3];
 
-			p += 3;
+			q[0] = b * a / 255;
+			q[1] = g * a / 255;
+			q[2] = r * a / 255;
+			q[3] = a;
+
+			p += 4;
 			q += 4;
 		}
 	}
@@ -562,7 +572,7 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 	}
 
-	if( vips_region_prepare( imagedisplay->rgb_region, &clip ) ) {
+	if( vips_region_prepare( imagedisplay->rgba_region, &clip ) ) {
 #ifdef DEBUG_VERBOSE
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
@@ -590,11 +600,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 
 		imagedisplay_vips_to_cairo( imagedisplay, 
 			cairo_start,
-			VIPS_REGION_ADDR( imagedisplay->rgb_region, 
+			VIPS_REGION_ADDR( imagedisplay->rgba_region, 
 				clip.left, clip.top ),
 			clip.width, clip.height,
 			cairo_stride,
-			VIPS_REGION_LSKIP( imagedisplay->rgb_region ) );
+			VIPS_REGION_LSKIP( imagedisplay->rgba_region ) );
 	}
 }
 
@@ -626,6 +636,40 @@ imagedisplay_fill_rect( Imagedisplay *imagedisplay, VipsRect *expose )
 		}
 }
 
+/* Fill the given area with checks in the standard style for showing 
+ * compositing effects.
+ *
+ * It would make sense to do this as a repeating surface, but most 
+ * implementations of RENDER currently have broken implementations of 
+ * repeat + transform, even when the transform is a translation.
+ *
+ * Copied from gtk4-demo/drawingarea.c
+ */
+static void
+imagedisplay_fill_checks( cairo_t *cr, 
+	int left, int top, int width, int height )
+{
+	int right = left + width;
+	int bottom = top + height;
+
+	int x, y;
+
+	cairo_rectangle( cr, left, top, width, height );
+	cairo_set_source_rgb( cr, 0.4, 0.4, 0.4 );
+	cairo_fill( cr );
+
+	/* Only works for CHECK_SIZE a power of 2 
+	 */
+	for( x = left & (-CHECK_SIZE); x < right; x += CHECK_SIZE ) 
+		for( y = top & (-CHECK_SIZE); y < bottom; y += CHECK_SIZE )
+			if( (x / CHECK_SIZE + y / CHECK_SIZE) % 2 == 0 )
+				cairo_rectangle( cr, 
+					x, y, CHECK_SIZE, CHECK_SIZE );
+
+	cairo_set_source_rgb( cr, 0.7, 0.7, 0.7 );
+	cairo_fill( cr );
+}
+
 /* Draw a rectangle of the image from the backing buffer.
  */
 static void
@@ -653,11 +697,26 @@ imagedisplay_draw_cairo( Imagedisplay *imagedisplay,
 			buffer.width, buffer.height );
 #endif /*DEBUG_VERBOSE*/
 
+		/* Clip to the image area to stop the checkerboard
+		 * overpainting.
+		 */
+		cairo_rectangle( cr, gtk.left, gtk.top, gtk.width, gtk.height );
+		cairo_clip( cr );
+
+		/* Paint background checkerboard.
+		 */
+		imagedisplay_fill_checks( cr, 
+			gtk.left, gtk.top, gtk.width, gtk.height );
+
+		/* Paint the foreground RGBA image over that.
+		 */
 		surface = cairo_image_surface_create_for_data( cairo_start, 
-			CAIRO_FORMAT_RGB24, buffer.width, buffer.height, 
+			CAIRO_FORMAT_ARGB32, buffer.width, buffer.height, 
 			cairo_stride );  
 		cairo_set_source_surface( cr, surface, gtk.left, gtk.top ); 
+		cairo_set_operator( cr, CAIRO_OPERATOR_OVER );
 		cairo_paint( cr );
+
 		cairo_surface_destroy( surface ); 
 	}
 }
@@ -670,7 +729,7 @@ imagedisplay_draw( GtkDrawingArea *area,
 	GtkWidget *widget = GTK_WIDGET( imagedisplay );
 
 	if( imagedisplay->conversion->loaded && 
-		imagedisplay->rgb_region ) {
+		imagedisplay->rgba_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 

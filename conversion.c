@@ -676,38 +676,6 @@ conversion_set_file( Conversion *conversion, GFile *file )
         return( 0 );
 }
 
-/* Make a checkerboard background for showing transparent images.
- */
-static VipsImage *
-conversion_checkerboard( int width, int height )
-{
-	const int size = 20;
-	VipsObject *context = VIPS_OBJECT( vips_image_new() );
-	VipsImage **t = (VipsImage **) vips_object_local_array( context, 6 );
-
-	VipsImage *out;
-
-	if( !(t[0] = vips_image_new_matrixv( 2, 2, 
-		128.0, 204.0, 204.0, 128.0 )) ||
-		vips_cast_uchar( t[0], &t[1], NULL ) ||
-		vips_zoom( t[1], &t[2], size / 2, size / 2, NULL ) ||
-		vips_replicate( t[2], &t[3], 
-			(width + size) / size, 
-			(height + size) / size, NULL ) ||
-		vips_crop( t[3], &t[4], 0, 0, width, height, NULL ) ||
-		vips_copy( t[4], &t[5], 
-			"interpretation", VIPS_INTERPRETATION_B_W, NULL ) ) {
-		g_object_unref( context );
-		return( NULL );
-	}
-
-	out = t[5];
-	g_object_ref( out );
-	g_object_unref( context );
-
-	return( out );
-}
-
 /* Make the rgb image we paint with. This runs synchronously and is not
  * threaded.
  */
@@ -728,29 +696,48 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
                         conversion->scale, conversion->offset, 
                         "uchar", TRUE, 
                         NULL ) ) {
-                        g_object_unref( image );
+                        VIPS_UNREF( image );
                         return( NULL ); 
                 }
-                g_object_unref( image );
+                VIPS_UNREF( image );
                 image = x;
         }
         else {
                 /* To uchar.
                  */
                 if( vips_cast_uchar( image, &x, NULL ) ) {
-                        g_object_unref( image );
+                        VIPS_UNREF( image );
                         return( NULL ); 
                 }
-                g_object_unref( image );
+                VIPS_UNREF( image );
                 image = x;
         }
 
         if( conversion->falsecolour ) {
-                if( vips_falsecolour( image, &x, NULL ) ) {
-                        g_object_unref( image );
+		/* This makes an RGB image, so we need to reattach any alpha.
+		 */
+		VipsImage *rgb;
+		VipsImage *alpha;
+
+		if( vips_extract_band( image, &alpha, 3, NULL ) ) {
+                        VIPS_UNREF( image );
                         return( NULL ); 
                 }
-                g_object_unref( image );
+                if( vips_falsecolour( image, &rgb, NULL ) ) {
+                        VIPS_UNREF( image );
+                        VIPS_UNREF( alpha );
+                        return( NULL ); 
+                }
+                if( vips_bandjoin2( rgb, alpha, &x, NULL ) ) {
+                        VIPS_UNREF( image );
+                        VIPS_UNREF( alpha );
+                        VIPS_UNREF( rgb );
+                        return( NULL ); 
+                }
+
+                VIPS_UNREF( image );
+		VIPS_UNREF( alpha );
+		VIPS_UNREF( rgb );
                 image = x;
 	}
 
@@ -995,34 +982,24 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         VIPS_UNREF( image );
         image = x;
 
-        /* If there's an alpha, composite over a checkerboard.
+        /* Force to RGBA.
          */
-        if( vips_image_hasalpha( image ) ) {
-		VipsImage *bg;
-
-		if( !(bg = conversion_checkerboard( 
-			image->Xsize, image->Ysize )) ) {
-			VIPS_UNREF( image );
-			return( NULL );
-		}
-
-		if( vips_composite2( bg, image, &x, 
-			VIPS_BLEND_MODE_OVER, NULL ) ) {
-			VIPS_UNREF( bg );
-			VIPS_UNREF( image );
-			return( NULL );
-		}
-		VIPS_UNREF( bg );
-		VIPS_UNREF( image );
-		image = x;
-
-		if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
+	if( !vips_image_hasalpha( image ) ) {
+		if( vips_addalpha( image, &x, NULL ) ) {
 			VIPS_UNREF( image );
 			return( NULL ); 
 		}
 		VIPS_UNREF( image );
 		image = x;
-        }
+	}
+	if( image->Bands > 4 ) {
+		if( vips_extract_band( image, &x, 0, "n", 4, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
 
         if( conversion->log ||
 		image->Type == VIPS_INTERPRETATION_FOURIER ) { 
