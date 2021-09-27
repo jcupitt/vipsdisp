@@ -129,11 +129,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- turn on trace in `imagedisplay_fill_tile()`, open a large image, 
-  and press "o"
-
-  we seem to paint the whole screen three times (!!!)
-
 - once the framerate drops below 30 fps, the final paint is almost always
   interrupted by the arrival of the next frame
 

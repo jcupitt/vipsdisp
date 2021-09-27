@@ -551,11 +551,11 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 
 #ifdef DEBUG_VERBOSE
-#endif /*DEBUG_VERBOSE*/
 	printf( "imagedisplay_fill_tile: vips computes "
 		"left = %d, top = %d, width = %d, height = %d\n",
 		clip.left, clip.top,
 		clip.width, clip.height );
+#endif /*DEBUG_VERBOSE*/
 
 	/* Request pixels. We ask the mask first, to get an idea of what's 
 	 * currently in cache, then request tiles of pixels. We must always
