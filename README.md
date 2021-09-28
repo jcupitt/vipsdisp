@@ -131,6 +131,9 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- keyboard nav shortcuts are blocking display control bar entery, eg. try
+  entering "1.2" for scale
+
 - once the framerate drops below 30 fps, the final paint is almost always
   interrupted by the arrival of the next frame, appearing to lock the display
 
@@ -188,7 +191,7 @@ flatpak remote-add --if-not-exists \
 Install the gtk4 SDK:
 
 ```
-flatpak install org.gnome.Sdk//40
+flatpak install org.gnome.Sdk//41
 ```
 
 Build:

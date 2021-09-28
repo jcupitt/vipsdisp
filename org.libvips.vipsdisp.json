@@ -1,7 +1,7 @@
 {
     "app-id" : "org.libvips.vipsdisp",
     "runtime" : "org.gnome.Sdk",
-    "runtime-version" : "40",
+    "runtime-version" : "41",
     "sdk" : "org.gnome.Sdk",
     "command" : "vipsdisp",
     "finish-args" : [
@@ -9,7 +9,6 @@
         "--share=ipc",
         "--socket=fallback-x11",
         "--socket=wayland",
-        "--talk-name=org.gtk.vfs",
         "--talk-name=org.gtk.vfs.*",
         "--filesystem=xdg-run/gvfsd",
         "--filesystem=home"
@@ -67,22 +66,9 @@
     "modules" : [
 
         {
-            "name" : "libtiff",
-            "builddir" : true,
-            "buildsystem" : "autotools",
-            "sources" : [
-                {
-                    "type" : "archive",
-                    "url" : "https://download.osgeo.org/libtiff/tiff-4.3.0.tar.gz",
-                    "sha256" : "0e46e5acb087ce7d1ac53cf4f56a09b221537fc86dfc5daaad1c2e89e1b37ac8"
-                }
-            ]
-        },
-
-        {
             "name" : "libjxl",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -96,7 +82,7 @@
         {
             "name" : "openjpeg",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -110,7 +96,7 @@
         {
             "name" : "libimagequant",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -124,7 +110,7 @@
         {
             "name" : "libspng",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -150,9 +136,23 @@
         },
 
         {
+            "name" : "poppler-data",
+            "builddir" : true,
+            "buildsystem" : "cmake-ninja",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "https://poppler.freedesktop.org/poppler-data-0.4.11.tar.gz",
+
+                    "sha256" : "2cec05cd1bb03af98a8b06a1e22f6e6e1a65b1e2f3816cb3069bb0874825f08c"
+                }
+            ]
+        },
+
+        {
             "name" : "poppler-glib",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "config-opts" : [
                     "-DENABLE_ZLIB=ON",
                     "-DENABLE_LIBTIFF=ON",
@@ -167,10 +167,10 @@
             ],
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "https://anongit.freedesktop.org/git/poppler/poppler.git",
-                    "tag" : "poppler-21.09.0",
-                    "commit" : "f70e352429e3b565262251b1150e77e8638bed6c"
+                    "type" : "archive",
+                    "url" : "https://poppler.freedesktop.org/poppler-21.09.0.tar.xz",
+
+                    "sha256" : "5a47fef738c2b99471f9b459a8bf8b40aefb7eed92caa4861c3798b2e126d05b"
                 }
             ]
         },
@@ -178,7 +178,7 @@
         {
             "name" : "imath",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -192,7 +192,7 @@
         {
             "name" : "openexr",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "git",
@@ -277,7 +277,7 @@
         {
             "name" : "hdf5",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "archive",
@@ -303,7 +303,7 @@
         {
             "name" : "cfitsio",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "archive",
@@ -320,7 +320,7 @@
         {
             "name" : "libde265",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "archive",
@@ -337,7 +337,7 @@
         {
             "name" : "libheif",
             "builddir" : true,
-            "buildsystem" : "cmake",
+            "buildsystem" : "cmake-ninja",
             "sources" : [
                 {
                     "type" : "archive",
