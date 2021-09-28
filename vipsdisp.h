@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define APP_ID "org.libvips.vipsdisp"
+#define APP_PATH "/org/libvips/vipsdisp"
+
 #include <gtk/gtk.h>
 
 #include <vips/vips.h>

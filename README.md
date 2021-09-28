@@ -84,6 +84,8 @@ Then for vipsdisp:
 ```
 $ ./autogen.sh --prefix=/home/john/vips 
 $ make
+$ make install
+$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ ./vipsdisp ~/pics/k2.jpg
 ```
 

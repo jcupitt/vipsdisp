@@ -11,7 +11,5 @@ G_DECLARE_FINAL_TYPE( Conversionview, conversionview,
 		CONVERSIONVIEW_TYPE, Conversionview ))
 
 Conversionview *conversionview_new( Conversion *conversion );
-void conversionview_set_reveal( Conversionview *conversionview, 
-	gboolean reveal );
 
 #endif /* __CONVERSIONVIEW_H */

@@ -6,6 +6,8 @@ AC_INIT([vipsdisp], [1.0])
 # and missing INSTALL (the standard Gnu INSTALL is not very useful)
 AM_INIT_AUTOMAKE([-Wall foreign])
 
+GLIB_GSETTINGS
+
 # we want largefile support, if possible
 AC_SYS_LARGEFILE
 

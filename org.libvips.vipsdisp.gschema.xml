@@ -1,0 +1,11 @@
+<schemalist>
+  <schema path="/org/libvips/vipsdisp/" id="org.libvips.vipsdisp">
+    <key type="b" name="show-display-control-bar">
+      <default>false</default>
+      <summary>Show display control bar</summary>
+      <description>
+        If set, show the display control bar.
+      </description>
+    </key>
+  </schema>
+</schemalist>

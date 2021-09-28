@@ -174,7 +174,7 @@ VipsdispApp *
 vipsdisp_app_new( void )
 {
 	return( g_object_new( VIPSDISP_APP_TYPE, 
-		"application-id", "org.libvips.vipsdisp",
+		"application-id", APP_ID,
 		"flags", G_APPLICATION_HANDLES_OPEN,
 		"inactivity-timeout", 3000,
                 "register-session", TRUE,

@@ -37,6 +37,8 @@ struct _ImageWindow
 	 */
 	GTimer *progress_timer;
 	double last_progress_time;
+
+	GSettings *settings;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -916,8 +918,9 @@ image_window_control( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	conversionview_set_reveal( CONVERSIONVIEW( win->conversion_bar ), 
-		g_variant_get_boolean( state ) );
+	g_object_set( win->conversion_bar,
+		"revealed", g_variant_get_boolean( state ),
+		NULL );
 
 	/* Update settings for save
 	settings_setb( "image-display", 
@@ -1149,11 +1152,12 @@ image_window_init( ImageWindow *win )
 
 	win->progress_timer = g_timer_new();
 	win->last_progress_time = -1;
+	win->settings = g_settings_new( APP_ID );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
 	builder = gtk_builder_new_from_resource( 
-		"/org/libvips/vipsdisp/imagewindow-menu.ui" );
+		APP_PATH "/imagewindow-menu.ui" );
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"imagewindow-menu" ) );
 	gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
@@ -1217,6 +1221,11 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_drag_update ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
+	g_settings_bind( win->settings, "show-display-control-bar",
+		G_OBJECT( win->conversion_bar ),
+		"revealed", 
+		G_SETTINGS_BIND_DEFAULT );
+
 }
 
 #define BIND( field ) \
@@ -1229,7 +1238,7 @@ image_window_class_init( ImageWindowClass *class )
 	G_OBJECT_CLASS( class )->dispose = image_window_dispose;
 
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/imagewindow.ui");
+		APP_PATH "/imagewindow.ui");
 
 	BIND( title );
 	BIND( subtitle );

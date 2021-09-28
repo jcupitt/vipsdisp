@@ -32,6 +32,8 @@ vipsdispmetainfodir = $(datadir)/metainfo
 vipsdisp_DATA = vipsdisp.png
 vipsdispapp_DATA = vipsdisp.desktop
 vipsdispmetainfo_DATA = org.libvips.vipsdisp.metainfo.xml
+gsettings_SCHEMAS = org.libvips.vipsdisp.gschema.xml
+@GSETTINGS_RULES@
 
 resource_files = \
 	vipsdisp.gresources.xml 

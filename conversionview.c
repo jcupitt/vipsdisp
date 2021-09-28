@@ -23,9 +23,8 @@ struct _Conversionview {
 G_DEFINE_TYPE( Conversionview, conversionview, GTK_TYPE_WIDGET );
 
 enum {
-	/* Set the conversion with this.
-	 */
 	PROP_CONVERSION = 1,
+	PROP_REVEALED,
 
 	SIG_LAST
 };
@@ -106,6 +105,12 @@ conversionview_set_property( GObject *object,
 			g_value_get_object( value ) );
 		break;
 
+	case PROP_REVEALED:
+		gtk_action_bar_set_revealed( 
+			GTK_ACTION_BAR( conversionview->action_bar ), 
+			g_value_get_boolean( value ) );
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
@@ -121,6 +126,11 @@ conversionview_get_property( GObject *object,
 	switch( prop_id ) {
 	case PROP_CONVERSION:
 		g_value_set_object( value, conversionview->conversion );
+		break;
+
+	case PROP_REVEALED:
+		g_value_set_boolean( value, gtk_action_bar_get_revealed( 
+			GTK_ACTION_BAR( conversionview->action_bar ) ) ); 
 		break;
 
 	default:
@@ -224,7 +234,7 @@ conversionview_init( Conversionview *conversionview )
 		conversionview );
 
 	builder = gtk_builder_new_from_resource( 
-		"/org/libvips/vipsdisp/conversionview-menu.ui" );
+		APP_PATH "/conversionview-menu.ui" );
 	menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
 		"conversionview-menu" ) );
 	gtk_menu_button_set_menu_model( 
@@ -252,7 +262,7 @@ conversionview_class_init( ConversionviewClass *class )
 	gtk_widget_class_set_layout_manager_type( widget_class, 
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-		"/org/libvips/vipsdisp/conversionview.ui");
+		APP_PATH "/conversionview.ui");
 
 	BIND( action_bar );
 	BIND( gears );
@@ -268,6 +278,13 @@ conversionview_class_init( ConversionviewClass *class )
 			_( "conversion" ),
 			_( "The conversion to be displayed" ),
 			TYPE_CONVERSION,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_REVEALED,
+		g_param_spec_boolean( "revealed",
+			_( "revealed" ),
+			_( "Show the display control bar" ),
+			FALSE,
 			G_PARAM_READWRITE ) );
 
 }
@@ -288,14 +305,3 @@ conversionview_new( Conversion *conversion )
 	return( conversionview ); 
 }
 
-void 
-conversionview_set_reveal( Conversionview *conversionview, 
-	gboolean reveal )
-{
-#ifdef DEBUG
-	printf( "conversionview_set_reveal: %d\n", reveal ); 
-#endif /*DEBUG*/
-
-	gtk_action_bar_set_revealed( 
-		GTK_ACTION_BAR( conversionview->action_bar ), reveal );
-}
