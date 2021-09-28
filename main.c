@@ -12,7 +12,10 @@ main( int argc, char **argv )
 
 	if( VIPS_INIT( argv[0] ) )
 		vips_error_exit( "unable to start libvips" );
+
+  /*
 	vips_leak_set( TRUE );
+   */
 
 #ifdef DEBUG
 	g_log_set_always_fatal( 
