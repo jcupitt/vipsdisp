@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>org.libvips.vipsdisp</id>
-  <url>https://github.com/jcupitt/vipsdisp</url>
+  <url type="homepage">https://github.com/jcupitt/vipsdisp</url>
   <content_rating type="oars-1.1" />
   
   <name>vipsdisp</name>
@@ -25,21 +25,30 @@ it supports many scientific and technical image formats, including SVS,
 MRXS, OpenEXR, FITS, Matlab, NIfTI, Analyze, PFM, etc.
 
 vipsdisp supports pixel types from 1 bit mono to 128-bit double precision
-complex, you can convert image formats, plus it has a range of useful
+complex, you can convert image formats, and it has a range of useful
 visualisation options and display modes.
     </p>
   </description>
 
-  <launchable type="desktop-id">vipsdisp.desktop</launchable> <screenshots>
+  <launchable type="desktop-id">vipsdisp.desktop</launchable>
+
+  <screenshots>
+
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot1.png</image>
       <caption>Even very large images open quickly</caption>
-    </screenshot> <screenshot>
+    </screenshot> 
+
+    <screenshot>
       <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot2.png</image>
       <caption>Visualization tools let you explore technical images</caption>
-    </screenshot> <screenshot>
+    </screenshot> 
+
+    <screenshot>
       <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot3.png</image>
       <caption>Animated images with alpha channels are also supported</caption>
     </screenshot>
+
   </screenshots>
+
 </component>

@@ -18,7 +18,6 @@ autom4te.cache
 aclocal.m4
 m4/
 compile
-configure
 depcomp
 install-sh
 libtool

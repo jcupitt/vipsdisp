@@ -158,10 +158,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - add appdata 
 
-- right-click menu on image?
- 
-  not supported by gtk4
-
 - view TIFF with pages not all the same size ... error!
 
   need to pick an appropriate mode automatically
