@@ -737,7 +737,7 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 		VIPS_UNREF( image );
 
 		if( conversion->log ||
-			image->Type == VIPS_INTERPRETATION_FOURIER ) { 
+			rgb->Type == VIPS_INTERPRETATION_FOURIER ) { 
 			if( !(x = conversion_image_log( rgb )) ) {
 				VIPS_UNREF( rgb );
 				VIPS_UNREF( alpha );
@@ -1369,10 +1369,42 @@ conversion_get_property( GObject *object,
 static void
 conversion_init( Conversion *conversion )
 {
+	conversion->settings = g_settings_new( APP_ID );
+
         conversion->mag = 1;
-        conversion->scale = 1.0;
         conversion->type = CONVERSION_TYPE_MULTIPAGE;
         conversion->mode = CONVERSION_MODE_MULTIPAGE;
+
+	g_settings_bind( conversion->settings, "scale",
+		G_OBJECT( conversion ),
+		"scale", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	g_settings_bind( conversion->settings, "offset",
+		G_OBJECT( conversion ),
+		"offset", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	g_settings_bind( conversion->settings, "falsecolour",
+		G_OBJECT( conversion ),
+		"falsecolour", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	g_settings_bind( conversion->settings, "log",
+		G_OBJECT( conversion ),
+		"log", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	/* Initial state from settings.
+         */
+        conversion->scale = 
+		g_settings_get_double( conversion->settings, "scale" );
+        conversion->offset = 
+		g_settings_get_double( conversion->settings, "offset" );
+        conversion->log = 
+		g_settings_get_boolean( conversion->settings, "log" );
+        conversion->falsecolour = 
+		g_settings_get_boolean( conversion->settings, "falsecolour" );
 }
 
 static void
@@ -1572,6 +1604,7 @@ conversion_class_init( ConversionClass *class )
         conversion_background_load_pool = g_thread_pool_new( 
                 conversion_background_load,
                 NULL, -1, FALSE, NULL ); 
+
 }
 
 gboolean

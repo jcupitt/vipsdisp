@@ -259,9 +259,6 @@ tslider_conversion_id( double from, double to, double value )
 static void
 tslider_init( Tslider *tslider )
 {
-	GtkBuilder *builder;
-	GMenuModel *menu;
-
 #ifdef DEBUG
 	printf( "tslider_init:\n" ); 
 #endif /*DEBUG*/

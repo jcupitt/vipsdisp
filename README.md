@@ -131,12 +131,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- scale and offset sliders shouldn't change alpha
-
-- add settings save for conversion options
-
-  conversionview will need to init from settings on startup
-
 - once the framerate drops below 30 fps, the final paint is almost always
   interrupted by the arrival of the next frame, appearing to lock the display
 

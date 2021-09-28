@@ -159,6 +159,8 @@ typedef struct _Conversion {
 	 */
 	gboolean loaded;
 
+	GSettings *settings;
+
 } Conversion;
 
 typedef struct _ConversionClass {

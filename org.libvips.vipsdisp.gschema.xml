@@ -17,5 +17,37 @@
       </description>
     </key>
 
+    <key type="d" name="scale">
+      <default>1.0</default>
+      <summary>Scale</summary>
+      <description>
+        The display scale.
+      </description>
+    </key>
+
+    <key type="d" name="offset">
+      <default>0.0</default>
+      <summary>Offset</summary>
+      <description>
+        The display offset.
+      </description>
+    </key>
+
+    <key type="b" name="falsecolour">
+      <default>false</default>
+      <summary>Falsecolour</summary>
+      <description>
+        Show pixels with a falsecolour mapping.
+      </description>
+    </key>
+
+    <key type="b" name="log">
+      <default>false</default>
+      <summary>log</summary>
+      <description>
+        Show pixels with a log mapping.
+      </description>
+    </key>
+
   </schema>
 </schemalist>

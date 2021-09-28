@@ -311,8 +311,6 @@ infobar_dispose( GObject *object )
 static void
 infobar_init( Infobar *infobar )
 {
-	GtkBuilder *builder;
-
 #ifdef DEBUG
 	printf( "infobar_init:\n" ); 
 #endif /*DEBUG*/
