@@ -102,7 +102,7 @@ CONFIG_CLEAN_FILES = vipsdisp.desktop
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" \
 	"$(DESTDIR)$(vipsdispappdir)" \
-	"$(DESTDIR)$(vipsdispmetainfodir)"
+	"$(DESTDIR)$(vipsdispappdatadir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_vipsdisp_OBJECTS = conversion.$(OBJEXT) conversionview.$(OBJEXT) \
 	infobar.$(OBJEXT) gtkutil.$(OBJEXT) imagedisplay.$(OBJEXT) \
@@ -179,7 +179,7 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-DATA = $(vipsdisp_DATA) $(vipsdispapp_DATA) $(vipsdispmetainfo_DATA)
+DATA = $(vipsdisp_DATA) $(vipsdispapp_DATA) $(vipsdispappdata_DATA)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -339,12 +339,12 @@ vipsdisp_SOURCES = \
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
 AM_LDFLAGS = @LDFLAGS@ 
-vipsdispdir = $(datadir)/icons/hicolor/512x512/apps
+vipsdispdir = $(datadir)/icons/hicolor/128x128/apps
 vipsdispappdir = $(datadir)/applications
-vipsdispmetainfodir = $(datadir)/metainfo
-vipsdisp_DATA = vipsdisp.png
+vipsdispappdatadir = $(datadir)/metainfo
+vipsdisp_DATA = org.libvips.vipsdisp.png
 vipsdispapp_DATA = vipsdisp.desktop
-vipsdispmetainfo_DATA = org.libvips.vipsdisp.metainfo.xml
+vipsdispappdata_DATA = org.libvips.vipsdisp.appdata.xml
 gsettings_SCHEMAS = org.libvips.vipsdisp.gschema.xml
 resource_files = \
 	vipsdisp.gresources.xml 
@@ -520,27 +520,27 @@ uninstall-vipsdispappDATA:
 	@list='$(vipsdispapp_DATA)'; test -n "$(vipsdispappdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(vipsdispappdir)'; $(am__uninstall_files_from_dir)
-install-vipsdispmetainfoDATA: $(vipsdispmetainfo_DATA)
+install-vipsdispappdataDATA: $(vipsdispappdata_DATA)
 	@$(NORMAL_INSTALL)
-	@list='$(vipsdispmetainfo_DATA)'; test -n "$(vipsdispmetainfodir)" || list=; \
+	@list='$(vipsdispappdata_DATA)'; test -n "$(vipsdispappdatadir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(vipsdispmetainfodir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(vipsdispmetainfodir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(vipsdispappdatadir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(vipsdispappdatadir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(vipsdispmetainfodir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(vipsdispmetainfodir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(vipsdispappdatadir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(vipsdispappdatadir)" || exit $$?; \
 	done
 
-uninstall-vipsdispmetainfoDATA:
+uninstall-vipsdispappdataDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(vipsdispmetainfo_DATA)'; test -n "$(vipsdispmetainfodir)" || list=; \
+	@list='$(vipsdispappdata_DATA)'; test -n "$(vipsdispappdatadir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(vipsdispmetainfodir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(vipsdispappdatadir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -777,7 +777,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" "$(DESTDIR)$(vipsdispappdir)" "$(DESTDIR)$(vipsdispmetainfodir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" "$(DESTDIR)$(vipsdispappdir)" "$(DESTDIR)$(vipsdispappdatadir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -844,7 +844,7 @@ info: info-am
 info-am:
 
 install-data-am: install-vipsdispDATA install-vipsdispappDATA \
-	install-vipsdispmetainfoDATA
+	install-vipsdispappdataDATA
 
 install-dvi: install-dvi-am
 
@@ -901,7 +901,7 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-binPROGRAMS uninstall-vipsdispDATA \
-	uninstall-vipsdispappDATA uninstall-vipsdispmetainfoDATA
+	uninstall-vipsdispappDATA uninstall-vipsdispappdataDATA
 
 .MAKE: install-am install-strip
 
@@ -917,12 +917,12 @@ uninstall-am: uninstall-binPROGRAMS uninstall-vipsdispDATA \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-man install-pdf install-pdf-am \
 	install-ps install-ps-am install-strip install-vipsdispDATA \
-	install-vipsdispappDATA install-vipsdispmetainfoDATA \
+	install-vipsdispappDATA install-vipsdispappdataDATA \
 	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
 	uninstall-am uninstall-binPROGRAMS uninstall-vipsdispDATA \
-	uninstall-vipsdispappDATA uninstall-vipsdispmetainfoDATA
+	uninstall-vipsdispappDATA uninstall-vipsdispappdataDATA
 
 .PRECIOUS: Makefile
 

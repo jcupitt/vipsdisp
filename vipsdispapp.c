@@ -64,7 +64,7 @@ vipsdisp_app_about_activated( GSimpleAction *action,
 
         gtk_show_about_dialog( win ? GTK_WINDOW( win ) : NULL, 
                 "program-name", "vipsdisp",
-                "logo-icon-name", "vipsdisp",
+                "logo-icon-name", "org.libvips.vipsdisp",
                 "title", _( "About vipsdisp" ),
                 "authors", authors,
                 "comments", _( "An image viewer for very large images" ),

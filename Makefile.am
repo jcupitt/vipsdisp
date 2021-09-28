@@ -29,7 +29,7 @@ vipsdispdir = $(datadir)/icons/hicolor/128x128/apps
 vipsdispappdir = $(datadir)/applications
 vipsdispappdatadir = $(datadir)/metainfo
 
-vipsdisp_DATA = vipsdisp.png
+vipsdisp_DATA = org.libvips.vipsdisp.png
 vipsdispapp_DATA = vipsdisp.desktop
 vipsdispappdata_DATA = org.libvips.vipsdisp.appdata.xml
 gsettings_SCHEMAS = org.libvips.vipsdisp.gschema.xml
