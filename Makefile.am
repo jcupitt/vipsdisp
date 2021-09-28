@@ -25,7 +25,7 @@ AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm
 AM_LDFLAGS = @LDFLAGS@ 
 
-vipsdispdir = $(datadir)/icons/hicolor/512x512/apps
+vipsdispdir = $(datadir)/icons/hicolor/128x128/apps
 vipsdispappdir = $(datadir)/applications
 vipsdispappdatadir = $(datadir)/metainfo
 
