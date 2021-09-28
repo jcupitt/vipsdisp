@@ -12,7 +12,6 @@ disp-gresources.c
 TAGS
 Makefile
 scan
-Makefile.in
 config.*
 autom4te.cache
 aclocal.m4
