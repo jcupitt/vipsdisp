@@ -51,4 +51,14 @@ visualisation options and display modes.
 
   </screenshots>
 
+  <releases>
+
+    <release version="1.0" date="2021-09-28">
+      <description>
+        First relased version.
+      </description>
+    </release>
+
+  </releases>
+
 </component>

@@ -239,5 +239,5 @@ Install the appdata checker:
 
 ```
 flatpak install flathub org.freedesktop.appstream-glib
-flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.metainfo.xml
+flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
 ```
