@@ -22,9 +22,8 @@ struct _Infobar {
 G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_WIDGET );
 
 enum {
-	/* Set the conversion with this.
-	 */
 	PROP_IMAGE_WINDOW = 1,
+	PROP_REVEALED,
 
 	SIG_LAST
 };
@@ -261,6 +260,12 @@ infobar_set_property( GObject *object,
 			g_value_get_object( value ) );
 		break;
 
+	case PROP_REVEALED:
+		gtk_action_bar_set_revealed( 
+			GTK_ACTION_BAR( infobar->action_bar ), 
+			g_value_get_boolean( value ) );
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
@@ -276,6 +281,11 @@ infobar_get_property( GObject *object,
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
 		g_value_set_object( value, infobar->win );
+		break;
+
+	case PROP_REVEALED:
+		g_value_set_boolean( value, gtk_action_bar_get_revealed( 
+			GTK_ACTION_BAR( infobar->action_bar ) ) ); 
 		break;
 
 	default:
@@ -348,6 +358,13 @@ infobar_class_init( InfobarClass *class )
 			IMAGE_WINDOW_TYPE,
 			G_PARAM_READWRITE ) );
 
+	g_object_class_install_property( gobject_class, PROP_REVEALED,
+		g_param_spec_boolean( "revealed",
+			_( "revealed" ),
+			_( "Show the display control bar" ),
+			FALSE,
+			G_PARAM_READWRITE ) );
+
 }
 
 Infobar *
@@ -365,15 +382,3 @@ infobar_new( ImageWindow *win )
 
 	return( infobar ); 
 }
-
-void 
-infobar_set_reveal( Infobar *infobar, gboolean reveal )
-{
-#ifdef DEBUG
-	printf( "infobar_set_reveal: %d\n", reveal ); 
-#endif /*DEBUG*/
-
-	gtk_action_bar_set_revealed( 
-		GTK_ACTION_BAR( infobar->action_bar ), reveal );
-}
-

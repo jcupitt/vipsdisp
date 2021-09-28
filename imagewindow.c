@@ -539,7 +539,6 @@ image_window_duplicate_action( GSimpleAction *action,
 	 */
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "fullscreen" );
 
 	/* We want to init the scroll position, but we can't do that until the
 	 * adj range is set, and that won't happen until the image is loaded.
@@ -899,15 +898,9 @@ image_window_fullscreen( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	if( g_variant_get_boolean( state ) )
-		gtk_window_fullscreen( GTK_WINDOW( win ) );
-	else
-		gtk_window_unfullscreen( GTK_WINDOW( win ) );
-
-	/* Update settings for save
-	settings_setb( "image-display",
-		"fullscreen", g_variant_get_boolean( state ) );
-	 */
+	g_object_set( win, 
+		"fullscreened", g_variant_get_boolean( state ),
+		NULL );
 
 	g_simple_action_set_state( action, state );
 }
@@ -922,11 +915,6 @@ image_window_control( GSimpleAction *action,
 		"revealed", g_variant_get_boolean( state ),
 		NULL );
 
-	/* Update settings for save
-	settings_setb( "image-display", 
-		"show-display-control-bar", g_variant_get_boolean( state ) );
-	 */
-
 	g_simple_action_set_state( action, state );
 }
 
@@ -936,13 +924,9 @@ image_window_info( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	infobar_set_reveal( INFOBAR( win->info_bar ), 
-		g_variant_get_boolean( state ) );
-
-	/* Update settings for save
-	settings_setb( "image-display", 
-		"show-display-info-bar", g_variant_get_boolean( state ) );
-	 */
+	g_object_set( win->info_bar,
+		"revealed", g_variant_get_boolean( state ),
+		NULL );
 
 	g_simple_action_set_state( action, state );
 }
@@ -1221,10 +1205,22 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_drag_update ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
-	g_settings_bind( win->settings, "show-display-control-bar",
+	g_settings_bind( win->settings, "control",
 		G_OBJECT( win->conversion_bar ),
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
+
+	g_settings_bind( win->settings, "info",
+		G_OBJECT( win->info_bar ),
+		"revealed", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	/* Initial menu state from settings.
+         */
+        change_state( GTK_WIDGET( win ), "control", 
+		g_settings_get_value( win->settings, "control" ) );
+        change_state( GTK_WIDGET( win ), "info", 
+		g_settings_get_value( win->settings, "info" ) );
 
 }
 

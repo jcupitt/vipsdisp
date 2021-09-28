@@ -131,8 +131,12 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- add settings save for conversion options
+
+  conversionview will need to init from settings on startup
+
 - once the framerate drops below 30 fps, the final paint is almost always
-  interrupted by the arrival of the next frame
+  interrupted by the arrival of the next frame, appearing to lock the display
 
   only schedule the next paint when the current one finishes?
 
@@ -165,8 +169,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 - view TIFF with pages not all the same size ... error!
 
   need to pick an appropriate mode automatically
-
-- settings ... can we use the gtk settings infrastructure for this?
 
 - improve upscale for buffer rebuild to reduce percieved flicker
 

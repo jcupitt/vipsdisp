@@ -13,7 +13,7 @@
 
         <child type="start">
           <object class="GtkLabel" id="x">
-            <property name="label">xpos</property>
+            <property name="label">0</property>
           </object>
         </child>
 
@@ -25,7 +25,7 @@
 
         <child type="start">
           <object class="GtkLabel" id="y">
-            <property name="label">ypos</property>
+            <property name="label">0</property>
           </object>
         </child>
 
@@ -37,13 +37,13 @@
 
         <child type="start">
           <object class="GtkLabel" id="values">
-            <property name="label">pixel value list</property>
+            <property name="label">    0     0     0</property>
           </object>
         </child>
 
         <child type="end">
           <object class="GtkLabel" id="mag">
-            <property name="label">Mag 2</property>
+            <property name="label">Magnification 1:1</property>
           </object>
         </child>
 
