@@ -16,11 +16,9 @@ config.*
 autom4te.cache
 aclocal.m4
 m4/
-compile
 depcomp
 libtool
 ltmain.sh
-missing
 mkinstalldirs
 po/POTFILES
 fred
