@@ -131,6 +131,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- scale and offset sliders shouldn't change alpha
+
 - add settings save for conversion options
 
   conversionview will need to init from settings on startup

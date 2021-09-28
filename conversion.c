@@ -676,6 +676,33 @@ conversion_set_file( Conversion *conversion, GFile *file )
         return( 0 );
 }
 
+static VipsImage *
+conversion_image_log( VipsImage *image )
+{
+	static const double power = 0.25;
+	const double scale = 255.0 / log10( 1.0 + pow( 255.0, power ) );
+
+	VipsImage *context = vips_image_new();
+	VipsImage **t = (VipsImage **) 
+		vips_object_local_array( VIPS_OBJECT( context ), 7 );
+
+        VipsImage *x;
+
+	if( vips_pow_const1( image, &t[0], power, NULL ) ||
+		vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
+		vips_log10( t[1], &t[2], NULL ) ||
+		/* Add 0.5 to get round to nearest.
+		 */
+		vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
+		g_object_unref( context );
+		return( NULL ); 
+	}
+	VIPS_UNREF( context );
+	image = x;
+
+	return( image );
+}
+
 /* Make the rgb image we paint with. This runs synchronously and is not
  * threaded.
  */
@@ -688,34 +715,13 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         image = in;
         g_object_ref( image ); 
 
-        /* Scale and offset.
+        /* We don't want these to touch alpha ... remove and reattach.
          */
         if( conversion->scale != 1.0 ||
-                conversion->offset != 0.0 ) {
-                if( vips_linear1( image, &x, 
-                        conversion->scale, conversion->offset, 
-                        "uchar", TRUE, 
-                        NULL ) ) {
-                        VIPS_UNREF( image );
-                        return( NULL ); 
-                }
-                VIPS_UNREF( image );
-                image = x;
-        }
-        else {
-                /* To uchar.
-                 */
-                if( vips_cast_uchar( image, &x, NULL ) ) {
-                        VIPS_UNREF( image );
-                        return( NULL ); 
-                }
-                VIPS_UNREF( image );
-                image = x;
-        }
-
-        if( conversion->falsecolour ) {
-		/* This makes an RGB image, so we need to reattach any alpha.
-		 */
+                conversion->offset != 0.0 ||
+		conversion->falsecolour ||
+		conversion->log ||
+                image->Type == VIPS_INTERPRETATION_FOURIER ) {
 		VipsImage *rgb;
 		VipsImage *alpha;
 
@@ -723,23 +729,65 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
                         VIPS_UNREF( image );
                         return( NULL ); 
                 }
-                if( vips_falsecolour( image, &rgb, NULL ) ) {
+		if( vips_extract_band( image, &rgb, 0, "n", 3, NULL ) ) {
                         VIPS_UNREF( image );
                         VIPS_UNREF( alpha );
                         return( NULL ); 
                 }
+		VIPS_UNREF( image );
+
+		if( conversion->log ||
+			image->Type == VIPS_INTERPRETATION_FOURIER ) { 
+			if( !(x = conversion_image_log( rgb )) ) {
+				VIPS_UNREF( rgb );
+				VIPS_UNREF( alpha );
+				return( NULL ); 
+			}
+			VIPS_UNREF( rgb );
+			rgb = x;
+		}
+
+		if( conversion->scale != 1.0 ||
+			conversion->offset != 0.0 ) {
+			if( vips_linear1( rgb, &x, 
+				conversion->scale, conversion->offset, 
+				"uchar", TRUE, 
+				NULL ) ) {
+				VIPS_UNREF( rgb );
+				VIPS_UNREF( alpha );
+				return( NULL ); 
+			}
+			VIPS_UNREF( rgb );
+			rgb = x;
+		}
+
+		if( conversion->falsecolour ) {
+			if( vips_falsecolour( rgb, &x, NULL ) ) {
+				VIPS_UNREF( rgb );
+				VIPS_UNREF( alpha );
+				return( NULL ); 
+			}
+			VIPS_UNREF( rgb );
+			rgb = x;
+		}
+
                 if( vips_bandjoin2( rgb, alpha, &x, NULL ) ) {
-                        VIPS_UNREF( image );
-                        VIPS_UNREF( alpha );
                         VIPS_UNREF( rgb );
+                        VIPS_UNREF( alpha );
                         return( NULL ); 
                 }
 
-                VIPS_UNREF( image );
-		VIPS_UNREF( alpha );
 		VIPS_UNREF( rgb );
+		VIPS_UNREF( alpha );
                 image = x;
 	}
+
+	if( vips_cast_uchar( image, &x, NULL ) ) {
+		VIPS_UNREF( image );
+		return( NULL ); 
+	}
+	VIPS_UNREF( image );
+	image = x;
 
         return( image );
 }
@@ -999,30 +1047,6 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		}
 		VIPS_UNREF( image );
 		image = x;
-	}
-
-        if( conversion->log ||
-		image->Type == VIPS_INTERPRETATION_FOURIER ) { 
-		static const double power = 0.25;
-		const double scale = 255.0 / 
-			log10( 1.0 + pow( 255.0, power ) );
-
-		VipsImage *context = vips_image_new();
-		VipsImage **t = (VipsImage **) 
-			vips_object_local_array( VIPS_OBJECT( context ), 7 );
-
-                if( vips_pow_const1( image, &t[0], power, NULL ) ||
-                        vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
-                        vips_log10( t[1], &t[2], NULL ) ||
-                        /* Add 0.5 to get round to nearest.
-                         */
-                        vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
-                        g_object_unref( context );
-                        return( NULL ); 
-                }
-		VIPS_UNREF( context );
-                VIPS_UNREF( image );
-                image = x;
 	}
 
         x = vips_image_new();
