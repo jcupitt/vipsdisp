@@ -16,7 +16,6 @@ config.*
 autom4te.cache
 aclocal.m4
 m4/
-depcomp
 libtool
 ltmain.sh
 mkinstalldirs
