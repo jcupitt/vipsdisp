@@ -28,12 +28,6 @@ main( int argc, char **argv )
 
 	status = g_application_run( G_APPLICATION( app ), argc, argv );
 
-	printf( "TODO: save settings\n" );
-	/*
-	if( settings_save() )
-		vips_error_exit( "unable to save settings" );
-	 */
-
 	vips_shutdown();
 
 	return( status );
