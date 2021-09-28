@@ -337,6 +337,9 @@
                     "V" : "0"
                 }
             },
+	    "build-commands" : [
+		    "install -Dm644 -t /app/share/icons/hicolor/128x128/apps org.libvips.vipsdisp.png"
+	    ],
             "sources" : [
                 {
                     "type" : "git",
