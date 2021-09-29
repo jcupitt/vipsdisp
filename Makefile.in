@@ -98,7 +98,7 @@ DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
-CONFIG_CLEAN_FILES = vipsdisp.desktop
+CONFIG_CLEAN_FILES = org.libvips.vipsdisp.desktop
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" \
 	"$(DESTDIR)$(vipsdispappdir)" \
@@ -201,8 +201,9 @@ ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
 AM_RECURSIVE_TARGETS = cscope
-am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/vipsdisp.desktop.in \
-	compile depcomp install-sh missing
+am__DIST_COMMON = $(srcdir)/Makefile.in \
+	$(srcdir)/org.libvips.vipsdisp.desktop.in compile depcomp \
+	install-sh missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -343,7 +344,7 @@ vipsdispdir = $(datadir)/icons/hicolor/128x128/apps
 vipsdispappdir = $(datadir)/applications
 vipsdispappdatadir = $(datadir)/metainfo
 vipsdisp_DATA = org.libvips.vipsdisp.png
-vipsdispapp_DATA = vipsdisp.desktop
+vipsdispapp_DATA = org.libvips.vipsdisp.desktop
 vipsdispappdata_DATA = org.libvips.vipsdisp.appdata.xml
 gsettings_SCHEMAS = org.libvips.vipsdisp.gschema.xml
 resource_files = \
@@ -354,7 +355,7 @@ EXTRA_DIST = \
 	gtk \
 	patches \
 	$(resource_files) \
-	vipsdisp.desktop.in
+	org.libvips.vipsdisp.desktop.in
 
 all: all-am
 
@@ -393,7 +394,7 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
 $(am__aclocal_m4_deps):
-vipsdisp.desktop: $(top_builddir)/config.status $(srcdir)/vipsdisp.desktop.in
+org.libvips.vipsdisp.desktop: $(top_builddir)/config.status $(srcdir)/org.libvips.vipsdisp.desktop.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)

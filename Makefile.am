@@ -30,7 +30,7 @@ vipsdispappdir = $(datadir)/applications
 vipsdispappdatadir = $(datadir)/metainfo
 
 vipsdisp_DATA = org.libvips.vipsdisp.png
-vipsdispapp_DATA = vipsdisp.desktop
+vipsdispapp_DATA = org.libvips.vipsdisp.desktop
 vipsdispappdata_DATA = org.libvips.vipsdisp.appdata.xml
 gsettings_SCHEMAS = org.libvips.vipsdisp.gschema.xml
 @GSETTINGS_RULES@
@@ -51,6 +51,6 @@ EXTRA_DIST = \
 	gtk \
 	patches \
 	$(resource_files) \
-	vipsdisp.desktop.in
+	org.libvips.vipsdisp.desktop.in
 
 

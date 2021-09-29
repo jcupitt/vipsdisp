@@ -18,7 +18,6 @@
         "/lib/girepository-1.0",
         "/lib/pkgconfig",
         "/lib/cmake",
-        "/lib/debug",
         "/lib/openjpeg-*",
         "/lib/libhdf5.settings",
         "/man",
