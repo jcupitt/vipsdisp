@@ -30,7 +30,7 @@ visualisation options and display modes.
     </p>
   </description>
 
-  <launchable type="desktop-id">vipsdisp.desktop</launchable>
+  <launchable type="desktop-id">org.libvips.vipsdisp.desktop</launchable>
 
   <screenshots>
 

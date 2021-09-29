@@ -1,6 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Vipsdisp
-Icon=org.libvips.vipsdisp
-StartupNotify=true
-Exec="\\@bindir@/vipsdisp"
