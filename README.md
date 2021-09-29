@@ -22,6 +22,13 @@ It all works, though see the TODO list below.
 
 [![Screenshot](images/shot3.png)](images/shot3.png)
 
+## Install
+
+This program is on flathub, see:
+
+https://flathub.org/apps/search/org.libvips.vipsdisp
+
+Just click "install".
 
 ## Features
 
@@ -58,7 +65,7 @@ It all works, though see the TODO list below.
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
   and nicely animated.
 
-## Install
+## Build from source
 
 You need gtk4. On Ubuntu 21.04, build with:
 
@@ -131,7 +138,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- keyboard nav shortcuts are blocking display control bar entery, eg. try
+- keyboard nav shortcuts are blocking display control bar entry, eg. try
   entering "1.2" for scale
 
 - once the framerate drops below 30 fps, the final paint is almost always
