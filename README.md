@@ -138,14 +138,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- this locks up vipsdisp
-
-    vips grid brain.gif[n=-1] x.v 240 17 1
-    vips bandfold x.v x2.v --factor 17
-
-  makes a 51-band image, livelocks when you mouse over a pixel (just after
-  first call to infobar_status_update())
-
 - add ome-tiff load? we'd need a display mode that turned pages into bands
 
   mode "Pages as bands"
