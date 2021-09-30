@@ -142,6 +142,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
   mode "Pages as bands"
 
+- add imagemagick to get dicom loader?
+
 - keyboard nav shortcuts are blocking display control bar entry, eg. try
   entering "1.2" for scale
 
