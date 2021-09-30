@@ -1,9 +1,9 @@
 #include "vipsdisp.h"
 
 /*
+ */
 #define DEBUG_VERBOSE
 #define DEBUG
- */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -515,6 +515,24 @@ conversion_set_image( Conversion *conversion,
 	g_object_ref( image );
 
         conversion->image_region = vips_region_new( conversion->image );
+
+	/* n-pages can be wrong, for example, it can be a metadata item from
+	 * a .vips file and no longer correct.
+	 *
+	 * Sanity check again, and reset if it looks bad.
+	 */
+	if( conversion->n_pages * conversion->height != image->Ysize ||
+		conversion->n_pages <= 0 ||
+		conversion->n_pages > 1000 ) {
+#ifdef DEBUG
+		printf( "conversion_set_image: bad page layout, resetting\n" );
+#endif /*DEBUG*/
+
+		conversion->n_pages = 1;
+		conversion->height = image->Ysize;
+		VIPS_FREE( conversion->delay );
+		conversion->n_delay = 0;
+	}
 
 #ifdef DEBUG
 {
