@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -340,7 +340,8 @@ conversion_attach_progress( Conversion *conversion )
                 G_CALLBACK( conversion_posteval ), conversion, 0 );
 }
 
-/* image needs to have been opened with n == -1, ie. a toilet roll.
+/* The image should have been opened with no arguments, ie. it's just the
+ * first page. We reopen with all pages if we can.
  */
 static int
 conversion_set_image( Conversion *conversion, 
@@ -543,25 +544,11 @@ conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
 	return( 0 );
 }
 
-/* All libvips loaders which support page/n arguments. jp2k has page, but not
- * n.
- *
- * FIXME ... could use introspection to make this list.
- */
-static const char *
-conversion_page_formats[] = {
-	"tiff",
-	"pdf",
-	"webp",
-	"gif"
-};
-
 int
 conversion_set_source( Conversion *conversion, VipsSource *source )
 {
 	const char *loader;
         VipsImage *image;
-	int i;
 
 	/* Don't update if we're still loading.
 	 */
@@ -594,17 +581,10 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 	 */
 	loader = vips_nickname_find( g_type_from_name( loader ) );
 
-	for( i = 0; i < VIPS_NUMBER( conversion_page_formats ); i++ ) {
-		if( vips_isprefix( conversion_page_formats[i], loader ) ) {
-			image = vips_image_new_from_source( source, "",
-				"n", -1, NULL );
-			break;
-		}
-	}
-	if( i == VIPS_NUMBER( conversion_page_formats ) )
-                image = vips_image_new_from_source( source, "", NULL );
-
-	if( !image )
+        /* We can't set n=-1, since not all loaders always support that. For 
+         * example, a pyr tiff will fail with "not all pages same".
+         */
+        if( !(image = vips_image_new_from_source( source, "", NULL )) )
 		return( -1 );
 
 	if( conversion_set_image( conversion, loader, image ) ) {

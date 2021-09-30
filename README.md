@@ -138,6 +138,10 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- fix tiff pyramid support
+
+- add ome-tiff load? we'd need a display mode that turned pages into bands
+
 - keyboard nav shortcuts are blocking display control bar entry, eg. try
   entering "1.2" for scale
 
