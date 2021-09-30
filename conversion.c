@@ -197,6 +197,33 @@ conversion_open( Conversion *conversion, int level )
         return( image );
 }
 
+/* Detect an image with all pages the same size. We can open these in
+ * toilet-roll mode.
+ */
+static gboolean
+conversion_get_pages_same_size( Conversion *conversion )
+{
+        ConversionType old_type;
+        VipsImage *image;
+        gboolean result;
+
+#ifdef DEBUG
+        printf( "conversion_get_pages_same_size:\n" );
+#endif /*DEBUG*/
+
+        /* Don't test all pages, it can take ages for big GIFs. Instead,
+         * experimentally open in toilet-roll mode.
+         */
+	old_type = conversion->type;
+	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+        image = conversion_open( conversion, 0 );
+        result = image != NULL;
+        VIPS_UNREF( image );
+	conversion->type = old_type;
+
+        return( result ); 
+}
+
 /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
  *
  * This may not be a pyr tiff, so no error if we can't find the layers.
@@ -340,6 +367,38 @@ conversion_attach_progress( Conversion *conversion )
                 G_CALLBACK( conversion_posteval ), conversion, 0 );
 }
 
+#ifdef DEBUG
+static const char *
+type_name( ConversionType type ) 
+{
+        switch( type ) {
+                case CONVERSION_TYPE_PAGE_PYRAMID:
+                        return( "pyramid" );
+                case CONVERSION_TYPE_TOILET_ROLL:
+                        return( "toilet-roll" );
+                case CONVERSION_TYPE_MULTIPAGE:
+                        return( "multipage" );
+                default:
+                        return( "<unknown>" );
+        }
+}
+
+static const char *
+mode_name( ConversionMode mode ) 
+{
+        switch( mode ) {
+        case CONVERSION_MODE_TOILET_ROLL:
+                return( "toilet-roll" );
+        case CONVERSION_MODE_MULTIPAGE:
+                return( "multipage" );
+        case CONVERSION_MODE_ANIMATED:
+                return( "animated" );
+        default:
+                return( "<unknown>" );
+        }
+}
+#endif /*DEBUG*/
+
 /* The image should have been opened with no arguments, ie. it's just the
  * first page. We reopen with all pages if we can.
  */
@@ -378,11 +437,11 @@ conversion_set_image( Conversion *conversion,
 		conversion->n_delay = n_delay;
 	}
 
-	/* Are all pages the same size? We can only use animation and 
+	/* Are all pages the same size? We can use animation and 
 	 * toilet-roll mode in this case.
 	 */
-	if( image->Ysize == conversion->height * conversion->n_pages )
-		conversion->pages_same_size = TRUE;
+        conversion->pages_same_size = 
+                conversion_get_pages_same_size( conversion ); 
 
         /* For openslide, read out the level structure.
          */
@@ -421,7 +480,6 @@ conversion_set_image( Conversion *conversion,
                 if( conversion->level_count == 0 ) {
                         conversion->subifd_pyramid = FALSE;
                         conversion->page_pyramid = TRUE;
-
                         conversion_get_pyramid_page( conversion );
 
                         if( conversion->level_count == 0 )
@@ -433,7 +491,6 @@ conversion_set_image( Conversion *conversion,
          */
         if( vips_isprefix( "jp2k", conversion->loader ) ) {
 		conversion->page_pyramid = TRUE;
-
 		conversion_get_pyramid_page( conversion );
 
 		if( conversion->level_count == 0 )
@@ -449,11 +506,21 @@ conversion_set_image( Conversion *conversion,
 			conversion->type = CONVERSION_TYPE_MULTIPAGE;
 	}
 
+        /* Now we've sniffed the image properties, we can reopen in the
+         * correct mode.
+         */
+        VIPS_UNREF( image );
+        image = conversion_open( conversion, 0 );
+        conversion->image = image;
+	g_object_ref( image );
+
+        conversion->image_region = vips_region_new( conversion->image );
+
 #ifdef DEBUG
 {
         int i;
 
-        printf( "conversion_set_image:\n" );
+        printf( "conversion_set_image: detected\n" );
         printf( "\tloader = %s\n", conversion->loader );
         printf( "\twidth = %d\n", conversion->width );
         printf( "\theight = %d\n", conversion->height );
@@ -470,20 +537,22 @@ conversion_set_image( Conversion *conversion,
                         conversion->level_height[i] ); 
 
         printf( "\tpages_same_size = %d\n", conversion->pages_same_size );
-        printf( "\ttype = %d\n", conversion->type );
-        printf( "\tmode = %d\n", conversion->mode );
+        printf( "\ttype = %s\n", type_name( conversion->type ) );
+        printf( "\tmode = %s\n", mode_name( conversion->mode ) );
         printf( "\tdelay = %p\n", conversion->delay );
         printf( "\tn_delay = %d\n", conversion->n_delay );
 }
 #endif /*DEBUG*/
-
-        conversion->image_region = vips_region_new( conversion->image );
 
 	if( conversion->delay &&
 		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
 		mode = CONVERSION_MODE_ANIMATED;
 	else
 		mode = CONVERSION_MODE_MULTIPAGE;
+
+#ifdef DEBUG
+       printf( "starting in mode %s\n", mode_name( mode ) );
+#endif /*DEBUG*/
 
         g_object_set( conversion, 
 		"mode", mode, 
