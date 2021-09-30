@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */

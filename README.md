@@ -161,16 +161,11 @@ $ ./vipsdisp ~/pics/k2.jpg
      could skip frames for very slow updates? track `t` rather than having a
      timeout, and pick a frame from that?
 
-- we build de265 and libheif, but flatpak won't open .heic, why?
-
-- PDF display seems to have some font issues, do we need to add a font package
-  too?
-
-- add appdata 
-
 - view TIFF with pages not all the same size ... error!
 
   need to pick an appropriate mode automatically
+
+  TIFF page-wise pyramids don't seem to be working
 
 - improve upscale for buffer rebuild to reduce percieved flicker
 
