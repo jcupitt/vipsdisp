@@ -138,9 +138,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- pages as bands shouldn't have an alpha?
+- image sniffing needs refactoring, it's too complex and fragile
 
-  also not clear if we are generating a colour image, try eg. pics/ome/x.tif
+- ome-tiff pyr load, rapid zoom in and out, see a lot of errors
+
+  same for other subifd pyr?
 
 - add imagemagick to get dicom loader?
 

@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 /* Use this threadpool to do background loads of images.
  */
@@ -1055,6 +1055,8 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 			return( NULL );
 		}
 
+		x->Type = VIPS_INTERPRETATION_MULTIBAND;
+
 		VIPS_UNREF( image );
 		VIPS_UNREF( context );
 		image = x;
@@ -1152,8 +1154,20 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         image = x;
 
         /* Force to RGBA.
-         */
+	 */
 	if( !vips_image_hasalpha( image ) ) {
+		/* Trim down to just RGB first ... we don't want to add the
+		 * alpha way off to the right.
+		 */
+		if( image->Bands > 3 ) {
+			if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
+				VIPS_UNREF( image );
+				return( NULL ); 
+			}
+			VIPS_UNREF( image );
+			image = x;
+		}
+
 		if( vips_addalpha( image, &x, NULL ) ) {
 			VIPS_UNREF( image );
 			return( NULL ); 
