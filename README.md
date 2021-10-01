@@ -140,6 +140,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - pages as bands shouldn't have an alpha?
 
+  also not clear if we are generating a colour image, try eg. pics/ome/x.tif
+
 - add imagemagick to get dicom loader?
 
 - once the framerate drops below 30 fps, the final paint is almost always

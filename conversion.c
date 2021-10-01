@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 /* Use this threadpool to do background loads of images.
  */
@@ -198,38 +198,6 @@ conversion_open( Conversion *conversion, int level )
         return( image );
 }
 
-/* Detect an image with all pages the same size. We can open these in
- * toilet-roll mode.
- */
-static gboolean
-conversion_get_pages_same_size( Conversion *conversion )
-{
-        ConversionType old_type;
-        VipsImage *image;
-        gboolean result;
-
-#ifdef DEBUG
-        printf( "conversion_get_pages_same_size:\n" );
-#endif /*DEBUG*/
-
-        /* Don't test all pages, it can take ages for big GIFs. Instead,
-         * experimentally open in toilet-roll mode.
-         */
-	old_type = conversion->type;
-	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
-	/* Blocvk error messages from eg. page-pyramidal TIFFs, where pages
-	 * are not all the same size.
-	 */
-	vips_error_freeze();
-        image = conversion_open( conversion, 0 );
-	vips_error_thaw();
-        result = image != NULL;
-        VIPS_UNREF( image );
-	conversion->type = old_type;
-
-        return( result ); 
-}
-
 /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
  *
  * This may not be a pyr tiff, so no error if we can't find the layers.
@@ -264,11 +232,14 @@ conversion_get_pyramid_subifd( Conversion *conversion )
                 /* This won't be exact due to rounding etc.
                  */
                 if( abs( level_width - expected_level_width ) > 5 ||
-                        level_width < 2 )
+                        level_width < 2 ||
+			abs( level_height - expected_level_height ) > 5 ||
+                        level_height < 2 ) {
+#ifdef DEBUG
+			printf( "  bad subifd level %d\n", i );
+#endif /*DEBUG*/
                         return;
-                if( abs( level_height - expected_level_height ) > 5 ||
-                        level_height < 2 )
-                        return;
+		}
 
                 conversion->level_width[i] = level_width;
                 conversion->level_height[i] = level_height;
@@ -415,6 +386,7 @@ conversion_set_image( Conversion *conversion,
 	const char *loader, VipsImage *image )
 {
 	ConversionMode mode;
+        VipsImage *x;
 
 #ifdef DEBUG
         printf( "conversion_set_image: starting ..\n" );
@@ -445,11 +417,50 @@ conversion_set_image( Conversion *conversion,
 		conversion->n_delay = n_delay;
 	}
 
-	/* Are all pages the same size? We can use animation and 
-	 * toilet-roll mode in this case.
+	/* Can we open in toilet-roll mode? We need to test that n_pages and
+	 * page_size are sane too. 
 	 */
-        conversion->pages_same_size = 
-                conversion_get_pages_same_size( conversion ); 
+#ifdef DEBUG
+        printf( "conversion_set_image: test toilet-roll mode\n" );
+#endif /*DEBUG*/
+	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+	/* Block error messages from eg. page-pyramidal TIFFs, where pages
+	 * are not all the same size.
+	 */
+	vips_error_freeze();
+        x = conversion_open( conversion, 0 );
+	vips_error_thaw();
+
+	if( x != NULL ) {
+		/* Toilet-roll mode worked. Check sanity of page height,
+		 * n_pages and Ysize too.
+		 */
+		if( conversion->n_pages * conversion->height != x->Ysize ||
+			conversion->n_pages <= 0 ||
+			conversion->n_pages > 10000 ) {
+#ifdef DEBUG
+			printf( "conversion_set_image: bad page layout\n" );
+#endif /*DEBUG*/
+
+			conversion->n_pages = 1;
+			conversion->height = image->Ysize;
+			VIPS_FREE( conversion->delay );
+			conversion->n_delay = 0;
+		}
+		else
+			/* Everything looks good.
+			 */
+			conversion->pages_same_size = TRUE;
+
+		VIPS_UNREF( x );
+	}
+
+	/* Back to plain multipage for the rest of the sniff period. For
+	 * example, subifd pyramid needs single page opening.
+	 *
+	 * We reset this at the end.
+	 */
+	conversion->type = CONVERSION_TYPE_MULTIPAGE;
 
 	/* Are all pages the same size and format, and also all mono (one
 	 * band)? We can display pages-as-bands.
@@ -529,24 +540,6 @@ conversion_set_image( Conversion *conversion,
 
         conversion->image_region = vips_region_new( conversion->image );
 
-	/* n-pages can be wrong, for example, it can be a metadata item from
-	 * a .vips file and no longer correct.
-	 *
-	 * Sanity check again, and reset if it looks bad.
-	 */
-	if( conversion->n_pages * conversion->height != image->Ysize ||
-		conversion->n_pages <= 0 ||
-		conversion->n_pages > 10000 ) {
-#ifdef DEBUG
-		printf( "conversion_set_image: bad page layout, resetting\n" );
-#endif /*DEBUG*/
-
-		conversion->n_pages = 1;
-		conversion->height = image->Ysize;
-		VIPS_FREE( conversion->delay );
-		conversion->n_delay = 0;
-	}
-
 #ifdef DEBUG
 {
         int i;
@@ -568,6 +561,7 @@ conversion_set_image( Conversion *conversion,
                         conversion->level_height[i] ); 
 
         printf( "\tpages_same_size = %d\n", conversion->pages_same_size );
+        printf( "\tall_mono = %d\n", conversion->all_mono );
         printf( "\ttype = %s\n", type_name( conversion->type ) );
         printf( "\tmode = %s\n", mode_name( conversion->mode ) );
         printf( "\tdelay = %p\n", conversion->delay );
@@ -1043,13 +1037,14 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		VipsImage **t = (VipsImage **) 
 			vips_object_local_array( context, conversion->n_pages );
 
-		int i;
+		int page;
 		VipsImage *x;
 
-		for( i = 0; i < conversion->n_pages; i++ ) 
-			if( vips_crop( image, &t[i], 
-				0, i * page_height, 
-				page_width, page_height, NULL ) ) {
+		for( page = 0; page < conversion->n_pages; page++ ) 
+			if( vips_crop( image, &t[page], 
+				0, page * page_height, 
+				page_width, page_height, 
+				NULL ) ) {
 				VIPS_UNREF( context );
 				VIPS_UNREF( image );
 				return( NULL );
@@ -1209,8 +1204,12 @@ conversion_update_display( Conversion *conversion )
 
         if( conversion->image ) {
                 if( !(conversion->display = conversion_display_image( 
-			conversion, &conversion->mask )) ) 
+			conversion, &conversion->mask )) ) {
+#ifdef DEBUG
+			printf( "conversion_update_display: build failed\n" );
+#endif /*DEBUG*/
                         return( -1 ); 
+		}
         }
 
         conversion_update_rgb( conversion );
