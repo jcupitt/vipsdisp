@@ -120,6 +120,11 @@ typedef struct _Conversion {
 	 */
 	gboolean pages_same_size;
 
+	/* If all the pages are the same size and format, and also all mono,
+	 * we can display pages as bands. 
+	 */
+	gboolean all_mono;
+
 	/* For pyramidal formats, we need to read out the size of each level.
 	 * Largest level first.
          */
