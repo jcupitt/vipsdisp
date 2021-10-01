@@ -140,6 +140,7 @@ typedef struct _Conversion {
 
 	/* Display transform parameters.
 	 */
+	gboolean active;
 	int mag;
 	int page;
 	double scale;

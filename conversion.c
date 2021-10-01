@@ -17,6 +17,7 @@ enum {
         PROP_RGB = 1,
         PROP_MODE,
         PROP_MAG,
+        PROP_ACTIVE,
         PROP_SCALE,
         PROP_OFFSET,
         PROP_PAGE,
@@ -46,7 +47,7 @@ conversion_area_changed( Conversion *conversion, VipsRect *dirty )
                 conversion_signals[SIG_AREA_CHANGED], 0, dirty );
 }
 
-static void
+void
 conversion_display_changed( Conversion *conversion )
 {
         g_signal_emit( conversion, 
@@ -798,11 +799,12 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
 
         /* We don't want these to touch alpha ... remove and reattach.
          */
-        if( conversion->scale != 1.0 ||
-                conversion->offset != 0.0 ||
-		conversion->falsecolour ||
-		conversion->log ||
-                image->Type == VIPS_INTERPRETATION_FOURIER ) {
+        if( conversion->active &&
+		(conversion->scale != 1.0 ||
+                 conversion->offset != 0.0 ||
+		 conversion->falsecolour ||
+		 conversion->log ||
+                 image->Type == VIPS_INTERPRETATION_FOURIER) ) {
 		VipsImage *rgb;
 		VipsImage *alpha;
 
@@ -1269,6 +1271,10 @@ conversion_property_name( guint prop_id )
 		return( "MAG" );
 		break;
 
+	case PROP_ACTIVE:
+		return( "ACTIVE" );
+		break;
+
 	case PROP_SCALE:
 		return( "SCALE" );
 		break;
@@ -1359,13 +1365,20 @@ conversion_set_property( GObject *object,
                 }
                 break;
 
+        case PROP_ACTIVE:
+                b = g_value_get_boolean( value );
+                if( conversion->active != b ) { 
+                        conversion->active = b;
+                        conversion_update_rgb( conversion );
+                }
+                break;
+
         case PROP_SCALE:
                 d = g_value_get_double( value );
                 if( d > 0 &&
                         d <= 1000000 &&
                         conversion->scale != d ) { 
                         conversion->scale = d;
-			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1376,7 +1389,6 @@ conversion_set_property( GObject *object,
                         d <= 1000000 &&
                         conversion->offset != d ) { 
                         conversion->offset = d;
-			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1396,7 +1408,6 @@ conversion_set_property( GObject *object,
                 b = g_value_get_boolean( value );
                 if( conversion->falsecolour != b ) { 
                         conversion->falsecolour = b;
-			conversion_changed( conversion );
                         conversion_update_rgb( conversion );
                 }
                 break;
@@ -1405,7 +1416,6 @@ conversion_set_property( GObject *object,
                 b = g_value_get_boolean( value );
                 if( conversion->log != b ) { 
                         conversion->log = b;
-			conversion_changed( conversion );
 			conversion_update_display( conversion );
                 }
                 break;
@@ -1442,6 +1452,10 @@ conversion_get_property( GObject *object,
 
         case PROP_MAG:
                 g_value_set_int( value, conversion->mag );
+                break;
+
+        case PROP_ACTIVE:
+                g_value_set_boolean( value, conversion->active );
                 break;
 
         case PROP_SCALE:
@@ -1615,6 +1629,13 @@ conversion_class_init( ConversionClass *class )
                         _( "Mag" ),
                         _( "Magnification factor" ),
                         -1000000, 1000000, 1,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_ACTIVE,
+                g_param_spec_boolean( "active",
+                        _( "active" ),
+                        _( "Active" ),
+                        FALSE,
                         G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_SCALE,

@@ -917,6 +917,13 @@ image_window_control( GSimpleAction *action,
 		"revealed", g_variant_get_boolean( state ),
 		NULL );
 
+	/* Disable most display conversion if the controls are hidden. It's
+	 * much too confusing.
+	 */
+	g_object_set( win->conversion,
+		"active", g_variant_get_boolean( state ),
+		NULL );
+
 	g_simple_action_set_state( action, state );
 }
 
