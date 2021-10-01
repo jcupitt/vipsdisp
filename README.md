@@ -138,6 +138,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- disable conversion stuff if the bar is hidden
+
 - add ome-tiff load? we'd need a display mode that turned pages into bands
 
   mode "Pages as bands"
