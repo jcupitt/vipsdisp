@@ -109,47 +109,47 @@ set_tooltip( GtkWidget *wid, const char *fmt, ... )
 void
 copy_adj( GtkAdjustment *to, GtkAdjustment *from )
 {
-	double value = gtk_adjustment_get_value( from );
-	double lower = gtk_adjustment_get_lower( from );
-	double upper = gtk_adjustment_get_upper( from );
-	double step_increment = gtk_adjustment_get_step_increment( from );
-	double page_increment = gtk_adjustment_get_page_increment( from );
-	double page_size = gtk_adjustment_get_page_size( from );
+        double value = gtk_adjustment_get_value( from );
+        double lower = gtk_adjustment_get_lower( from );
+        double upper = gtk_adjustment_get_upper( from );
+        double step_increment = gtk_adjustment_get_step_increment( from );
+        double page_increment = gtk_adjustment_get_page_increment( from );
+        double page_size = gtk_adjustment_get_page_size( from );
 
-	gtk_adjustment_configure( to, value, 
-		lower, upper, 
-		step_increment, page_increment, page_size );
+        gtk_adjustment_configure( to, value, 
+                lower, upper, 
+                step_increment, page_increment, page_size );
 }
 
 void
 change_state( GtkWidget *widget, const char *name, GVariant *state )
 {
-	GAction *action;
+        GAction *action;
 
-	action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
-	if( action )
-		g_action_change_state( action, state );
+        action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
+        if( action )
+                g_action_change_state( action, state );
 }
 
 GVariant *
 get_state( GtkWidget *widget, const char *name )
 {
-	GAction *action;
+        GAction *action;
 
-	action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
-	if( !action ) 
-		return( NULL );
+        action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
+        if( !action ) 
+                return( NULL );
 
-	return( g_action_get_state( action ) );
+        return( g_action_get_state( action ) );
 }
 
 void
 copy_state( GtkWidget *to, GtkWidget *from, const char *name )
 {
-	GVariant *state;
+        GVariant *state;
 
-	if( (state = get_state( from, name )) ) {
-		change_state( to, name, state );
-		g_variant_unref( state );
-	}
+        if( (state = get_state( from, name )) ) {
+                change_state( to, name, state );
+                g_variant_unref( state );
+        }
 }
