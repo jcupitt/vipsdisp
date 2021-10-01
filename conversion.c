@@ -217,7 +217,12 @@ conversion_get_pages_same_size( Conversion *conversion )
          */
 	old_type = conversion->type;
 	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+	/* Blocvk error messages from eg. page-pyramidal TIFFs, where pages
+	 * are not all the same size.
+	 */
+	vips_error_freeze();
         image = conversion_open( conversion, 0 );
+	vips_error_thaw();
         result = image != NULL;
         VIPS_UNREF( image );
 	conversion->type = old_type;
@@ -531,7 +536,7 @@ conversion_set_image( Conversion *conversion,
 	 */
 	if( conversion->n_pages * conversion->height != image->Ysize ||
 		conversion->n_pages <= 0 ||
-		conversion->n_pages > 1000 ) {
+		conversion->n_pages > 10000 ) {
 #ifdef DEBUG
 		printf( "conversion_set_image: bad page layout, resetting\n" );
 #endif /*DEBUG*/

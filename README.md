@@ -105,7 +105,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 * Ctrl + number keys to pick a particular zoom out
 * 0 for best fit
 * i, + / o, - to zoom in and out
-* , . prev page, next page
+* ctrl-, ctrl-. prev page, next page
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
@@ -142,9 +142,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - add imagemagick to get dicom loader?
 
-- keyboard nav shortcuts are blocking display control bar entry, eg. try
-  entering "1.2" for scale
-
 - once the framerate drops below 30 fps, the final paint is almost always
   interrupted by the arrival of the next frame, appearing to lock the display
 
@@ -164,12 +161,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
      could skip frames for very slow updates? track `t` rather than having a
      timeout, and pick a frame from that?
-
-- view TIFF with pages not all the same size ... error!
-
-  need to pick an appropriate mode automatically
-
-  TIFF page-wise pyramids don't seem to be working
 
 - improve upscale for buffer rebuild to reduce percieved flicker
 
