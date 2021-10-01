@@ -393,6 +393,8 @@ mode_name( ConversionMode mode )
                 return( "multipage" );
         case CONVERSION_MODE_ANIMATED:
                 return( "animated" );
+        case CONVERSION_MODE_PAGES_AS_BANDS:
+                return( "pages-as-bands" );
         default:
                 return( "<unknown>" );
         }
@@ -567,6 +569,11 @@ conversion_set_image( Conversion *conversion,
 		mode = CONVERSION_MODE_ANIMATED;
 	else
 		mode = CONVERSION_MODE_MULTIPAGE;
+
+	/* FIXME ... enable this if there are > 1 pages and all pages have 
+	 * 1 band.
+	 */
+	mode = CONVERSION_MODE_PAGES_AS_BANDS;
 
 #ifdef DEBUG
        printf( "starting in mode %s\n", mode_name( mode ) );
