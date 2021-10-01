@@ -17,7 +17,7 @@
  */
 #define MAX_LEVELS (256)
 
-/* The three basic types of images that we support.
+/* The three basic types of image we support.
  *
  * PAGE_PYRAMID 
  *
@@ -34,6 +34,7 @@
  *
  * 	Pages differ in size or perhaps format, so must be loaded as separate
  * 	images. Pages can have subifd pyramids. Includes single-page images.
+ *
  */
 typedef enum _ConversionType {
 	CONVERSION_TYPE_PAGE_PYRAMID,
@@ -41,7 +42,7 @@ typedef enum _ConversionType {
 	CONVERSION_TYPE_MULTIPAGE
 } ConversionType;
 
-/* The three types of image display we support.
+/* The modes of image display we support.
  *
  * TOILET_ROLL
  *
@@ -68,11 +69,18 @@ typedef enum _ConversionType {
  * ANIMATED
  *
  * 	Just like MULTIPAGE, except page flip is driven by a timeout.
+ *
+ * PAGES_AS_BANDS
+ *
+ *      Just like toilet roll, exccept that we chop the image into pages and
+ *      bandjoin them all. Handy for OME-TIFF, which has a one-band image
+ *      in each page.
  */
 typedef enum _ConversionMode {
 	CONVERSION_MODE_TOILET_ROLL,
 	CONVERSION_MODE_MULTIPAGE,
 	CONVERSION_MODE_ANIMATED,
+	CONVERSION_MODE_PAGES_AS_BANDS,
 	CONVERSION_MODE_LAST
 } ConversionMode;
 
@@ -111,6 +119,11 @@ typedef struct _Conversion {
 	 * toilet roll.
 	 */
 	gboolean pages_same_size;
+
+	/* If all the pages are the same size and format, and also all mono,
+	 * we can display pages as bands. 
+	 */
+	gboolean all_mono;
 
 	/* For pyramidal formats, we need to read out the size of each level.
 	 * Largest level first.

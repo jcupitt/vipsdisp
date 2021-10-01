@@ -227,6 +227,8 @@ image_window_conversion_changed( Conversion *conversion, ImageWindow *win )
                 str_mode = "multipage";
         else if( conversion->mode == CONVERSION_MODE_ANIMATED )
                 str_mode = "animated";
+        else if( conversion->mode == CONVERSION_MODE_PAGES_AS_BANDS )
+                str_mode = "pages-as-bands";
         else
                 str_mode = NULL;
 
@@ -1072,6 +1074,8 @@ image_window_mode( GSimpleAction *action,
 		mode = CONVERSION_MODE_MULTIPAGE;
 	else if( g_str_equal( str, "animated" ) ) 
 		mode = CONVERSION_MODE_ANIMATED;
+	else if( g_str_equal( str, "pages-as-bands" ) ) 
+		mode = CONVERSION_MODE_PAGES_AS_BANDS;
 	else
 		/* Ignore attempted change.
 		 */

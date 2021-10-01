@@ -393,6 +393,8 @@ mode_name( ConversionMode mode )
                 return( "multipage" );
         case CONVERSION_MODE_ANIMATED:
                 return( "animated" );
+        case CONVERSION_MODE_PAGES_AS_BANDS:
+                return( "pages-as-bands" );
         default:
                 return( "<unknown>" );
         }
@@ -442,6 +444,13 @@ conversion_set_image( Conversion *conversion,
 	 */
         conversion->pages_same_size = 
                 conversion_get_pages_same_size( conversion ); 
+
+	/* Are all pages the same size and format, and also all mono (one
+	 * band)? We can display pages-as-bands.
+	 */
+	conversion->all_mono = 
+		conversion->pages_same_size && 
+		conversion->image->Bands == 1;
 
         /* For openslide, read out the level structure.
          */
@@ -509,12 +518,28 @@ conversion_set_image( Conversion *conversion,
         /* Now we've sniffed the image properties, we can reopen in the
          * correct mode.
          */
-        VIPS_UNREF( image );
-        image = conversion_open( conversion, 0 );
-        conversion->image = image;
-	g_object_ref( image );
+        VIPS_UNREF( conversion->image );
+        conversion->image = image = conversion_open( conversion, 0 );
 
         conversion->image_region = vips_region_new( conversion->image );
+
+	/* n-pages can be wrong, for example, it can be a metadata item from
+	 * a .vips file and no longer correct.
+	 *
+	 * Sanity check again, and reset if it looks bad.
+	 */
+	if( conversion->n_pages * conversion->height != image->Ysize ||
+		conversion->n_pages <= 0 ||
+		conversion->n_pages > 1000 ) {
+#ifdef DEBUG
+		printf( "conversion_set_image: bad page layout, resetting\n" );
+#endif /*DEBUG*/
+
+		conversion->n_pages = 1;
+		conversion->height = image->Ysize;
+		VIPS_FREE( conversion->delay );
+		conversion->n_delay = 0;
+	}
 
 #ifdef DEBUG
 {
@@ -544,10 +569,17 @@ conversion_set_image( Conversion *conversion,
 }
 #endif /*DEBUG*/
 
-	if( conversion->delay &&
-		conversion->type == CONVERSION_TYPE_TOILET_ROLL )
-		mode = CONVERSION_MODE_ANIMATED;
-	else
+	/* Pick a default display mode.
+	 */
+	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
+		if( conversion->delay )
+			mode = CONVERSION_MODE_ANIMATED;
+		else if( conversion->all_mono )
+			mode = CONVERSION_MODE_PAGES_AS_BANDS;
+		else
+			mode = CONVERSION_MODE_MULTIPAGE;
+	}
+	else 
 		mode = CONVERSION_MODE_MULTIPAGE;
 
 #ifdef DEBUG
@@ -967,12 +999,14 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 		g_object_ref( image ); 
 	}
 
-	/* In multipage display mode, crop out the page we want. We need to
-	 * crop using the page size on image, since it might have been shrunk
-	 * by shrink-on-load above ^^
+	/* In multipage display mode, crop out the page we want. 
+	 *
+	 * We need to crop using the page size on image, since it might have 
+	 * been shrunk by shrink-on-load above ^^
 	 */
-	if( conversion->mode != CONVERSION_MODE_TOILET_ROLL &&
-		conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
+	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
+		(conversion->mode == CONVERSION_MODE_MULTIPAGE ||
+		 conversion->mode == CONVERSION_MODE_ANIMATED) ) {
 		int page_width = image->Xsize;
 		int page_height = vips_image_get_page_height( image );
 
@@ -985,6 +1019,42 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 			return( NULL );
 		}
 		VIPS_UNREF( image );
+		image = x;
+	}
+
+	/* In pages-as-bands mode, crop out all pages and join band-wise. 
+	 * 
+	 * We need to crop using the page size on image, since it might 
+	 * have been shrunk by shrink-on-load above ^^
+	 */
+	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
+		conversion->mode == CONVERSION_MODE_PAGES_AS_BANDS ) {
+		int page_width = image->Xsize;
+		int page_height = vips_image_get_page_height( image );
+
+		VipsObject *context = VIPS_OBJECT( vips_image_new() );
+		VipsImage **t = (VipsImage **) 
+			vips_object_local_array( context, conversion->n_pages );
+
+		int i;
+		VipsImage *x;
+
+		for( i = 0; i < conversion->n_pages; i++ ) 
+			if( vips_crop( image, &t[i], 
+				0, i * page_height, 
+				page_width, page_height, NULL ) ) {
+				VIPS_UNREF( context );
+				VIPS_UNREF( image );
+				return( NULL );
+			}
+		if( vips_bandjoin( t, &x, conversion->n_pages, NULL ) ) {
+			VIPS_UNREF( context );
+			VIPS_UNREF( image );
+			return( NULL );
+		}
+
+		VIPS_UNREF( image );
+		VIPS_UNREF( context );
 		image = x;
 	}
 

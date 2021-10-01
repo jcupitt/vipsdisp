@@ -13,7 +13,9 @@
 
         <child type="start">
           <object class="GtkLabel" id="x">
+            <property name="width-chars">6</property>
             <property name="label">0</property>
+            <property name="xalign">1</property>
           </object>
         </child>
 
@@ -25,7 +27,9 @@
 
         <child type="start">
           <object class="GtkLabel" id="y">
+            <property name="width-chars">6</property>
             <property name="label">0</property>
+            <property name="xalign">1</property>
           </object>
         </child>
 
@@ -36,14 +40,17 @@
         </child>
 
         <child type="start">
-          <object class="GtkLabel" id="values">
-            <property name="label">    0     0     0</property>
+          <object class="GtkBox" id="values">
+            <property name="orientation">horizontal</property>
+            <property name="homogeneous">true</property>
+            <property name="spacing">3</property>
           </object>
         </child>
 
         <child type="end">
           <object class="GtkLabel" id="mag">
             <property name="label">Magnification 1:1</property>
+            <property name="xalign">1</property>
           </object>
         </child>
 

@@ -17,6 +17,8 @@ struct _Infobar {
 	GtkWidget *y;
 	GtkWidget *values;
 	GtkWidget *mag;
+
+	GSList *value_widgets;
 };
 
 G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_WIDGET );
@@ -28,112 +30,137 @@ enum {
 	SIG_LAST
 };
 
+static void 
+infobar_status_value_set_array( Infobar *infobar, double *d )
+{
+	int i;
+	GSList *q;
+
+	for( i = 0, q = infobar->value_widgets; q; q = q->next, i++ ) {
+		GtkWidget *label = GTK_WIDGET( q->data );
+
+		char str[64];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+		vips_buf_appendf( &buf, "%g", d[i] );
+		gtk_label_set_text( GTK_LABEL( label ), vips_buf_all( &buf ) );
+	}
+}
+
 /* Display a LABPACK value.
  */
 static void
-infobar_status_value_labpack( Infobar *infobar, VipsBuf *buf, VipsPel *p )
+infobar_status_value_labpack( Infobar *infobar, VipsPel *p )
 {
 	unsigned int iL = (p[0] << 2) | (p[3] >> 6);
-	float L = 100.0 * iL / 1023.0;
 	signed int ia = ((signed char) p[1] << 3) | ((p[3] >> 3) & 0x7);
-	float a = 0.125 * ia;
 	signed int ib = ((signed char) p[2] << 3) | (p[3] & 0x7);
-	float b = 0.125 * ib;
 
-	vips_buf_appendf( buf, "%5g ", L );
-	vips_buf_appendf( buf, "%5g ", a );
-	vips_buf_appendf( buf, "%5g ", b );
+	double d[3];
+
+	d[0] = 100.0 * iL / 1023.0;
+	d[1] = 0.125 * ia;
+	d[2] = 0.125 * ib;
+
+	infobar_status_value_set_array( infobar, d );
 }
 
 /* Diplay a RAD. 
  */
 static void
-infobar_status_value_rad( Infobar *infobar, VipsBuf *buf, VipsPel *p )
+infobar_status_value_rad( Infobar *infobar, VipsPel *p )
 {
 	double f = ldexp( 1.0, p[3] - (128 + 8) );
-	float r = (p[0] + 0.5) * f;
-	float g = (p[1] + 0.5) * f;
-	float b = (p[2] + 0.5) * f;
 
-	vips_buf_appendf( buf, "%5g ", r );
-	vips_buf_appendf( buf, "%5g ", g );
-	vips_buf_appendf( buf, "%5g ", b );
+	double d[3];
+
+	d[0] = (p[0] + 0.5) * f;
+	d[1] = (p[1] + 0.5) * f;
+	d[2] = (p[2] + 0.5) * f;
+
+	infobar_status_value_set_array( infobar, d );
 }
 
 static void 
-infobar_status_value_uncoded( Infobar *infobar, 
-	VipsBuf *buf, VipsPel *p )
+infobar_status_value_uncoded( Infobar *infobar, VipsPel *p )
 {
 	Conversion *conversion = image_window_get_conversion( infobar->win );
 	VipsImage *image = conversion->image;
 
 	int i;
+	GSList *q;
 
-	for( i = 0; i < image->Bands; i++ ) {
+	for( i = 0, q = infobar->value_widgets; q; q = q->next, i++ ) {
+		GtkWidget *label = GTK_WIDGET( q->data );
+
+		char str[64];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
 		switch( image->BandFmt ) {
 		case VIPS_FORMAT_UCHAR:
-			vips_buf_appendf( buf, 
-				"%3d ", ((unsigned char *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((unsigned char *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_CHAR:
-			vips_buf_appendf( buf, 
-				"%4d ", ((char *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((char *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_USHORT:
-			vips_buf_appendf( buf, 
-				"%7d ", ((unsigned short *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((unsigned short *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_SHORT:
-			vips_buf_appendf( buf, 
-				"%7d ", ((short *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((short *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_UINT:
-			vips_buf_appendf( buf, 
-				"%8d ", ((unsigned int *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((unsigned int *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_INT:
-			vips_buf_appendf( buf, 
-				"%8d ", ((int *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%d", ((int *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_FLOAT:
-			vips_buf_appendf( buf, 
-				"%10g ", ((float *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%g", ((float *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_COMPLEX:
-			vips_buf_appendf( buf, 
-				"(%7g,%7g) ", 
-				((float *)p)[0], ((float *)p)[1] );
+			vips_buf_appendf( &buf, 
+				"(%g, %g)", ((float *)p)[0], ((float *)p)[1] );
 			break;
 
 		case VIPS_FORMAT_DOUBLE:
-			vips_buf_appendf( buf, 
-				"%10g ", ((double *)p)[0] );
+			vips_buf_appendf( &buf, 
+				"%g", ((double *)p)[0] );
 			break;
 
 		case VIPS_FORMAT_DPCOMPLEX:
-			vips_buf_appendf( buf, "(%7g,%7g) ", 
+			vips_buf_appendf( &buf, 
+				"(%g, %g)", 
 				((double *)p)[0], 
 				((double *)p)[1] );
 			break;
 
 		default:
-			vips_buf_appendf( buf, " " );
 			break;
 		}
+
+		gtk_label_set_text( GTK_LABEL( label ), vips_buf_all( &buf ) );
 
 		p += VIPS_IMAGE_SIZEOF_ELEMENT( image );
 	}
 }
 
 void 
-infobar_status_value( Infobar *infobar, VipsBuf *buf, int x, int y ) 
+infobar_status_value( Infobar *infobar, int x, int y ) 
 {
 	Conversion *conversion = image_window_get_conversion( infobar->win );
 	VipsImage *image = conversion->image;
@@ -144,15 +171,15 @@ infobar_status_value( Infobar *infobar, VipsBuf *buf, int x, int y )
 		(ink = conversion_get_ink( conversion, x, y )) ) { 
 		switch( image->Coding ) { 
 		case VIPS_CODING_LABQ:
-			infobar_status_value_labpack( infobar, buf, ink );
+			infobar_status_value_labpack( infobar, ink );
 			break;
 
 		case VIPS_CODING_RAD:
-			infobar_status_value_rad( infobar, buf, ink );
+			infobar_status_value_rad( infobar, ink );
 			break;
 
 		case VIPS_CODING_NONE:
-			infobar_status_value_uncoded( infobar, buf, ink );
+			infobar_status_value_uncoded( infobar, ink );
 			break;
 
 		default:
@@ -166,12 +193,10 @@ infobar_status_update( Infobar *infobar )
 {
 	Conversion *conversion = image_window_get_conversion( infobar->win );
 
-	char str[256];
+	char str[64];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
 	int last_x;
 	int last_y;
-	int image_x;
-	int image_y;
 	int image_width;
 	int image_height;
 	int mag;
@@ -180,28 +205,26 @@ infobar_status_update( Infobar *infobar )
 	printf( "infobar_status_update:\n" ); 
 #endif /*DEBUG*/
 
+	/* last_x, last_y are in image coordinates.
+	 */
 	image_window_get_last( infobar->win, &last_x, &last_y );
-	conversion_to_image_cods( conversion->mag, 
-		last_x, last_y, &image_x, &image_y );
 
 	if( conversion_get_image_size( conversion, 
 		&image_width, &image_height ) ) {
-		image_x = VIPS_CLIP( 0, image_x, image_width - 1 );
-		image_y = VIPS_CLIP( 0, image_y, image_height - 1 );
+		last_x = VIPS_CLIP( 0, last_x, image_width - 1 );
+		last_y = VIPS_CLIP( 0, last_y, image_height - 1 );
 
-		vips_buf_appendf( &buf, "%7d", image_x ); 
+		vips_buf_appendf( &buf, "%d", last_x ); 
 		gtk_label_set_text( GTK_LABEL( infobar->x ), 
 			vips_buf_all( &buf ) ); 
 		vips_buf_rewind( &buf ); 
 
-		vips_buf_appendf( &buf, "%7d", image_y ); 
+		vips_buf_appendf( &buf, "%d", last_y ); 
 		gtk_label_set_text( GTK_LABEL( infobar->y ), 
 			vips_buf_all( &buf ) ); 
 		vips_buf_rewind( &buf ); 
 
-		infobar_status_value( infobar, &buf, image_x, image_y ); 
-		gtk_label_set_text( GTK_LABEL( infobar->values ), 
-			vips_buf_all( &buf ) ); 
+		infobar_status_value( infobar, last_x, last_y ); 
 	}
 
 	vips_buf_rewind( &buf ); 
@@ -230,9 +253,85 @@ infobar_position_changed( ImageWindow *win, Infobar *infobar )
 	infobar_status_update( infobar );
 }
 
+/* For each format, the label width we need.
+ */
+static const int infobar_label_width[] = {
+	3,	/* uchar */
+	4,	/* char */
+	5,	/* ushort */
+	6,	/* short */
+	8,	/* uint */
+	9,	/* int */
+	10,	/* float */
+	18,	/* complex */
+	10,	/* double */
+	18,	/* double complex */
+};
+
+/* Need to rebuild the array of label widgets we use to show the pixel
+ * value.
+ */
+static void
+infobar_conversion_changed( Conversion *conversion, Infobar *infobar ) 
+{
+	GSList *p;
+	VipsBandFormat format;
+	int bands;
+	int label_width;
+	int max_children;
+	int n_children;
+	int i;
+
+#ifdef DEBUG
+	printf( "infobar_conversion_changed:\n" ); 
+#endif /*DEBUG*/
+
+	/* Remove all existing children of infobar->values.
+	 */
+	for( p = infobar->value_widgets; p; p = p->next ) {
+		GtkWidget *label = GTK_WIDGET( p->data );
+
+		gtk_box_remove( GTK_BOX( infobar->values ), label );
+	}
+	VIPS_FREEF( g_slist_free, infobar->value_widgets ); 
+
+	switch( conversion->image->Coding ) { 
+	case VIPS_CODING_LABQ:
+	case VIPS_CODING_RAD:
+		format = VIPS_FORMAT_FLOAT;
+		bands = 3;
+		break;
+
+	case VIPS_CODING_NONE:
+	default:
+		format = conversion->image->BandFmt;
+		bands = conversion->image->Bands;
+		break;
+	}
+
+	label_width = infobar_label_width[format];
+	max_children = 40 / label_width;
+	n_children = VIPS_MIN( bands, max_children );
+
+	/* Add a new set of labels.
+	 */
+	for( i = 0; i < n_children; i++ ) {
+		GtkWidget *label;
+
+		label = gtk_label_new( "123" );
+		gtk_label_set_width_chars( GTK_LABEL( label ), label_width );
+		gtk_label_set_xalign( GTK_LABEL( label ), 1.0 );
+		gtk_box_append( GTK_BOX( infobar->values ), label ); 
+		infobar->value_widgets = 
+			g_slist_append( infobar->value_widgets, label );
+	}
+}
+
 static void
 infobar_set_image_window( Infobar *infobar, ImageWindow *win )
 {
+	Conversion *conversion = image_window_get_conversion( win );
+
 	g_assert( !infobar->win );
 
 #ifdef DEBUG
@@ -246,6 +345,11 @@ infobar_set_image_window( Infobar *infobar, ImageWindow *win )
         g_signal_connect_object( win, "position-changed", 
                 G_CALLBACK( infobar_position_changed ), 
 		infobar, 0 );
+
+        g_signal_connect_object( conversion, "changed", 
+                G_CALLBACK( infobar_conversion_changed ), 
+		infobar, 0 );
+
 }
 
 static void

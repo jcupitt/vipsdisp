@@ -21,21 +21,31 @@
     </section>
 
     <section>
+
       <item>
         <attribute name='label' translatable='yes'>Toilet roll</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>toilet-roll</attribute>
       </item>
+
       <item>
         <attribute name='label' translatable='yes'>Multipage</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>multipage</attribute>
       </item>
+
       <item>
         <attribute name='label' translatable='yes'>Animated</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>animated</attribute>
       </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Pages as bands</attribute>
+        <attribute name='action'>win.mode</attribute>
+        <attribute name='target'>pages-as-bands</attribute>
+      </item>
+
     </section>
 
     <section>
