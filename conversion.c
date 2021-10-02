@@ -30,10 +30,10 @@ enum {
         SIG_PREEVAL,
         SIG_EVAL,
         SIG_POSTEVAL,
-        SIG_PAGE_CHANGED,	/* The page number has changed (eg. animate) */
-        SIG_CHANGED,		/* The whole conversion has changed */
-        SIG_DISPLAY_CHANGED,	/* The whole display has changed */
-        SIG_AREA_CHANGED,	/* A tile has changed in the image */
+        SIG_PAGE_CHANGED,       /* The page number has changed (eg. animate) */
+        SIG_CHANGED,            /* The whole conversion has changed */
+        SIG_DISPLAY_CHANGED,    /* The whole display has changed */
+        SIG_AREA_CHANGED,       /* A tile has changed in the image */
 
         SIG_LAST
 };
@@ -74,7 +74,7 @@ static void
 conversion_disconnect( Conversion *conversion )
 {
 #ifdef DEBUG
-	printf( "conversion_disconnect:\n" );
+        printf( "conversion_disconnect:\n" );
 #endif /*DEBUG*/
 
         VIPS_FREE( conversion->delay );
@@ -96,8 +96,8 @@ conversion_dispose( GObject *object )
         printf( "conversion_dispose: %p\n", object );
 #endif /*DEBUG*/
 
-	if( conversion->page_flip_id )
-		VIPS_FREEF( g_source_remove, conversion->page_flip_id );
+        if( conversion->page_flip_id )
+                VIPS_FREEF( g_source_remove, conversion->page_flip_id );
 
         conversion_disconnect( conversion ); 
 
@@ -125,20 +125,20 @@ get_int( VipsImage *image, const char *field, int default_value )
 static VipsImage *
 conversion_open( Conversion *conversion, int level )
 {
-	/* In toilet-roll mode, we open all pages.
-	 */
-	int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
-		-1 : 1;
-	int page = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
-		0 : conversion->page;
+        /* In toilet-roll mode, we open all pages.
+         */
+        int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
+                -1 : 1;
+        int page = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
+                0 : conversion->page;
 
         VipsImage *image;
 
         if( vips_isprefix( "openslide", conversion->loader ) ) {
-		/* These only have a "level" dimension.
-		 */
+                /* These only have a "level" dimension.
+                 */
                 image = vips_image_new_from_source( conversion->source, 
-			"", 
+                        "", 
                         "level", level,
                         NULL );
         }
@@ -149,51 +149,51 @@ conversion_open( Conversion *conversion, int level )
                 if( conversion->subifd_pyramid )
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-				"page", page,
+                                "page", page,
                                 "subifd", level,
-				"n", n,
+                                "n", n,
                                 NULL );
                 else if( conversion->page_pyramid )
-			/* No "n" here since pages are mag levels.
-			 */
+                        /* No "n" here since pages are mag levels.
+                         */
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
                                 "page", level,
                                 NULL );
                 else
-			/* Pages are regular pages.
-			 */
+                        /* Pages are regular pages.
+                         */
                         image = vips_image_new_from_source( conversion->source,
                                 "", 
-				"page", page,
-				"n", n,
+                                "page", page,
+                                "n", n,
                                 NULL );
         }
-	else if( vips_isprefix( "jp2k", conversion->loader ) ) {
-		/* These only have a "page" param.
-		 */
-		image = vips_image_new_from_source( conversion->source,
-			"", 
-			"page", level,
-			NULL );
-	}
-	else if( vips_isprefix( "pdf", conversion->loader ) ||
-		vips_isprefix( "webp", conversion->loader ) ||
-		vips_isprefix( "gif", conversion->loader ) ) {
-		/* Support page and n.
-		 */
-		image = vips_image_new_from_source( conversion->source,
-			"", 
-			"page", level,
-			"n", n,
-			NULL );
-	}
+        else if( vips_isprefix( "jp2k", conversion->loader ) ) {
+                /* These only have a "page" param.
+                 */
+                image = vips_image_new_from_source( conversion->source,
+                        "", 
+                        "page", level,
+                        NULL );
+        }
+        else if( vips_isprefix( "pdf", conversion->loader ) ||
+                vips_isprefix( "webp", conversion->loader ) ||
+                vips_isprefix( "gif", conversion->loader ) ) {
+                /* Support page and n.
+                 */
+                image = vips_image_new_from_source( conversion->source,
+                        "", 
+                        "page", level,
+                        "n", n,
+                        NULL );
+        }
         else 
-		/* Don't support any page spec.
-		 */
+                /* Don't support any page spec.
+                 */
                 image = vips_image_new_from_source( conversion->source, 
                         "", 
-			NULL );
+                        NULL );
 
         return( image );
 }
@@ -233,13 +233,13 @@ conversion_get_pyramid_subifd( Conversion *conversion )
                  */
                 if( abs( level_width - expected_level_width ) > 5 ||
                         level_width < 2 ||
-			abs( level_height - expected_level_height ) > 5 ||
+                        abs( level_height - expected_level_height ) > 5 ||
                         level_height < 2 ) {
 #ifdef DEBUG
-			printf( "  bad subifd level %d\n", i );
+                        printf( "  bad subifd level %d\n", i );
 #endif /*DEBUG*/
                         return;
-		}
+                }
 
                 conversion->level_width[i] = level_width;
                 conversion->level_height[i] = level_height;
@@ -383,21 +383,21 @@ mode_name( ConversionMode mode )
  */
 static int
 conversion_set_image( Conversion *conversion, 
-	const char *loader, VipsImage *image )
+        const char *loader, VipsImage *image )
 {
-	ConversionMode mode;
+        ConversionMode mode;
         VipsImage *x;
 
 #ifdef DEBUG
         printf( "conversion_set_image: starting ..\n" );
 #endif /*DEBUG*/
 
-	/* You must conversion_disconnect() before calling this.
-	 */
-	g_assert( !conversion->image );
+        /* You must conversion_disconnect() before calling this.
+         */
+        g_assert( !conversion->image );
 
         conversion->image = image;
-	g_object_ref( image );
+        g_object_ref( image );
         conversion->loader = loader;
         conversion->width = image->Xsize;
         conversion->height = vips_image_get_page_height( image );
@@ -405,69 +405,69 @@ conversion_set_image( Conversion *conversion,
         conversion->n_subifds = vips_image_get_n_subifds( image );
 
         if( vips_image_get_typeof( image, "delay" ) ) {
-		int *delay;
-		int n_delay;
+                int *delay;
+                int n_delay;
 
-		if( vips_image_get_array_int( image, "delay",
+                if( vips_image_get_array_int( image, "delay",
                         &delay, &n_delay ) )
-			return( -1 );
+                        return( -1 );
 
-		conversion->delay = g_new( int, n_delay );
-		memcpy( conversion->delay, delay, n_delay * sizeof( int ) );
-		conversion->n_delay = n_delay;
-	}
+                conversion->delay = g_new( int, n_delay );
+                memcpy( conversion->delay, delay, n_delay * sizeof( int ) );
+                conversion->n_delay = n_delay;
+        }
 
-	/* Can we open in toilet-roll mode? We need to test that n_pages and
-	 * page_size are sane too. 
-	 */
+        /* Can we open in toilet-roll mode? We need to test that n_pages and
+         * page_size are sane too. 
+         */
 #ifdef DEBUG
         printf( "conversion_set_image: test toilet-roll mode\n" );
 #endif /*DEBUG*/
-	conversion->type = CONVERSION_TYPE_TOILET_ROLL;
-	/* Block error messages from eg. page-pyramidal TIFFs, where pages
-	 * are not all the same size.
-	 */
-	vips_error_freeze();
+        conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+        /* Block error messages from eg. page-pyramidal TIFFs, where pages
+         * are not all the same size.
+         */
+        vips_error_freeze();
         x = conversion_open( conversion, 0 );
-	vips_error_thaw();
+        vips_error_thaw();
 
-	if( x != NULL ) {
-		/* Toilet-roll mode worked. Check sanity of page height,
-		 * n_pages and Ysize too.
-		 */
-		if( conversion->n_pages * conversion->height != x->Ysize ||
-			conversion->n_pages <= 0 ||
-			conversion->n_pages > 10000 ) {
+        if( x != NULL ) {
+                /* Toilet-roll mode worked. Check sanity of page height,
+                 * n_pages and Ysize too.
+                 */
+                if( conversion->n_pages * conversion->height != x->Ysize ||
+                        conversion->n_pages <= 0 ||
+                        conversion->n_pages > 10000 ) {
 #ifdef DEBUG
-			printf( "conversion_set_image: bad page layout\n" );
+                        printf( "conversion_set_image: bad page layout\n" );
 #endif /*DEBUG*/
 
-			conversion->n_pages = 1;
-			conversion->height = image->Ysize;
-			VIPS_FREE( conversion->delay );
-			conversion->n_delay = 0;
-		}
-		else
-			/* Everything looks good.
-			 */
-			conversion->pages_same_size = TRUE;
+                        conversion->n_pages = 1;
+                        conversion->height = image->Ysize;
+                        VIPS_FREE( conversion->delay );
+                        conversion->n_delay = 0;
+                }
+                else
+                        /* Everything looks good.
+                         */
+                        conversion->pages_same_size = TRUE;
 
-		VIPS_UNREF( x );
-	}
+                VIPS_UNREF( x );
+        }
 
-	/* Back to plain multipage for the rest of the sniff period. For
-	 * example, subifd pyramid needs single page opening.
-	 *
-	 * We reset this at the end.
-	 */
-	conversion->type = CONVERSION_TYPE_MULTIPAGE;
+        /* Back to plain multipage for the rest of the sniff period. For
+         * example, subifd pyramid needs single page opening.
+         *
+         * We reset this at the end.
+         */
+        conversion->type = CONVERSION_TYPE_MULTIPAGE;
 
-	/* Are all pages the same size and format, and also all mono (one
-	 * band)? We can display pages-as-bands.
-	 */
-	conversion->all_mono = 
-		conversion->pages_same_size && 
-		conversion->image->Bands == 1;
+        /* Are all pages the same size and format, and also all mono (one
+         * band)? We can display pages-as-bands.
+         */
+        conversion->all_mono = 
+                conversion->pages_same_size && 
+                conversion->image->Bands == 1;
 
         /* For openslide, read out the level structure.
          */
@@ -516,21 +516,21 @@ conversion_set_image( Conversion *conversion,
         /* jp2k is always page-based.
          */
         if( vips_isprefix( "jp2k", conversion->loader ) ) {
-		conversion->page_pyramid = TRUE;
-		conversion_get_pyramid_page( conversion );
+                conversion->page_pyramid = TRUE;
+                conversion_get_pyramid_page( conversion );
 
-		if( conversion->level_count == 0 )
-			conversion->page_pyramid = FALSE;
+                if( conversion->level_count == 0 )
+                        conversion->page_pyramid = FALSE;
         }
 
-	if( conversion->pages_same_size )
-		conversion->type = CONVERSION_TYPE_TOILET_ROLL;
-	else {
-		if( conversion->page_pyramid )
-			conversion->type = CONVERSION_TYPE_PAGE_PYRAMID;
-		else
-			conversion->type = CONVERSION_TYPE_MULTIPAGE;
-	}
+        if( conversion->pages_same_size )
+                conversion->type = CONVERSION_TYPE_TOILET_ROLL;
+        else {
+                if( conversion->page_pyramid )
+                        conversion->type = CONVERSION_TYPE_PAGE_PYRAMID;
+                else
+                        conversion->type = CONVERSION_TYPE_MULTIPAGE;
+        }
 
         /* Now we've sniffed the image properties, we can reopen in the
          * correct mode.
@@ -569,26 +569,26 @@ conversion_set_image( Conversion *conversion,
 }
 #endif /*DEBUG*/
 
-	/* Pick a default display mode.
-	 */
-	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
-		if( conversion->delay )
-			mode = CONVERSION_MODE_ANIMATED;
-		else if( conversion->all_mono )
-			mode = CONVERSION_MODE_PAGES_AS_BANDS;
-		else
-			mode = CONVERSION_MODE_MULTIPAGE;
-	}
-	else 
-		mode = CONVERSION_MODE_MULTIPAGE;
+        /* Pick a default display mode.
+         */
+        if( conversion->type == CONVERSION_TYPE_TOILET_ROLL ) {
+                if( conversion->delay )
+                        mode = CONVERSION_MODE_ANIMATED;
+                else if( conversion->all_mono )
+                        mode = CONVERSION_MODE_PAGES_AS_BANDS;
+                else
+                        mode = CONVERSION_MODE_MULTIPAGE;
+        }
+        else 
+                mode = CONVERSION_MODE_MULTIPAGE;
 
 #ifdef DEBUG
        printf( "starting in mode %s\n", mode_name( mode ) );
 #endif /*DEBUG*/
 
         g_object_set( conversion, 
-		"mode", mode, 
-		NULL );
+                "mode", mode, 
+                NULL );
 
         /* We ref this conversion so it won't die before the
          * background load is done. The matching unref is at the end
@@ -600,8 +600,8 @@ conversion_set_image( Conversion *conversion,
          * load. This will trigger conversion_update_display() for us.
          */
         g_object_set( conversion, 
-		"loaded", FALSE, 
-		NULL );
+                "loaded", FALSE, 
+                NULL );
 
         conversion_attach_progress( conversion ); 
 
@@ -615,47 +615,47 @@ conversion_set_image( Conversion *conversion,
 int
 conversion_set_conversion( Conversion *conversion, Conversion *old_conversion )
 {
-	/* Don't update if we're still loading.
-	 */
-	if( conversion->image &&
-		!conversion->loaded )
-		return( 0 );
+        /* Don't update if we're still loading.
+         */
+        if( conversion->image &&
+                !conversion->loaded )
+                return( 0 );
 
         conversion_disconnect( conversion );
 
-	/* Always set the source so we can display a filename in the header
-	 * bar even if load fails.
-	 */
-	conversion->source = old_conversion->source; 
-	g_object_ref( conversion->source );
+        /* Always set the source so we can display a filename in the header
+         * bar even if load fails.
+         */
+        conversion->source = old_conversion->source; 
+        g_object_ref( conversion->source );
 
-	if( conversion_set_image( conversion, 
-		old_conversion->loader, old_conversion->image ) )
-		return( -1 );
+        if( conversion_set_image( conversion, 
+                old_conversion->loader, old_conversion->image ) )
+                return( -1 );
 
-	g_object_set( conversion,
-		"falsecolour", old_conversion->falsecolour,
-		"log", old_conversion->log,
-		"mag", old_conversion->mag,
-		"scale", old_conversion->scale,
-		"offset", old_conversion->offset,
-		"mode", old_conversion->mode,
-		NULL );
+        g_object_set( conversion,
+                "falsecolour", old_conversion->falsecolour,
+                "log", old_conversion->log,
+                "mag", old_conversion->mag,
+                "scale", old_conversion->scale,
+                "offset", old_conversion->offset,
+                "mode", old_conversion->mode,
+                NULL );
 
-	return( 0 );
+        return( 0 );
 }
 
 int
 conversion_set_source( Conversion *conversion, VipsSource *source )
 {
-	const char *loader;
+        const char *loader;
         VipsImage *image;
 
-	/* Don't update if we're still loading.
-	 */
-	if( conversion->image &&
-		!conversion->loaded )
-		return( 0 );
+        /* Don't update if we're still loading.
+         */
+        if( conversion->image &&
+                !conversion->loaded )
+                return( 0 );
 
 #ifdef DEBUG
         printf( "conversion_set_source: starting ..\n" );
@@ -663,38 +663,38 @@ conversion_set_source( Conversion *conversion, VipsSource *source )
 
         conversion_disconnect( conversion );
 
-	/* Always set the source so we can display a filename in the header
-	 * bar even if load fails.
-	 */
-	conversion->source = source; 
-	g_object_ref( source );
+        /* Always set the source so we can display a filename in the header
+         * bar even if load fails.
+         */
+        conversion->source = source; 
+        g_object_ref( source );
 
-	if( !(loader = vips_foreign_find_load_source( source )) ) {
-		/* Signal changed so eg. header bars can update.
-		 */
-		conversion_changed( conversion );
-		return( -1 );
-	}
+        if( !(loader = vips_foreign_find_load_source( source )) ) {
+                /* Signal changed so eg. header bars can update.
+                 */
+                conversion_changed( conversion );
+                return( -1 );
+        }
 
-	/* vips_foreign_find_load_source() gives us eg.
-	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
-	 * generic name.
-	 */
-	loader = vips_nickname_find( g_type_from_name( loader ) );
+        /* vips_foreign_find_load_source() gives us eg.
+         * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
+         * generic name.
+         */
+        loader = vips_nickname_find( g_type_from_name( loader ) );
 
         /* We can't set n=-1, since not all loaders always support that. For 
          * example, a pyr tiff will fail with "not all pages same".
          */
         if( !(image = vips_image_new_from_source( source, "", NULL )) )
-		return( -1 );
+                return( -1 );
 
-	if( conversion_set_image( conversion, loader, image ) ) {
-		g_object_unref( image );
-		return( -1 );
-	}
-	g_object_unref( image );
+        if( conversion_set_image( conversion, loader, image ) ) {
+                g_object_unref( image );
+                return( -1 );
+        }
+        g_object_unref( image );
 
-	return( 0 );
+        return( 0 );
 }
 
 int
@@ -741,16 +741,16 @@ conversion_set_file( Conversion *conversion, GFile *file )
 
                 if( !(source = VIPS_SOURCE( 
                         vips_source_g_input_stream_new( stream ) )) ) {
-			VIPS_UNREF( stream );
+                        VIPS_UNREF( stream );
                         return( -1 );
                 }
                 VIPS_UNREF( stream );
         }
 
         if( conversion_set_source( conversion, source ) ) {
-		VIPS_UNREF( source );
-		return( -1 );
-	}
+                VIPS_UNREF( source );
+                return( -1 );
+        }
 
         VIPS_UNREF( source );
 
@@ -760,28 +760,28 @@ conversion_set_file( Conversion *conversion, GFile *file )
 static VipsImage *
 conversion_image_log( VipsImage *image )
 {
-	static const double power = 0.25;
-	const double scale = 255.0 / log10( 1.0 + pow( 255.0, power ) );
+        static const double power = 0.25;
+        const double scale = 255.0 / log10( 1.0 + pow( 255.0, power ) );
 
-	VipsImage *context = vips_image_new();
-	VipsImage **t = (VipsImage **) 
-		vips_object_local_array( VIPS_OBJECT( context ), 7 );
+        VipsImage *context = vips_image_new();
+        VipsImage **t = (VipsImage **) 
+                vips_object_local_array( VIPS_OBJECT( context ), 7 );
 
         VipsImage *x;
 
-	if( vips_pow_const1( image, &t[0], power, NULL ) ||
-		vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
-		vips_log10( t[1], &t[2], NULL ) ||
-		/* Add 0.5 to get round to nearest.
-		 */
-		vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
-		g_object_unref( context );
-		return( NULL ); 
-	}
-	VIPS_UNREF( context );
-	image = x;
+        if( vips_pow_const1( image, &t[0], power, NULL ) ||
+                vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
+                vips_log10( t[1], &t[2], NULL ) ||
+                /* Add 0.5 to get round to nearest.
+                 */
+                vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
+                g_object_unref( context );
+                return( NULL ); 
+        }
+        VIPS_UNREF( context );
+        image = x;
 
-	return( image );
+        return( image );
 }
 
 /* Make the rgb image we paint with. This runs synchronously and is not
@@ -796,80 +796,87 @@ conversion_rgb_image( Conversion *conversion, VipsImage *in )
         image = in;
         g_object_ref( image ); 
 
-        /* We don't want these to touch alpha ... remove and reattach.
-         */
         if( conversion->active &&
-		(conversion->scale != 1.0 ||
+                (conversion->scale != 1.0 ||
                  conversion->offset != 0.0 ||
-		 conversion->falsecolour ||
-		 conversion->log ||
+                 conversion->falsecolour ||
+                 conversion->log ||
                  image->Type == VIPS_INTERPRETATION_FOURIER) ) {
-		VipsImage *rgb;
-		VipsImage *alpha;
+                VipsImage *alpha;
 
-		if( vips_extract_band( image, &alpha, 3, NULL ) ) {
+                /* We don't want these to touch alpha (if any) ... remove and 
+                 * reattach at the end.
+                 */
+                alpha = NULL;
+                if( vips_image_hasalpha( image ) ) { 
+                        if( vips_extract_band( image, &alpha, 3, NULL ) ) {
+                                VIPS_UNREF( image );
+                                return( NULL ); 
+                        }
+                        if( vips_extract_band( image, &x, 0, 
+                                "n", 3, NULL ) ) {
+                                VIPS_UNREF( image );
+                                VIPS_UNREF( alpha );
+                                return( NULL ); 
+                        }
                         VIPS_UNREF( image );
-                        return( NULL ); 
+                        image = x;
                 }
-		if( vips_extract_band( image, &rgb, 0, "n", 3, NULL ) ) {
+
+                if( conversion->log ||
+                        image->Type == VIPS_INTERPRETATION_FOURIER ) { 
+                        if( !(x = conversion_image_log( image )) ) {
+                                VIPS_UNREF( image );
+                                VIPS_UNREF( alpha );
+                                return( NULL ); 
+                        }
+                        VIPS_UNREF( image );
+                        image = x;
+                }
+
+                if( conversion->scale != 1.0 ||
+                        conversion->offset != 0.0 ) {
+                        if( vips_linear1( image, &x, 
+                                conversion->scale, conversion->offset, 
+                                "uchar", TRUE, 
+                                NULL ) ) {
+                                VIPS_UNREF( image );
+                                VIPS_UNREF( alpha );
+                                return( NULL ); 
+                        }
+                        VIPS_UNREF( image );
+                        image = x;
+                }
+
+                if( conversion->falsecolour ) {
+                        if( vips_falsecolour( image, &x, NULL ) ) {
+                                VIPS_UNREF( image );
+                                VIPS_UNREF( alpha );
+                                return( NULL ); 
+                        }
+                        VIPS_UNREF( image );
+                        image = x;
+                }
+
+                if( alpha ) {
+                        if( vips_bandjoin2( image, alpha, &x, NULL ) ) {
+                                VIPS_UNREF( image );
+                                VIPS_UNREF( alpha );
+                                return( NULL ); 
+                        }
+
                         VIPS_UNREF( image );
                         VIPS_UNREF( alpha );
-                        return( NULL ); 
+                        image = x;
                 }
-		VIPS_UNREF( image );
+        }
 
-		if( conversion->log ||
-			rgb->Type == VIPS_INTERPRETATION_FOURIER ) { 
-			if( !(x = conversion_image_log( rgb )) ) {
-				VIPS_UNREF( rgb );
-				VIPS_UNREF( alpha );
-				return( NULL ); 
-			}
-			VIPS_UNREF( rgb );
-			rgb = x;
-		}
-
-		if( conversion->scale != 1.0 ||
-			conversion->offset != 0.0 ) {
-			if( vips_linear1( rgb, &x, 
-				conversion->scale, conversion->offset, 
-				"uchar", TRUE, 
-				NULL ) ) {
-				VIPS_UNREF( rgb );
-				VIPS_UNREF( alpha );
-				return( NULL ); 
-			}
-			VIPS_UNREF( rgb );
-			rgb = x;
-		}
-
-		if( conversion->falsecolour ) {
-			if( vips_falsecolour( rgb, &x, NULL ) ) {
-				VIPS_UNREF( rgb );
-				VIPS_UNREF( alpha );
-				return( NULL ); 
-			}
-			VIPS_UNREF( rgb );
-			rgb = x;
-		}
-
-                if( vips_bandjoin2( rgb, alpha, &x, NULL ) ) {
-                        VIPS_UNREF( rgb );
-                        VIPS_UNREF( alpha );
-                        return( NULL ); 
-                }
-
-		VIPS_UNREF( rgb );
-		VIPS_UNREF( alpha );
-                image = x;
-	}
-
-	if( vips_cast_uchar( image, &x, NULL ) ) {
-		VIPS_UNREF( image );
-		return( NULL ); 
-	}
-	VIPS_UNREF( image );
-	image = x;
+        if( vips_cast_uchar( image, &x, NULL ) ) {
+                VIPS_UNREF( image );
+                return( NULL ); 
+        }
+        VIPS_UNREF( image );
+        image = x;
 
         return( image );
 }
@@ -950,8 +957,8 @@ conversion_render_notify( VipsImage *image, VipsRect *rect, void *client )
         }
 }
 
-/* Make the screen image. This is the thing we display pixel values from in
- * the status bar.
+/* Make the screen image. This stage runs asynchronously and is threaded. The
+ * output is RGB or RGBA
  */
 static VipsImage *
 conversion_display_image( Conversion *conversion, VipsImage **mask_out )
@@ -959,121 +966,122 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         VipsImage *image;
         VipsImage *x;
         VipsImage *mask;
+        int n_bands;
 
         g_assert( mask_out ); 
 
         if( conversion->level_count ) {
-		/* There's a pyramid ... compute the size of image we need,
-		 * then find the layer which is one larger.
-		 */
-		int required_width = conversion->mag < 0 ? 
-			conversion->width / -conversion->mag : 
-			conversion->width * conversion->mag;
+                /* There's a pyramid ... compute the size of image we need,
+                 * then find the layer which is one larger.
+                 */
+                int required_width = conversion->mag < 0 ? 
+                        conversion->width / -conversion->mag : 
+                        conversion->width * conversion->mag;
 
-		int i;
-		int level;
+                int i;
+                int level;
 
-		for( i = 0; i < conversion->level_count; i++ ) 
-			if( conversion->level_width[i] < required_width )
-				break;
-		level = VIPS_CLIP( 0, i - 1, conversion->level_count - 1 );
+                for( i = 0; i < conversion->level_count; i++ ) 
+                        if( conversion->level_width[i] < required_width )
+                                break;
+                level = VIPS_CLIP( 0, i - 1, conversion->level_count - 1 );
 
 #ifdef DEBUG
-		printf( "conversion_display_image: loading level %d\n", 
-			level ); 
+                printf( "conversion_display_image: loading level %d\n", 
+                        level ); 
 #endif /*DEBUG*/
 
-		if( !(image = conversion_open( conversion, level )) )
-			return( NULL );
-	}
-	else if( conversion->type == CONVERSION_TYPE_MULTIPAGE ) {
+                if( !(image = conversion_open( conversion, level )) )
+                        return( NULL );
+        }
+        else if( conversion->type == CONVERSION_TYPE_MULTIPAGE ) {
 #ifdef DEBUG
-		printf( "conversion_display_image: loading page %d\n", 
-			conversion->page ); 
+                printf( "conversion_display_image: loading page %d\n", 
+                        conversion->page ); 
 #endif /*DEBUG*/
 
-		if( !(image = conversion_open( conversion, conversion->page )) )
-			return( NULL );
-	}
-	else {
-		image = conversion->image;
-		g_object_ref( image ); 
-	}
+                if( !(image = conversion_open( conversion, conversion->page )) )
+                        return( NULL );
+        }
+        else {
+                image = conversion->image;
+                g_object_ref( image ); 
+        }
 
-	/* In multipage display mode, crop out the page we want. 
-	 *
-	 * We need to crop using the page size on image, since it might have 
-	 * been shrunk by shrink-on-load above ^^
-	 */
-	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
-		(conversion->mode == CONVERSION_MODE_MULTIPAGE ||
-		 conversion->mode == CONVERSION_MODE_ANIMATED) ) {
-		int page_width = image->Xsize;
-		int page_height = vips_image_get_page_height( image );
+        /* In multipage display mode, crop out the page we want. 
+         *
+         * We need to crop using the page size on image, since it might have 
+         * been shrunk by shrink-on-load above ^^
+         */
+        if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
+                (conversion->mode == CONVERSION_MODE_MULTIPAGE ||
+                 conversion->mode == CONVERSION_MODE_ANIMATED) ) {
+                int page_width = image->Xsize;
+                int page_height = vips_image_get_page_height( image );
 
-		VipsImage *x;
+                VipsImage *x;
 
-		if( vips_crop( image, &x, 
-			0, conversion->page * page_height, 
-			page_width, page_height, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL );
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
+                if( vips_crop( image, &x, 
+                        0, conversion->page * page_height, 
+                        page_width, page_height, NULL ) ) {
+                        VIPS_UNREF( image );
+                        return( NULL );
+                }
+                VIPS_UNREF( image );
+                image = x;
+        }
 
-	/* In pages-as-bands mode, crop out all pages and join band-wise. 
-	 * 
-	 * We need to crop using the page size on image, since it might 
-	 * have been shrunk by shrink-on-load above ^^
-	 */
-	if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
-		conversion->mode == CONVERSION_MODE_PAGES_AS_BANDS ) {
-		int page_width = image->Xsize;
-		int page_height = vips_image_get_page_height( image );
+        /* In pages-as-bands mode, crop out all pages and join band-wise. 
+         * 
+         * We need to crop using the page size on image, since it might 
+         * have been shrunk by shrink-on-load above ^^
+         */
+        if( conversion->type == CONVERSION_TYPE_TOILET_ROLL &&
+                conversion->mode == CONVERSION_MODE_PAGES_AS_BANDS ) {
+                int page_width = image->Xsize;
+                int page_height = vips_image_get_page_height( image );
 
-		VipsObject *context = VIPS_OBJECT( vips_image_new() );
-		VipsImage **t = (VipsImage **) 
-			vips_object_local_array( context, conversion->n_pages );
+                VipsObject *context = VIPS_OBJECT( vips_image_new() );
+                VipsImage **t = (VipsImage **) 
+                        vips_object_local_array( context, conversion->n_pages );
 
-		int page;
-		VipsImage *x;
+                int page;
+                VipsImage *x;
 
-		for( page = 0; page < conversion->n_pages; page++ ) 
-			if( vips_crop( image, &t[page], 
-				0, page * page_height, 
-				page_width, page_height, 
-				NULL ) ) {
-				VIPS_UNREF( context );
-				VIPS_UNREF( image );
-				return( NULL );
-			}
-		if( vips_bandjoin( t, &x, conversion->n_pages, NULL ) ) {
-			VIPS_UNREF( context );
-			VIPS_UNREF( image );
-			return( NULL );
-		}
+                for( page = 0; page < conversion->n_pages; page++ ) 
+                        if( vips_crop( image, &t[page], 
+                                0, page * page_height, 
+                                page_width, page_height, 
+                                NULL ) ) {
+                                VIPS_UNREF( context );
+                                VIPS_UNREF( image );
+                                return( NULL );
+                        }
+                if( vips_bandjoin( t, &x, conversion->n_pages, NULL ) ) {
+                        VIPS_UNREF( context );
+                        VIPS_UNREF( image );
+                        return( NULL );
+                }
 
-		x->Type = VIPS_INTERPRETATION_MULTIBAND;
+                x->Type = VIPS_INTERPRETATION_MULTIBAND;
 
-		VIPS_UNREF( image );
-		VIPS_UNREF( context );
-		image = x;
-	}
+                VIPS_UNREF( image );
+                VIPS_UNREF( context );
+                image = x;
+        }
 
-	/* Histogram type ... plot the histogram. 
+        /* Histogram type ... plot the histogram. 
          */
         if( image->Type == VIPS_INTERPRETATION_HISTOGRAM &&
                 (image->Xsize == 1 || image->Ysize == 1) ) {
-		VipsImage *context = vips_image_new();
-		VipsImage **t = (VipsImage **) 
-			vips_object_local_array( VIPS_OBJECT( context ), 7 );
+                VipsImage *context = vips_image_new();
+                VipsImage **t = (VipsImage **) 
+                        vips_object_local_array( VIPS_OBJECT( context ), 7 );
 
-		/* So image will be unreffed when we unref context.
-		 */
-		t[0] = image;
-		x = t[0];
+                /* So image will be unreffed when we unref context.
+                 */
+                t[0] = image;
+                x = t[0];
 
                 if( x->Coding == VIPS_CODING_LABQ ) {
                         if( vips_LabQ2Lab( x, &t[1], NULL ) ) {
@@ -1093,7 +1101,7 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 
                 if( vips_hist_norm( x, &t[3], NULL ) ||
                         vips_hist_plot( t[3], &t[4], NULL ) ) {
-			VIPS_UNREF( context );
+                        VIPS_UNREF( context );
                         return( NULL );
                 }
                 x = t[4];
@@ -1116,35 +1124,35 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
                         t[2] = t[1];
                  */
 
-		image = x;
-		g_object_ref( image ); 
-		VIPS_UNREF( context );
+                image = x;
+                g_object_ref( image ); 
+                VIPS_UNREF( context );
         }
 
-	if( conversion->mag < 0 ) {
-		/* We may have already zoomed out a bit because we've loaded
-		 * some layer other than the base one. Recalculate the
-		 * subsample as (current_width / required_width).
-		 */
-		int subsample = image->Xsize / 
-			(conversion->width / -conversion->mag);
+        if( conversion->mag < 0 ) {
+                /* We may have already zoomed out a bit because we've loaded
+                 * some layer other than the base one. Recalculate the
+                 * subsample as (current_width / required_width).
+                 */
+                int subsample = image->Xsize / 
+                        (conversion->width / -conversion->mag);
 
-		if( vips_subsample( image, &x, subsample, subsample, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL ); 
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
-	else { 
-		if( vips_zoom( image, &x, 
-			conversion->mag, conversion->mag, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL ); 
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
+                if( vips_subsample( image, &x, subsample, subsample, NULL ) ) {
+                        VIPS_UNREF( image );
+                        return( NULL ); 
+                }
+                VIPS_UNREF( image );
+                image = x;
+        }
+        else { 
+                if( vips_zoom( image, &x, 
+                        conversion->mag, conversion->mag, NULL ) ) {
+                        VIPS_UNREF( image );
+                        return( NULL ); 
+                }
+                VIPS_UNREF( image );
+                image = x;
+        }
 
         if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
                 VIPS_UNREF( image );
@@ -1153,36 +1161,17 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
         VIPS_UNREF( image );
         image = x;
 
-        /* Force to RGBA.
-	 */
-	if( !vips_image_hasalpha( image ) ) {
-		/* Trim down to just RGB first ... we don't want to add the
-		 * alpha way off to the right.
-		 */
-		if( image->Bands > 3 ) {
-			if( vips_extract_band( image, &x, 0, "n", 3, NULL ) ) {
-				VIPS_UNREF( image );
-				return( NULL ); 
-			}
-			VIPS_UNREF( image );
-			image = x;
-		}
-
-		if( vips_addalpha( image, &x, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL ); 
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
-	if( image->Bands > 4 ) {
-		if( vips_extract_band( image, &x, 0, "n", 4, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL ); 
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
+        /* Remove any extra bands to leave just RGB or RGBA.
+         */
+        n_bands = vips_image_hasalpha( image ) ? 4 : 3;
+        if( image->Bands > n_bands ) {
+                if( vips_extract_band( image, &x, 0, "n", n_bands, NULL ) ) {
+                        VIPS_UNREF( image );
+                        return( NULL ); 
+                }
+                VIPS_UNREF( image );
+                image = x;
+        }
 
         x = vips_image_new();
         mask = vips_image_new();
@@ -1208,22 +1197,22 @@ conversion_display_image( Conversion *conversion, VipsImage **mask_out )
 static int
 conversion_update_display( Conversion *conversion )
 {
-	/* Don't update if we're still loading.
-	 */
-	if( !conversion->loaded )
-		return( 0 );
+        /* Don't update if we're still loading.
+         */
+        if( !conversion->loaded )
+                return( 0 );
 
         VIPS_UNREF( conversion->display );
         VIPS_UNREF( conversion->mask );
 
         if( conversion->image ) {
                 if( !(conversion->display = conversion_display_image( 
-			conversion, &conversion->mask )) ) {
+                        conversion, &conversion->mask )) ) {
 #ifdef DEBUG
-			printf( "conversion_update_display: build failed\n" );
+                        printf( "conversion_update_display: build failed\n" );
 #endif /*DEBUG*/
                         return( -1 ); 
-		}
+                }
         }
 
         conversion_update_rgb( conversion );
@@ -1236,90 +1225,90 @@ conversion_update_display( Conversion *conversion )
 static gboolean
 conversion_page_flip( void *user_data )
 {
-	Conversion *conversion = (Conversion *) user_data;
-	int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+        Conversion *conversion = (Conversion *) user_data;
+        int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
 
-	int timeout;
+        int timeout;
 
-	/* By convention, GIFs default to 10fps.
-	 */
-	timeout = 100;
+        /* By convention, GIFs default to 10fps.
+         */
+        timeout = 100;
 
-	if( conversion->delay ) {
-		int i = VIPS_MIN( page, conversion->n_delay - 1 );
+        if( conversion->delay ) {
+                int i = VIPS_MIN( page, conversion->n_delay - 1 );
 
-		/* By GIF convention, timeout 0 means unset.
-		 */
-		if( conversion->delay[i] )
-			timeout = conversion->delay[i];
-	}
+                /* By GIF convention, timeout 0 means unset.
+                 */
+                if( conversion->delay[i] )
+                        timeout = conversion->delay[i];
+        }
 
-	/* vipsdisp struggles at more than 30fps.
-	 */
-	timeout = VIPS_CLIP( 33, timeout, 100000 );
+        /* vipsdisp struggles at more than 30fps.
+         */
+        timeout = VIPS_CLIP( 33, timeout, 100000 );
 
-	conversion->page_flip_id = 
-		g_timeout_add( timeout, conversion_page_flip, conversion );
+        conversion->page_flip_id = 
+                g_timeout_add( timeout, conversion_page_flip, conversion );
 
 #ifdef DEBUG
-	printf( "conversion_page_flip: timeout %d ms\n", timeout ); 
+        printf( "conversion_page_flip: timeout %d ms\n", timeout ); 
 #endif /*DEBUG*/
 
-	g_object_set( conversion,
-		"page", (page + 1) % conversion->n_pages,
-		NULL );
+        g_object_set( conversion,
+                "page", (page + 1) % conversion->n_pages,
+                NULL );
 
-	return( FALSE );
+        return( FALSE );
 }
 
 #ifdef DEBUG
 static const char *
 conversion_property_name( guint prop_id )
 {
-	switch( prop_id ) {
-	case PROP_RGB:
-		return( "RGB" );
-		break;
+        switch( prop_id ) {
+        case PROP_RGB:
+                return( "RGB" );
+                break;
 
-	case PROP_MODE:
-		return( "MODE" );
-		break;
+        case PROP_MODE:
+                return( "MODE" );
+                break;
 
-	case PROP_MAG:
-		return( "MAG" );
-		break;
+        case PROP_MAG:
+                return( "MAG" );
+                break;
 
-	case PROP_ACTIVE:
-		return( "ACTIVE" );
-		break;
+        case PROP_ACTIVE:
+                return( "ACTIVE" );
+                break;
 
-	case PROP_SCALE:
-		return( "SCALE" );
-		break;
+        case PROP_SCALE:
+                return( "SCALE" );
+                break;
 
-	case PROP_OFFSET:
-		return( "OFFSET" );
-		break;
+        case PROP_OFFSET:
+                return( "OFFSET" );
+                break;
 
-	case PROP_PAGE:
-		return( "PAGE" );
-		break;
+        case PROP_PAGE:
+                return( "PAGE" );
+                break;
 
-	case PROP_FALSECOLOUR:
-		return( "FALSECOLOUR" );
-		break;
+        case PROP_FALSECOLOUR:
+                return( "FALSECOLOUR" );
+                break;
 
-	case PROP_LOG:
-		return( "LOG" );
-		break;
+        case PROP_LOG:
+                return( "LOG" );
+                break;
 
-	case PROP_LOADED:
-		return( "LOADED" );
-		break;
+        case PROP_LOADED:
+                return( "LOADED" );
+                break;
 
-	default:
-		return( "<unknown>" );
-	}
+        default:
+                return( "<unknown>" );
+        }
 }
 #endif /*DEBUG*/
 
@@ -1335,12 +1324,12 @@ conversion_set_property( GObject *object,
 
 #ifdef DEBUG
 {
-	char *str;
+        char *str;
 
-	str = g_strdup_value_contents( value );
-	printf( "conversion_set_property: %s %s\n", 
-		conversion_property_name( prop_id ), str ); 
-	g_free( str );
+        str = g_strdup_value_contents( value );
+        printf( "conversion_set_property: %s %s\n", 
+                conversion_property_name( prop_id ), str ); 
+        g_free( str );
 }
 #endif /*DEBUG*/
 
@@ -1358,17 +1347,17 @@ conversion_set_property( GObject *object,
                         i < CONVERSION_MODE_LAST &&
                         conversion->mode != i ) {
                         conversion->mode = i;
-			conversion_changed( conversion );
+                        conversion_changed( conversion );
                         conversion_update_display( conversion );
 
-			/* In animation mode, create the page flip timeout.
-			 */
-			if( conversion->page_flip_id )
-				VIPS_FREEF( g_source_remove, 
-					conversion->page_flip_id );
-			if( conversion->mode == CONVERSION_MODE_ANIMATED )
-				conversion->page_flip_id = g_timeout_add( 100, 
-					conversion_page_flip, conversion );
+                        /* In animation mode, create the page flip timeout.
+                         */
+                        if( conversion->page_flip_id )
+                                VIPS_FREEF( g_source_remove, 
+                                        conversion->page_flip_id );
+                        if( conversion->mode == CONVERSION_MODE_ANIMATED )
+                                conversion->page_flip_id = g_timeout_add( 100, 
+                                        conversion_page_flip, conversion );
                 }
                 break;
 
@@ -1378,7 +1367,7 @@ conversion_set_property( GObject *object,
                         i <= 1000000 &&
                         conversion->mag != i ) {
                         conversion->mag = i;
-			conversion_changed( conversion );
+                        conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1417,7 +1406,7 @@ conversion_set_property( GObject *object,
                         i <= 1000000 &&
                         conversion->page != i ) {
                         conversion->page = i;
-			conversion_page_changed( conversion );
+                        conversion_page_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1434,7 +1423,7 @@ conversion_set_property( GObject *object,
                 b = g_value_get_boolean( value );
                 if( conversion->log != b ) { 
                         conversion->log = b;
-			conversion_update_display( conversion );
+                        conversion_update_display( conversion );
                 }
                 break;
 
@@ -1442,7 +1431,7 @@ conversion_set_property( GObject *object,
                 b = g_value_get_boolean( value );
                 if( conversion->loaded != b ) { 
                         conversion->loaded = b;
-			conversion_changed( conversion );
+                        conversion_changed( conversion );
                         conversion_update_display( conversion );
                 }
                 break;
@@ -1507,12 +1496,12 @@ conversion_get_property( GObject *object,
 
 #ifdef DEBUG
 {
-	char *str;
+        char *str;
 
-	str = g_strdup_value_contents( value );
-	printf( "conversion_get_property: %s %s\n", 
-		conversion_property_name( prop_id ), str ); 
-	g_free( str );
+        str = g_strdup_value_contents( value );
+        printf( "conversion_get_property: %s %s\n", 
+                conversion_property_name( prop_id ), str ); 
+        g_free( str );
 }
 #endif /*DEBUG*/
 }
@@ -1520,42 +1509,42 @@ conversion_get_property( GObject *object,
 static void
 conversion_init( Conversion *conversion )
 {
-	conversion->settings = g_settings_new( APP_ID );
+        conversion->settings = g_settings_new( APP_ID );
 
         conversion->mag = 1;
         conversion->type = CONVERSION_TYPE_MULTIPAGE;
         conversion->mode = CONVERSION_MODE_MULTIPAGE;
 
-	g_settings_bind( conversion->settings, "scale",
-		G_OBJECT( conversion ),
-		"scale", 
-		G_SETTINGS_BIND_DEFAULT );
+        g_settings_bind( conversion->settings, "scale",
+                G_OBJECT( conversion ),
+                "scale", 
+                G_SETTINGS_BIND_DEFAULT );
 
-	g_settings_bind( conversion->settings, "offset",
-		G_OBJECT( conversion ),
-		"offset", 
-		G_SETTINGS_BIND_DEFAULT );
+        g_settings_bind( conversion->settings, "offset",
+                G_OBJECT( conversion ),
+                "offset", 
+                G_SETTINGS_BIND_DEFAULT );
 
-	g_settings_bind( conversion->settings, "falsecolour",
-		G_OBJECT( conversion ),
-		"falsecolour", 
-		G_SETTINGS_BIND_DEFAULT );
+        g_settings_bind( conversion->settings, "falsecolour",
+                G_OBJECT( conversion ),
+                "falsecolour", 
+                G_SETTINGS_BIND_DEFAULT );
 
-	g_settings_bind( conversion->settings, "log",
-		G_OBJECT( conversion ),
-		"log", 
-		G_SETTINGS_BIND_DEFAULT );
+        g_settings_bind( conversion->settings, "log",
+                G_OBJECT( conversion ),
+                "log", 
+                G_SETTINGS_BIND_DEFAULT );
 
-	/* Initial state from settings.
+        /* Initial state from settings.
          */
         conversion->scale = 
-		g_settings_get_double( conversion->settings, "scale" );
+                g_settings_get_double( conversion->settings, "scale" );
         conversion->offset = 
-		g_settings_get_double( conversion->settings, "offset" );
+                g_settings_get_double( conversion->settings, "offset" );
         conversion->log = 
-		g_settings_get_boolean( conversion->settings, "log" );
+                g_settings_get_boolean( conversion->settings, "log" );
         conversion->falsecolour = 
-		g_settings_get_boolean( conversion->settings, "falsecolour" );
+                g_settings_get_boolean( conversion->settings, "falsecolour" );
 }
 
 static void
@@ -1846,38 +1835,38 @@ conversion_get_ink( Conversion *conversion, int x, int y )
 const char *
 conversion_get_path( Conversion *conversion )
 {
-	if( conversion->source )
-		return( vips_connection_filename( 
-			VIPS_CONNECTION( conversion->source ) ) );
+        if( conversion->source )
+                return( vips_connection_filename( 
+                        VIPS_CONNECTION( conversion->source ) ) );
 
-	return( NULL );
+        return( NULL );
 }
 
 GFile *
 conversion_get_file( Conversion *conversion )
 {
-	const char *path;
+        const char *path;
 
-	if( (path = conversion_get_path( conversion )) ) 
-		return( g_file_new_for_path( path ) );
+        if( (path = conversion_get_path( conversion )) ) 
+                return( g_file_new_for_path( path ) );
 
-	return( NULL );
+        return( NULL );
 }
 
 int
 conversion_write_to_file( Conversion *conversion, GFile *file )
 {
-	char *path;
-	int result;
+        char *path;
+        int result;
 
-	if( !(path = g_file_get_path( file )) )
-		return( -1 );
+        if( !(path = g_file_get_path( file )) )
+                return( -1 );
 
         vips_image_set_progress( conversion->image, TRUE ); 
-	result = vips_image_write_to_file( conversion->image, path, NULL );
-	g_free( path );
+        result = vips_image_write_to_file( conversion->image, path, NULL );
+        g_free( path );
 
-	return( result );
+        return( result );
 }
 
 Conversion *

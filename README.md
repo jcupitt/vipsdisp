@@ -140,6 +140,9 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - image sniffing needs refactoring, it's too complex and fragile
 
+- remove `imagedisplay_conversion_area_changed` ... do we use it? useless
+  anyway
+
 - ome-tiff pyr load, rapid zoom in and out, see a lot of errors
 
   same for other subifd pyr?

@@ -53,10 +53,13 @@ struct _Imagedisplay {
 	int left;
 	int top;
 
-	/* The regions we use for fetching pixels from the rgba image and from
+	/* The regions we use for fetching pixels from the rgb image and from
 	 * the mask.
+         *
+         * We call it rgb, but it can also be an rgba image, in which case we
+         * composite with a checkerboard during paint.
 	 */
-	VipsRegion *rgba_region;
+	VipsRegion *rgb_region;
 	VipsRegion *mask_region;
 
 };
@@ -272,9 +275,9 @@ imagedisplay_conversion_display_changed( Conversion *conversion,
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagedisplay->mask_region );
-	VIPS_UNREF( imagedisplay->rgba_region );
+	VIPS_UNREF( imagedisplay->rgb_region );
 
-	imagedisplay->rgba_region = vips_region_new( conversion->rgb );
+	imagedisplay->rgb_region = vips_region_new( conversion->rgb );
 	imagedisplay->mask_region = vips_region_new( conversion->mask );
 
 	imagedisplay->image_rect.width = conversion->rgb->Xsize;
@@ -296,7 +299,7 @@ imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty,
 		dirty->width, dirty->height );
 #endif /*DEBUG_VERBOSE*/
 
-	/* Sadly gtk4 only has this.
+	/* Sadly, gtk4 only has this.
 	 */
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
@@ -418,7 +421,7 @@ imagedisplay_dispose( GObject *object )
 	printf( "imagedisplay_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	VIPS_UNREF( imagedisplay->rgba_region );
+	VIPS_UNREF( imagedisplay->rgb_region );
 	VIPS_UNREF( imagedisplay->mask_region );
 	VIPS_UNREF( imagedisplay->conversion );
 	VIPS_FREE( imagedisplay->cairo_buffer ); 
@@ -426,10 +429,10 @@ imagedisplay_dispose( GObject *object )
 	G_OBJECT_CLASS( imagedisplay_parent_class )->dispose( object );
 }
 
-/* libvips is RGBA, cairo is premultiplied ABGR, so we have to repack the data.
+/* Convert libvips RGBA to cairo premultiplied ABGR.
  */
 static void
-imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay, 
+imagedisplay_rgba_to_cairo( Imagedisplay *imagedisplay, 
 	unsigned char *cairo, VipsPel *vips, 
 	int width, int height,
 	int cairo_stride, int vips_stride )
@@ -452,6 +455,36 @@ imagedisplay_vips_to_cairo( Imagedisplay *imagedisplay,
 			q[3] = a;
 
 			p += 4;
+			q += 4;
+		}
+	}
+}
+
+/* libvips RGB, to cairo premultiplied ABGR.
+ */
+static void
+imagedisplay_rgb_to_cairo( Imagedisplay *imagedisplay, 
+	unsigned char *cairo, VipsPel *vips, 
+	int width, int height,
+	int cairo_stride, int vips_stride )
+{
+	int x, y;
+
+	for( y = 0; y < height; y++ ) {
+		VipsPel * restrict p = vips + y * vips_stride;
+		unsigned char * restrict q = cairo + y * cairo_stride;
+
+		for( x = 0; x < width; x++ ) {
+			int r = p[0];
+			int g = p[1];
+			int b = p[2];
+
+			q[0] = b;
+			q[1] = g;
+			q[2] = r;
+			q[3] = 255;
+
+			p += 3;
 			q += 4;
 		}
 	}
@@ -572,7 +605,7 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		return;
 	}
 
-	if( vips_region_prepare( imagedisplay->rgba_region, &clip ) ) {
+	if( vips_region_prepare( imagedisplay->rgb_region, &clip ) ) {
 #ifdef DEBUG_VERBOSE
 		printf( "vips_region_prepare: %s\n", vips_error_buffer() ); 
 		vips_error_clear();
@@ -590,6 +623,10 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 		int cairo_stride = 4 * imagedisplay->paint_rect.width;
 		unsigned char *cairo_start = imagedisplay->cairo_buffer +
 			target.top * cairo_stride + target.left * 4;
+                int vips_stride = VIPS_REGION_LSKIP( imagedisplay->rgb_region );
+                VipsPel *vips_start = 
+                        VIPS_REGION_ADDR( imagedisplay->rgb_region, 
+				clip.left, clip.top );
 
 #ifdef DEBUG_VERBOSE
 		printf( "imagedisplay_fill_tile: copy to backing buffer "
@@ -598,13 +635,16 @@ imagedisplay_fill_tile( Imagedisplay *imagedisplay, VipsRect *tile )
 			clip.width, clip.height );
 #endif /*DEBUG_VERBOSE*/
 
-		imagedisplay_vips_to_cairo( imagedisplay, 
-			cairo_start,
-			VIPS_REGION_ADDR( imagedisplay->rgba_region, 
-				clip.left, clip.top ),
-			clip.width, clip.height,
-			cairo_stride,
-			VIPS_REGION_LSKIP( imagedisplay->rgba_region ) );
+                if( imagedisplay->rgb_region->im->Bands == 4 )
+                        imagedisplay_rgba_to_cairo( imagedisplay, 
+                                cairo_start, vips_start,
+                                clip.width, clip.height,
+                                cairo_stride, vips_stride );
+                else
+                        imagedisplay_rgb_to_cairo( imagedisplay, 
+                                cairo_start, vips_start,
+                                clip.width, clip.height,
+                                cairo_stride, vips_stride );
 	}
 }
 
@@ -761,27 +801,36 @@ imagedisplay_draw_cairo( Imagedisplay *imagedisplay,
 			buffer.width, buffer.height );
 #endif /*DEBUG_VERBOSE*/
 
-		/* Clip to the image area to stop the checkerboard
-		 * overpainting.
-		 */
-		cairo_rectangle( cr, gtk.left, gtk.top, gtk.width, gtk.height );
-		cairo_clip( cr );
+                surface = cairo_image_surface_create_for_data( 
+                        cairo_start, CAIRO_FORMAT_ARGB32, 
+                        buffer.width, buffer.height, 
+                        cairo_stride );  
 
-		/* Paint background checkerboard.
-		 */
-		imagedisplay_fill_checks( cr, 
-			gtk.left, gtk.top, gtk.width, gtk.height );
+                if( imagedisplay->rgb_region->im->Bands == 4 ) {
+                        /* Clip to the image area to stop the checkerboard
+                         * overpainting.
+                         */
+                        cairo_rectangle( cr, 
+                                gtk.left, gtk.top, gtk.width, gtk.height );
+                        cairo_clip( cr );
 
-		/* Paint the foreground RGBA image over that.
-		 */
-		surface = cairo_image_surface_create_for_data( cairo_start, 
-			CAIRO_FORMAT_ARGB32, buffer.width, buffer.height, 
-			cairo_stride );  
-		cairo_set_source_surface( cr, surface, gtk.left, gtk.top ); 
-		cairo_set_operator( cr, CAIRO_OPERATOR_OVER );
-		cairo_paint( cr );
+                        /* Paint background checkerboard.
+                         */
+                        imagedisplay_fill_checks( cr, 
+                                gtk.left, gtk.top, gtk.width, gtk.height );
 
-		cairo_surface_destroy( surface ); 
+                        cairo_set_source_surface( cr, 
+                                surface, gtk.left, gtk.top ); 
+                        cairo_set_operator( cr, CAIRO_OPERATOR_OVER );
+                }
+                else {
+                        cairo_set_source_surface( cr, 
+                                surface, gtk.left, gtk.top ); 
+                }
+
+                cairo_paint( cr );
+
+                cairo_surface_destroy( surface ); 
 	}
 }
 
@@ -793,7 +842,7 @@ imagedisplay_draw( GtkDrawingArea *area,
 	GtkWidget *widget = GTK_WIDGET( imagedisplay );
 
 	if( imagedisplay->conversion->loaded && 
-		imagedisplay->rgba_region ) {
+		imagedisplay->rgb_region ) {
 		cairo_rectangle_list_t *rectangle_list = 
 			cairo_copy_clip_rectangle_list( cr );
 
