@@ -106,8 +106,10 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" \
 PROGRAMS = $(bin_PROGRAMS)
 am_vipsdisp_OBJECTS = conversion.$(OBJEXT) conversionview.$(OBJEXT) \
 	infobar.$(OBJEXT) gtkutil.$(OBJEXT) imagedisplay.$(OBJEXT) \
-	imagewindow.$(OBJEXT) main.$(OBJEXT) tslider.$(OBJEXT) \
-	vipsdispapp.$(OBJEXT) vipsdisp-gresources.$(OBJEXT)
+	imagewindow.$(OBJEXT) main.$(OBJEXT) tile.$(OBJEXT) \
+	tilesource.$(OBJEXT) tilecache.$(OBJEXT) tslider.$(OBJEXT) \
+	vipsdispapp.$(OBJEXT) vipsdisp-gresources.$(OBJEXT) \
+	vipsdispmarshal.$(OBJEXT)
 vipsdisp_OBJECTS = $(am_vipsdisp_OBJECTS)
 vipsdisp_LDADD = $(LDADD)
 vipsdisp_DEPENDENCIES =
@@ -129,9 +131,10 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/conversion.Po \
 	./$(DEPDIR)/conversionview.Po ./$(DEPDIR)/gtkutil.Po \
 	./$(DEPDIR)/imagedisplay.Po ./$(DEPDIR)/imagewindow.Po \
-	./$(DEPDIR)/infobar.Po ./$(DEPDIR)/main.Po \
+	./$(DEPDIR)/infobar.Po ./$(DEPDIR)/main.Po ./$(DEPDIR)/tile.Po \
+	./$(DEPDIR)/tilecache.Po ./$(DEPDIR)/tilesource.Po \
 	./$(DEPDIR)/tslider.Po ./$(DEPDIR)/vipsdisp-gresources.Po \
-	./$(DEPDIR)/vipsdispapp.Po
+	./$(DEPDIR)/vipsdispapp.Po ./$(DEPDIR)/vipsdispmarshal.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -329,11 +332,19 @@ vipsdisp_SOURCES = \
 	imagewindow.c \
 	imagewindow.h \
 	main.c \
+	tile.c \
+	tile.h \
+	tilesource.c \
+	tilesource.h \
+	tilecache.c \
+	tilecache.h \
 	tslider.c \
 	tslider.h \
 	vipsdispapp.c \
 	vipsdispapp.h \
 	vipsdisp-gresources.c \
+	vipsdispmarshal.h \
+	vipsdispmarshal.c \
 	vipsdisp.n 
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
@@ -453,9 +464,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/imagewindow.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/infobar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tile.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tilecache.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tilesource.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tslider.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vipsdisp-gresources.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vipsdispapp.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vipsdispmarshal.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -822,9 +837,13 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/imagewindow.Po
 	-rm -f ./$(DEPDIR)/infobar.Po
 	-rm -f ./$(DEPDIR)/main.Po
+	-rm -f ./$(DEPDIR)/tile.Po
+	-rm -f ./$(DEPDIR)/tilecache.Po
+	-rm -f ./$(DEPDIR)/tilesource.Po
 	-rm -f ./$(DEPDIR)/tslider.Po
 	-rm -f ./$(DEPDIR)/vipsdisp-gresources.Po
 	-rm -f ./$(DEPDIR)/vipsdispapp.Po
+	-rm -f ./$(DEPDIR)/vipsdispmarshal.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -880,9 +899,13 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/imagewindow.Po
 	-rm -f ./$(DEPDIR)/infobar.Po
 	-rm -f ./$(DEPDIR)/main.Po
+	-rm -f ./$(DEPDIR)/tile.Po
+	-rm -f ./$(DEPDIR)/tilecache.Po
+	-rm -f ./$(DEPDIR)/tilesource.Po
 	-rm -f ./$(DEPDIR)/tslider.Po
 	-rm -f ./$(DEPDIR)/vipsdisp-gresources.Po
 	-rm -f ./$(DEPDIR)/vipsdispapp.Po
+	-rm -f ./$(DEPDIR)/vipsdispmarshal.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -924,6 +947,16 @@ uninstall-am: uninstall-binPROGRAMS uninstall-vipsdispDATA \
 
 .PRECIOUS: Makefile
 
+
+vipsdispmarshal.h:
+	glib-genmarshal \
+		--prefix=vipsdisp \
+		--header vipsdispmarshal.list > vipsdispmarshal.h
+vipsdispmarshal.c:
+	echo "#include \"vipsdispmarshal.h\"" > vipsdispmarshal.c
+	glib-genmarshal \
+		--prefix=vipsdisp \
+		--body vipsdispmarshal.list >> vipsdispmarshal.c
 @GSETTINGS_RULES@
 
 vipsdisp-gresources.c: $(resource_files)

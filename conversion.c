@@ -1,9 +1,9 @@
-#include "vipsdisp.h"
-
 /*
 #define DEBUG_VERBOSE
 #define DEBUG
  */
+
+#include "vipsdisp.h"
 
 /* Use this threadpool to do background loads of images.
  */
@@ -125,12 +125,12 @@ get_int( VipsImage *image, const char *field, int default_value )
 static VipsImage *
 conversion_open( Conversion *conversion, int level )
 {
-        /* In toilet-roll mode, we open all pages.
+        /* In toilet-roll and pages-as-bands modes, we open all pages
+         * together.
          */
-        int n = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
-                -1 : 1;
-        int page = conversion->type == CONVERSION_TYPE_TOILET_ROLL ? 
-                0 : conversion->page;
+        gboolean all_pages = conversion->type == CONVERSION_TYPE_TOILET_ROLL;
+        int n = all_pages ? -1 : 1;
+        int page = all_pages ? 0 : conversion->page;
 
         VipsImage *image;
 
@@ -349,15 +349,15 @@ static const char *
 type_name( ConversionType type ) 
 {
         switch( type ) {
-                case CONVERSION_TYPE_PAGE_PYRAMID:
-                        return( "pyramid" );
-                case CONVERSION_TYPE_TOILET_ROLL:
-                        return( "toilet-roll" );
-                case CONVERSION_TYPE_MULTIPAGE:
-                        return( "multipage" );
-                default:
-                        return( "<unknown>" );
-        }
+	case CONVERSION_TYPE_PAGE_PYRAMID:
+		return( "pyramid" );
+	case CONVERSION_TYPE_TOILET_ROLL:
+		return( "toilet-roll" );
+	case CONVERSION_TYPE_MULTIPAGE:
+		return( "multipage" );
+	default:
+		return( "<unknown>" );
+	}
 }
 
 static const char *
@@ -718,8 +718,10 @@ conversion_set_file( Conversion *conversion, GFile *file )
                 printf( "conversion_set_file: connecting via path\n" );
 #endif /*DEBUG*/
 
-                if( !(source = vips_source_new_from_file( path )) )
+                if( !(source = vips_source_new_from_file( path )) ) {
+			g_free( path );
                         return( -1 );
+		}
                 g_free( path );
         }
         else {
@@ -1333,7 +1335,6 @@ conversion_set_property( GObject *object,
 }
 #endif /*DEBUG*/
 
-
         switch( prop_id ) {
         case PROP_RGB:
                 VIPS_UNREF( conversion->rgb ); 
@@ -1423,7 +1424,7 @@ conversion_set_property( GObject *object,
                 b = g_value_get_boolean( value );
                 if( conversion->log != b ) { 
                         conversion->log = b;
-                        conversion_update_display( conversion );
+                        conversion_update_rgb( conversion );
                 }
                 break;
 

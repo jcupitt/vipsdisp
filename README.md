@@ -138,14 +138,28 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- rendering:
+
+  rework imagedisplay for snapshot 
+
+  remove conversion.[hc]? or perhaps keep that as the model part of display
+  conversion?
+
+- ome-tiff pages as bands ... info bar displays only one band
+
+- subifd pyr zooming breaks at some mag levels, eg from 1:2 zooming in to 1:1 
+  there's a big jump down and right
+
+- ome-tiff pyr load, pages-as-bands, rapid zoom in and out, see a lot of errors
+
+  same for other subifd pyr?
+
+  perhaps because the view goes out of range?
+
 - image sniffing needs refactoring, it's too complex and fragile
 
 - remove `imagedisplay_conversion_area_changed` ... do we use it? useless
-  anyway
-
-- ome-tiff pyr load, rapid zoom in and out, see a lot of errors
-
-  same for other subifd pyr?
+  anyway with gtk4
 
 - add imagemagick to get dicom loader?
 

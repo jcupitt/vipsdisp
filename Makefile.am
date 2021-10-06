@@ -14,12 +14,30 @@ vipsdisp_SOURCES = \
 	imagewindow.c \
 	imagewindow.h \
 	main.c \
+	tile.c \
+	tile.h \
+	tilesource.c \
+	tilesource.h \
+	tilecache.c \
+	tilecache.h \
 	tslider.c \
 	tslider.h \
 	vipsdispapp.c \
 	vipsdispapp.h \
 	vipsdisp-gresources.c \
+	vipsdispmarshal.h \
+	vipsdispmarshal.c \
 	vipsdisp.n 
+
+vipsdispmarshal.h:
+	glib-genmarshal \
+		--prefix=vipsdisp \
+		--header vipsdispmarshal.list > vipsdispmarshal.h
+vipsdispmarshal.c:
+	echo "#include \"vipsdispmarshal.h\"" > vipsdispmarshal.c
+	glib-genmarshal \
+		--prefix=vipsdisp \
+		--body vipsdispmarshal.list >> vipsdispmarshal.c
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm

@@ -299,7 +299,7 @@ imagedisplay_conversion_area_changed( Conversion *conversion, VipsRect *dirty,
 		dirty->width, dirty->height );
 #endif /*DEBUG_VERBOSE*/
 
-	/* Sadly, gtk4 only has this.
+	/* Sadly, gtk4 only has this and we can't redraw areas.
 	 */
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
