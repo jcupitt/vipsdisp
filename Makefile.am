@@ -27,7 +27,7 @@ vipsdisp_SOURCES = \
 	vipsdisp-gresources.c \
 	vipsdispmarshal.h \
 	vipsdispmarshal.c \
-	vipsdisp.n 
+	vipsdisp.h
 
 vipsdispmarshal.h:
 	glib-genmarshal \

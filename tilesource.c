@@ -14,7 +14,7 @@ G_DEFINE_TYPE( TileSource, tile_source, G_TYPE_OBJECT );
 enum {
         /* Properties.
          */
-        PROP_MODE,
+        PROP_MODE = 1,
         PROP_SCALE,
         PROP_OFFSET,
         PROP_PAGE,
@@ -46,10 +46,14 @@ tile_source_dispose( GObject *object )
         printf( "tile_source_dispose:\n" ); 
 #endif /*DEBUG*/
 
+        VIPS_UNREF( tile_source->source );
         VIPS_UNREF( tile_source->image );
         VIPS_UNREF( tile_source->image_region );
-        VIPS_UNREF( tile_source->mask_region );
+        VIPS_UNREF( tile_source->display );
+        VIPS_UNREF( tile_source->mask );
+        VIPS_UNREF( tile_source->rgb );
         VIPS_UNREF( tile_source->rgb_region );
+        VIPS_UNREF( tile_source->mask_region );
         VIPS_FREE( tile_source->delay );
 
         G_OBJECT_CLASS( tile_source_parent_class )->dispose( object );
@@ -179,13 +183,6 @@ tile_source_render_notify_idle( void *user_data )
 {
         TileSourceUpdate *update = (TileSourceUpdate *) user_data;
         TileSource *tile_source = update->tile_source;
-
-#ifdef DEBUG_VERBOSE
-        printf( "tile_source_render_notify_idle: "
-                "left = %d, top = %d, width = %d, height = %d\n",
-                update->rect.left, update->rect.top,
-                update->rect.width, update->rect.height );
-#endif /*DEBUG_VERBOSE*/
 
         tile_source_area_changed( tile_source, &update->rect, update->z );
 
@@ -437,7 +434,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
         mask = vips_image_new();
         if( vips_sink_screen( image, x, mask, 
                 TILE_SIZE, TILE_SIZE, 400, 0, 
-                tile_source_render_notify, tile_source ) ) {
+                tile_source_render_notify, update ) ) {
                 VIPS_UNREF( x );
                 VIPS_UNREF( mask );
                 VIPS_UNREF( image );
@@ -1059,8 +1056,9 @@ tile_source_class_init( TileSourceClass *class )
                 G_STRUCT_OFFSET( TileSourceClass, area_changed ), 
                 NULL, NULL,
                 vipsdisp_VOID__POINTER_INT,
-                G_TYPE_NONE, 1,
-                G_TYPE_POINTER );
+                G_TYPE_NONE, 2,
+                G_TYPE_POINTER,
+	        G_TYPE_INT );
 
         tile_source_signals[SIG_PAGE_CHANGED] = g_signal_new( "page-changed",
                 G_TYPE_FROM_CLASS( class ),
@@ -1146,7 +1144,7 @@ static int
 tile_source_set_image( TileSource *tile_source, VipsImage *image )
 {
 #ifdef DEBUG
-        printf( "tile_source_set_image: starting ..\n" );
+        printf( "tile_source_set_image:\n" );
 #endif /*DEBUG*/
 
         /* Only call this once.
@@ -1161,9 +1159,9 @@ tile_source_set_image( TileSource *tile_source, VipsImage *image )
         tile_source->n_pages = vips_image_get_n_pages( image );
         tile_source->n_subifds = vips_image_get_n_subifds( image );
 
-        /* This image is just a single page.
+        /* No repoening, so have (in effect) all pages open at once.
          */
-        tile_source->type = TILE_SOURCE_TYPE_MULTIPAGE;
+        tile_source->type = TILE_SOURCE_TYPE_TOILET_ROLL;
 
         if( vips_image_get_typeof( image, "delay" ) ) {
                 int *delay;
@@ -1597,6 +1595,10 @@ tile_source_new_from_file( GFile *file )
 int
 tile_source_fill_tile( TileSource *tile_source, Tile *tile ) 
 {
+#ifdef DEBUG
+        printf( "tile_source_fill_tile:\n" ); 
+#endif /*DEBUG*/
+
         if( tile_source->current_z != tile->z ||
                 !tile_source->display ) 
                 tile_source_update_display( tile_source );
@@ -1611,10 +1613,14 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
         tile->valid = VIPS_REGION_ADDR( tile_source->mask_region, 
                 tile->region->valid.left, tile->region->valid.top )[0];
 
+#ifdef DEBUG
+        printf( "  valid = %d\n", tile->valid ); 
+#endif /*DEBUG*/
+
         /* We must always prepare the region, even if we know it's blank,
          * since this will trigger the background render.
          */
-        if( vips_region_prepare_to( tile->region, tile_source->rgb_region, 
+        if( vips_region_prepare_to( tile_source->rgb_region, tile->region,
                 &tile->region->valid, 
                 tile->region->valid.left, 
                 tile->region->valid.top ) )

@@ -345,7 +345,7 @@ vipsdisp_SOURCES = \
 	vipsdisp-gresources.c \
 	vipsdispmarshal.h \
 	vipsdispmarshal.c \
-	vipsdisp.n 
+	vipsdisp.h
 
 AM_CPPFLAGS = @PKGFLAGS_CFLAGS@
 LDADD = @PKGFLAGS_CFLAGS@ @PKGFLAGS_LIBS@ -lm

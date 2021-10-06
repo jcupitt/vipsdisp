@@ -10,6 +10,9 @@ struct _ImageWindow
 
         Conversion *conversion;
 
+        TileSource *tile_source;
+        TileCache *tile_cache;
+
         /* Last known mouse postion, in image coordinates.
          */
         int last_x;
@@ -62,6 +65,8 @@ image_window_dispose( GObject *object )
 #endif /*DEBUG*/
 
         VIPS_UNREF( win->conversion );
+        VIPS_UNREF( win->tile_source );
+        VIPS_UNREF( win->tile_cache );
         VIPS_FREEF( g_timer_destroy, win->progress_timer );
 
         G_OBJECT_CLASS( image_window_parent_class )->dispose( object );
@@ -259,9 +264,22 @@ image_window_get_window_position( ImageWindow *win,
         *height = gtk_adjustment_get_page_size( vadj );
 
 #ifdef DEBUG
+#endif /*DEBUG*/
         printf( "image_window_get_window_position: %d %d %d %d\n",
                 *left, *top, *width, *height );
-#endif /*DEBUG*/
+
+{
+        VipsRect viewport;
+        int z;
+
+        viewport.left = *left;
+        viewport.top = *top;
+        viewport.width = *width;
+        viewport.height = *height;
+        z = 0;
+
+        tile_cache_set_viewport( win->tile_cache, &viewport, z );
+}
 }
 
 static void
@@ -316,6 +334,7 @@ image_window_set_window_position( ImageWindow *win, int left, int top )
 
         gtk_adjustment_set_value( hadj, left );
         gtk_adjustment_set_value( vadj, top );
+
 }
 
 /* Set a new mag, keeping the pixel at x/y in image coordinates at the same
@@ -330,8 +349,8 @@ image_window_set_mag_position( ImageWindow *win, int mag, int x, int y )
         VipsRect new_point;
 
 #ifdef DEBUG
-        printf( "image_window_set_mag_position: %d %d %d\n", mag, x, y );
 #endif /*DEBUG*/ 
+        printf( "image_window_set_mag_position: %d %d %d\n", mag, x, y );
   
         /* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
          */
@@ -1290,6 +1309,11 @@ void
 image_window_open( ImageWindow *win, GFile *file )
 {
         if( conversion_set_file( win->conversion, file ) )
+                image_window_error( win ); 
+
+        if( !(win->tile_source = tile_source_new_from_file( file )) )
+                image_window_error( win ); 
+        if( !(win->tile_cache = tile_cache_new( win->tile_source )) )
                 image_window_error( win ); 
 }
 
