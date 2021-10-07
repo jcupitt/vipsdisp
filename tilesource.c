@@ -1599,9 +1599,13 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
         printf( "tile_source_fill_tile:\n" ); 
 #endif /*DEBUG*/
 
+	/* Change z if necessary.
+	 */
         if( tile_source->current_z != tile->z ||
-                !tile_source->display ) 
+                !tile_source->display ) {
+		tile_source->current_z = tile->z;
                 tile_source_update_display( tile_source );
+	}
 
         if( vips_region_prepare( tile_source->mask_region, 
                 &tile->region->valid ) )

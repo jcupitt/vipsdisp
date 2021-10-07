@@ -270,13 +270,35 @@ image_window_get_window_position( ImageWindow *win,
 
 {
         VipsRect viewport;
-        int z;
+	int mag = win->conversion->mag;
+	double scale = mag < 0 ? 1.0 / -mag : mag;
 
-        viewport.left = *left;
-        viewport.top = *top;
-        viewport.width = *width;
-        viewport.height = *height;
-        z = 0;
+	int z;
+
+	viewport.left = *left;
+	viewport.top = *top;
+	viewport.width = *width;
+	viewport.height = *height;
+
+	/* For enlarging, we leave the z at 0 (the highest res layer) and
+	 * shrink the viewport.
+	 */
+	if( scale > 1.0 ) {
+		viewport.left /= scale;
+		viewport.top /= scale;
+		viewport.width /= scale;
+		viewport.height /= scale;
+		z = 0;
+	}
+	else {
+		double factor = 1.0 / scale;
+
+		z = log( factor ) / log( 2.0 );
+	}
+
+	printf( "mag = %d\n", mag );
+	printf( "scale = %g\n", scale );
+	printf( "z = %d\n", z );
 
         tile_cache_set_viewport( win->tile_cache, &viewport, z );
 }

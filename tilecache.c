@@ -4,6 +4,10 @@
  */
 #define DEBUG
 
+/* Keep this many non-visible tiles around as a cache.
+ */
+#define TILE_KEEP (100)
+
 G_DEFINE_TYPE( TileCache, tile_cache, G_TYPE_OBJECT );
 
 static void
@@ -207,13 +211,13 @@ tile_cache_free_oldest( TileCache *tile_cache, int z )
 {
         int n_free = g_slist_length( tile_cache->free[z] );
 
-        if( n_free > 100 ) {
+        if( n_free > TILE_KEEP ) {
                 int i;
 
                 tile_cache->free[z] = g_slist_sort( tile_cache->free[z], 
                         tile_cache_sort_lru );
 
-                for( i = 0; i < n_free - 100; i++ ) {
+                for( i = 0; i < n_free - TILE_KEEP; i++ ) {
                         Tile *tile = TILE( tile_cache->free[z]->data );
 
                         tile_cache_free_tile( tile_cache, tile );
@@ -300,9 +304,10 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 #ifdef DEBUG
 
         for( i = 0; i < tile_cache->n_levels; i++ ) {
-                printf( "  level %d, %d tiles, %d visible, %d free\n",
+                printf( "  level %d, %d tiles, %d valid, %d visible, %d free\n",
                         i, 
                         g_slist_length( tile_cache->tiles[i] ),
+                        g_slist_length( tile_cache->valid[i] ),
                         g_slist_length( tile_cache->visible[i] ),
                         g_slist_length( tile_cache->free[i] ) );
         }
@@ -337,40 +342,59 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 #endif /*DEBUG*/
 }
 
-static void
-tile_cache_fetch( TileCache *tile_cache, VipsRect *bounds )
+static Tile *
+tile_cache_find( TileCache *tile_cache, VipsRect *bounds, int z )
 {
-        int z = tile_cache->z;
-
         GSList *p;
         Tile *tile;
 
+        for( p = tile_cache->tiles[z]; p; p = p->next ) {
+                tile = TILE( p->data );
+
+                if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) 
+			return( tile );
+	}
+
+	return( NULL );
+}
+
+/* Fetch a single tile.
+ */
+static void
+tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
+{
+        int z = tile_cache->z;
+
+        Tile *tile;
+
 #ifdef DEBUG
-        printf( "tile_cache_fetch: left = %d, top = %d, "
+        printf( "tile_cache_get: left = %d, top = %d, "
                 "width = %d, height = %d\n", 
                 bounds->left, bounds->top,
                 bounds->width, bounds->height );
 #endif /*DEBUG*/
 
-        for( p = tile_cache->tiles[z]; p; p = p->next ) {
-                tile = TILE( p->data );
+	/* Look for an existing tile, or make a new one.
+	 */
+        if( !(tile = tile_cache_find( tile_cache, bounds, z )) ) {
+		if( !(tile = tile_new( tile_cache->levels[z], 
+			bounds->left >> z, bounds->top >> z, z )) )
+			return;
 
-                if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
-                        if( !tile->valid )
-                                tile_source_fill_tile( tile_cache->tile_source,
-                                        tile );
+		tile_cache->tiles[z] = 
+			g_slist_prepend( tile_cache->tiles[z], tile );
+	}
 
-                        return;
-                }
-        }
+	if( !tile->valid ) {
+		tile_source_fill_tile( tile_cache->tile_source, tile );
 
-        /* No existing tile ... make a new one.
-         */
-        tile = tile_new( tile_cache->levels[z], 
-                bounds->left >> z, bounds->top >> z, z );
-        tile_cache->tiles[z] = g_slist_prepend( tile_cache->tiles[z], tile );
-
-        tile_source_fill_tile( tile_cache->tile_source, tile );
+		/* It might now be valid, if pixels have come
+		 * in from the pipeline.
+		 */
+		if( tile->valid ) 
+			tile_cache->valid[z] = 
+				g_slist_prepend( tile_cache->valid[z], tile );
+	}
 }
 
 static void
@@ -390,7 +414,7 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *area )
 			bounds.left = x + area->left;
 			bounds.top = y + area->top;
 
-			tile_cache_fetch( tile_cache, &bounds );
+			tile_cache_get( tile_cache, &bounds );
 		}
 }
 
@@ -432,6 +456,7 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
         if( z != old_z ||
                 !vips_rect_equalsrect( &old_touches, &touches ) ) {
 		tile_cache_fetch_area( tile_cache, &touches );
+
                 tile_cache_compute_visibility( tile_cache );
         }
 }
@@ -450,22 +475,42 @@ tile_cache_changed( TileSource *tile_source, TileCache *tile_cache )
         tile_cache_set_viewport( tile_cache, &old_viewport, old_z );
 }
 
+/* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark 
+ * all tiles invalid and refetch the viewport.
+ */
 static void
 tile_cache_tiles_changed( TileSource *tile_source, TileCache *tile_cache )
 {
+	int i;
+
 #ifdef DEBUG
         printf( "tile_cache_tiles_changed:\n" );
 #endif /*DEBUG*/
 
-        tile_cache_changed( tile_source, tile_cache );
+        for( i = 0; i < tile_cache->n_levels; i++ ) {
+                GSList *p;
+
+                for( p = tile_cache->valid[i]; p; p = p->next ) {
+                        Tile *tile = TILE( p->data );
+
+			tile->valid = FALSE;
+                }
+
+                VIPS_FREEF( g_slist_free, tile_cache->valid[i] );
+        }
+
+	tile_cache_fetch_area( tile_cache, &tile_cache->viewport );
+
+        tile_cache_compute_visibility( tile_cache );
 }
 
+/* Some tiles have been computed. Fetch any invalid tiles in this rect.
+ */
 static void
 tile_cache_area_changed( TileSource *tile_source, 
         VipsRect *area, int z, TileCache *tile_cache )
 {
         VipsRect bounds;
-        int i;
 
 #ifdef DEBUG
         printf( "tile_cache_area_changed: left = %d, top = %d, "
@@ -474,44 +519,10 @@ tile_cache_area_changed( TileSource *tile_source,
                 area->width, area->height, z );
 #endif /*DEBUG*/
 
-        /* As a level 0 bound.
-         */
         bounds.left = area->left << z;
         bounds.top = area->top << z;
         bounds.width = area->width << z;
         bounds.height = area->height << z;
-
-	/* Our tile source has new pixels for this area. Any valid tiles which
-	 * touch this area are now invalid.
-	 */
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                GSList *p;
-                GSList *to_invalidate;
-
-                to_invalidate = NULL;
-                for( p = tile_cache->valid[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
-
-                        g_assert( tile->valid );
-                        if( vips_rect_overlapsrect( &tile->bounds, &bounds ) ) {
-                                tile->valid = FALSE;
-                                to_invalidate = 
-                                        g_slist_prepend( to_invalidate, tile );
-                        }
-                }
-
-                for( p = to_invalidate; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
-
-                        tile_cache->valid[i] = 
-                                g_slist_remove( tile_cache->valid[i], tile );
-                }
-
-                g_slist_free( to_invalidate );
-        }
-
-	/* Now refetch all those tiles.
-	 */
 	tile_cache_fetch_area( tile_cache, &bounds );
 
         tile_cache_compute_visibility( tile_cache );
