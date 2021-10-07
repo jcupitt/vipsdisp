@@ -112,7 +112,9 @@ tile_get_texture( Tile *tile )
          */
         if( !tile->pixbuf ) 
                 tile->pixbuf = gdk_pixbuf_new_from_data( 
-                        VIPS_REGION_ADDR( tile->region, 0, 0 ),
+                        VIPS_REGION_ADDR( tile->region, 
+				tile->region->valid.left,
+				tile->region->valid.top ),
                         GDK_COLORSPACE_RGB,
                         tile->region->im->Bands == 4,
                         8,

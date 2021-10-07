@@ -1211,9 +1211,6 @@ image_window_init( ImageWindow *win )
         g_object_unref( builder );
 
         win->conversion = conversion_new();
-        g_object_set( win->imagedisplay,
-                "conversion", win->conversion,
-                NULL );
         g_object_set( win->conversion_bar,
                 "conversion", win->conversion,
                 NULL );
@@ -1221,12 +1218,6 @@ image_window_init( ImageWindow *win )
                 "image_window", win,
                 NULL );
 
-        g_signal_connect_object( win->conversion, "preeval", 
-                G_CALLBACK( image_window_preeval ), win, 0 );
-        g_signal_connect_object( win->conversion, "eval", 
-                G_CALLBACK( image_window_eval ), win, 0 );
-        g_signal_connect_object( win->conversion, "posteval", 
-                G_CALLBACK( image_window_posteval ), win, 0 );
         g_signal_connect_object( win->progress_cancel, "clicked", 
                 G_CALLBACK( image_window_cancel_clicked ), win, 0 );
 
@@ -1333,10 +1324,24 @@ image_window_open( ImageWindow *win, GFile *file )
         if( conversion_set_file( win->conversion, file ) )
                 image_window_error( win ); 
 
+        VIPS_UNREF( win->tile_source );
+        VIPS_UNREF( win->tile_cache );
+
         if( !(win->tile_source = tile_source_new_from_file( file )) )
                 image_window_error( win ); 
         if( !(win->tile_cache = tile_cache_new( win->tile_source )) )
                 image_window_error( win ); 
+
+        g_object_set( win->imagedisplay,
+                "tile-cache", win->tile_cache,
+                NULL );
+
+        g_signal_connect_object( win->tile_source, "preeval", 
+                G_CALLBACK( image_window_preeval ), win, 0 );
+        g_signal_connect_object( win->tile_source, "eval", 
+                G_CALLBACK( image_window_eval ), win, 0 );
+        g_signal_connect_object( win->tile_source, "posteval", 
+                G_CALLBACK( image_window_posteval ), win, 0 );
 }
 
 Conversion *

@@ -8,6 +8,17 @@
  */
 #define TILE_KEEP (100)
 
+enum {
+        /* Signals. 
+         */
+        SIG_CHANGED,            
+        SIG_AREA_CHANGED,            
+
+        SIG_LAST
+};
+
+static guint tile_cache_signals[SIG_LAST] = { 0 };
+
 G_DEFINE_TYPE( TileCache, tile_cache, G_TYPE_OBJECT );
 
 static void
@@ -59,6 +70,20 @@ tile_cache_dispose( GObject *object )
 }
 
 static void
+tile_cache_changed( TileCache *tile_cache )
+{
+        g_signal_emit( tile_cache, 
+                tile_cache_signals[SIG_CHANGED], 0 );
+}
+
+static void
+tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, int z )
+{
+        g_signal_emit( tile_cache, 
+                tile_cache_signals[SIG_AREA_CHANGED], 0, dirty, z );
+}
+
+static void
 tile_cache_init( TileCache *tile_cache )
 {
 }
@@ -69,6 +94,24 @@ tile_cache_class_init( TileCacheClass *class )
         GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 
         gobject_class->dispose = tile_cache_dispose;
+
+        tile_cache_signals[SIG_CHANGED] = g_signal_new( "changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL, NULL,
+                g_cclosure_marshal_VOID__VOID,
+                G_TYPE_NONE, 0 ); 
+
+        tile_cache_signals[SIG_AREA_CHANGED] = g_signal_new( "area-changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL, NULL,
+                vipsdisp_VOID__POINTER_INT,
+                G_TYPE_NONE, 2,
+                G_TYPE_POINTER,
+	        G_TYPE_INT );
 
 }
 
@@ -462,29 +505,35 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
 }
 
 static void
-tile_cache_changed( TileSource *tile_source, TileCache *tile_cache )
+tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
 {
         VipsRect old_viewport = tile_cache->viewport;
         int old_z = tile_cache->z;
 
 #ifdef DEBUG
-        printf( "tile_cache_changed:\n" );
+        printf( "tile_cache_source_changed:\n" );
 #endif /*DEBUG*/
 
         tile_cache_build_pyramid( tile_cache );
+
         tile_cache_set_viewport( tile_cache, &old_viewport, old_z );
+
+	/* Tell our clients.
+	 */
+        tile_cache_changed( tile_cache );
 }
 
 /* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark 
  * all tiles invalid and refetch the viewport.
  */
 static void
-tile_cache_tiles_changed( TileSource *tile_source, TileCache *tile_cache )
+tile_cache_source_tiles_changed( TileSource *tile_source, 
+	TileCache *tile_cache )
 {
 	int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_tiles_changed:\n" );
+        printf( "tile_cache_source_tiles_changed:\n" );
 #endif /*DEBUG*/
 
         for( i = 0; i < tile_cache->n_levels; i++ ) {
@@ -502,18 +551,22 @@ tile_cache_tiles_changed( TileSource *tile_source, TileCache *tile_cache )
 	tile_cache_fetch_area( tile_cache, &tile_cache->viewport );
 
         tile_cache_compute_visibility( tile_cache );
+
+	/* Tell our clients.
+	 */
+        tile_cache_changed( tile_cache );
 }
 
 /* Some tiles have been computed. Fetch any invalid tiles in this rect.
  */
 static void
-tile_cache_area_changed( TileSource *tile_source, 
+tile_cache_source_area_changed( TileSource *tile_source, 
         VipsRect *area, int z, TileCache *tile_cache )
 {
         VipsRect bounds;
 
 #ifdef DEBUG
-        printf( "tile_cache_area_changed: left = %d, top = %d, "
+        printf( "tile_cache_source_area_changed: left = %d, top = %d, "
                 "width = %d, height = %d, z = %d\n", 
                 area->left, area->top,
                 area->width, area->height, z );
@@ -526,6 +579,10 @@ tile_cache_area_changed( TileSource *tile_source,
 	tile_cache_fetch_area( tile_cache, &bounds );
 
         tile_cache_compute_visibility( tile_cache );
+
+	/* Tell our clients.
+	 */
+        tile_cache_area_changed( tile_cache, area, z );
 }
 
 TileCache *
@@ -541,11 +598,11 @@ tile_cache_new( TileSource *tile_source )
          */
 
         g_signal_connect_object( tile_cache->tile_source, "changed", 
-                G_CALLBACK( tile_cache_changed ), tile_cache, 0 );
+                G_CALLBACK( tile_cache_source_changed ), tile_cache, 0 );
         g_signal_connect_object( tile_cache->tile_source, "tiles_changed", 
-                G_CALLBACK( tile_cache_tiles_changed ), tile_cache, 0 );
+                G_CALLBACK( tile_cache_source_tiles_changed ), tile_cache, 0 );
         g_signal_connect_object( tile_cache->tile_source, "area_changed", 
-                G_CALLBACK( tile_cache_area_changed ), tile_cache, 0 );
+                G_CALLBACK( tile_cache_source_area_changed ), tile_cache, 0 );
 
         return( tile_cache ); 
 }
