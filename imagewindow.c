@@ -1,6 +1,6 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -264,44 +264,9 @@ image_window_get_window_position( ImageWindow *win,
         *height = gtk_adjustment_get_page_size( vadj );
 
 #ifdef DEBUG
-#endif /*DEBUG*/
         printf( "image_window_get_window_position: %d %d %d %d\n",
                 *left, *top, *width, *height );
-
-{
-        VipsRect viewport;
-	int mag = win->conversion->mag;
-	double scale = mag < 0 ? 1.0 / -mag : mag;
-
-	int z;
-
-	viewport.left = *left;
-	viewport.top = *top;
-	viewport.width = *width;
-	viewport.height = *height;
-
-	/* For enlarging, we leave the z at 0 (the highest res layer) and
-	 * shrink the viewport.
-	 */
-	if( scale > 1.0 ) {
-		viewport.left /= scale;
-		viewport.top /= scale;
-		viewport.width /= scale;
-		viewport.height /= scale;
-		z = 0;
-	}
-	else {
-		double factor = 1.0 / scale;
-
-		z = log( factor ) / log( 2.0 );
-	}
-
-	printf( "mag = %d\n", mag );
-	printf( "scale = %g\n", scale );
-	printf( "z = %d\n", z );
-
-        tile_cache_set_viewport( win->tile_cache, &viewport, z );
-}
+#endif /*DEBUG*/
 }
 
 static void
@@ -314,30 +279,13 @@ image_window_position_changed( ImageWindow *win )
 static int
 image_window_set_mag( ImageWindow *win, int mag )
 {
-        Conversion *conversion = win->conversion;
-
-        int display_width;
-        int display_height;
-
 #ifdef DEBUG
         printf( "image_window_set_mag: %d\n", mag );
 #endif /*DEBUG*/
 
-        /* Limit mag range to keep the displayed image within 1 and
-         * VIPS_MAX_COORD on both axis.
-         */
-        conversion_to_display_cods( mag,
-                conversion->width, conversion->height,
-                &display_width, &display_height );
-        if( VIPS_MIN( display_width, display_height ) < 2 ||
-                VIPS_MAX( display_width, display_height ) >= VIPS_MAX_COORD )
-                return( -1 );
-
-        g_object_set( conversion, "mag", mag, NULL );
-
-        /* mag has changed.
-         */
-        image_window_position_changed( win );
+        g_object_set( win->imagedisplay, 
+		"scale", mag < 0 ? 1.0 / -mag : mag, 
+		NULL );
 
         return( 0 );
 }

@@ -1,8 +1,8 @@
 #include "vipsdisp.h"
 
 /*
- */
 #define DEBUG
+ */
 
 /* Keep this many non-visible tiles around as a cache.
  */
@@ -461,6 +461,9 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *area )
 		}
 }
 
+/* Set the layer and the rect within that layer that we want to display.
+ * viewport in level0 coordinates.
+ */
 void 
 tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
 {
@@ -483,10 +486,7 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
 
         /* Save viewport in level0 coordinates.
          */
-        tile_cache->viewport.left = viewport->left << z;
-        tile_cache->viewport.top = viewport->top << z;
-        tile_cache->viewport.width = viewport->width << z;
-        tile_cache->viewport.height = viewport->height << z;
+        tile_cache->viewport = *viewport;
         tile_cache->z = z;
 
         /* The rect of tiles touched by the new viewport.
@@ -499,7 +499,6 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
         if( z != old_z ||
                 !vips_rect_equalsrect( &old_touches, &touches ) ) {
 		tile_cache_fetch_area( tile_cache, &touches );
-
                 tile_cache_compute_visibility( tile_cache );
         }
 }
@@ -607,17 +606,23 @@ tile_cache_new( TileSource *tile_source )
         return( tile_cache ); 
 }
 
+/* The tile_cale->viewport is the rect of tiles we have prepared for viewing.
+ * The x, y, scale here is how we'd like them translated and scaled for the
+ * screen.
+ */
 void 
-tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot )
+tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
+	double x, double y, double scale )
 {
         int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_snapshot:\n" );
+        printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
+		x, y, scale );
 #endif /*DEBUG*/
 
         for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
-                int scale = i - tile_cache->z;
+                double layer_scale = (1 << i) * scale; 
 
                 GSList *p;
 
@@ -627,15 +632,13 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot )
                         graphene_rect_t snapshot_bounds;
 
                         snapshot_bounds.origin.x = 
-                                (tile->bounds.left - 
-                                 tile_cache->viewport.left) << scale;
+                                (tile->bounds.left - x) * layer_scale;  
                         snapshot_bounds.origin.y = 
-                                (tile->bounds.top - 
-                                 tile_cache->viewport.top) << scale;
+                                (tile->bounds.top - y) * layer_scale;  
                         snapshot_bounds.size.width = 
-                                tile->bounds.width << scale;
+                                tile->bounds.width * layer_scale;  
                         snapshot_bounds.size.height = 
-                                tile->bounds.height << scale;
+                                tile->bounds.height * layer_scale;
 
                         gtk_snapshot_append_texture( snapshot, 
                                  tile_get_texture( tile ), 

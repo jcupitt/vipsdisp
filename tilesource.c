@@ -1,7 +1,7 @@
 /*
- */
 #define DEBUG_VERBOSE
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
