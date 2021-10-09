@@ -622,8 +622,6 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 #endif /*DEBUG*/
 
         for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
-                double layer_scale = (1 << i) * scale; 
-
                 GSList *p;
 
                 for( p = tile_cache->visible[i]; p; p = p->next ) {
@@ -632,13 +630,13 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                         graphene_rect_t snapshot_bounds;
 
                         snapshot_bounds.origin.x = 
-                                (tile->bounds.left - x) * layer_scale;  
+                                tile->bounds.left * scale - x;  
                         snapshot_bounds.origin.y = 
-                                (tile->bounds.top - y) * layer_scale;  
+                                tile->bounds.top * scale - y;  
                         snapshot_bounds.size.width = 
-                                tile->bounds.width * layer_scale;  
+                                tile->bounds.width * scale;  
                         snapshot_bounds.size.height = 
-                                tile->bounds.height * layer_scale;
+                                tile->bounds.height * scale;
 
                         gtk_snapshot_append_texture( snapshot, 
                                  tile_get_texture( tile ), 

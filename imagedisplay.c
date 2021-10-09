@@ -105,17 +105,18 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
 
 	/* The area to display in level0 coordinates.
 	 */
-	viewport.left = (x / scale) / (1 << z);
-	viewport.top = (y / scale) / (1 << z);
-	viewport.width = VIPS_MAX( 1, widget_width * scale );
-	viewport.height = VIPS_MAX( 1, widget_height * scale );
+	viewport.left = x / scale;
+	viewport.top = y / scale;
+	viewport.width = VIPS_MAX( 1, widget_width / scale );
+	viewport.height = VIPS_MAX( 1, widget_height / scale );
 	vips_rect_intersectrect( &viewport, &imagedisplay->image_rect, 
 		&viewport );
 
 #ifdef DEBUG
 	printf( "imagedisplay_set_transform: x = %g, y = %g, scale = %g\n",
 		x, y, scale );
-	printf( "  z = %d, viewport at %d x %d, size %d x %d\n", z, 
+	printf( "  z = %d, viewport at %d x %d, size %d x %d\n", 
+		z, 
 		viewport.left, viewport.top,
 		viewport.width, viewport.height );
 #endif /*DEBUG*/
@@ -141,9 +142,7 @@ imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
 #endif /*DEBUG*/
 
 		imagedisplay_set_transform( imagedisplay, 
-			left / imagedisplay->scale,
-			top / imagedisplay->scale,
-			imagedisplay->scale );
+			left, top, imagedisplay->scale );
 	}
 }
 
@@ -350,6 +349,9 @@ imagedisplay_set_property( GObject *object,
 			imagedisplay->x, 
 			imagedisplay->y, 
 			g_value_get_double( value ) );
+
+		imagedisplay_set_hadjustment_values( imagedisplay );
+		imagedisplay_set_vadjustment_values( imagedisplay );
 		break;
 
 	default:
