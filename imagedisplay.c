@@ -224,6 +224,17 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 		gtk_widget_get_height( GTK_WIDGET( imagedisplay ) ) );
 }
 
+static void
+imagedisplay_layout( Imagedisplay *imagedisplay )
+{
+#ifdef DEBUG
+	printf( "imagedisplay_layout:\n" ); 
+#endif /*DEBUG*/
+
+	imagedisplay_set_hadjustment_values( imagedisplay );
+	imagedisplay_set_vadjustment_values( imagedisplay );
+}
+
 /* Large change, we need to relayout.
  */
 static void
@@ -237,8 +248,7 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
 	imagedisplay->image_rect.width = tile_cache->tile_source->width;
 	imagedisplay->image_rect.height = tile_cache->tile_source->height;
 
-	imagedisplay_set_hadjustment_values( imagedisplay );
-	imagedisplay_set_vadjustment_values( imagedisplay );
+	imagedisplay_layout( imagedisplay );
 
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
@@ -350,8 +360,7 @@ imagedisplay_set_property( GObject *object,
 			imagedisplay->y, 
 			g_value_get_double( value ) );
 
-		imagedisplay_set_hadjustment_values( imagedisplay );
-		imagedisplay_set_vadjustment_values( imagedisplay );
+		imagedisplay_layout( imagedisplay );
 		break;
 
 	default:
@@ -418,33 +427,6 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 		imagedisplay->x, imagedisplay->y, imagedisplay->scale );
 }
 
-/* Transform between our coordinate spaces:
- *
- * image: libvips coordinates ... we clip against the image size when going to 
- * libvips space.
- *
- * gtk: coordinates for gtk and for cairo drawing .. no clipping.
- *
- * buffer: coordinates for our backing buffer ... clip against buffer size when
- * going to this space.
- */
-
-void
-imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, VipsRect *rect )
-{
-	rect->left -= imagedisplay->x;
-	rect->top -= imagedisplay->y;
-}
-
-void
-imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, VipsRect *rect )
-{
-	rect->left += imagedisplay->x;
-	rect->top += imagedisplay->y;
-
-	vips_rect_intersectrect( rect, &imagedisplay->image_rect, rect ); 
-}
-
 static void
 imagedisplay_resize( GtkWidget *widget, int width, int height )
 {
@@ -454,8 +436,7 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 	printf( "imagedisplay_resize: %d x %d\n", width, height ); 
 #endif /*DEBUG*/
 
-	imagedisplay_set_hadjustment_values( imagedisplay );
-	imagedisplay_set_vadjustment_values( imagedisplay );
+	imagedisplay_layout( imagedisplay );
 
 	imagedisplay_set_transform( imagedisplay, 
 		imagedisplay->x, imagedisplay->y, imagedisplay->scale );
@@ -579,4 +560,29 @@ imagedisplay_new( TileCache *tile_cache )
 		NULL );
 
 	return( imagedisplay ); 
+}
+
+/* image	level0 image coordinates ... this is the coordinate space we
+ *		pass down to tile_cache
+ *
+ * gtk		screen cods, so the coordinates we use to render tiles
+ */
+
+void
+imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, 
+	int x_image, int y_image, double *x_gtk, double *y_gtk )
+{
+	*x_gtk = x_image * imagedisplay->scale - imagedisplay->x;
+	*y_gtk = y_image * imagedisplay->scale - imagedisplay->y;
+}
+
+void
+imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, 
+	double x_gtk, double y_gtk, int *x_image, int *y_image )
+{
+	*x_image = (x_gtk + imagedisplay->x) / imagedisplay->scale;
+	*y_image = (y_gtk + imagedisplay->y) / imagedisplay->scale;
+
+	*x_image = VIPS_CLIP( 0, *x_image, imagedisplay->image_rect.width );
+	*y_image = VIPS_CLIP( 0, *y_image, imagedisplay->image_rect.height );
 }

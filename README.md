@@ -142,6 +142,12 @@ $ ./vipsdisp ~/pics/k2.jpg
 
   rework imagedisplay for snapshot 
 
+    add paint_rect back, do layout in _layout
+
+    snapshot should use image_to_gtk
+
+    fetch pixel on motion needs fixing
+
   remove conversion.[hc]? or perhaps keep that as the model part of display
   conversion?
 

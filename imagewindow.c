@@ -277,14 +277,14 @@ image_window_position_changed( ImageWindow *win )
 }
 
 static int
-image_window_set_mag( ImageWindow *win, int mag )
+image_window_set_scale( ImageWindow *win, double scale )
 {
 #ifdef DEBUG
-        printf( "image_window_set_mag: %d\n", mag );
+        printf( "image_window_set_scale: %g\n", scale );
 #endif /*DEBUG*/
 
         g_object_set( win->imagedisplay, 
-		"scale", mag < 0 ? 1.0 / -mag : mag, 
+		"scale", scale,
 		NULL );
 
         return( 0 );
@@ -307,28 +307,24 @@ image_window_set_window_position( ImageWindow *win, int left, int top )
 
 }
 
-/* Set a new mag, keeping the pixel at x/y in image coordinates at the same
- * position on the screen, if we can.
+/* Set a new mag, keeping the pixel at x/y at the same position on the 
+ * screen, if we can.
  */
 static void     
-image_window_set_mag_position( ImageWindow *win, int mag, int x, int y )
+image_window_set_scale( ImageWindow *win, double scale, double x, double y )
 {                       
-        Conversion *conversion = win->conversion;
-
         VipsRect old_point;
         VipsRect new_point;
 
 #ifdef DEBUG
+        printf( "image_window_set_scale_position: %g %g %g\n", scale, x, y );
 #endif /*DEBUG*/ 
-        printf( "image_window_set_mag_position: %d %d %d\n", mag, x, y );
   
         /* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
          */
-        conversion_to_display_cods( conversion->mag,
-                x, y,
-                &old_point.left, &old_point.top ); 
         imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-                &old_point );
+                x, y, 
+                &old_point.left, &old_point.top ); 
 
 	printf( "  old point in screen space %d, %d\n", 
                 old_point.left, old_point.top ); 
@@ -421,35 +417,17 @@ image_window_magout( ImageWindow *win, int x, int y )
 void
 image_window_bestfit( ImageWindow *win )
 {
-        Conversion *conversion = win->conversion;
-
-        int image_width;
-        int image_height;
-
 #ifdef DEBUG
         printf( "image_window_bestfit:\n" ); 
 #endif /*DEBUG*/
 
-        if( conversion_get_image_size( conversion, 
-                &image_width, &image_height ) ) {
-                int allocated_width = 
-                        gtk_widget_get_allocated_width( win->imagedisplay );
-                int allocated_height = 
-                        gtk_widget_get_allocated_height( win->imagedisplay );
-                double hfac = (double) allocated_width / image_width;
-                double vfac = (double) allocated_height / image_height;
-                double fac = VIPS_MIN( hfac, vfac );
+	int widget_width = gtk_widget_get_width( win->imagedisplay );
+	int widget_height = gtk_widget_get_height( win->imagedisplay );
+	double hscale = (double) widget_width / win->tile_source->width;
+	double vscale = (double) widget_height / win->tile_source->height;
+	double scale = VIPS_MIN( hscale, vscale );
 
-                int mag;
-
-                /* 0.999 means we don't round up on an exact fit.
-                 *
-                 * FIXME ... yuk
-                 */
-                mag = fac >= 1 ? fac : -((int) (0.99999999 + 1.0 / fac));
-
-                image_window_set_mag( win, mag );
-        }
+	image_window_set_scale( win, scale );
 }
 
 static void
@@ -511,7 +489,7 @@ image_window_oneone_action( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        image_window_set_mag( win, 1 );
+        image_window_set_scale( win, 1.0 );
 }
 
 static void
@@ -674,17 +652,17 @@ image_window_close_action( GSimpleAction *action,
 
 static struct {
         int keyval;
-        int mag;
+        double scale;
 } magnify_keys[] = {
-        { GDK_KEY_1, 1 },
-        { GDK_KEY_2, 2 },
-        { GDK_KEY_3, 3 },
-        { GDK_KEY_4, 4 },
-        { GDK_KEY_5, 5 },
-        { GDK_KEY_6, 6 },
-        { GDK_KEY_7, 7 },
-        { GDK_KEY_8, 8 },
-        { GDK_KEY_9, 9 }
+        { GDK_KEY_1, 1.0 },
+        { GDK_KEY_2, 2.0 },
+        { GDK_KEY_3, 3.0 },
+        { GDK_KEY_4, 4.0 },
+        { GDK_KEY_5, 5.0 },
+        { GDK_KEY_6, 6.0 },
+        { GDK_KEY_7, 7.0 },
+        { GDK_KEY_8, 8.0 },
+        { GDK_KEY_9, 9.0 }
 };
 
 static gboolean 
@@ -799,13 +777,13 @@ image_window_key_pressed( GtkEventControllerKey *self,
 
                 for( i = 0; i < VIPS_NUMBER( magnify_keys ); i++ )
                         if( magnify_keys[i].keyval == keyval ) {
-                                int mag;
+                                double scale;
 
-                                mag = magnify_keys[i].mag;
+                                scale = magnify_keys[i].scale;
                                 if( state & GDK_CONTROL_MASK )
-                                        mag *= -1;
+                                        scale = 1.0 / scale;
 
-                                image_window_set_mag( win, mag );
+                                image_window_set_scale( win, scale );
                                 handled = TRUE;
                                 break;
                         }
@@ -815,27 +793,13 @@ image_window_key_pressed( GtkEventControllerKey *self,
 }
 
 static void
-image_window_gtk_to_image( ImageWindow *win, 
-        int gtk_x, int gtk_y, int *image_x, int *image_y )
-{
-        VipsRect point;
-
-        point.left = gtk_x;
-        point.top = gtk_y;
-        point.width = 0;
-        point.height = 0;
-        imagedisplay_gtk_to_image( (Imagedisplay *) win->imagedisplay, &point );
-        conversion_to_image_cods( win->conversion->mag,
-                point.left, point.top, image_x, image_y );
-}
-
-static void
 image_window_motion( GtkEventControllerMotion *self,
         gdouble x, gdouble y, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        image_window_gtk_to_image( win, x, y, &win->last_x, &win->last_y );
+	imagedisplay_gtk_to_image( win->imagedisplay, 
+		x, y, &win->last_x, &win->last_y );
         image_window_position_changed( win );
 }
 
