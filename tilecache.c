@@ -335,30 +335,31 @@ tile_cache_compute_visibility( TileCache *tile_cache )
                         Tile *tile = TILE( p->data );
 
                         if( tile->time < start_time ) 
-                                tile_cache->free[z] = 
-                                        g_slist_prepend( tile_cache->free[z], 
+                                tile_cache->free[i] = 
+                                        g_slist_prepend( tile_cache->free[i], 
                                                 tile );
                 }
         }
 
-        /* Keep recent tiles in the lowest-res level that has any tiles, and
-         * in the current level. Free unused tiles everywhere else.
-         */
-        for( i = 0; i < z; i++ ) 
-                if( tile_cache->free[i] ) {
-                        tile_cache_free_oldest( tile_cache, i );
-                        break;
-                }
-        for( ; i < z; i++ ) {
-                for( p = tile_cache->free[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+	/* Free tiles we don't need. Never free tiles in the lowest-res few 
+	 * levels. They are useful for filling in holes and take little memory.
+	 */
+        for( i = 0; i < tile_cache->n_levels - 4; i++ ) 
+		if( i == z )
+			/* Free old, invisible tiles in the current level.
+			 */
+			tile_cache_free_oldest( tile_cache, i );
+		else {
+			/* All other levels, free all tiles.
+			 */
+			for( p = tile_cache->free[i]; p; p = p->next ) {
+				Tile *tile = TILE( p->data );
 
-                        tile_cache_free_tile( tile_cache, tile );
-                }
-                
-                VIPS_FREEF( g_slist_free, tile_cache->free[i] );
-        }
-        tile_cache_free_oldest( tile_cache, z );
+				tile_cache_free_tile( tile_cache, tile );
+			}
+			
+			VIPS_FREEF( g_slist_free, tile_cache->free[i] );
+		}
 
 #ifdef DEBUG
 
@@ -560,6 +561,11 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
                 viewport->width, viewport->height, 
 		z );
 #endif /*DEBUG*/
+
+	/* The pyramid may not have loaded hyet.
+	 */
+	if( !tile_cache->levels )
+		return;
 
 	g_assert( z >= 0 && z < tile_cache->n_levels );
 

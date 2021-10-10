@@ -140,13 +140,13 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-    large images are failing to load
-
-    fix tilecache behaviour
+    tilesource is not loading openslide pyr?
 
     fix transparency display
 
     css animation for zoom?
+
+    fix animation display
 
 - ome-tiff pages as bands ... info bar displays only one band
 
