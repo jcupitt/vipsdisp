@@ -476,7 +476,7 @@ conversion_set_image( Conversion *conversion,
                 int level;
 
                 level_count = get_int( image, "openslide.level-count", 1 );
-                level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS );
+                level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS - 1 );
                 conversion->level_count = level_count;
 
                 for( level = 0; level < level_count; level++ ) {

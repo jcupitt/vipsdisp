@@ -142,14 +142,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
   rework imagedisplay for snapshot 
 
-    add paint_rect back, do layout in _layout
+    display control bar next
 
-    snapshot should use image_to_gtk
+    remove conversion
 
-    fetch pixel on motion needs fixing
-
-  remove conversion.[hc]? or perhaps keep that as the model part of display
-  conversion?
+    css animation for zoom?
 
 - ome-tiff pages as bands ... info bar displays only one band
 

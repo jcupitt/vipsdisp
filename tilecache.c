@@ -440,25 +440,90 @@ tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
 	}
 }
 
+/* Fetch the tiles in an area.
+ *
+ * render processes tiles in FIFO order, so we need to add in reverse order
+ * of processing. We want repaint to happen in a spiral from the centre out,
+ * so we have to add in a spiral from the outside in.
+ */
 static void
-tile_cache_fetch_area( TileCache *tile_cache, VipsRect *area )
+tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
 {
         int z = tile_cache->z;
         int size0 = TILE_SIZE << z;
 
-	int x, y;
-	VipsRect bounds;
+        /* All the tiles rect touches in this pyr level.
+         */
+        int left = VIPS_ROUND_DOWN( rect->left, size0 );
+        int top = VIPS_ROUND_DOWN( rect->top, size0 );
+        int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
+        int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( rect ), size0 );
 
-	bounds.width = size0;
-	bounds.height = size0;
+	/* Do the four edges, then step in. Loop until the centre is empty.
+	 */
+	for(;;) {
+		VipsRect tile;
+		int x, y;
 
-	for( y = 0; y < area->height; y += size0 )
-		for( x = 0; x < area->width; x += size0 ) {
-			bounds.left = x + area->left;
-			bounds.top = y + area->top;
+		tile.width = size0;
+		tile.height = size0;
 
-			tile_cache_get( tile_cache, &bounds );
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Top edge.
+		 */
+		for( x = left; x < right; x += size0 ) {
+			tile.left = x;
+			tile.top = top;
+			tile_cache_get( tile_cache, &tile );
 		}
+
+		top += size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Bottom edge.
+		 */
+		for( x = left; x < right; x += size0 ) {
+			tile.left = x;
+			tile.top = bottom - size0;
+			tile_cache_get( tile_cache, &tile );
+		}
+
+		bottom -= size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Left edge.
+		 */
+		for( y = top; y < bottom; y += size0 ) {
+			tile.left = left;
+			tile.top = y;
+			tile_cache_get( tile_cache, &tile );
+		}
+
+		left += size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+
+		/* Right edge.
+		 */
+		for( y = top; y < bottom; y += size0 ) {
+			tile.left = right - size0;
+			tile.top = y;
+			tile_cache_get( tile_cache, &tile );
+		}
+
+		right -= size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+	}
 }
 
 /* Set the layer and the rect within that layer that we want to display.
@@ -476,8 +541,11 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
         printf( "tile_cache_set_viewport: left = %d, top = %d, "
                 "width = %d, height = %d, z = %d\n", 
                 viewport->left, viewport->top,
-                viewport->width, viewport->height, z );
+                viewport->width, viewport->height, 
+		z );
 #endif /*DEBUG*/
+
+	g_assert( z >= 0 && z < tile_cache->n_levels );
 
         /* The rect of tiles touched by the current viewport.
          */

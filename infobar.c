@@ -30,6 +30,106 @@ enum {
 	SIG_LAST
 };
 
+static void
+infobar_dispose( GObject *object )
+{
+	Infobar *infobar = (Infobar *) object;
+
+#ifdef DEBUG
+	printf( "infobar_dispose:\n" ); 
+#endif /*DEBUG*/
+
+	VIPS_FREEF( gtk_widget_unparent, infobar->action_bar );
+
+	G_OBJECT_CLASS( infobar_parent_class )->dispose( object );
+}
+
+/* For each format, the label width we need, in characters.
+ */
+static const int infobar_label_width[] = {
+	3,	/* uchar */
+	4,	/* char */
+	5,	/* ushort */
+	6,	/* short */
+	8,	/* uint */
+	9,	/* int */
+	10,	/* float */
+	18,	/* complex */
+	10,	/* double */
+	18,	/* double complex */
+};
+
+/* TileSource has a new image. We need a new number of band elemenets and
+ * dimensions.
+ */
+static void
+infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar ) 
+{
+	VipsImage *image = tile_source_get_image( tile_source );
+
+	GSList *p;
+	VipsBandFormat format;
+	int bands;
+	int label_width;
+	int max_children;
+	int n_children;
+	int i;
+
+#ifdef DEBUG
+	printf( "infobar_tile_source_changed:\n" ); 
+#endif /*DEBUG*/
+
+	/* Remove all existing children of infobar->values.
+	 */
+	for( p = infobar->value_widgets; p; p = p->next ) {
+		GtkWidget *label = GTK_WIDGET( p->data );
+
+		gtk_box_remove( GTK_BOX( infobar->values ), label );
+	}
+	VIPS_FREEF( g_slist_free, infobar->value_widgets ); 
+
+	switch( image->Coding ) { 
+	case VIPS_CODING_LABQ:
+	case VIPS_CODING_RAD:
+		format = VIPS_FORMAT_FLOAT;
+		bands = 3;
+		break;
+
+	case VIPS_CODING_NONE:
+	default:
+		format = image->BandFmt;
+		bands = image->Bands;
+		break;
+	}
+
+	label_width = infobar_label_width[format];
+	max_children = 40 / label_width;
+	n_children = VIPS_MIN( bands, max_children );
+
+	/* Add a new set of labels.
+	 */
+	for( i = 0; i < n_children; i++ ) {
+		GtkWidget *label;
+
+		label = gtk_label_new( "123" );
+		gtk_label_set_width_chars( GTK_LABEL( label ), label_width );
+		gtk_label_set_xalign( GTK_LABEL( label ), 1.0 );
+		gtk_box_append( GTK_BOX( infobar->values ), label ); 
+		infobar->value_widgets = 
+			g_slist_append( infobar->value_widgets, label );
+	}
+}
+
+/* Imagewindow has a new tile_source.
+ */
+static void
+infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
+{
+        g_signal_connect_object( image_window_get_tilesource( win ), "changed", 
+                G_CALLBACK( infobar_tile_source_changed ), 
+		infobar, 0 );
+}
+
 static void 
 infobar_status_value_set_array( Infobar *infobar, double *d )
 {
@@ -84,8 +184,8 @@ infobar_status_value_rad( Infobar *infobar, VipsPel *p )
 static void 
 infobar_status_value_uncoded( Infobar *infobar, VipsPel *p )
 {
-	Conversion *conversion = image_window_get_conversion( infobar->win );
-	VipsImage *image = conversion->image;
+	TileSource *tile_source = image_window_get_tilesource( infobar->win );
+	VipsImage *image = tile_source_get_image( tile_source );
 
 	int i;
 	GSList *q;
@@ -162,13 +262,13 @@ infobar_status_value_uncoded( Infobar *infobar, VipsPel *p )
 void 
 infobar_status_value( Infobar *infobar, int x, int y ) 
 {
-	Conversion *conversion = image_window_get_conversion( infobar->win );
-	VipsImage *image = conversion->image;
+	TileSource *tile_source = image_window_get_tilesource( infobar->win );
+	VipsImage *image = tile_source_get_image( tile_source );
 
 	VipsPel *ink;
 
 	if( image &&
-		(ink = conversion_get_ink( conversion, x, y )) ) { 
+		(ink = tile_source_get_pixel( tile_source, x, y )) ) { 
 		switch( image->Coding ) { 
 		case VIPS_CODING_LABQ:
 			infobar_status_value_labpack( infobar, ink );
@@ -191,49 +291,39 @@ infobar_status_value( Infobar *infobar, int x, int y )
 void
 infobar_status_update( Infobar *infobar )
 {
-	Conversion *conversion = image_window_get_conversion( infobar->win );
+	double scale = image_window_get_scale( infobar->win );
 
 	char str[64];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
 	int last_x;
 	int last_y;
-	int image_width;
-	int image_height;
-	int mag;
 
 #ifdef DEBUG
 	printf( "infobar_status_update:\n" ); 
 #endif /*DEBUG*/
 
-	/* last_x, last_y are in image coordinates.
+	/* last_x, last_y are in level0 image coordinates.
 	 */
 	image_window_get_last( infobar->win, &last_x, &last_y );
 
-	if( conversion_get_image_size( conversion, 
-		&image_width, &image_height ) ) {
-		last_x = VIPS_CLIP( 0, last_x, image_width - 1 );
-		last_y = VIPS_CLIP( 0, last_y, image_height - 1 );
+	vips_buf_appendf( &buf, "%d", last_x ); 
+	gtk_label_set_text( GTK_LABEL( infobar->x ), 
+		vips_buf_all( &buf ) ); 
+	vips_buf_rewind( &buf ); 
 
-		vips_buf_appendf( &buf, "%d", last_x ); 
-		gtk_label_set_text( GTK_LABEL( infobar->x ), 
-			vips_buf_all( &buf ) ); 
-		vips_buf_rewind( &buf ); 
+	vips_buf_appendf( &buf, "%d", last_y ); 
+	gtk_label_set_text( GTK_LABEL( infobar->y ), 
+		vips_buf_all( &buf ) ); 
+	vips_buf_rewind( &buf ); 
 
-		vips_buf_appendf( &buf, "%d", last_y ); 
-		gtk_label_set_text( GTK_LABEL( infobar->y ), 
-			vips_buf_all( &buf ) ); 
-		vips_buf_rewind( &buf ); 
-
-		infobar_status_value( infobar, last_x, last_y ); 
-	}
+	infobar_status_value( infobar, last_x, last_y ); 
 
 	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );
-	g_object_get( conversion, "mag", &mag, NULL ); 
-	if( mag >= 0 )
-		vips_buf_appendf( &buf, "%d:1", mag );
+	if( scale >= 1.0 )
+		vips_buf_appendf( &buf, "%d:1", (int) scale );
 	else
-		vips_buf_appendf( &buf, "1:%d", -mag );
+		vips_buf_appendf( &buf, "1:%d", (int) (1.0 / scale) );
 	gtk_label_set_text( GTK_LABEL( infobar->mag ), 
 		vips_buf_all( &buf ) ); 
 
@@ -253,103 +343,20 @@ infobar_position_changed( ImageWindow *win, Infobar *infobar )
 	infobar_status_update( infobar );
 }
 
-/* For each format, the label width we need.
- */
-static const int infobar_label_width[] = {
-	3,	/* uchar */
-	4,	/* char */
-	5,	/* ushort */
-	6,	/* short */
-	8,	/* uint */
-	9,	/* int */
-	10,	/* float */
-	18,	/* complex */
-	10,	/* double */
-	18,	/* double complex */
-};
-
-/* Need to rebuild the array of label widgets we use to show the pixel
- * value.
- */
-static void
-infobar_conversion_changed( Conversion *conversion, Infobar *infobar ) 
-{
-	GSList *p;
-	VipsBandFormat format;
-	int bands;
-	int label_width;
-	int max_children;
-	int n_children;
-	int i;
-
-#ifdef DEBUG
-	printf( "infobar_conversion_changed:\n" ); 
-#endif /*DEBUG*/
-
-	/* Remove all existing children of infobar->values.
-	 */
-	for( p = infobar->value_widgets; p; p = p->next ) {
-		GtkWidget *label = GTK_WIDGET( p->data );
-
-		gtk_box_remove( GTK_BOX( infobar->values ), label );
-	}
-	VIPS_FREEF( g_slist_free, infobar->value_widgets ); 
-
-	switch( conversion->image->Coding ) { 
-	case VIPS_CODING_LABQ:
-	case VIPS_CODING_RAD:
-		format = VIPS_FORMAT_FLOAT;
-		bands = 3;
-		break;
-
-	case VIPS_CODING_NONE:
-	default:
-		format = conversion->image->BandFmt;
-		bands = conversion->image->Bands;
-		break;
-	}
-
-	label_width = infobar_label_width[format];
-	max_children = 40 / label_width;
-	n_children = VIPS_MIN( bands, max_children );
-
-	/* Add a new set of labels.
-	 */
-	for( i = 0; i < n_children; i++ ) {
-		GtkWidget *label;
-
-		label = gtk_label_new( "123" );
-		gtk_label_set_width_chars( GTK_LABEL( label ), label_width );
-		gtk_label_set_xalign( GTK_LABEL( label ), 1.0 );
-		gtk_box_append( GTK_BOX( infobar->values ), label ); 
-		infobar->value_widgets = 
-			g_slist_append( infobar->value_widgets, label );
-	}
-}
-
 static void
 infobar_set_image_window( Infobar *infobar, ImageWindow *win )
 {
-	Conversion *conversion = image_window_get_conversion( win );
-
-	g_assert( !infobar->win );
-
-#ifdef DEBUG
-	printf( "infobar_set_image_window: %p\n", win ); 
-#endif /*DEBUG*/
-
 	/* No need to ref ... win holds a ref to us.
 	 */
 	infobar->win = win;
 
+        g_signal_connect_object( win, "changed", 
+                G_CALLBACK( infobar_image_window_changed ), 
+		infobar, 0 );
+
         g_signal_connect_object( win, "position-changed", 
                 G_CALLBACK( infobar_position_changed ), 
 		infobar, 0 );
-
-        g_signal_connect_object( conversion, "changed", 
-                G_CALLBACK( infobar_conversion_changed ), 
-		infobar, 0 );
-
 }
 
 static void
@@ -361,7 +368,7 @@ infobar_set_property( GObject *object,
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
 		infobar_set_image_window( infobar, 
-			g_value_get_object( value ) );
+			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
 		break;
 
 	case PROP_REVEALED:
@@ -396,20 +403,6 @@ infobar_get_property( GObject *object,
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 		break;
 	}
-}
-
-static void
-infobar_dispose( GObject *object )
-{
-	Infobar *infobar = (Infobar *) object;
-
-#ifdef DEBUG
-	printf( "infobar_dispose:\n" ); 
-#endif /*DEBUG*/
-
-	VIPS_FREEF( gtk_widget_unparent, infobar->action_bar );
-
-	G_OBJECT_CLASS( infobar_parent_class )->dispose( object );
 }
 
 static void
@@ -454,9 +447,9 @@ infobar_class_init( InfobarClass *class )
 	gobject_class->get_property = infobar_get_property;
 
 	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
-		g_param_spec_object( "image_window",
+		g_param_spec_object( "image-window",
 			_( "Image window" ),
-			_( "Image window whose mouse position we display" ),
+			_( "The image window we display" ),
 			IMAGE_WINDOW_TYPE,
 			G_PARAM_READWRITE ) );
 
@@ -478,8 +471,8 @@ infobar_new( ImageWindow *win )
 	printf( "infobar_new:\n" ); 
 #endif /*DEBUG*/
 
-	infobar = g_object_new( infobar_get_type(),
-		"image_window", win,
+	infobar = g_object_new( infobar_get_type(), 
+		"image-window", win,
 		NULL );
 
 	return( infobar ); 

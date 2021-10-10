@@ -1674,3 +1674,29 @@ tile_source_write_to_file( TileSource *tile_source, GFile *file )
 
         return( result );
 }
+
+VipsImage *
+tile_source_get_image( TileSource *tile_source )
+{
+	return( tile_source->loaded ? tile_source->image : NULL );
+}
+
+VipsPel *
+tile_source_get_pixel( TileSource *tile_source, int x, int y )
+{
+	VipsRect rect;
+
+	if( !tile_source->loaded ||
+		!tile_source->image ||
+		!tile_source->image_region )
+		return( NULL );
+
+	rect.left = 0;
+	rect.top = 0;
+	rect.width = x;
+	rect.height = y;
+	if( vips_region_prepare( tile_source->image_region, &rect ) )
+		return( NULL );
+
+	return( VIPS_REGION_ADDR( tile_source->image_region, x, y ) );
+}

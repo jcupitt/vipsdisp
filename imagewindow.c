@@ -1,8 +1,12 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
+
+/* How much to scale view by each step.
+ */
+#define SCALE_STEP (1.1)
 
 struct _ImageWindow
 {
@@ -13,10 +17,10 @@ struct _ImageWindow
         TileSource *tile_source;
         TileCache *tile_cache;
 
-        /* Last known mouse postion, in image coordinates.
+        /* Last known mouse postion, in level0 image coordinates.
          */
-        int last_x;
-        int last_y;
+        double last_x;
+        double last_y;
 
         /* For drag, the window position where we started, in gtk coordinates.
          */
@@ -49,7 +53,8 @@ G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
 /* Our signals. 
  */
 enum {
-        SIG_POSITION_CHANGED,
+        SIG_CHANGED,			/* A new tile_source */
+        SIG_POSITION_CHANGED,		/* New mouse position */
         SIG_LAST
 };
 
@@ -250,7 +255,7 @@ image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 }
 
 static void
-image_window_get_window_position( ImageWindow *win,
+image_window_get_position( ImageWindow *win,
         int *left, int *top, int *width, int *height )
 {
         GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
@@ -264,7 +269,7 @@ image_window_get_window_position( ImageWindow *win,
         *height = gtk_adjustment_get_page_size( vadj );
 
 #ifdef DEBUG
-        printf( "image_window_get_window_position: %d %d %d %d\n",
+        printf( "image_window_get_position: %d %d %d %d\n",
                 *left, *top, *width, *height );
 #endif /*DEBUG*/
 }
@@ -276,7 +281,14 @@ image_window_position_changed( ImageWindow *win )
                 image_window_signals[SIG_POSITION_CHANGED], 0 );
 }
 
-static int
+static void
+image_window_changed( ImageWindow *win )
+{
+        g_signal_emit( win,
+                image_window_signals[SIG_CHANGED], 0 );
+}
+
+static void
 image_window_set_scale( ImageWindow *win, double scale )
 {
 #ifdef DEBUG
@@ -286,12 +298,22 @@ image_window_set_scale( ImageWindow *win, double scale )
         g_object_set( win->imagedisplay, 
 		"scale", scale,
 		NULL );
-
-        return( 0 );
 }
 
-void
-image_window_set_window_position( ImageWindow *win, int left, int top )
+double
+image_window_get_scale( ImageWindow *win )
+{
+	double scale;
+
+        g_object_get( win->imagedisplay, 
+		"scale", &scale,
+		NULL );
+
+	return( scale );
+}
+
+static void
+image_window_set_position( ImageWindow *win, double x, double y )
 {
         GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
                 GTK_SCROLLED_WINDOW( win->scrolled_window ) );
@@ -299,11 +321,11 @@ image_window_set_window_position( ImageWindow *win, int left, int top )
                 GTK_SCROLLED_WINDOW( win->scrolled_window ) );
 
 #ifdef DEBUG
-        printf( "image_window_set_window_position: %d %d\n", left, top ); 
+        printf( "image_window_set_position: x = %g, y = %g\n", x, y ); 
 #endif /*DEBUG*/
 
-        gtk_adjustment_set_value( hadj, left );
-        gtk_adjustment_set_value( vadj, top );
+        gtk_adjustment_set_value( hadj, x );
+        gtk_adjustment_set_value( vadj, y );
 
 }
 
@@ -311,10 +333,12 @@ image_window_set_window_position( ImageWindow *win, int left, int top )
  * screen, if we can.
  */
 static void     
-image_window_set_scale( ImageWindow *win, double scale, double x, double y )
+image_window_set_scale_position( ImageWindow *win, 
+	double scale, double x, double y )
 {                       
-        VipsRect old_point;
-        VipsRect new_point;
+        double old_x, old_y;
+        double new_x, new_y;
+        int left, top, width, height;
 
 #ifdef DEBUG
         printf( "image_window_set_scale_position: %g %g %g\n", scale, x, y );
@@ -323,95 +347,25 @@ image_window_set_scale( ImageWindow *win, double scale, double x, double y )
         /* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
          */
         imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-                x, y, 
-                &old_point.left, &old_point.top ); 
+                x, y, &old_x, &old_y ); 
 
-	printf( "  old point in screen space %d, %d\n", 
-                old_point.left, old_point.top ); 
-        
-        /* Mag set can be out of range.
-         */
-        if( image_window_set_mag( win, mag ) ) {
-		printf( "  mag out of range\n" );
-                return;
-	}
+        image_window_set_scale( win, scale );
 
         /* Map image (x, y) to display coordinates with our new magnification,
 	 * then to keep the point in the same position we must translate by 
 	 * the difference.
          */
-        conversion_to_display_cods( conversion->mag,
-                x, y,
-                &new_point.left, &new_point.top );
+        imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+                x, y, &new_x, &new_y );
 
-	printf( "  new point in screen space %d, %d\n", 
-                new_point.left, new_point.top ); 
-	printf( "  shifting view by %d, %d\n", 
-                new_point.left - old_point.left,
-                new_point.top - old_point.top );
+	printf( "  old_x = %g, old_y = %g, new_x = %g, new_y = %g\n", 
+			old_x, old_y, new_x, new_y ); 
+	printf( "  dx = %g, dy = %g\n", 
+			new_x - old_x, new_y - old_y );
 
-        image_window_set_window_position( win,
-                new_point.left - old_point.left,
-                new_point.top - old_point.top );
-}
-
-/* Zoom in, keeping the pixel at x/y in image coordinates at the same position
- * on the screen.
- */
-static void
-image_window_magin_point( ImageWindow *win, int x, int y )
-{
-        int mag;
-
-#ifdef DEBUG
-        printf( "image_window_magin_point: %d %d\n", x, y );
-#endif /*DEBUG*/
-
-        g_object_get( win->conversion, "mag", &mag, NULL );
-        if( mag <= 0 ) {
-                if( mag >= -2 )
-                        image_window_set_mag_position( win, 1, x, y );
-                else
-                        image_window_set_mag_position( win, mag / 2, x, y );
-        }
-        else
-                image_window_set_mag_position( win, mag * 2, x, y );
-}
-
-/* Zoom out, keeping the pixel at x/y in image coordinates at the same position
- * on the screen.
- */
-void
-image_window_magout( ImageWindow *win, int x, int y )
-{
-        Conversion *conversion = win->conversion;
-
-        int image_width;
-        int image_height;
-        int mag;
-
-#ifdef DEBUG
-        printf( "image_window_magout:\n" ); 
-#endif /*DEBUG*/
-
-        /* Don't let the image get too small.
-         */
-        if( !conversion_get_display_image_size( conversion, 
-                &image_width, &image_height ) ) 
-                return;
-        if( image_width == 1 ||
-                image_height == 1 )
-                return;
-
-        g_object_get( conversion, "mag", &mag, NULL ); 
-        if( mag >= 0 )  {
-                if( mag < 2 ) 
-                        image_window_set_mag_position( win, -2, x, y );
-                else
-                        image_window_set_mag_position( win, mag / 2, x, y );
-        }
-        else 
-                image_window_set_mag_position( win, mag * 2, x, y );
+        image_window_get_position( win, &left, &top, &width, &height );
+        image_window_set_position( win, 
+		left + new_x - old_x, top + new_y - old_y );
 }
 
 void
@@ -440,16 +394,13 @@ image_window_magin_action( GSimpleAction *action,
         int window_top;
         int window_width;
         int window_height;
-        int image_x;
-        int image_y;
 
-        image_window_get_window_position( win,
+        image_window_get_position( win,
                 &window_left, &window_top, &window_width, &window_height );
-        conversion_to_image_cods( win->conversion->mag,
-                window_left + window_width / 2, window_top + window_height / 2,
-                &image_x, &image_y );
-
-        image_window_magin_point( win, image_x, image_y );
+        image_window_set_scale_position( win, 
+		SCALE_STEP * image_window_get_scale( win ),
+                window_left + window_width / 2, 
+		window_top + window_height / 2 );
 }
 
 static void
@@ -462,16 +413,13 @@ image_window_magout_action( GSimpleAction *action,
         int window_top;
         int window_width;
         int window_height;
-        int image_x;
-        int image_y;
 
-        image_window_get_window_position( win,
+        image_window_get_position( win,
                 &window_left, &window_top, &window_width, &window_height );
-        conversion_to_image_cods( win->conversion->mag,
-                window_left + window_width / 2, window_top + window_height / 2,
-                &image_x, &image_y );
-
-        image_window_magout( win, image_x, image_y ); 
+        image_window_set_scale_position( win, 
+		(1.0 / SCALE_STEP) * image_window_get_scale( win ),
+                window_left + window_width / 2, 
+		window_top + window_height / 2 );
 }
 
 static void
@@ -690,7 +638,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
                 keyval, state );
 #endif /*DEBUG*/
 
-        image_window_get_window_position( win, 
+        image_window_get_position( win, 
                 &window_left, &window_top, &window_width, &window_height );
         if( !conversion_get_display_image_size( win->conversion, 
                 &image_width, &image_height ) )
@@ -701,64 +649,68 @@ image_window_key_pressed( GtkEventControllerKey *self,
         switch( keyval ) {
         case GDK_KEY_plus:
         case GDK_KEY_i:
-                image_window_magin_point( win, win->last_x, win->last_y );
+                image_window_set_scale_position( win, 
+			SCALE_STEP * image_window_get_scale( win ), 
+			win->last_x, win->last_y );
                 handled = TRUE;
                 break;
 
         case GDK_KEY_o:
         case GDK_KEY_minus:
-                image_window_magout( win, win->last_x, win->last_y );
+                image_window_set_scale_position( win, 
+			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
+			win->last_x, win->last_y );
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Left:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left - window_width, window_top );
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 0, window_top );
                 else
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left - hstep, window_top );
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Right:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left + window_width, window_top );
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 image_width - window_width, window_top );
                 else
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left + hstep, window_top );
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Up:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, window_top - window_height );
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, 0 );
                 else
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, window_top - vstep );
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Down:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, window_top + window_height );
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, image_height - window_height );
                 else
-                        image_window_set_window_position( win, 
+                        image_window_set_position( win, 
                                 window_left, window_top + vstep );
                 handled = TRUE;
                 break;
@@ -798,7 +750,7 @@ image_window_motion( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	imagedisplay_gtk_to_image( win->imagedisplay, 
+	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
 		x, y, &win->last_x, &win->last_y );
         image_window_position_changed( win );
 }
@@ -810,9 +762,13 @@ image_window_scroll( GtkEventControllerMotion *self,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         if( dy > 0 ) 
-                image_window_magout( win, win->last_x, win->last_y );
+                image_window_set_scale_position( win, 
+			SCALE_STEP * image_window_get_scale( win ), 
+			win->last_x, win->last_y );
         else 
-                image_window_magin_point( win, win->last_x, win->last_y );
+                image_window_set_scale_position( win, 
+			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
+			win->last_x, win->last_y );
 
         return( TRUE );
 }
@@ -828,7 +784,7 @@ image_window_drag_begin( GtkEventControllerMotion *self,
         int window_width;
         int window_height;
 
-        image_window_get_window_position( win, 
+        image_window_get_position( win, 
                 &window_left, &window_top, &window_width, &window_height );
 
         win->drag_start_x = window_left;
@@ -841,7 +797,7 @@ image_window_drag_update( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        image_window_set_window_position( win, 
+        image_window_set_position( win, 
                 win->drag_start_x - offset_x,
                 win->drag_start_y - offset_y );
 }
@@ -971,7 +927,7 @@ image_window_scale( GSimpleAction *action,
         if( !conversion->image )
                 return;
 
-        image_window_get_window_position( win, &left, &top, &width, &height );
+        image_window_get_position( win, &left, &top, &width, &height );
         right = left + width;
         bottom = top + height;
 
@@ -1127,7 +1083,7 @@ image_window_init( ImageWindow *win )
                 "conversion", win->conversion,
                 NULL );
         g_object_set( win->info_bar,
-                "image_window", win,
+                "image-window", win,
                 NULL );
 
         g_signal_connect_object( win->progress_cancel, "clicked", 
@@ -1222,6 +1178,15 @@ image_window_class_init( ImageWindowClass *class )
                 0, NULL, NULL,
                 g_cclosure_marshal_VOID__VOID,
                 G_TYPE_NONE, 0 ); 
+
+        image_window_signals[SIG_CHANGED] = g_signal_new( "changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL, NULL,
+                g_cclosure_marshal_VOID__VOID,
+                G_TYPE_NONE, 0 ); 
+
 }
 
 ImageWindow *
@@ -1254,12 +1219,20 @@ image_window_open( ImageWindow *win, GFile *file )
                 G_CALLBACK( image_window_eval ), win, 0 );
         g_signal_connect_object( win->tile_source, "posteval", 
                 G_CALLBACK( image_window_posteval ), win, 0 );
+
+	image_window_changed( win );
 }
 
 Conversion *
 image_window_get_conversion( ImageWindow *win )
 {
         return( win->conversion );
+}
+
+TileSource *
+image_window_get_tilesource( ImageWindow *win )
+{
+        return( win->tile_source );
 }
 
 void

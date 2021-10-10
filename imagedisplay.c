@@ -1,9 +1,9 @@
 #include "vipsdisp.h"
 
 /*
- */
 #define DEBUG_VERBOSE
 #define DEBUG
+ */
 
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
@@ -23,6 +23,15 @@ struct _Imagedisplay {
 	 * image->Ysize
 	 */
 	VipsRect image_rect;
+
+	/* The rect of the widget.
+	 */
+	VipsRect widget_rect;
+
+	/* The sub-area of widget_rect that we paint. Very zoomed out images
+	 * are centred in the widget.
+	 */
+	VipsRect paint_rect;
 
 	/* How we transform the image_rect to widget space. 
 	 *
@@ -82,11 +91,22 @@ static void
 imagedisplay_set_transform( Imagedisplay *imagedisplay, 
 	double x, double y, double scale )
 {
-	int widget_width = gtk_widget_get_width( GTK_WIDGET( imagedisplay ) );
-	int widget_height = gtk_widget_get_height( GTK_WIDGET( imagedisplay ) );
+	int widget_width = imagedisplay->widget_rect.width;
+	int widget_height = imagedisplay->widget_rect.height;
 
 	VipsRect viewport;
 	int z;
+
+	/* Sanity limits.
+	 */
+	if( scale > 100000 || 
+		scale < (1.0 / 100000) )
+		return;
+	if( x < -1000 ||
+		x > 2 * VIPS_MAX_COORD ||
+		y < -1000 ||
+		y > 2 * VIPS_MAX_COORD )
+		return;
 
 	imagedisplay->x = x;
 	imagedisplay->y = y;
@@ -101,7 +121,7 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
 	else 
 		z = VIPS_CLIP( 0, 
 			log( 1.0 / scale ) / log( 2.0 ), 
-			imagedisplay->tile_cache->n_levels );
+			imagedisplay->tile_cache->n_levels - 1 );
 
 	/* The area to display in level0 coordinates.
 	 */
@@ -212,7 +232,7 @@ imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay )
 	imagedisplay_set_adjustment_values( imagedisplay, 
 		imagedisplay->hadj, 
 		imagedisplay->image_rect.width * imagedisplay->scale, 
-		gtk_widget_get_width( GTK_WIDGET( imagedisplay ) ) );
+		imagedisplay->paint_rect.width );
 }
 
 static void
@@ -221,7 +241,7 @@ imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 	imagedisplay_set_adjustment_values( imagedisplay, 
 		imagedisplay->vadj, 
 		imagedisplay->image_rect.height * imagedisplay->scale, 
-		gtk_widget_get_height( GTK_WIDGET( imagedisplay ) ) );
+		imagedisplay->paint_rect.height );
 }
 
 static void
@@ -233,6 +253,28 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 
 	imagedisplay_set_hadjustment_values( imagedisplay );
 	imagedisplay_set_vadjustment_values( imagedisplay );
+
+	imagedisplay->widget_rect.width = 
+		gtk_widget_get_width( GTK_WIDGET( imagedisplay ) );
+	imagedisplay->widget_rect.height = 
+		gtk_widget_get_height( GTK_WIDGET( imagedisplay ) );
+
+	imagedisplay->paint_rect.width = VIPS_MIN( 
+		imagedisplay->widget_rect.width, 
+		imagedisplay->image_rect.width * imagedisplay->scale );
+	imagedisplay->paint_rect.height = VIPS_MIN( 
+		imagedisplay->widget_rect.height, 
+		imagedisplay->image_rect.height * imagedisplay->scale );
+
+	/* If we've zoomed right out, centre the image in the window.
+	 */
+	imagedisplay->paint_rect.left = VIPS_MAX( 0,
+		(imagedisplay->widget_rect.width - 
+		 imagedisplay->paint_rect.width) / 2 ); 
+	imagedisplay->paint_rect.top = VIPS_MAX( 0,
+		(imagedisplay->widget_rect.height - 
+		 imagedisplay->paint_rect.height) / 2 ); 
+
 }
 
 /* Large change, we need to relayout.
@@ -242,7 +284,7 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
 	Imagedisplay *imagedisplay ) 
 {
 #ifdef DEBUG
-	printf( "imagedisplay_conversion_display_changed:\n" ); 
+	printf( "imagedisplay_tile_cache_changed:\n" ); 
 #endif /*DEBUG*/
 
 	imagedisplay->image_rect.width = tile_cache->tile_source->width;
@@ -275,8 +317,7 @@ static void
 imagedisplay_set_tile_cache( Imagedisplay *imagedisplay, 
 	TileCache *tile_cache )
 {
-	g_assert( !imagedisplay->tile_cache );
-
+	VIPS_UNREF( imagedisplay->tile_cache );
 	imagedisplay->tile_cache = tile_cache;
 	g_object_ref( imagedisplay->tile_cache );
 
@@ -424,7 +465,9 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 #endif /*DEBUG*/
 
 	tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
-		imagedisplay->x, imagedisplay->y, imagedisplay->scale );
+		imagedisplay->x - imagedisplay->paint_rect.left, 
+		imagedisplay->y - imagedisplay->paint_rect.top, 
+		imagedisplay->scale );
 }
 
 static void
@@ -572,17 +615,27 @@ void
 imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, 
 	int x_image, int y_image, double *x_gtk, double *y_gtk )
 {
-	*x_gtk = x_image * imagedisplay->scale - imagedisplay->x;
-	*y_gtk = y_image * imagedisplay->scale - imagedisplay->y;
+	*x_gtk = x_image * imagedisplay->scale - 
+		imagedisplay->x - 
+		imagedisplay->paint_rect.left;
+	*y_gtk = y_image * imagedisplay->scale - 
+		imagedisplay->y - 
+		imagedisplay->paint_rect.top;
 }
 
 void
 imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, 
-	double x_gtk, double y_gtk, int *x_image, int *y_image )
+	double x_gtk, double y_gtk, double *x_image, double *y_image )
 {
-	*x_image = (x_gtk + imagedisplay->x) / imagedisplay->scale;
-	*y_image = (y_gtk + imagedisplay->y) / imagedisplay->scale;
+	*x_image = (x_gtk + 
+		imagedisplay->x + 
+		imagedisplay->paint_rect.left) / imagedisplay->scale;
+	*y_image = (y_gtk + 
+		imagedisplay->y +
+		imagedisplay->paint_rect.top) / imagedisplay->scale;
 
-	*x_image = VIPS_CLIP( 0, *x_image, imagedisplay->image_rect.width );
-	*y_image = VIPS_CLIP( 0, *y_image, imagedisplay->image_rect.height );
+	*x_image = VIPS_CLIP( 0, *x_image, 
+		imagedisplay->image_rect.width - 1 );
+	*y_image = VIPS_CLIP( 0, *y_image, 
+		imagedisplay->image_rect.height - 1 );
 }
