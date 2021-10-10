@@ -140,11 +140,9 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-  rework imagedisplay for snapshot 
+    fix transparency display
 
-    display control bar next
-
-    remove conversion
+    rename conversionview as displaybar (cf. infobar?)
 
     css animation for zoom?
 

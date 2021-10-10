@@ -8,9 +8,9 @@
 struct _Conversionview {
         GtkWidget parent_instance;
 
-        /* The conversion whose output we display.
+        /* The image_window we attach to.
          */
-        Conversion *conversion;
+        ImageWindow *win;
 
         GtkWidget *action_bar;
         GtkWidget *gears;
@@ -23,46 +23,40 @@ struct _Conversionview {
 G_DEFINE_TYPE( Conversionview, conversionview, GTK_TYPE_WIDGET );
 
 enum {
-        PROP_CONVERSION = 1,
+	PROP_IMAGE_WINDOW = 1,
         PROP_REVEALED,
 
         SIG_LAST
 };
 
-/* Come here for changed and duisplay-changed.
- */
 static void
-conversionview_conversion_changed( Conversion *conversion, 
+conversionview_tile_source_changed( TileSource *tile_source, 
         Conversionview *conversionview ) 
 {
 #ifdef DEBUG
-        printf( "conversionview_conversion_changed:\n" ); 
+        printf( "conversionview_tile_source_changed:\n" ); 
 #endif /*DEBUG*/
 
-        if( TSLIDER( conversionview->scale )->value != conversion->scale ) {
-                TSLIDER( conversionview->scale )->value = conversion->scale;
+        if( TSLIDER( conversionview->scale )->value != tile_source->scale ) {
+                TSLIDER( conversionview->scale )->value = tile_source->scale;
                 tslider_changed( TSLIDER( conversionview->scale ) );
         }
 
-        if( TSLIDER( conversionview->offset )->value != conversion->offset ) {
-                TSLIDER( conversionview->offset )->value = conversion->offset;
+        if( TSLIDER( conversionview->offset )->value != tile_source->offset ) {
+                TSLIDER( conversionview->offset )->value = tile_source->offset;
                 tslider_changed( TSLIDER( conversionview->offset ) );
         }
 
-        if( conversion->image ) {
-                int n_pages = vips_image_get_n_pages( conversion->image );
-
-                gtk_spin_button_set_range( 
-                        GTK_SPIN_BUTTON( conversionview->page ), 
-                        0, n_pages - 1 );
-                gtk_widget_set_sensitive( conversionview->page, 
-                        n_pages > 1 && 
-                        conversion->mode == CONVERSION_MODE_MULTIPAGE );
-        }
+	gtk_spin_button_set_range( 
+		GTK_SPIN_BUTTON( conversionview->page ), 
+		0, tile_source->n_pages - 1 );
+	gtk_widget_set_sensitive( conversionview->page, 
+		tile_source->n_pages > 1 && 
+		tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE );
 }
 
 static void
-conversionview_page_changed( Conversion *conversion, 
+conversionview_page_changed( TileSource *tile_source, 
         Conversionview *conversionview )
 {
 #ifdef DEBUG
@@ -71,31 +65,39 @@ conversionview_page_changed( Conversion *conversion,
 
         gtk_spin_button_set_value( 
                 GTK_SPIN_BUTTON( conversionview->page ), 
-                conversion->page );
+                tile_source->page );
+}
+
+/* Imagewindow has a new tile_source.
+ */
+static void
+conversionview_image_window_changed( ImageWindow *win, 
+	Conversionview *conversionview )
+{
+	TileSource *tile_source = image_window_get_tilesource( win );
+
+        g_signal_connect_object( tile_source, "changed", 
+                G_CALLBACK( conversionview_tile_source_changed ), 
+                conversionview, 0 );
+        g_signal_connect_object( tile_source, "tiles-changed", 
+                G_CALLBACK( conversionview_tile_source_changed ), 
+                conversionview, 0 );
+        g_signal_connect_object( tile_source, "page-changed",
+                G_CALLBACK( conversionview_page_changed ), 
+                conversionview, 0 );
 }
 
 static void
-conversionview_set_conversion( Conversionview *conversionview, 
-        Conversion *conversion )
+conversionview_set_image_window( Conversionview *conversionview, 
+	ImageWindow *win )
 {
-        g_assert( !conversionview->conversion );
+	/* No need to ref ... win holds a ref to us.
+	 */
+	conversionview->win = win;
 
-#ifdef DEBUG
-        printf( "conversionview_set_conversion: %p\n", conversion ); 
-#endif /*DEBUG*/
-
-        conversionview->conversion = conversion;
-        g_object_ref( conversionview->conversion );
-
-        g_signal_connect_object( conversion, "changed", 
-                G_CALLBACK( conversionview_conversion_changed ), 
-                conversionview, 0 );
-        g_signal_connect_object( conversion, "display-changed", 
-                G_CALLBACK( conversionview_conversion_changed ), 
-                conversionview, 0 );
-        g_signal_connect_object( conversion, "page-changed",
-                G_CALLBACK( conversionview_page_changed ), 
-                conversionview, 0 );
+        g_signal_connect_object( win, "changed", 
+                G_CALLBACK( conversionview_image_window_changed ), 
+		conversionview, 0 );
 }
 
 static void
@@ -105,8 +107,8 @@ conversionview_set_property( GObject *object,
         Conversionview *conversionview = (Conversionview *) object;
 
         switch( prop_id ) {
-        case PROP_CONVERSION:
-                conversionview_set_conversion( conversionview, 
+        case PROP_IMAGE_WINDOW:
+                conversionview_set_image_window( conversionview, 
                         g_value_get_object( value ) );
                 break;
 
@@ -129,8 +131,8 @@ conversionview_get_property( GObject *object,
         Conversionview *conversionview = (Conversionview *) object;
 
         switch( prop_id ) {
-        case PROP_CONVERSION:
-                g_value_set_object( value, conversionview->conversion );
+        case PROP_IMAGE_WINDOW:
+                g_value_set_object( value, conversionview->win );
                 break;
 
         case PROP_REVEALED:
@@ -153,8 +155,6 @@ conversionview_dispose( GObject *object )
         printf( "conversionview_dispose:\n" ); 
 #endif /*DEBUG*/
 
-        VIPS_UNREF( conversionview->conversion );
-
         VIPS_FREEF( gtk_widget_unparent, conversionview->action_bar );
 
         G_OBJECT_CLASS( conversionview_parent_class )->dispose( object );
@@ -164,13 +164,15 @@ static void
 conversionview_page_value_changed( GtkSpinButton *spin_button,
         Conversionview *conversionview )
 {
+	TileSource *tile_source = 
+		image_window_get_tilesource( conversionview->win );
         int new_page = gtk_spin_button_get_value_as_int( spin_button );
 
 #ifdef DEBUG
         printf( "conversionview_page_value_changed: %d\n", new_page );
 #endif /*DEBUG*/
 
-        g_object_set( conversionview->conversion,
+        g_object_set( tile_source,
                 "page", new_page,
                 NULL );
 }
@@ -179,7 +181,10 @@ static void
 conversionview_scale_value_changed( Tslider *slider, 
         Conversionview *conversionview )
 {
-        g_object_set( conversionview->conversion,
+	TileSource *tile_source = 
+		image_window_get_tilesource( conversionview->win );
+
+        g_object_set( tile_source,
                 "scale", slider->value,
                 NULL );
 }
@@ -188,7 +193,10 @@ static void
 conversionview_offset_value_changed( Tslider *slider, 
         Conversionview *conversionview )
 {
-        g_object_set( conversionview->conversion,
+	TileSource *tile_source = 
+		image_window_get_tilesource( conversionview->win );
+
+        g_object_set( tile_source,
                 "offset", slider->value,
                 NULL );
 }
@@ -278,12 +286,12 @@ conversionview_class_init( ConversionviewClass *class )
         gobject_class->set_property = conversionview_set_property;
         gobject_class->get_property = conversionview_get_property;
 
-        g_object_class_install_property( gobject_class, PROP_CONVERSION,
-                g_param_spec_object( "conversion",
-                        _( "conversion" ),
-                        _( "The conversion to be displayed" ),
-                        TYPE_CONVERSION,
-                        G_PARAM_READWRITE ) );
+	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
+		g_param_spec_object( "image-window",
+			_( "Image window" ),
+			_( "The image window we display" ),
+			IMAGE_WINDOW_TYPE,
+			G_PARAM_READWRITE ) );
 
         g_object_class_install_property( gobject_class, PROP_REVEALED,
                 g_param_spec_boolean( "revealed",
@@ -295,7 +303,7 @@ conversionview_class_init( ConversionviewClass *class )
 }
 
 Conversionview *
-conversionview_new( Conversion *conversion ) 
+conversionview_new( ImageWindow *win ) 
 {
         Conversionview *conversionview;
 
@@ -304,7 +312,7 @@ conversionview_new( Conversion *conversion )
 #endif /*DEBUG*/
 
         conversionview = g_object_new( conversionview_get_type(),
-                "conversion", conversion,
+                "image-window", win,
                 NULL );
 
         return( conversionview ); 

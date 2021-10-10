@@ -20,6 +20,7 @@ enum {
         PROP_PAGE,
         PROP_FALSECOLOUR,
         PROP_LOG,
+        PROP_ACTIVE,
         PROP_LOADED,
 
         /* Signals. 
@@ -662,6 +663,10 @@ tile_source_property_name( guint prop_id )
                 return( "LOG" );
                 break;
 
+        case PROP_ACTIVE:
+                return( "ACTIVE" );
+                break;
+
         case PROP_LOADED:
                 return( "LOADED" );
                 break;
@@ -813,6 +818,16 @@ tile_source_set_property( GObject *object,
                 }
                 break;
 
+        case PROP_ACTIVE:
+                b = g_value_get_boolean( value );
+                if( tile_source->active != b ) { 
+                        tile_source->active = b;
+                        tile_source_update_rgb( tile_source );
+
+                        tile_source_tiles_changed( tile_source );
+                }
+                break;
+
         case PROP_LOADED:
                 b = g_value_get_boolean( value );
                 if( tile_source->loaded != b ) { 
@@ -858,6 +873,10 @@ tile_source_get_property( GObject *object,
 
         case PROP_LOG:
                 g_value_set_boolean( value, tile_source->log );
+                break;
+
+        case PROP_ACTIVE:
+                g_value_set_boolean( value, tile_source->active );
                 break;
 
         case PROP_LOADED:
@@ -997,6 +1016,13 @@ tile_source_class_init( TileSourceClass *class )
                 g_param_spec_boolean( "log",
                         _( "log" ),
                         _( "Log" ),
+                        FALSE,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_ACTIVE,
+                g_param_spec_boolean( "active",
+                        _( "Active" ),
+                        _( "Visualisation controls are active" ),
                         FALSE,
                         G_PARAM_READWRITE ) );
 
@@ -1678,7 +1704,7 @@ tile_source_write_to_file( TileSource *tile_source, GFile *file )
 VipsImage *
 tile_source_get_image( TileSource *tile_source )
 {
-	return( tile_source->loaded ? tile_source->image : NULL );
+	return( tile_source->image );
 }
 
 VipsPel *
@@ -1699,4 +1725,18 @@ tile_source_get_pixel( TileSource *tile_source, int x, int y )
 		return( NULL );
 
 	return( VIPS_REGION_ADDR( tile_source->image_region, x, y ) );
+}
+
+TileSource *
+tile_source_duplicate( TileSource *tile_source )
+{
+	g_assert( FALSE );
+
+	/* FIXME ... see conversion_set_conversion()
+	 *
+	 *
+	 * tile_source_get_file(), then new_from_file, then copy settings
+	 */
+
+	return( NULL );
 }

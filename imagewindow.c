@@ -12,8 +12,6 @@ struct _ImageWindow
 {
         GtkApplicationWindow parent;
 
-        Conversion *conversion;
-
         TileSource *tile_source;
         TileCache *tile_cache;
 
@@ -69,7 +67,6 @@ image_window_dispose( GObject *object )
         printf( "image_window_dispose:\n" ); 
 #endif /*DEBUG*/
 
-        VIPS_UNREF( win->conversion );
         VIPS_UNREF( win->tile_source );
         VIPS_UNREF( win->tile_cache );
         VIPS_FREEF( g_timer_destroy, win->progress_timer );
@@ -169,8 +166,11 @@ image_window_posteval( VipsImage *image,
 static void
 image_window_cancel_clicked( GtkWidget *button, ImageWindow *win )
 {
-        if( win->conversion->image )
-                vips_image_set_kill( win->conversion->image, TRUE );
+	VipsImage *image;
+
+        if( win->tile_source &&
+		(image = tile_source_get_image( win->tile_source )) ) 
+                vips_image_set_kill( image, TRUE );
 }
 
 static void
@@ -197,47 +197,28 @@ image_window_error_hide( ImageWindow *win )
 }
 
 static void
-image_window_conversion_changed( Conversion *conversion, ImageWindow *win )
+image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 {
-        const char *title;
-        char str[256];
-        VipsBuf buf = VIPS_BUF_STATIC( str );
-
         GVariant *state;
         const char *str_mode;
 
 #ifdef DEBUG
-        printf( "image_window_conversion_changed:\n" );
+        printf( "image_window_tile_source_changed:\n" );
 #endif /*DEBUG*/
 
-        if( !(title = conversion_get_path( conversion )) ) 
-                title = "Untitled";
-        gtk_label_set_text( GTK_LABEL( win->title ), title );
-
-        if( conversion->image ) {
-                VipsImage *image = conversion->image;
-
-                vips_object_summary( VIPS_OBJECT( image ), &buf );
-                vips_buf_appendf( &buf, ", " );
-                vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
-                vips_buf_appendf( &buf, ", %g x %g p/mm",
-                        image->Xres, image->Yres );
-        }
-        gtk_label_set_text( GTK_LABEL( win->subtitle ), vips_buf_all( &buf ) );
-
-        state = g_variant_new_boolean( conversion->falsecolour );
+        state = g_variant_new_boolean( tile_source->falsecolour );
         change_state( GTK_WIDGET( win ), "falsecolour", state );
 
-        state = g_variant_new_boolean( conversion->log );
+        state = g_variant_new_boolean( tile_source->log );
         change_state( GTK_WIDGET( win ), "log", state );
 
-        if( conversion->mode == CONVERSION_MODE_TOILET_ROLL )
+        if( tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL )
                 str_mode = "toilet-roll";
-        else if( conversion->mode == CONVERSION_MODE_MULTIPAGE )
+        else if( tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE )
                 str_mode = "multipage";
-        else if( conversion->mode == CONVERSION_MODE_ANIMATED )
+        else if( tile_source->mode == TILE_SOURCE_MODE_ANIMATED )
                 str_mode = "animated";
-        else if( conversion->mode == CONVERSION_MODE_PAGES_AS_BANDS )
+        else if( tile_source->mode == TILE_SOURCE_MODE_PAGES_AS_BANDS )
                 str_mode = "pages-as-bands";
         else
                 str_mode = NULL;
@@ -447,6 +428,7 @@ image_window_duplicate_action( GSimpleAction *action,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         VipsdispApp *app;
+	TileSource *tile_source;
         ImageWindow *new;
         int width, height;
 
@@ -454,15 +436,17 @@ image_window_duplicate_action( GSimpleAction *action,
         new = image_window_new( app ); 
         gtk_window_present( GTK_WINDOW( new ) );
 
-        if( conversion_set_conversion( new->conversion, win->conversion ) ) {
+	if( !(tile_source = tile_source_duplicate( win->tile_source )) ) {
                 image_window_error( new ); 
                 return;
         }
+	image_window_set_tile_source( new, tile_source );
+	VIPS_UNREF( tile_source );
 
         gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
         gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
 
-        /* falsecolour etc. are copied when we copy the conversion. We
+        /* falsecolour etc. are copied when we copy the tile_source. We
          * just copy the window state here.
          */
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
@@ -508,7 +492,6 @@ image_window_replace_action( GSimpleAction *action,
         GVariant *parameter, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
 
         GtkWidget *dialog;
         GFile *file;
@@ -521,7 +504,7 @@ image_window_replace_action( GSimpleAction *action,
                 NULL );
         gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
 
-        if( (file = conversion_get_file( conversion )) ) {
+        if( (file = tile_source_get_file( win->tile_source )) ) {
                 gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
                         file, NULL );
                 VIPS_UNREF( file );
@@ -538,7 +521,6 @@ image_window_saveas_response( GtkDialog *dialog,
         gint response_id, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
 
         GFile *file;
 
@@ -550,7 +532,7 @@ image_window_saveas_response( GtkDialog *dialog,
         gtk_window_destroy( GTK_WINDOW( dialog ) );
 
         if( response_id == GTK_RESPONSE_ACCEPT &&
-                conversion_write_to_file( conversion, file ) ) 
+                tile_source_write_to_file( win->tile_source, file ) ) 
                 image_window_error( win );
 
         VIPS_UNREF( file ); 
@@ -561,13 +543,9 @@ image_window_saveas_action( GSimpleAction *action,
         GVariant *parameter, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
 
         GtkWidget *dialog;
         GFile *file;
-
-        if( !conversion->image )
-                return;
 
         dialog = gtk_file_chooser_dialog_new( "Save file",
                 GTK_WINDOW( win ) , 
@@ -577,7 +555,7 @@ image_window_saveas_action( GSimpleAction *action,
                 NULL );
         gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
 
-        if( (file = conversion_get_file( conversion )) ) {
+        if( (file = tile_source_get_file( win->tile_source )) ) {
                 gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
                         file, NULL );
                 VIPS_UNREF( file );
@@ -630,8 +608,8 @@ image_window_key_pressed( GtkEventControllerKey *self,
         int window_top;
         int window_width;
         int window_height;
-        int image_width;
-        int image_height;
+        int image_width = win->tile_source->width;
+        int image_height = win->tile_source->height;
 
 #ifdef DEBUG
         printf( "image_window_key_pressed: keyval = %d, state = %d\n", 
@@ -640,9 +618,6 @@ image_window_key_pressed( GtkEventControllerKey *self,
 
         image_window_get_position( win, 
                 &window_left, &window_top, &window_width, &window_height );
-        if( !conversion_get_display_image_size( win->conversion, 
-                &image_width, &image_height ) )
-                return( FALSE );
 
         handled = FALSE;
 
@@ -837,12 +812,13 @@ image_window_control( GSimpleAction *action,
                 "revealed", g_variant_get_boolean( state ),
                 NULL );
 
-        /* Disable most display conversion if the controls are hidden. It's
+        /* Disable most visualisation settings if the controls are hidden. It's
          * much too confusing.
          */
-        g_object_set( win->conversion,
-                "active", g_variant_get_boolean( state ),
-                NULL );
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"active", g_variant_get_boolean( state ),
+			NULL );
 
         g_simple_action_set_state( action, state );
 }
@@ -864,11 +840,11 @@ static void
 image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
-        int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+        TileSource *tile_source = win->tile_source;
+        int page = VIPS_CLIP( 0, tile_source->page, tile_source->n_pages - 1 );
 
-        g_object_set( conversion,
-                "page", (page + 1) % conversion->n_pages,
+        g_object_set( tile_source,
+                "page", (page + 1) % tile_source->n_pages,
                 NULL );
 }
 
@@ -876,25 +852,30 @@ static void
 image_window_prev( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
-        int page = VIPS_CLIP( 0, conversion->page, conversion->n_pages - 1 );
+        TileSource *tile_source = win->tile_source;
+        int page = VIPS_CLIP( 0, tile_source->page, tile_source->n_pages - 1 );
 
-        g_object_set( conversion,
-                "page", page == 0 ? conversion->n_pages - 1 : page - 1,
+        g_object_set( tile_source,
+                "page", page == 0 ? tile_source->n_pages - 1 : page - 1,
                 NULL );
 }
 
 static int
 image_window_find_scale( ImageWindow *win, VipsObject *context, 
+	VipsImage *image,
         int left, int top, int width, int height,
         double *scale, double *offset )
 {
-        Conversion *conversion = win->conversion;
         VipsImage **t = (VipsImage **) vips_object_local_array( context, 7 );
 
         double min, max;
 
-        if( vips_extract_area( conversion->image, &t[0], 
+
+	/* FIXME ... this should only look at visible tile_cache pixels ...
+	 * don't render any new pixels.
+	 */
+
+        if( vips_extract_area( image, &t[0], 
                 left, top, width, height, NULL ) ||
                 vips_stats( t[0], &t[1], NULL ) )
                 return( -1 );
@@ -917,29 +898,19 @@ image_window_scale( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        Conversion *conversion = win->conversion;
+        TileSource *tile_source = win->tile_source;
+        VipsImage *image = tile_source_get_image( tile_source );
 
         int left, top, width, height;
-        int right, bottom;
         VipsImage *context;
         double scale, offset;
 
-        if( !conversion->image )
+        if( !image )
                 return;
 
         image_window_get_position( win, &left, &top, &width, &height );
-        right = left + width;
-        bottom = top + height;
-
-        conversion_to_image_cods( conversion->mag, 
-                left, top, &left, &top );
-        conversion_to_image_cods( conversion->mag, 
-                right, bottom, &right, &bottom );
-        width = right - left;
-        height = bottom - top;
-
         context = vips_image_new();
-        if( image_window_find_scale( win, VIPS_OBJECT( context ), 
+        if( image_window_find_scale( win, VIPS_OBJECT( context ), image,
                 left, top, width, height, &scale, &offset ) ) {
                 image_window_error( win );
                 g_object_unref( context );
@@ -947,7 +918,7 @@ image_window_scale( GSimpleAction *action,
         }
         g_object_unref( context );
 
-        g_object_set( conversion,
+        g_object_set( tile_source,
                 "scale", scale,
                 "offset", offset,
                 NULL );
@@ -957,11 +928,12 @@ static void
 image_window_log( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        TileSource *tile_source = win->tile_source;
 
-        g_object_set( win->conversion,
+        g_object_set( tile_source,
                 "log", g_variant_get_boolean( state ),
                 NULL );
-        
+
         g_simple_action_set_state( action, state );
 }
 
@@ -970,8 +942,9 @@ image_window_falsecolour( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        TileSource *tile_source = win->tile_source;
 
-        g_object_set( win->conversion,
+        g_object_set( tile_source,
                 "falsecolour", g_variant_get_boolean( state ),
                 NULL );
         
@@ -990,25 +963,26 @@ image_window_mode( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        TileSource *tile_source = win->tile_source;
 
         const gchar *str;
-        ConversionMode mode;
+        TileSourceMode mode;
 
         str = g_variant_get_string( state, NULL );
         if( g_str_equal( str, "toilet-roll" ) ) 
-                mode = CONVERSION_MODE_TOILET_ROLL;
+                mode = TILE_SOURCE_MODE_TOILET_ROLL;
         else if( g_str_equal( str, "multipage" ) ) 
-                mode = CONVERSION_MODE_MULTIPAGE;
+                mode = TILE_SOURCE_MODE_MULTIPAGE;
         else if( g_str_equal( str, "animated" ) ) 
-                mode = CONVERSION_MODE_ANIMATED;
+                mode = TILE_SOURCE_MODE_ANIMATED;
         else if( g_str_equal( str, "pages-as-bands" ) ) 
-                mode = CONVERSION_MODE_PAGES_AS_BANDS;
+                mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
         else
                 /* Ignore attempted change.
                  */
                 return;
 
-        g_object_set( win->conversion,
+        g_object_set( tile_source,
                 "mode", mode,
                 NULL );
 
@@ -1021,7 +995,7 @@ image_window_reset( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        g_object_set( win->conversion,
+        g_object_set( win->tile_source,
                 "falsecolour", FALSE,
                 "log", FALSE,
                 "scale", 1.0,
@@ -1078,9 +1052,8 @@ image_window_init( ImageWindow *win )
         gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
         g_object_unref( builder );
 
-        win->conversion = conversion_new();
         g_object_set( win->conversion_bar,
-                "conversion", win->conversion,
+                "image-window", win,
                 NULL );
         g_object_set( win->info_bar,
                 "image-window", win,
@@ -1088,9 +1061,6 @@ image_window_init( ImageWindow *win )
 
         g_signal_connect_object( win->progress_cancel, "clicked", 
                 G_CALLBACK( image_window_cancel_clicked ), win, 0 );
-
-        g_signal_connect_object( win->conversion, "changed", 
-                G_CALLBACK( image_window_conversion_changed ), win, 0 );
 
         g_signal_connect_object( win->error_bar, "response", 
                 G_CALLBACK( image_window_error_response ), win, 0 );
@@ -1196,18 +1166,16 @@ image_window_new( VipsdispApp *app )
 }
 
 void
-image_window_open( ImageWindow *win, GFile *file )
+image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 {
-        if( conversion_set_file( win->conversion, file ) )
-                image_window_error( win ); 
+	VipsImage *image;
+	char *title;
 
         VIPS_UNREF( win->tile_source );
         VIPS_UNREF( win->tile_cache );
 
-        if( !(win->tile_source = tile_source_new_from_file( file )) )
-                image_window_error( win ); 
-        if( !(win->tile_cache = tile_cache_new( win->tile_source )) )
-                image_window_error( win ); 
+        win->tile_source = tile_source;
+        win->tile_cache = tile_cache_new( win->tile_source );
 
         g_object_set( win->imagedisplay,
                 "tile-cache", win->tile_cache,
@@ -1220,19 +1188,46 @@ image_window_open( ImageWindow *win, GFile *file )
         g_signal_connect_object( win->tile_source, "posteval", 
                 G_CALLBACK( image_window_posteval ), win, 0 );
 
-	image_window_changed( win );
-}
+        g_signal_connect_object( win->tile_source, "changed", 
+                G_CALLBACK( image_window_tile_source_changed ), win, 0 );
 
-Conversion *
-image_window_get_conversion( ImageWindow *win )
-{
-        return( win->conversion );
+        if( !(title = (char *) tile_source_get_path( tile_source )) ) 
+                title = "Untitled";
+        gtk_label_set_text( GTK_LABEL( win->title ), title );
+
+        if( (image = tile_source_get_image( tile_source )) ) {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+                vips_object_summary( VIPS_OBJECT( image ), &buf );
+                vips_buf_appendf( &buf, ", " );
+                vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+                vips_buf_appendf( &buf, ", %g x %g p/mm",
+                        image->Xres, image->Yres );
+		gtk_label_set_text( GTK_LABEL( win->subtitle ), 
+			vips_buf_all( &buf ) );
+        }
+
+	image_window_changed( win );
 }
 
 TileSource *
 image_window_get_tilesource( ImageWindow *win )
 {
         return( win->tile_source );
+}
+
+void
+image_window_open( ImageWindow *win, GFile *file )
+{
+	TileSource *tile_source;
+
+        if( !(tile_source = tile_source_new_from_file( file )) ) {
+                image_window_error( win ); 
+		return;
+	}
+
+	image_window_set_tile_source( win, tile_source );
 }
 
 void

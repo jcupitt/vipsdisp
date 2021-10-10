@@ -27,10 +27,9 @@
 #include "tile.h"
 #include "tilesource.h"
 #include "tilecache.h"
-#include "conversion.h"
-#include "conversionview.h"
 #include "imagedisplay.h"
 #include "imagewindow.h"
 #include "infobar.h"
+#include "conversionview.h"
 
 #endif /* __VIPSDISP_H */
