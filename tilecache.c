@@ -12,6 +12,7 @@ enum {
         /* Signals. 
          */
         SIG_CHANGED,            
+        SIG_TILES_CHANGED,            
         SIG_AREA_CHANGED,            
 
         SIG_LAST
@@ -77,6 +78,13 @@ tile_cache_changed( TileCache *tile_cache )
 }
 
 static void
+tile_cache_tiles_changed( TileCache *tile_cache )
+{
+        g_signal_emit( tile_cache, 
+                tile_cache_signals[SIG_TILES_CHANGED], 0 );
+}
+
+static void
 tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, int z )
 {
         g_signal_emit( tile_cache, 
@@ -96,6 +104,14 @@ tile_cache_class_init( TileCacheClass *class )
         gobject_class->dispose = tile_cache_dispose;
 
         tile_cache_signals[SIG_CHANGED] = g_signal_new( "changed",
+                G_TYPE_FROM_CLASS( class ),
+                G_SIGNAL_RUN_LAST,
+                0,
+                NULL, NULL,
+                g_cclosure_marshal_VOID__VOID,
+                G_TYPE_NONE, 0 ); 
+
+        tile_cache_signals[SIG_TILES_CHANGED] = g_signal_new( "tiles-changed",
                 G_TYPE_FROM_CLASS( class ),
                 G_SIGNAL_RUN_LAST,
                 0,
@@ -619,9 +635,7 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
 
         tile_cache_compute_visibility( tile_cache );
 
-	/* Tell our clients.
-	 */
-        tile_cache_changed( tile_cache );
+        tile_cache_tiles_changed( tile_cache );
 }
 
 /* Some tiles have been computed. Fetch any invalid tiles in this rect.

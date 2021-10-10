@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
@@ -295,6 +295,19 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 
+/* Tiles have changed, but not image geometry. Perhaps falsecolour.
+ */
+static void
+imagedisplay_tile_cache_tiles_changed( TileCache *tile_cache, 
+	Imagedisplay *imagedisplay ) 
+{
+#ifdef DEBUG
+	printf( "imagedisplay_tile_cache_tiles_changed:\n" ); 
+#endif /*DEBUG*/
+
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+}
+
 static void
 imagedisplay_tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, 
 	int z, Imagedisplay *imagedisplay ) 
@@ -323,6 +336,9 @@ imagedisplay_set_tile_cache( Imagedisplay *imagedisplay,
 
 	g_signal_connect_object( tile_cache, "changed", 
 		G_CALLBACK( imagedisplay_tile_cache_changed ), 
+		imagedisplay, 0 );
+	g_signal_connect_object( tile_cache, "tiles-changed", 
+		G_CALLBACK( imagedisplay_tile_cache_tiles_changed ), 
 		imagedisplay, 0 );
 	g_signal_connect_object( tile_cache, "area-changed", 
 		G_CALLBACK( imagedisplay_tile_cache_area_changed ), 

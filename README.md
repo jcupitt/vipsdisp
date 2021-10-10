@@ -140,7 +140,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-    fix display bar
+    large images are failing to load
 
     fix tilecache behaviour
 

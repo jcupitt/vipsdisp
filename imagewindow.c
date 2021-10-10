@@ -340,11 +340,6 @@ image_window_set_scale_position( ImageWindow *win,
         imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
                 x, y, &new_x, &new_y );
 
-	printf( "  old_x = %g, old_y = %g, new_x = %g, new_y = %g\n", 
-			old_x, old_y, new_x, new_y ); 
-	printf( "  dx = %g, dy = %g\n", 
-			new_x - old_x, new_y - old_y );
-
         image_window_get_position( win, &left, &top, &width, &height );
         image_window_set_position( win, 
 		left + new_x - old_x, top + new_y - old_y );
@@ -1185,6 +1180,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
         VIPS_UNREF( win->tile_cache );
 
         win->tile_source = tile_source;
+	g_object_ref( tile_source );
         win->tile_cache = tile_cache_new( win->tile_source );
 
         g_object_set( win->imagedisplay,
@@ -1218,6 +1214,11 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 			vips_buf_all( &buf ) );
         }
 
+	/* Initial active state.
+	 */
+	tile_source->active = 
+		g_settings_get_boolean( win->settings, "control" );
+
 	image_window_changed( win );
 }
 
@@ -1238,6 +1239,8 @@ image_window_open( ImageWindow *win, GFile *file )
 	}
 
 	image_window_set_tile_source( win, tile_source );
+
+	VIPS_UNREF( tile_source );
 }
 
 void
