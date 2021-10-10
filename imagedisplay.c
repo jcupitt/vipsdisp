@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
@@ -251,9 +251,6 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 	printf( "imagedisplay_layout:\n" ); 
 #endif /*DEBUG*/
 
-	imagedisplay_set_hadjustment_values( imagedisplay );
-	imagedisplay_set_vadjustment_values( imagedisplay );
-
 	imagedisplay->widget_rect.width = 
 		gtk_widget_get_width( GTK_WIDGET( imagedisplay ) );
 	imagedisplay->widget_rect.height = 
@@ -274,6 +271,9 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 	imagedisplay->paint_rect.top = VIPS_MAX( 0,
 		(imagedisplay->widget_rect.height - 
 		 imagedisplay->paint_rect.height) / 2 ); 
+
+	imagedisplay_set_hadjustment_values( imagedisplay );
+	imagedisplay_set_vadjustment_values( imagedisplay );
 
 }
 
@@ -616,10 +616,10 @@ imagedisplay_image_to_gtk( Imagedisplay *imagedisplay,
 	int x_image, int y_image, double *x_gtk, double *y_gtk )
 {
 	*x_gtk = x_image * imagedisplay->scale - 
-		imagedisplay->x - 
+		imagedisplay->x + 
 		imagedisplay->paint_rect.left;
 	*y_gtk = y_image * imagedisplay->scale - 
-		imagedisplay->y - 
+		imagedisplay->y + 
 		imagedisplay->paint_rect.top;
 }
 
@@ -627,11 +627,11 @@ void
 imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, 
 	double x_gtk, double y_gtk, double *x_image, double *y_image )
 {
-	*x_image = (x_gtk + 
-		imagedisplay->x + 
+	*x_image = (imagedisplay->x + 
+		x_gtk - 
 		imagedisplay->paint_rect.left) / imagedisplay->scale;
-	*y_image = (y_gtk + 
-		imagedisplay->y +
+	*y_image = (imagedisplay->y + 
+		y_gtk - 
 		imagedisplay->paint_rect.top) / imagedisplay->scale;
 
 	*x_image = VIPS_CLIP( 0, *x_image, 

@@ -140,9 +140,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-    fix transparency display
+    fix display bar
 
-    rename conversionview as displaybar (cf. infobar?)
+    fix tilecache behaviour
+
+    fix transparency display
 
     css animation for zoom?
 

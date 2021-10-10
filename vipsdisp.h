@@ -30,6 +30,6 @@
 #include "imagedisplay.h"
 #include "imagewindow.h"
 #include "infobar.h"
-#include "conversionview.h"
+#include "displaybar.h"
 
 #endif /* __VIPSDISP_H */

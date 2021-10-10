@@ -6,7 +6,7 @@
     <property name="step-increment">1</property>
   </object>
 
-  <template class="Conversionview" parent="GtkWidget">
+  <template class="Displaybar" parent="GtkWidget">
     <child>
       <object class="GtkActionBar" id="action_bar">
         <property name="revealed">false</property>

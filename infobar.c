@@ -295,28 +295,26 @@ infobar_status_update( Infobar *infobar )
 
 	char str[64];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
-	int last_x;
-	int last_y;
+	double image_x;
+	double image_y;
 
 #ifdef DEBUG
 	printf( "infobar_status_update:\n" ); 
 #endif /*DEBUG*/
 
-	/* last_x, last_y are in level0 image coordinates.
-	 */
-	image_window_get_last( infobar->win, &last_x, &last_y );
+	image_window_get_last( infobar->win, &image_x, &image_y );
 
-	vips_buf_appendf( &buf, "%d", last_x ); 
+	vips_buf_appendf( &buf, "%d", (int) image_x ); 
 	gtk_label_set_text( GTK_LABEL( infobar->x ), 
 		vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
-	vips_buf_appendf( &buf, "%d", last_y ); 
+	vips_buf_appendf( &buf, "%d", (int) image_y ); 
 	gtk_label_set_text( GTK_LABEL( infobar->y ), 
 		vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
-	infobar_status_value( infobar, last_x, last_y ); 
+	infobar_status_value( infobar, (int) image_x, (int) image_y ); 
 
 	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );

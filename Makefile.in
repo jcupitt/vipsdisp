@@ -104,7 +104,7 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(vipsdispdir)" \
 	"$(DESTDIR)$(vipsdispappdir)" \
 	"$(DESTDIR)$(vipsdispappdatadir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_vipsdisp_OBJECTS = conversionview.$(OBJEXT) infobar.$(OBJEXT) \
+am_vipsdisp_OBJECTS = displaybar.$(OBJEXT) infobar.$(OBJEXT) \
 	gtkutil.$(OBJEXT) imagedisplay.$(OBJEXT) imagewindow.$(OBJEXT) \
 	main.$(OBJEXT) tile.$(OBJEXT) tilesource.$(OBJEXT) \
 	tilecache.$(OBJEXT) tslider.$(OBJEXT) vipsdispapp.$(OBJEXT) \
@@ -127,10 +127,9 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/conversionview.Po \
-	./$(DEPDIR)/gtkutil.Po ./$(DEPDIR)/imagedisplay.Po \
-	./$(DEPDIR)/imagewindow.Po ./$(DEPDIR)/infobar.Po \
-	./$(DEPDIR)/main.Po ./$(DEPDIR)/tile.Po \
+am__depfiles_remade = ./$(DEPDIR)/displaybar.Po ./$(DEPDIR)/gtkutil.Po \
+	./$(DEPDIR)/imagedisplay.Po ./$(DEPDIR)/imagewindow.Po \
+	./$(DEPDIR)/infobar.Po ./$(DEPDIR)/main.Po ./$(DEPDIR)/tile.Po \
 	./$(DEPDIR)/tilecache.Po ./$(DEPDIR)/tilesource.Po \
 	./$(DEPDIR)/tslider.Po ./$(DEPDIR)/vipsdisp-gresources.Po \
 	./$(DEPDIR)/vipsdispapp.Po ./$(DEPDIR)/vipsdispmarshal.Po
@@ -318,8 +317,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 vipsdisp_SOURCES = \
-	conversionview.c \
-	conversionview.h \
+	displaybar.c \
+	displaybar.h \
 	infobar.c \
 	infobar.h \
 	gtkutil.c \
@@ -454,7 +453,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conversionview.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/displaybar.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gtkutil.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/imagedisplay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/imagewindow.Po@am__quote@ # am--include-marker
@@ -826,7 +825,7 @@ clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-		-rm -f ./$(DEPDIR)/conversionview.Po
+		-rm -f ./$(DEPDIR)/displaybar.Po
 	-rm -f ./$(DEPDIR)/gtkutil.Po
 	-rm -f ./$(DEPDIR)/imagedisplay.Po
 	-rm -f ./$(DEPDIR)/imagewindow.Po
@@ -887,7 +886,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-		-rm -f ./$(DEPDIR)/conversionview.Po
+		-rm -f ./$(DEPDIR)/displaybar.Po
 	-rm -f ./$(DEPDIR)/gtkutil.Po
 	-rm -f ./$(DEPDIR)/imagedisplay.Po
 	-rm -f ./$(DEPDIR)/imagewindow.Po

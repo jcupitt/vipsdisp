@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <interface>
-  <menu id="conversionview-menu">
+  <menu id="displaybar-menu">
     <section>
       <item>
         <attribute name='label' translatable='yes'>Scale</attribute>

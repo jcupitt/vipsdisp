@@ -98,7 +98,7 @@
         </child>
 
         <child>
-          <object class="Conversionview" id="conversion_bar">
+          <object class="Displaybar" id="display_bar">
           </object>
         </child>
 

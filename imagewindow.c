@@ -1,12 +1,12 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
 /* How much to scale view by each step.
  */
-#define SCALE_STEP (1.1)
+#define SCALE_STEP (1.05)
 
 struct _ImageWindow
 {
@@ -15,7 +15,8 @@ struct _ImageWindow
         TileSource *tile_source;
         TileCache *tile_cache;
 
-        /* Last known mouse postion, in level0 image coordinates.
+        /* Last known mouse postion, in gtk coordinates. We keep these in gtk
+	 * cods so we don't need to update them on paz / zoom.
          */
         double last_x;
         double last_y;
@@ -35,7 +36,7 @@ struct _ImageWindow
         GtkWidget *error_label;
         GtkWidget *scrolled_window;
         GtkWidget *imagedisplay;
-        GtkWidget *conversion_bar;
+        GtkWidget *display_bar;
         GtkWidget *info_bar;
 
         /* Throttle progress bar updates to a few per second with this.
@@ -602,14 +603,16 @@ image_window_key_pressed( GtkEventControllerKey *self,
                 GTK_SCROLLED_WINDOW( win->scrolled_window ) );
         int hstep = gtk_adjustment_get_step_increment( hadj );
         int vstep = gtk_adjustment_get_step_increment( vadj );
+        int image_width = win->tile_source->width;
+        int image_height = win->tile_source->height;
 
         gboolean handled;
         int window_left;
         int window_top;
         int window_width;
         int window_height;
-        int image_width = win->tile_source->width;
-        int image_height = win->tile_source->height;
+	double image_x;
+	double image_y;
 
 #ifdef DEBUG
         printf( "image_window_key_pressed: keyval = %d, state = %d\n", 
@@ -618,6 +621,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
 
         image_window_get_position( win, 
                 &window_left, &window_top, &window_width, &window_height );
+	image_window_get_last( win, &image_x, &image_y );
 
         handled = FALSE;
 
@@ -626,7 +630,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
         case GDK_KEY_i:
                 image_window_set_scale_position( win, 
 			SCALE_STEP * image_window_get_scale( win ), 
-			win->last_x, win->last_y );
+			image_x, image_y );
                 handled = TRUE;
                 break;
 
@@ -634,7 +638,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
         case GDK_KEY_minus:
                 image_window_set_scale_position( win, 
 			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
-			win->last_x, win->last_y );
+			image_x, image_y );
                 handled = TRUE;
                 break;
 
@@ -725,8 +729,9 @@ image_window_motion( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-		x, y, &win->last_x, &win->last_y );
+	win->last_x = x;
+	win->last_y = y;
+
         image_window_position_changed( win );
 }
 
@@ -736,14 +741,19 @@ image_window_scroll( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
+	double image_x;
+	double image_y;
+
+	image_window_get_last( win, &image_x, &image_y );
+
         if( dy > 0 ) 
                 image_window_set_scale_position( win, 
 			SCALE_STEP * image_window_get_scale( win ), 
-			win->last_x, win->last_y );
+			image_x, image_y );
         else 
                 image_window_set_scale_position( win, 
 			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
-			win->last_x, win->last_y );
+			image_x, image_y );
 
         return( TRUE );
 }
@@ -808,7 +818,7 @@ image_window_control( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        g_object_set( win->conversion_bar,
+        g_object_set( win->display_bar,
                 "revealed", g_variant_get_boolean( state ),
                 NULL );
 
@@ -1052,7 +1062,7 @@ image_window_init( ImageWindow *win )
         gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
         g_object_unref( builder );
 
-        g_object_set( win->conversion_bar,
+        g_object_set( win->display_bar,
                 "image-window", win,
                 NULL );
         g_object_set( win->info_bar,
@@ -1098,7 +1108,7 @@ image_window_init( ImageWindow *win )
         gtk_widget_add_controller( win->imagedisplay, controller );
 
         g_settings_bind( win->settings, "control",
-                G_OBJECT( win->conversion_bar ),
+                G_OBJECT( win->display_bar ),
                 "revealed", 
                 G_SETTINGS_BIND_DEFAULT );
 
@@ -1138,7 +1148,7 @@ image_window_class_init( ImageWindowClass *class )
         BIND( error_label );
         BIND( scrolled_window );
         BIND( imagedisplay );
-        BIND( conversion_bar );
+        BIND( display_bar );
         BIND( info_bar );
 
         image_window_signals[SIG_POSITION_CHANGED] = g_signal_new( 
@@ -1231,8 +1241,8 @@ image_window_open( ImageWindow *win, GFile *file )
 }
 
 void
-image_window_get_last( ImageWindow *win, int *last_x, int *last_y )
+image_window_get_last( ImageWindow *win, double *last_x, double *last_y )
 {
-        *last_x = win->last_x;
-        *last_y = win->last_y;
+        imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
+		win->last_x, win->last_y, last_x, last_y );
 }

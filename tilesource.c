@@ -1,7 +1,7 @@
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -1717,10 +1717,10 @@ tile_source_get_pixel( TileSource *tile_source, int x, int y )
 		!tile_source->image_region )
 		return( NULL );
 
-	rect.left = 0;
-	rect.top = 0;
-	rect.width = x;
-	rect.height = y;
+	rect.left = x;
+	rect.top = y;
+	rect.width = 1;
+	rect.height = 1;
 	if( vips_region_prepare( tile_source->image_region, &rect ) )
 		return( NULL );
 

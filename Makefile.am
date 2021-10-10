@@ -1,8 +1,8 @@
 bin_PROGRAMS = vipsdisp
 
 vipsdisp_SOURCES = \
-	conversionview.c \
-	conversionview.h \
+	displaybar.c \
+	displaybar.h \
 	infobar.c \
 	infobar.h \
 	gtkutil.c \
