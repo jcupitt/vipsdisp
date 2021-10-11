@@ -140,13 +140,30 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
+    draw checkerboard behind transparent images
+
+      render correct-size texture in _layout() and use in snapshot()? could be
+      rather slow :( 
+
+      single 128x128 texture and render across thw whole of the widget?
+
     still throwing things out of cache too quickly sometimss
 
-    use has tables for tiles on level
+    use hash tables for tiles on tilecache level now we have ~600 tiles
 
-    need some way to cancel out of date requests
+      tile_cache_fill_hole() needs to search the whole of the current level for
+      an x, y tile
 
-    fix transparency display
+      search in lower res layers should be quicker, and won't happen often, but
+      can't use a hash, since we want to test for tile-includes-rect, not
+      tile-at-position 
+
+    need some way to cancel out of date requests 
+      
+      has to be in sink_screen, I guess
+
+      can sink_screen spot tilrs only it has a ref to? perhaps they could be
+      junked before being calculated?
 
     css animation for zoom?
 
@@ -154,19 +171,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - ome-tiff pages as bands ... info bar displays only one band
 
-- subifd pyr zooming breaks at some mag levels, eg from 1:2 zooming in to 1:1 
-  there's a big jump down and right
-
 - ome-tiff pyr load, pages-as-bands, rapid zoom in and out, see a lot of errors
 
   same for other subifd pyr?
 
   perhaps because the view goes out of range?
-
-- image sniffing needs refactoring, it's too complex and fragile
-
-- remove `imagedisplay_conversion_area_changed` ... do we use it? useless
-  anyway with gtk4
 
 - add imagemagick to get dicom loader?
 
@@ -189,8 +198,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
      could skip frames for very slow updates? track `t` rather than having a
      timeout, and pick a frame from that?
-
-- improve upscale for buffer rebuild to reduce percieved flicker
 
 - auto reload on file change, or support F5 for reload?
 

@@ -4,10 +4,10 @@
 #define DEBUG
  */
 
-/* Keep this many non-visible tiles around as a cache. Enough to fill a 3k x
- * 3k screen 2x over.
+/* Keep this many non-visible tiles around as a cache. Enough to fill a 2k x
+ * 2k screen 2x over.
  */
-#define TILE_KEEP ((3000 / TILE_SIZE) * (3000 / TILE_SIZE))
+#define TILE_KEEP ((2000 / TILE_SIZE) * (2000 / TILE_SIZE))
 
 enum {
         /* Signals. 
