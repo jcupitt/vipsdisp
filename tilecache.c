@@ -343,25 +343,13 @@ tile_cache_compute_visibility( TileCache *tile_cache )
                 }
         }
 
-	/* Free tiles we don't need. Never free tiles in the lowest-res few 
-	 * levels. They are useful for filling in holes and take little memory.
+	/* Free the oldest few unused tiles in each level. 
+	 *
+	 * Never free tiles in the lowest-res few levels. They are useful for 
+	 * filling in holes and take little memory.
 	 */
         for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
-		if( i == z )
-			/* Free old, invisible tiles in the current level.
-			 */
-			tile_cache_free_oldest( tile_cache, i );
-		else {
-			/* All other levels, free all tiles.
-			 */
-			for( p = tile_cache->free[i]; p; p = p->next ) {
-				Tile *tile = TILE( p->data );
-
-				tile_cache_free_tile( tile_cache, tile );
-			}
-			
-			VIPS_FREEF( g_slist_free, tile_cache->free[i] );
-		}
+		tile_cache_free_oldest( tile_cache, i );
 
 #ifdef DEBUG
 

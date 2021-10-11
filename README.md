@@ -145,9 +145,11 @@ $ ./vipsdisp ~/pics/k2.jpg
       render correct-size texture in _layout() and use in snapshot()? could be
       rather slow :( 
 
-      single 128x128 texture and render across thw whole of the widget?
+      single 128x128 texture and render across the whole of the widget?
 
     still throwing things out of cache too quickly sometimss
+
+      mysterious!
 
     use hash tables for tiles on tilecache level now we have ~600 tiles
 
