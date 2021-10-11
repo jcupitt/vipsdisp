@@ -1375,6 +1375,22 @@ tile_source_attach_progress( TileSource *tile_source )
                 G_CALLBACK( tile_source_posteval ), tile_source, 0 );
 }
 
+/* Fetch a string-encoded int image header field, eg. from openslide. These
+ * are all represented as strings. Return the default value if there's any
+ * problem.
+ */
+static int
+get_int( VipsImage *image, const char *field, int default_value )
+{
+        const char *str;
+
+        if( vips_image_get_typeof( image, field ) &&
+                !vips_image_get_string( image, field, &str ) )
+                return( atoi( str ) );
+
+        return( default_value );
+}
+
 TileSource *
 tile_source_new_from_source( VipsSource *source )
 {
@@ -1386,7 +1402,7 @@ tile_source_new_from_source( VipsSource *source )
 	TileSourceMode mode;
 
 #ifdef DEBUG
-        printf( "tile_source_set_source: starting ..\n" );
+        printf( "tile_source_new_from_source: starting ..\n" );
 #endif /*DEBUG*/
 
         tile_source->source = source; 
@@ -1421,7 +1437,7 @@ tile_source_new_from_source( VipsSource *source )
          * page_size are sane too. 
          */
 #ifdef DEBUG
-        printf( "tile_source_set_image: test toilet-roll mode\n" );
+        printf( "tile_source_new_from_source: test toilet-roll mode\n" );
 #endif /*DEBUG*/
 
         /* Block error messages from eg. page-pyramidal TIFFs, where pages
@@ -1439,7 +1455,8 @@ tile_source_new_from_source( VipsSource *source )
                         tile_source->n_pages <= 0 ||
                         tile_source->n_pages > 10000 ) {
 #ifdef DEBUG
-                        printf( "tile_source_set_image: bad page layout\n" );
+                        printf( "tile_source_new_from_source: "
+				"bad page layout\n" );
 #endif /*DEBUG*/
 
                         tile_source->n_pages = 1;
@@ -1469,23 +1486,49 @@ tile_source_new_from_source( VipsSource *source )
                 tile_source->pages_same_size && 
                 tile_source->image->Bands == 1;
 
-        /* For tiff, scan the image and try to spot page-based and ifd-based
-         * pyramids.
+        /* For openslide, we can directly read out the level structure.
          */
-        if( vips_isprefix( "tiff", tile_source->loader ) ) {
-                /* Test for a subifd pyr first, since we can do that from just
-                 * one page.
-                 */
-                tile_source_get_pyramid_subifd( tile_source );
+        if( vips_isprefix( "openslide", tile_source->loader ) ) {
+                int level_count;
+                int level;
 
-                if( !tile_source->subifd_pyramid )
-                        tile_source_get_pyramid_page( tile_source );
+                level_count = get_int( tile_source->image, 
+			"openslide.level-count", 1 );
+                level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS );
+                tile_source->level_count = level_count;
+
+                for( level = 0; level < level_count; level++ ) {
+                        char name[256];
+
+                        vips_snprintf( name, 256,
+                                "openslide.level[%d].width", level );
+                        tile_source->level_width[level] =
+                                 get_int( tile_source->image, name, 0 );
+                        vips_snprintf( name, 256,
+                                "openslide.level[%d].height", level );
+                        tile_source->level_height[level] =
+                                get_int( tile_source->image, name, 0 );
+                }
         }
 
-        /* jp2k is always page-based.
-         */
-        if( vips_isprefix( "jp2k", tile_source->loader ) ) 
-                tile_source_get_pyramid_page( tile_source );
+	/* Test for a subifd pyr first, since we can do that from just
+	 * one page.
+	 */
+	if( !tile_source->level_count ) {
+		tile_source->subifd_pyramid = TRUE;
+		tile_source_get_pyramid_subifd( tile_source );
+		if( !tile_source->level_count )
+			tile_source->subifd_pyramid = FALSE;
+	}
+
+	/* If that failed, try to read as a page pyramid.
+	 */
+	if( !tile_source->level_count ) {
+		tile_source->page_pyramid = TRUE;
+		tile_source_get_pyramid_page( tile_source );
+		if( !tile_source->level_count )
+			tile_source->page_pyramid = FALSE;
+	}
 
         /* Sniffing is done ... set the image type.
          */

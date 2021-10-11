@@ -4,9 +4,10 @@
 #define DEBUG
  */
 
-/* Keep this many non-visible tiles around as a cache.
+/* Keep this many non-visible tiles around as a cache. Enough to fill a 3k x
+ * 3k screen 2x over.
  */
-#define TILE_KEEP (100)
+#define TILE_KEEP ((3000 / TILE_SIZE) * (3000 / TILE_SIZE))
 
 enum {
         /* Signals. 
@@ -315,7 +316,7 @@ tile_cache_compute_visibility( TileCache *tile_cache )
         tile_cache_tiles_for_rect( tile_cache, 
                 &tile_cache->viewport, &touches );
 
-        /* Search for the first visible tile for every position in the 
+        /* Search for the highest res tile for every position in the 
          * viewport.
          */
         bounds.width = size0;
@@ -328,7 +329,8 @@ tile_cache_compute_visibility( TileCache *tile_cache )
                         tile_cache_fill_hole( tile_cache, &bounds, z );
                 }
 
-        /* So any tiles we've not touched must be candidates for freeing.
+        /* So any tiles we've not touched must be invisible and therefore 
+	 * candidates for freeing.
          */
         for( i = 0; i < tile_cache->n_levels; i++ ) {
                 for( p = tile_cache->tiles[i]; p; p = p->next ) {
@@ -344,7 +346,7 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 	/* Free tiles we don't need. Never free tiles in the lowest-res few 
 	 * levels. They are useful for filling in holes and take little memory.
 	 */
-        for( i = 0; i < tile_cache->n_levels - 4; i++ ) 
+        for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
 		if( i == z )
 			/* Free old, invisible tiles in the current level.
 			 */

@@ -140,7 +140,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-    tilesource is not loading openslide pyr?
+    still throwing things out of cache too quickly sometimss
+
+    use has tables for tiles on level
+
+    need some way to cancel out of date requests
 
     fix transparency display
 

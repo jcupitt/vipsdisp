@@ -217,7 +217,7 @@ imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay,
 		"lower", 0.0,
 		"upper", new_upper,
 		"page-size", page_size,
-		"step-increment", page_size * 0.1,
+		"step-increment", 10.0,
 		"page-increment", page_size * 0.9,
 		NULL );
 
