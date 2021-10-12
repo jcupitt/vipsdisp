@@ -138,6 +138,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+  occasional VipsRegion: valid clipped to nothing errors?
+
 - rendering:
 
     draw checkerboard behind transparent images
@@ -148,19 +150,6 @@ $ ./vipsdisp ~/pics/k2.jpg
       single 128x128 texture and render across the whole of the widget?
 
       gtk_snapshot_push_repeat(), push checkerboard tile, pop
-
-    still throwing things out of cache too quickly sometimss
-
-      mysterious!
-
-    use hash tables for tiles on tilecache level now we have ~600 tiles
-
-      tile_cache_fill_hole() needs to search the whole of the current level for
-      an x, y tile
-
-      search in lower res layers should be quicker, and won't happen often, but
-      can't use a hash, since we want to test for tile-includes-rect, not
-      tile-at-position 
 
     need some way to cancel out of date requests 
       

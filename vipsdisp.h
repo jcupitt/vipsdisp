@@ -18,7 +18,7 @@
 
 /* The tile size for image rendering.
  */
-#define TILE_SIZE (128)
+#define TILE_SIZE (256)
 
 #include "gtkutil.h"
 #include "tslider.h"

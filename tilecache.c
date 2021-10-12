@@ -2,13 +2,13 @@
 
 /*
 #define DEBUG
- */
 #define DEBUG_SNAPSHOT
-
-/* Keep this many non-visible tiles around as a cache. Enough to fill a 2k x
- * 2k screen 2x over.
  */
-#define TILE_KEEP ((2000 / TILE_SIZE) * (2000 / TILE_SIZE))
+
+/* Keep this many non-visible tiles around as a cache. Enough to fill a 4k 
+ * screen 2x over.
+ */
+#define TILE_KEEP (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
 
 enum {
         /* Signals. 
@@ -209,8 +209,6 @@ tile_cache_tiles_for_rect( TileCache *tile_cache,
         int z = tile_cache->z;
         int size0 = TILE_SIZE << z;
 
-        /* All the tiles in this viewport.
-         */
         int left = VIPS_ROUND_DOWN( rect->left, size0 );
         int top = VIPS_ROUND_DOWN( rect->top, size0 );
         int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
@@ -220,6 +218,13 @@ tile_cache_tiles_for_rect( TileCache *tile_cache,
         touches->top = top;
         touches->width = right - left;
         touches->height = bottom - top;
+
+        /* We can have rects outside the image. Make sure they stay empty.
+         */
+        if( vips_rect_isempty( rect ) ) {
+                touches->width = 0;
+                touches->height = 0;
+        }
 }
 
 /* Find the first visible tile in a hole.
@@ -695,13 +700,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 {
         int i;
 
-#ifdef DEBUG
-        printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
-                x, y, scale );
-#endif /*DEBUG*/
-
 #ifdef DEBUG_SNAPSHOT
-{
         float width = tile_cache->viewport.width * scale;
         float height = tile_cache->viewport.height * scale;
         float size0 = TILE_SIZE * scale;
@@ -710,17 +709,21 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
         float vscale = (float) (height - 2 * size0) / height;
         float mscale = VIPS_MIN( hscale, vscale );
 
-        graphene_point_t point;
+        graphene_point_t offset;
 
-        point.x = (width - width * mscale) / 2;
-        point.y = (height - height * mscale) / 2;
-        gtk_snapshot_translate( snapshot, &point );
+        offset.x = (width - width * mscale) / 2;
+        offset.y = (height - height * mscale) / 2;
+        gtk_snapshot_translate( snapshot, &offset );
 
         /* Scale down to show render edges
          */
         gtk_snapshot_scale( snapshot, mscale, mscale );
-}
 #endif /*DEBUG_SNAPSHOT*/
+
+#ifdef DEBUG
+        printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
+                x, y, scale );
+#endif /*DEBUG*/
 
         for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
                 GSList *p;
@@ -746,7 +749,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                                 tile->bounds.top * scale - y,
                                 tile->bounds.width * scale,
                                 tile->bounds.height * scale );
-                        float border_width[4] = { 1, 1, 1, 1 };
+                        float border_width[4] = { 2, 2, 2, 2 };
                         GdkRGBA border_colour[4] = { 
                                 { 0, 1, 0, 1 },
                                 { 0, 1, 0, 1 },
@@ -762,18 +765,19 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                                 &outline, border_width, border_colour );
 
                         cr = gtk_snapshot_append_cairo( snapshot, &bounds );
+
                         cairo_set_source_rgb( cr, 0, 1, 0 );
                         cairo_set_font_size( cr, 12 );
 
-                        cairo_move_to( cr, 
-                                tile->bounds.left * scale - x + 70 * scale,
-                                tile->bounds.top * scale - y + 60 * scale );
+                        cairo_move_to( cr,
+                                bounds.origin.x + 0.1 * bounds.size.width,
+                                bounds.origin.y + 0.1 * bounds.size.height );
                         vips_buf_appendf( &buf, "%p", tile );
                         cairo_show_text( cr,vips_buf_all( &buf ) );
 
                         cairo_move_to( cr, 
-                                tile->bounds.left * scale - x + 70 * scale,
-                                tile->bounds.top * scale - y + 80 * scale );
+                                bounds.origin.x + 0.1 * bounds.size.width,
+                                bounds.origin.y + 0.2 * bounds.size.height );
                         vips_buf_rewind( &buf );
                         vips_buf_appendf( &buf, "%d", tile->time );
                         cairo_show_text( cr,vips_buf_all( &buf ) );
@@ -792,8 +796,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
         gsk_rounded_rect_init_from_rect( &outline, 
                 &GRAPHENE_RECT_INIT(
-                        0, 
-                        0, 
+                        tile_cache->viewport.left * scale - x,
+                        tile_cache->viewport.top * scale - y,
                         tile_cache->viewport.width * scale,
                         tile_cache->viewport.height * scale
                 ), 

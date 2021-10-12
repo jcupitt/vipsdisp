@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -312,7 +312,7 @@ image_window_set_position( ImageWindow *win, double x, double y )
 }
 
 /* Set a new mag, keeping the pixel at x/y at the same position on the 
- * screen, if we can.
+ * screen.
  */
 static void     
 image_window_set_scale_position( ImageWindow *win, 
@@ -362,10 +362,9 @@ image_window_bestfit( ImageWindow *win )
 }
 
 static void
-image_window_magin_action( GSimpleAction *action,
-        GVariant *parameter, gpointer user_data )
+image_window_set_scale_centre( ImageWindow *win, double scale )
 {
-        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        double current_scale = image_window_get_scale( win );
 
         int window_left;
         int window_top;
@@ -374,10 +373,26 @@ image_window_magin_action( GSimpleAction *action,
 
         image_window_get_position( win,
                 &window_left, &window_top, &window_width, &window_height );
+
+        window_left /= current_scale;
+        window_top /= current_scale;
+        window_width /= current_scale;
+        window_height /= current_scale;
+
         image_window_set_scale_position( win, 
-		SCALE_STEP * image_window_get_scale( win ),
+		scale,
                 window_left + window_width / 2, 
 		window_top + window_height / 2 );
+}
+
+static void
+image_window_magin_action( GSimpleAction *action,
+        GVariant *parameter, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+        image_window_set_scale_centre( win,
+                SCALE_STEP * image_window_get_scale( win ) );
 }
 
 static void
@@ -386,17 +401,8 @@ image_window_magout_action( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        int window_left;
-        int window_top;
-        int window_width;
-        int window_height;
-
-        image_window_get_position( win,
-                &window_left, &window_top, &window_width, &window_height );
-        image_window_set_scale_position( win, 
-		(1.0 / SCALE_STEP) * image_window_get_scale( win ),
-                window_left + window_width / 2, 
-		window_top + window_height / 2 );
+        image_window_set_scale_centre( win,
+                (1.0 / SCALE_STEP) * image_window_get_scale( win ) );
 }
 
 static void
@@ -596,16 +602,16 @@ image_window_key_pressed( GtkEventControllerKey *self,
                 GTK_SCROLLED_WINDOW( win->scrolled_window ) );
         GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
                 GTK_SCROLLED_WINDOW( win->scrolled_window ) );
-        int hstep = gtk_adjustment_get_step_increment( hadj );
-        int vstep = gtk_adjustment_get_step_increment( vadj );
-        int image_width = win->tile_source->width;
-        int image_height = win->tile_source->height;
+        double hstep = gtk_adjustment_get_step_increment( hadj );
+        double vstep = gtk_adjustment_get_step_increment( vadj );
+        double image_width = gtk_adjustment_get_upper( hadj );
+        double image_height = gtk_adjustment_get_upper( vadj );
+        double window_left = gtk_adjustment_get_value( hadj );
+        double window_top = gtk_adjustment_get_value( vadj );
+        double window_width = gtk_adjustment_get_page_size( hadj );
+        double window_height = gtk_adjustment_get_page_size( vadj );
 
         gboolean handled;
-        int window_left;
-        int window_top;
-        int window_width;
-        int window_height;
 	double image_x;
 	double image_y;
 
@@ -614,10 +620,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
                 keyval, state );
 #endif /*DEBUG*/
 
-        image_window_get_position( win, 
-                &window_left, &window_top, &window_width, &window_height );
 	image_window_get_last( win, &image_x, &image_y );
-
         handled = FALSE;
 
         switch( keyval ) {
@@ -709,7 +712,8 @@ image_window_key_pressed( GtkEventControllerKey *self,
                                 if( state & GDK_CONTROL_MASK )
                                         scale = 1.0 / scale;
 
-                                image_window_set_scale( win, scale );
+                                image_window_set_scale_centre( win, scale );
+
                                 handled = TRUE;
                                 break;
                         }
@@ -905,6 +909,7 @@ image_window_scale( GSimpleAction *action,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
         TileSource *tile_source = win->tile_source;
         VipsImage *image = tile_source_get_image( tile_source );
+        double image_scale = image_window_get_scale( win );
 
         int left, top, width, height;
         VipsImage *context;
@@ -914,6 +919,15 @@ image_window_scale( GSimpleAction *action,
                 return;
 
         image_window_get_position( win, &left, &top, &width, &height );
+        left /= image_scale;
+        top /= image_scale;
+        width /= image_scale;
+        height /= image_scale;
+
+        /* FIXME ... this will be incredibly slow, esp. for large images.
+         * Instead, just search the cached tiles we have.
+         */
+
         context = vips_image_new();
         if( image_window_find_scale( win, VIPS_OBJECT( context ), image,
                 left, top, width, height, &scale, &offset ) ) {
