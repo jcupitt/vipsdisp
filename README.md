@@ -116,21 +116,19 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## Structure
 
-* `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `VipsImage`. It
+* `TileSource` wraps a `VipsImage` and can produce pyramid tiles on request.
+   It has controls for things like scale and falsecolour.
+
+* `TileCache` builds a sparse pyramid of tiles and keeps recents.
+
+* `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `TileCache`. It
   implements a scrollable interface. You can use this as an image view
-  widget in your own code.
+  widget in your own code. It takes a float scale factor for zoom and uses
+  that to fetch tiles of the right size from the `TileCache`.
 
-* `Conversion` is a GObject which manages the image that is being
-  displayed. Set things like magnification, file, scale, offset etc. on
-  this and the display will update automatically.
-
-* `Conversionview` is the view for the conversion model (it's the display
-  control bar).
-
-* `Imagewindow` is a GtkWindow that contains an `Imagedisplay` and a
-  `Conversionview` and adds a lot of navigation stuff. It uses the scolled
-  window `GtkAdjustment` to slide `Imagedisplay` around, and sets properties
-  of `Conversion` to zoom etc.
+* `Imagewindow` is a GtkWindow that contains an `Imagedisplay` and 
+  adds a lot of navigation stuff. It uses the scolled
+  window `GtkAdjustment` to slide `Imagedisplay` around.
 
 * `disp` is the `main()`, `VipsdispApp` is a `GtkApplication` subclass
 
@@ -138,7 +136,9 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-  fix GIF display
+  load ome/x.tif, 0, 1, ^Q, valid clipped to nothing
+
+  load ome/x.tif, select toilet-roll mode, just displays one page
 
 - rendering:
 
@@ -153,16 +153,9 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - ome-tiff pages as bands ... info bar displays only one band
 
-- ome-tiff pyr load, pages-as-bands, rapid zoom in and out, see a lot of errors
-
-  same for other subifd pyr?
-
-  perhaps because the view goes out of range?
-
 - add imagemagick to get dicom loader?
 
-- once the framerate drops below 30 fps, the final paint is almost always
-  interrupted by the arrival of the next frame, appearing to lock the display
+- GIFs flicker horribly if frames take too long to appear
 
   only schedule the next paint when the current one finishes?
 

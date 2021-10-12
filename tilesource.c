@@ -608,14 +608,14 @@ tile_source_update_display( TileSource *tile_source )
         /* Don't update if we're still loading.
          */
         if( !tile_source->loaded ||
-		!tile_source->image )
+                !tile_source->image )
                 return( 0 );
 
-	if( !(display = tile_source_display_image( tile_source, &mask )) ) {
+        if( !(display = tile_source_display_image( tile_source, &mask )) ) {
 #ifdef DEBUG
-		printf( "tile_source_update_display: build failed\n" );
+                printf( "tile_source_update_display: build failed\n" );
 #endif /*DEBUG*/
-		return( -1 ); 
+                return( -1 ); 
         }
 
         VIPS_UNREF( tile_source->display );
@@ -709,9 +709,13 @@ tile_source_page_flip( void *user_data )
         printf(  "tile_source_page_flip: timeout %d ms\n", timeout ); 
 #endif /*DEBUG*/
 
-        g_object_set( tile_source,
-                "page", (page + 1) % tile_source->n_pages,
-                NULL );
+        /* Only flip the page if everything has loaded.
+         */
+        if( tile_source->rgb ) {
+                g_object_set( tile_source,
+                        "page", (page + 1) % tile_source->n_pages,
+                        NULL );
+        }
 
         return( FALSE );
 }
@@ -1082,7 +1086,7 @@ tile_source_class_init( TileSourceClass *class )
                 vipsdisp_VOID__POINTER_INT,
                 G_TYPE_NONE, 2,
                 G_TYPE_POINTER,
-	        G_TYPE_INT );
+                G_TYPE_INT );
 
         tile_source_signals[SIG_PAGE_CHANGED] = g_signal_new( "page-changed",
                 G_TYPE_FROM_CLASS( class ),
@@ -1104,15 +1108,15 @@ static const char *
 type_name( TileSourceType type ) 
 {
         switch( type ) {
-	case TILE_SOURCE_TYPE_PAGE_PYRAMID:
-		return( "pyramid" );
-	case TILE_SOURCE_TYPE_TOILET_ROLL:
-		return( "toilet-roll" );
-	case TILE_SOURCE_TYPE_MULTIPAGE:
-		return( "multipage" );
-	default:
-		return( "<unknown>" );
-	}
+        case TILE_SOURCE_TYPE_PAGE_PYRAMID:
+                return( "pyramid" );
+        case TILE_SOURCE_TYPE_TOILET_ROLL:
+                return( "toilet-roll" );
+        case TILE_SOURCE_TYPE_MULTIPAGE:
+                return( "multipage" );
+        default:
+                return( "<unknown>" );
+        }
 }
 
 static const char *
@@ -1238,10 +1242,10 @@ tile_source_get_pyramid_subifd( TileSource *tile_source )
                 int expected_level_width;
                 int expected_level_height;
 
-		/* Just bail out if there are too many levels.
-		 */
-		if( i >= MAX_LEVELS )
-			break;
+                /* Just bail out if there are too many levels.
+                 */
+                if( i >= MAX_LEVELS )
+                        break;
 
                 if( !(level = tile_source_open( tile_source, i )) )
                         return;
@@ -1300,10 +1304,10 @@ tile_source_get_pyramid_page( TileSource *tile_source )
                 int expected_level_width;
                 int expected_level_height;
 
-		/* Just bail out if there are too many levels.
-		 */
-		if( i >= MAX_LEVELS )
-			break;
+                /* Just bail out if there are too many levels.
+                 */
+                if( i >= MAX_LEVELS )
+                        break;
 
                 if( !(level = tile_source_open( tile_source, i )) )
                         return;
@@ -1397,7 +1401,7 @@ tile_source_new_from_source( VipsSource *source )
         const char *loader;
         VipsImage *image;
         VipsImage *x;
-	TileSourceMode mode;
+        TileSourceMode mode;
 
 #ifdef DEBUG
         printf( "tile_source_new_from_source: starting ..\n" );
@@ -1454,7 +1458,7 @@ tile_source_new_from_source( VipsSource *source )
                         tile_source->n_pages > 10000 ) {
 #ifdef DEBUG
                         printf( "tile_source_new_from_source: "
-				"bad page layout\n" );
+                                "bad page layout\n" );
 #endif /*DEBUG*/
 
                         tile_source->n_pages = 1;
@@ -1491,7 +1495,7 @@ tile_source_new_from_source( VipsSource *source )
                 int level;
 
                 level_count = get_int( tile_source->image, 
-			"openslide.level-count", 1 );
+                        "openslide.level-count", 1 );
                 level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS );
                 tile_source->level_count = level_count;
 
@@ -1509,24 +1513,24 @@ tile_source_new_from_source( VipsSource *source )
                 }
         }
 
-	/* Test for a subifd pyr first, since we can do that from just
-	 * one page.
-	 */
-	if( !tile_source->level_count ) {
-		tile_source->subifd_pyramid = TRUE;
-		tile_source_get_pyramid_subifd( tile_source );
-		if( !tile_source->level_count )
-			tile_source->subifd_pyramid = FALSE;
-	}
+        /* Test for a subifd pyr first, since we can do that from just
+         * one page.
+         */
+        if( !tile_source->level_count ) {
+                tile_source->subifd_pyramid = TRUE;
+                tile_source_get_pyramid_subifd( tile_source );
+                if( !tile_source->level_count )
+                        tile_source->subifd_pyramid = FALSE;
+        }
 
-	/* If that failed, try to read as a page pyramid.
-	 */
-	if( !tile_source->level_count ) {
-		tile_source->page_pyramid = TRUE;
-		tile_source_get_pyramid_page( tile_source );
-		if( !tile_source->level_count )
-			tile_source->page_pyramid = FALSE;
-	}
+        /* If that failed, try to read as a page pyramid.
+         */
+        if( !tile_source->level_count ) {
+                tile_source->page_pyramid = TRUE;
+                tile_source_get_pyramid_page( tile_source );
+                if( !tile_source->level_count )
+                        tile_source->page_pyramid = FALSE;
+        }
 
         /* Sniffing is done ... set the image type.
          */
@@ -1666,13 +1670,13 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
         printf( "tile_source_fill_tile:\n" ); 
 #endif /*DEBUG*/
 
-	/* Change z if necessary.
-	 */
+        /* Change z if necessary.
+         */
         if( tile_source->current_z != tile->z ||
                 !tile_source->display ) {
-		tile_source->current_z = tile->z;
+                tile_source->current_z = tile->z;
                 tile_source_update_display( tile_source );
-	}
+        }
 
         if( vips_region_prepare( tile_source->mask_region, 
                 &tile->region->valid ) )
@@ -1745,39 +1749,39 @@ tile_source_write_to_file( TileSource *tile_source, GFile *file )
 VipsImage *
 tile_source_get_image( TileSource *tile_source )
 {
-	return( tile_source->image );
+        return( tile_source->image );
 }
 
 VipsPel *
 tile_source_get_pixel( TileSource *tile_source, int x, int y )
 {
-	VipsRect rect;
+        VipsRect rect;
 
-	if( !tile_source->loaded ||
-		!tile_source->image ||
-		!tile_source->image_region )
-		return( NULL );
+        if( !tile_source->loaded ||
+                !tile_source->image ||
+                !tile_source->image_region )
+                return( NULL );
 
-	rect.left = x;
-	rect.top = y;
-	rect.width = 1;
-	rect.height = 1;
-	if( vips_region_prepare( tile_source->image_region, &rect ) )
-		return( NULL );
+        rect.left = x;
+        rect.top = y;
+        rect.width = 1;
+        rect.height = 1;
+        if( vips_region_prepare( tile_source->image_region, &rect ) )
+                return( NULL );
 
-	return( VIPS_REGION_ADDR( tile_source->image_region, x, y ) );
+        return( VIPS_REGION_ADDR( tile_source->image_region, x, y ) );
 }
 
 TileSource *
 tile_source_duplicate( TileSource *tile_source )
 {
-	g_assert( FALSE );
+        g_assert( FALSE );
 
-	/* FIXME ... see conversion_set_conversion()
-	 *
-	 *
-	 * tile_source_get_file(), then new_from_file, then copy settings
-	 */
+        /* FIXME ... see conversion_set_conversion()
+         *
+         *
+         * tile_source_get_file(), then new_from_file, then copy settings
+         */
 
-	return( NULL );
+        return( NULL );
 }

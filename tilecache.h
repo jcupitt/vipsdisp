@@ -55,6 +55,8 @@ typedef struct _TileCache {
          */
         GSList **free;
 
+        /* Paint the backdrop with this.
+         */
         GdkTexture *checkerboard;
 
 } TileCache;

@@ -765,7 +765,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
         /* If there's an alpha, we'll need a backdrop.
          */
-        if( tile_cache->tile_source->rgb->Bands == 4 ) {
+        if( vips_image_hasalpha( tile_cache->tile_source->image ) ) {
                 graphene_rect_t bounds;
 
 #ifdef DEBUG
