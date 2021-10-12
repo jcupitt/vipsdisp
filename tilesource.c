@@ -607,17 +607,15 @@ tile_source_update_display( TileSource *tile_source )
 
         /* Don't update if we're still loading.
          */
-        if( !tile_source->loaded )
+        if( !tile_source->loaded ||
+		!tile_source->image )
                 return( 0 );
 
-        if( tile_source->image ) {
-                if( !(display = tile_source_display_image( 
-                        tile_source, &mask )) ) {
+	if( !(display = tile_source_display_image( tile_source, &mask )) ) {
 #ifdef DEBUG
-                        printf( "tile_source_update_display: build failed\n" );
+		printf( "tile_source_update_display: build failed\n" );
 #endif /*DEBUG*/
-                        return( -1 ); 
-                }
+		return( -1 ); 
         }
 
         VIPS_UNREF( tile_source->display );

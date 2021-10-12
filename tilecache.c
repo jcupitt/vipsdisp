@@ -3,6 +3,7 @@
 /*
 #define DEBUG
  */
+#define DEBUG_SNAPSHOT
 
 /* Keep this many non-visible tiles around as a cache. Enough to fill a 2k x
  * 2k screen 2x over.
@@ -128,7 +129,7 @@ tile_cache_class_init( TileCacheClass *class )
                 vipsdisp_VOID__POINTER_INT,
                 G_TYPE_NONE, 2,
                 G_TYPE_POINTER,
-	        G_TYPE_INT );
+                G_TYPE_INT );
 
 }
 
@@ -330,7 +331,7 @@ tile_cache_compute_visibility( TileCache *tile_cache )
                 }
 
         /* So any tiles we've not touched must be invisible and therefore 
-	 * candidates for freeing.
+         * candidates for freeing.
          */
         for( i = 0; i < tile_cache->n_levels; i++ ) {
                 for( p = tile_cache->tiles[i]; p; p = p->next ) {
@@ -343,13 +344,13 @@ tile_cache_compute_visibility( TileCache *tile_cache )
                 }
         }
 
-	/* Free the oldest few unused tiles in each level. 
-	 *
-	 * Never free tiles in the lowest-res few levels. They are useful for 
-	 * filling in holes and take little memory.
-	 */
+        /* Free the oldest few unused tiles in each level. 
+         *
+         * Never free tiles in the lowest-res few levels. They are useful for 
+         * filling in holes and take little memory.
+         */
         for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
-		tile_cache_free_oldest( tile_cache, i );
+                tile_cache_free_oldest( tile_cache, i );
 
 #ifdef DEBUG
 
@@ -402,10 +403,10 @@ tile_cache_find( TileCache *tile_cache, VipsRect *bounds, int z )
                 tile = TILE( p->data );
 
                 if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) 
-			return( tile );
-	}
+                        return( tile );
+        }
 
-	return( NULL );
+        return( NULL );
 }
 
 /* Fetch a single tile.
@@ -424,27 +425,27 @@ tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
                 bounds->width, bounds->height );
 #endif /*DEBUG*/
 
-	/* Look for an existing tile, or make a new one.
-	 */
+        /* Look for an existing tile, or make a new one.
+         */
         if( !(tile = tile_cache_find( tile_cache, bounds, z )) ) {
-		if( !(tile = tile_new( tile_cache->levels[z], 
-			bounds->left >> z, bounds->top >> z, z )) )
-			return;
+                if( !(tile = tile_new( tile_cache->levels[z], 
+                        bounds->left >> z, bounds->top >> z, z )) )
+                        return;
 
-		tile_cache->tiles[z] = 
-			g_slist_prepend( tile_cache->tiles[z], tile );
-	}
+                tile_cache->tiles[z] = 
+                        g_slist_prepend( tile_cache->tiles[z], tile );
+        }
 
-	if( !tile->valid ) {
-		tile_source_fill_tile( tile_cache->tile_source, tile );
+        if( !tile->valid ) {
+                tile_source_fill_tile( tile_cache->tile_source, tile );
 
-		/* It might now be valid, if pixels have come
-		 * in from the pipeline.
-		 */
-		if( tile->valid ) 
-			tile_cache->valid[z] = 
-				g_slist_prepend( tile_cache->valid[z], tile );
-	}
+                /* It might now be valid, if pixels have come
+                 * in from the pipeline.
+                 */
+                if( tile->valid ) 
+                        tile_cache->valid[z] = 
+                                g_slist_prepend( tile_cache->valid[z], tile );
+        }
 }
 
 /* Fetch the tiles in an area.
@@ -466,71 +467,71 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
         int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
         int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( rect ), size0 );
 
-	/* Do the four edges, then step in. Loop until the centre is empty.
-	 */
-	for(;;) {
-		VipsRect tile;
-		int x, y;
+        /* Do the four edges, then step in. Loop until the centre is empty.
+         */
+        for(;;) {
+                VipsRect tile;
+                int x, y;
 
-		tile.width = size0;
-		tile.height = size0;
+                tile.width = size0;
+                tile.height = size0;
 
-		if( right - left <= 0 ||
-			bottom - top <= 0 )
-			break;
+                if( right - left <= 0 ||
+                        bottom - top <= 0 )
+                        break;
 
-		/* Top edge.
-		 */
-		for( x = left; x < right; x += size0 ) {
-			tile.left = x;
-			tile.top = top;
-			tile_cache_get( tile_cache, &tile );
-		}
+                /* Top edge.
+                 */
+                for( x = left; x < right; x += size0 ) {
+                        tile.left = x;
+                        tile.top = top;
+                        tile_cache_get( tile_cache, &tile );
+                }
 
-		top += size0;
-		if( right - left <= 0 ||
-			bottom - top <= 0 )
-			break;
+                top += size0;
+                if( right - left <= 0 ||
+                        bottom - top <= 0 )
+                        break;
 
-		/* Bottom edge.
-		 */
-		for( x = left; x < right; x += size0 ) {
-			tile.left = x;
-			tile.top = bottom - size0;
-			tile_cache_get( tile_cache, &tile );
-		}
+                /* Bottom edge.
+                 */
+                for( x = left; x < right; x += size0 ) {
+                        tile.left = x;
+                        tile.top = bottom - size0;
+                        tile_cache_get( tile_cache, &tile );
+                }
 
-		bottom -= size0;
-		if( right - left <= 0 ||
-			bottom - top <= 0 )
-			break;
+                bottom -= size0;
+                if( right - left <= 0 ||
+                        bottom - top <= 0 )
+                        break;
 
-		/* Left edge.
-		 */
-		for( y = top; y < bottom; y += size0 ) {
-			tile.left = left;
-			tile.top = y;
-			tile_cache_get( tile_cache, &tile );
-		}
+                /* Left edge.
+                 */
+                for( y = top; y < bottom; y += size0 ) {
+                        tile.left = left;
+                        tile.top = y;
+                        tile_cache_get( tile_cache, &tile );
+                }
 
-		left += size0;
-		if( right - left <= 0 ||
-			bottom - top <= 0 )
-			break;
+                left += size0;
+                if( right - left <= 0 ||
+                        bottom - top <= 0 )
+                        break;
 
-		/* Right edge.
-		 */
-		for( y = top; y < bottom; y += size0 ) {
-			tile.left = right - size0;
-			tile.top = y;
-			tile_cache_get( tile_cache, &tile );
-		}
+                /* Right edge.
+                 */
+                for( y = top; y < bottom; y += size0 ) {
+                        tile.left = right - size0;
+                        tile.top = y;
+                        tile_cache_get( tile_cache, &tile );
+                }
 
-		right -= size0;
-		if( right - left <= 0 ||
-			bottom - top <= 0 )
-			break;
-	}
+                right -= size0;
+                if( right - left <= 0 ||
+                        bottom - top <= 0 )
+                        break;
+        }
 }
 
 /* Set the layer and the rect within that layer that we want to display.
@@ -549,15 +550,15 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
                 "width = %d, height = %d, z = %d\n", 
                 viewport->left, viewport->top,
                 viewport->width, viewport->height, 
-		z );
+                z );
 #endif /*DEBUG*/
 
-	/* The pyramid may not have loaded hyet.
-	 */
-	if( !tile_cache->levels )
-		return;
+        /* The pyramid may not have loaded hyet.
+         */
+        if( !tile_cache->levels )
+                return;
 
-	g_assert( z >= 0 && z < tile_cache->n_levels );
+        g_assert( z >= 0 && z < tile_cache->n_levels );
 
         /* The rect of tiles touched by the current viewport.
          */
@@ -578,7 +579,7 @@ tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
          */
         if( z != old_z ||
                 !vips_rect_equalsrect( &old_touches, &touches ) ) {
-		tile_cache_fetch_area( tile_cache, &touches );
+                tile_cache_fetch_area( tile_cache, &touches );
                 tile_cache_compute_visibility( tile_cache );
         }
 }
@@ -597,8 +598,8 @@ tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
 
         tile_cache_set_viewport( tile_cache, &old_viewport, old_z );
 
-	/* Tell our clients.
-	 */
+        /* Tell our clients.
+         */
         tile_cache_changed( tile_cache );
 }
 
@@ -607,9 +608,9 @@ tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
  */
 static void
 tile_cache_source_tiles_changed( TileSource *tile_source, 
-	TileCache *tile_cache )
+        TileCache *tile_cache )
 {
-	int i;
+        int i;
 
 #ifdef DEBUG
         printf( "tile_cache_source_tiles_changed:\n" );
@@ -621,13 +622,13 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
                 for( p = tile_cache->valid[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
 
-			tile->valid = FALSE;
+                        tile->valid = FALSE;
                 }
 
                 VIPS_FREEF( g_slist_free, tile_cache->valid[i] );
         }
 
-	tile_cache_fetch_area( tile_cache, &tile_cache->viewport );
+        tile_cache_fetch_area( tile_cache, &tile_cache->viewport );
 
         tile_cache_compute_visibility( tile_cache );
 
@@ -653,12 +654,12 @@ tile_cache_source_area_changed( TileSource *tile_source,
         bounds.top = area->top << z;
         bounds.width = area->width << z;
         bounds.height = area->height << z;
-	tile_cache_fetch_area( tile_cache, &bounds );
+        tile_cache_fetch_area( tile_cache, &bounds );
 
         tile_cache_compute_visibility( tile_cache );
 
-	/* Tell our clients.
-	 */
+        /* Tell our clients.
+         */
         tile_cache_area_changed( tile_cache, area, z );
 }
 
@@ -690,14 +691,36 @@ tile_cache_new( TileSource *tile_source )
  */
 void 
 tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
-	double x, double y, double scale )
+        double x, double y, double scale )
 {
         int i;
 
 #ifdef DEBUG
         printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
-		x, y, scale );
+                x, y, scale );
 #endif /*DEBUG*/
+
+#ifdef DEBUG_SNAPSHOT
+{
+        float width = tile_cache->viewport.width * scale;
+        float height = tile_cache->viewport.height * scale;
+        float size0 = TILE_SIZE * scale;
+
+        float hscale = (float) (width - 2 * size0) / width;
+        float vscale = (float) (height - 2 * size0) / height;
+        float mscale = VIPS_MIN( hscale, vscale );
+
+        graphene_point_t point;
+
+        point.x = (width - width * mscale) / 2;
+        point.y = (height - height * mscale) / 2;
+        gtk_snapshot_translate( snapshot, &point );
+
+        /* Scale down to show render edges
+         */
+        gtk_snapshot_scale( snapshot, mscale, mscale );
+}
+#endif /*DEBUG_SNAPSHOT*/
 
         for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
                 GSList *p;
@@ -705,20 +728,82 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 for( p = tile_cache->visible[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
 
-                        graphene_rect_t snapshot_bounds;
+                        graphene_rect_t bounds;
 
-                        snapshot_bounds.origin.x = 
-                                tile->bounds.left * scale - x;  
-                        snapshot_bounds.origin.y = 
-                                tile->bounds.top * scale - y;  
-                        snapshot_bounds.size.width = 
-                                tile->bounds.width * scale;  
-                        snapshot_bounds.size.height = 
-                                tile->bounds.height * scale;
+                        bounds.origin.x = tile->bounds.left * scale - x;  
+                        bounds.origin.y = tile->bounds.top * scale - y;  
+                        bounds.size.width = tile->bounds.width * scale;  
+                        bounds.size.height = tile->bounds.height * scale;
 
                         gtk_snapshot_append_texture( snapshot, 
                                  tile_get_texture( tile ), 
-                                 &snapshot_bounds );
+                                 &bounds );
+
+#ifdef DEBUG_SNAPSHOT
+{
+                        GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
+                                tile->bounds.left * scale - x,
+                                tile->bounds.top * scale - y,
+                                tile->bounds.width * scale,
+                                tile->bounds.height * scale );
+                        float border_width[4] = { 1, 1, 1, 1 };
+                        GdkRGBA border_colour[4] = { 
+                                { 0, 1, 0, 1 },
+                                { 0, 1, 0, 1 },
+                                { 0, 1, 0, 1 },
+                                { 0, 1, 0, 1 },
+                        };
+
+                        cairo_t *cr;
+                        char str[256];
+                        VipsBuf buf = VIPS_BUF_STATIC( str );
+
+                        gtk_snapshot_append_border( snapshot, 
+                                &outline, border_width, border_colour );
+
+                        cr = gtk_snapshot_append_cairo( snapshot, &bounds );
+                        cairo_set_source_rgb( cr, 0, 1, 0 );
+                        cairo_set_font_size( cr, 12 );
+
+                        cairo_move_to( cr, 
+                                tile->bounds.left * scale - x + 70 * scale,
+                                tile->bounds.top * scale - y + 60 * scale );
+                        vips_buf_appendf( &buf, "%p", tile );
+                        cairo_show_text( cr,vips_buf_all( &buf ) );
+
+                        cairo_move_to( cr, 
+                                tile->bounds.left * scale - x + 70 * scale,
+                                tile->bounds.top * scale - y + 80 * scale );
+                        vips_buf_rewind( &buf );
+                        vips_buf_appendf( &buf, "%d", tile->time );
+                        cairo_show_text( cr,vips_buf_all( &buf ) );
+
+                        cairo_destroy( cr );
+}
+#endif /*DEBUG_SNAPSHOT*/
                 }
         }
+
+#ifdef DEBUG_SNAPSHOT
+{
+        #define BORDER ((GdkRGBA) { 1, 0, 0, 1 })
+
+        GskRoundedRect outline;
+
+        gsk_rounded_rect_init_from_rect( &outline, 
+                &GRAPHENE_RECT_INIT(
+                        0, 
+                        0, 
+                        tile_cache->viewport.width * scale,
+                        tile_cache->viewport.height * scale
+                ), 
+                0 );
+
+        gtk_snapshot_append_border( snapshot, 
+                &outline, 
+                (float[4]) { 2, 2, 2, 2 },
+                (GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
+
+}
+#endif /*DEBUG_SNAPSHOT*/
 }

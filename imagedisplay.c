@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
@@ -477,13 +477,48 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 	Imagedisplay *imagedisplay = VIPSDISP_IMAGEDISPLAY( widget );
 
 #ifdef DEBUG
-	printf( "imagedisplay_snapshot:\n" ); 
+	printf( "imagedisplay_snapshot:\n" );
 #endif /*DEBUG*/
+
+        /* Clip to the widget area, or we may paint over the display control
+         * bar.
+         */
+        gtk_snapshot_push_clip( snapshot, &GRAPHENE_RECT_INIT(
+                0, 
+                0, 
+                gtk_widget_get_width( widget ),
+                gtk_widget_get_height( widget ) )); 
 
 	tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
 		imagedisplay->x - imagedisplay->paint_rect.left, 
 		imagedisplay->y - imagedisplay->paint_rect.top, 
 		imagedisplay->scale );
+
+        gtk_snapshot_pop( snapshot );
+
+         /* I wasn't able to get gtk_snapshot_render_focus() working. Draw
+          * the focus rect ourselves.
+          */
+        if( gtk_widget_has_focus( widget ) ) {
+                #define BORDER ((GdkRGBA) { 0.4, 0.4, 0.6, 1 })
+
+                GskRoundedRect outline;
+
+                gsk_rounded_rect_init_from_rect( &outline, 
+                        &GRAPHENE_RECT_INIT(
+                                3, 
+                                3, 
+                                gtk_widget_get_width( widget ) - 6,
+                                gtk_widget_get_height( widget ) - 6
+                        ), 
+                        5 );
+
+                gtk_snapshot_append_border( snapshot, 
+                        &outline, 
+                        (float[4]) { 2, 2, 2, 2 },
+                        (GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
+
+        }
 }
 
 static void
@@ -505,6 +540,10 @@ static void
 imagedisplay_focus_enter( GtkEventController *controller, 
 	Imagedisplay *imagedisplay )
 {
+#ifdef DEBUG
+	printf( "imagedisplay_focus_enter:\n" );
+#endif /*DEBUG*/
+
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 
@@ -512,6 +551,10 @@ static void
 imagedisplay_focus_leave( GtkEventController *controller, 
 	Imagedisplay *imagedisplay )
 {
+#ifdef DEBUG
+	printf( "imagedisplay_focus_leave:\n" );
+#endif /*DEBUG*/
+
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 

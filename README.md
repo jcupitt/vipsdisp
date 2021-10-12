@@ -147,6 +147,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
       single 128x128 texture and render across the whole of the widget?
 
+      gtk_snapshot_push_repeat(), push checkerboard tile, pop
+
     still throwing things out of cache too quickly sometimss
 
       mysterious!
