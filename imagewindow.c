@@ -354,8 +354,10 @@ image_window_bestfit( ImageWindow *win )
 
 	int widget_width = gtk_widget_get_width( win->imagedisplay );
 	int widget_height = gtk_widget_get_height( win->imagedisplay );
-	double hscale = (double) widget_width / win->tile_source->width;
-	double vscale = (double) widget_height / win->tile_source->height;
+	double hscale = (double) widget_width / 
+                win->tile_source->display_width;
+	double vscale = (double) widget_height / 
+                win->tile_source->display_height;
 	double scale = VIPS_MIN( hscale, vscale );
 
 	image_window_set_scale( win, scale );

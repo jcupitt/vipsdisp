@@ -125,11 +125,14 @@ tile_source_open( TileSource *tile_source, int level )
                 /* We support three modes: subifd pyramids, page-based
                  * pyramids, and simple multi-page TIFFs (no pyramid).
                  */
-                if( tile_source->subifd_pyramid )
+                if( tile_source->subifd_pyramid ) 
+                        /* subifd == -1 means the main image. subifd 0 picks
+                         * the first subifd.
+                         */
                         image = vips_image_new_from_source( tile_source->source,
                                 "", 
                                 "page", page,
-                                "subifd", level,
+                                "subifd", level - 1,
                                 "n", n,
                                 NULL );
                 else if( tile_source->page_pyramid )
@@ -235,7 +238,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                  * then find the layer which is one larger.
                  */
                 int required_width = 
-                        tile_source->width >> tile_source->current_z;
+                        tile_source->display_width >> tile_source->current_z;
 
                 int i;
                 int level;
@@ -396,7 +399,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                  * subsample as (current_width / required_width).
                  */
                 int subsample = image->Xsize / 
-                        (tile_source->width >> tile_source->current_z);
+                        (tile_source->display_width >> tile_source->current_z);
 
                 if( vips_subsample( image, &x, subsample, subsample, NULL ) ) {
                         VIPS_UNREF( image );
@@ -748,6 +751,12 @@ tile_source_set_property( GObject *object,
                         i < TILE_SOURCE_MODE_LAST &&
                         tile_source->mode != i ) {
                         tile_source->mode = i;
+                        tile_source->display_width = tile_source->width;
+                        tile_source->display_height = tile_source->height;
+                        if( tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL )
+                                tile_source->display_height *= 
+                                        tile_source->n_pages;
+
                         tile_source_update_display( tile_source );
 
                         tile_source_changed( tile_source );
@@ -795,7 +804,14 @@ tile_source_set_property( GObject *object,
                         tile_source->page = i;
                         tile_source_update_display( tile_source );
 
-                        tile_source_changed( tile_source );
+                        /* If all pages have the same size, we can flip pages
+                         * without rebuilding the pyramid.
+                         */
+                        if( tile_source->pages_same_size )
+                                tile_source_tiles_changed( tile_source );
+                        else
+                                tile_source_changed( tile_source );
+
                         tile_source_page_changed( tile_source );
                 }
                 break;
@@ -1163,6 +1179,8 @@ tile_source_print( TileSource *tile_source )
         printf( "\tmode = %s\n", mode_name( tile_source->mode ) );
         printf( "\tdelay = %p\n", tile_source->delay );
         printf( "\tn_delay = %d\n", tile_source->n_delay );
+        printf( "\tdisplay_width = %d\n", tile_source->display_width );
+        printf( "\tdisplay_height = %d\n", tile_source->display_height );
 }
 #endif /*DEBUG*/
 
@@ -1253,10 +1271,8 @@ tile_source_get_pyramid_subifd( TileSource *tile_source )
                 level_height = level->Ysize;
                 VIPS_UNREF( level );
 
-                /* The main image is size 1, subifd 0 is half that.
-                 */
-                expected_level_width = tile_source->width / (2 << i);
-                expected_level_height = tile_source->height / (2 << i);
+                expected_level_width = tile_source->width / (1 << i);
+                expected_level_height = tile_source->height / (1 << i);
 
                 /* This won't be exact due to rounding etc.
                  */

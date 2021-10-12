@@ -1,8 +1,8 @@
 #include "vipsdisp.h"
 
 /*
-#define DEBUG
 #define DEBUG_SNAPSHOT
+#define DEBUG
  */
 
 /* Keep this many non-visible tiles around as a cache. Enough to fill a 4k 
@@ -180,7 +180,7 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_build_pyramid:\n" ); 
+        printf( "tile_cache_build_pyramid:\n" );
 #endif /*DEBUG*/
 
         tile_cache_free_pyramid( tile_cache );
@@ -188,8 +188,8 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         /* How many levels? Keep shrinking until we get down to one tile on
          * one axis.
          */
-        level_width = tile_cache->tile_source->width;
-        level_height = tile_cache->tile_source->height;
+        level_width = tile_cache->tile_source->display_width;
+        level_height = tile_cache->tile_source->display_height;
         n_levels = 1;
         for(;;) {
                 if( level_width <= TILE_SIZE ||
@@ -204,8 +204,8 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         tile_cache->n_levels = n_levels;
 
         tile_cache->levels = VIPS_ARRAY( NULL, n_levels, VipsImage * );
-        level_width = tile_cache->tile_source->width;
-        level_height = tile_cache->tile_source->height;
+        level_width = tile_cache->tile_source->display_width;
+        level_height = tile_cache->tile_source->display_height;
         for( i = 0; i < n_levels; i++ ) {
                 tile_cache->levels[i] = vips_image_new();
 

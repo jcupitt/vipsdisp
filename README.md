@@ -136,11 +136,15 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-  load ome/x.tif, 0, 1, ^Q, valid clipped to nothing
-
-  load ome/x.tif, select toilet-roll mode, just displays one page
-
 - rendering:
+
+    display out of date tiles rather than no tiles
+
+      we need to distinguish tiles with no pixels in them ever, from tiles 
+      with out of date pixels
+
+      how about keeping the old texture after making a tile invalid, and
+      displaying that in the snapshot?
 
     need some way to cancel out of date requests 
       

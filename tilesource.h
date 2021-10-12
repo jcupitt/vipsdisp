@@ -148,6 +148,12 @@ typedef struct _TileSource {
         gboolean falsecolour;
         gboolean log;
 
+        /* The size of the image with this view mode. So in toilet-roll mode
+         * (for example), display_height is height * n_pages.
+         */
+        int display_width;
+        int display_height;
+
         /* The current z for display, mask, rgb. We need to rebuild the
          * pipeline on z changes.
          */

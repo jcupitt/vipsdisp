@@ -288,8 +288,10 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
         printf( "imagedisplay_tile_cache_changed:\n" ); 
 #endif /*DEBUG*/
 
-        imagedisplay->image_rect.width = tile_cache->tile_source->width;
-        imagedisplay->image_rect.height = tile_cache->tile_source->height;
+        imagedisplay->image_rect.width = 
+                tile_cache->tile_source->display_width;
+        imagedisplay->image_rect.height = 
+                tile_cache->tile_source->display_height;
 
         imagedisplay_layout( imagedisplay );
 
