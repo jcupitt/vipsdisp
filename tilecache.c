@@ -68,6 +68,7 @@ tile_cache_dispose( GObject *object )
         tile_cache_free_pyramid( tile_cache );
 
         VIPS_UNREF( tile_cache->tile_source );
+	VIPS_UNREF( tile_cache->checkerboard );
 
         G_OBJECT_CLASS( tile_cache_parent_class )->dispose( object );
 }
@@ -94,8 +95,45 @@ tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, int z )
 }
 
 static void
+tile_cache_checkerboard_destroy_notify( guchar* pixels, gpointer data )
+{
+        g_free( pixels );
+}
+
+/* Make a GdkTexture for the checkerboard pattern we use for compositing.
+ */
+static GdkTexture *
+tile_cache_checkerboard( void )
+{
+        VipsPel *data;
+        GdkPixbuf *pixbuf;
+        GdkTexture *texture;
+        int x, y, z;
+
+        data = g_malloc( TILE_SIZE * TILE_SIZE * 3 );
+        for( y = 0; y < TILE_SIZE; y++ )
+                for( x = 0; x < TILE_SIZE; x++ )
+                        for( z = 0; z < 3; z++ )
+                                data[y * TILE_SIZE * 3 + x * 3 + z] =
+                                       ((x >> 4) + (y >> 4)) % 2 == 0 ? 
+                                               128 : 180;
+
+        pixbuf = gdk_pixbuf_new_from_data( data, GDK_COLORSPACE_RGB,
+                FALSE, 8,
+                TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
+                tile_cache_checkerboard_destroy_notify, NULL );
+
+        texture = gdk_texture_new_for_pixbuf( pixbuf );
+
+        g_object_unref( pixbuf );
+
+        return( texture );
+}
+
+static void
 tile_cache_init( TileCache *tile_cache )
 {
+        tile_cache->checkerboard = tile_cache_checkerboard();
 }
 
 static void
@@ -724,6 +762,32 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
         printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
                 x, y, scale );
 #endif /*DEBUG*/
+
+        /* If there's an alpha, we'll need a backdrop.
+         */
+        if( tile_cache->tile_source->rgb->Bands == 4 ) {
+                graphene_rect_t bounds;
+
+#ifdef DEBUG
+                printf( "tile_cache_snapshot: drawing checkerboard\n" );
+#endif /*DEBUG*/
+
+                bounds.origin.x = tile_cache->viewport.left * scale - x;  
+                bounds.origin.y = tile_cache->viewport.top * scale - y;  
+                bounds.size.width = tile_cache->viewport.width * scale;  
+                bounds.size.height = tile_cache->viewport.height * scale;
+                gtk_snapshot_push_repeat( snapshot, &bounds, NULL );
+
+                bounds.origin.x = 0;
+                bounds.origin.y = 0;
+                bounds.size.width = TILE_SIZE;
+                bounds.size.height = TILE_SIZE;
+                gtk_snapshot_append_texture( snapshot, 
+                        tile_cache->checkerboard,
+                        &bounds );
+
+                gtk_snapshot_pop( snapshot );
+        }
 
         for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
                 GSList *p;

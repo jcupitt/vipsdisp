@@ -55,6 +55,8 @@ typedef struct _TileCache {
          */
         GSList **free;
 
+        GdkTexture *checkerboard;
+
 } TileCache;
 
 typedef struct _TileCacheClass {

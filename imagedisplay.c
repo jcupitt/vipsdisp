@@ -44,6 +44,7 @@ struct _Imagedisplay {
 	double scale;
 	double x, y;
 
+        GdkTexture *checkerboard;
 };
 
 /* imagedisplay is actually a drawing area the size of the widget on screen: we 

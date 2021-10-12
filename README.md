@@ -138,29 +138,18 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-  occasional VipsRegion: valid clipped to nothing errors?
+  fix GIF display
 
 - rendering:
-
-    draw checkerboard behind transparent images
-
-      render correct-size texture in _layout() and use in snapshot()? could be
-      rather slow :( 
-
-      single 128x128 texture and render across the whole of the widget?
-
-      gtk_snapshot_push_repeat(), push checkerboard tile, pop
 
     need some way to cancel out of date requests 
       
       has to be in sink_screen, I guess
 
-      can sink_screen spot tilrs only it has a ref to? perhaps they could be
+      can sink_screen spot tiles only it has a ref to? perhaps they could be
       junked before being calculated?
 
     css animation for zoom?
-
-    fix animation display
 
 - ome-tiff pages as bands ... info bar displays only one band
 
