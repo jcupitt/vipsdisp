@@ -113,38 +113,43 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
         imagedisplay->y = y;
         imagedisplay->scale = scale;
 
-        /* Pick a pyramid layer. For enlarging, we leave the z at 0 (the 
-         * highest res layer).
-         */
-        if( scale > 1.0 || 
-                scale == 0 ) 
-                z = 0;
-        else 
-                z = VIPS_CLIP( 0, 
-                        log( 1.0 / scale ) / log( 2.0 ), 
-                        imagedisplay->tile_cache->n_levels - 1 );
+	/* Only if we hafve an image loaded.
+	 */
+	if( imagedisplay->tile_cache ) {
+		/* Pick a pyramid layer. For enlarging, we leave the z at 0 
+		 * (the highest res layer).
+		 */
+		if( scale > 1.0 || 
+			scale == 0 ) 
+			z = 0;
+		else 
+			z = VIPS_CLIP( 0, 
+				log( 1.0 / scale ) / log( 2.0 ), 
+				imagedisplay->tile_cache->n_levels - 1 );
 
-        /* The area to display in level0 coordinates.
-         */
-        viewport.left = x / scale;
-        viewport.top = y / scale;
-        viewport.width = VIPS_MAX( 1, widget_width / scale );
-        viewport.height = VIPS_MAX( 1, widget_height / scale );
-        vips_rect_intersectrect( &viewport, &imagedisplay->image_rect, 
-                &viewport );
+		/* The area to display in level0 coordinates.
+		 */
+		viewport.left = x / scale;
+		viewport.top = y / scale;
+		viewport.width = VIPS_MAX( 1, widget_width / scale );
+		viewport.height = VIPS_MAX( 1, widget_height / scale );
+		vips_rect_intersectrect( &viewport, &imagedisplay->image_rect, 
+			&viewport );
 
 #ifdef DEBUG
-        printf( "imagedisplay_set_transform: x = %g, y = %g, scale = %g\n",
-                x, y, scale );
-        printf( "  z = %d, viewport at %d x %d, size %d x %d\n", 
-                z, 
-                viewport.left, viewport.top,
-                viewport.width, viewport.height );
+		printf( "imagedisplay_set_transform: "
+			"x = %g, y = %g, scale = %g\n", x, y, scale );
+		printf( "  z = %d, viewport at %d x %d, size %d x %d\n", 
+			z, 
+			viewport.left, viewport.top,
+			viewport.width, viewport.height );
 #endif /*DEBUG*/
 
-        tile_cache_set_viewport( imagedisplay->tile_cache, &viewport, z );
+		tile_cache_set_viewport( imagedisplay->tile_cache, 
+			&viewport, z );
 
-        gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	}
 }
 
 static void
@@ -491,10 +496,11 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
                 gtk_widget_get_width( widget ),
                 gtk_widget_get_height( widget ) )); 
 
-        tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
-                imagedisplay->x - imagedisplay->paint_rect.left, 
-                imagedisplay->y - imagedisplay->paint_rect.top, 
-                imagedisplay->scale );
+	if( imagedisplay->tile_cache )
+		tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
+			imagedisplay->x - imagedisplay->paint_rect.left, 
+			imagedisplay->y - imagedisplay->paint_rect.top, 
+			imagedisplay->scale );
 
         gtk_snapshot_pop( snapshot );
 

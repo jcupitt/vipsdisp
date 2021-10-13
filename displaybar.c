@@ -172,9 +172,10 @@ displaybar_page_value_changed( GtkSpinButton *spin_button,
         printf( "displaybar_page_value_changed: %d\n", new_page );
 #endif /*DEBUG*/
 
-        g_object_set( tile_source,
-                "page", new_page,
-                NULL );
+	if( tile_source )
+		g_object_set( tile_source,
+			"page", new_page,
+			NULL );
 }
 
 static void
@@ -184,9 +185,10 @@ displaybar_scale_value_changed( Tslider *slider,
 	TileSource *tile_source = 
 		image_window_get_tilesource( displaybar->win );
 
-        g_object_set( tile_source,
-                "scale", slider->value,
-                NULL );
+	if( tile_source )
+		g_object_set( tile_source,
+			"scale", slider->value,
+			NULL );
 }
 
 static void
@@ -196,9 +198,10 @@ displaybar_offset_value_changed( Tslider *slider,
 	TileSource *tile_source = 
 		image_window_get_tilesource( displaybar->win );
 
-        g_object_set( tile_source,
-                "offset", slider->value,
-                NULL );
+	if( tile_source )
+		g_object_set( tile_source,
+			"offset", slider->value,
+			NULL );
 }
 
 static void

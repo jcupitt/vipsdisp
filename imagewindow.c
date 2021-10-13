@@ -352,15 +352,17 @@ image_window_bestfit( ImageWindow *win )
         printf( "image_window_bestfit:\n" ); 
 #endif /*DEBUG*/
 
-	int widget_width = gtk_widget_get_width( win->imagedisplay );
-	int widget_height = gtk_widget_get_height( win->imagedisplay );
-	double hscale = (double) widget_width / 
-                win->tile_source->display_width;
-	double vscale = (double) widget_height / 
-                win->tile_source->display_height;
-	double scale = VIPS_MIN( hscale, vscale );
+	if( win->tile_source ) {
+		int widget_width = gtk_widget_get_width( win->imagedisplay );
+		int widget_height = gtk_widget_get_height( win->imagedisplay );
+		double hscale = (double) widget_width / 
+			win->tile_source->display_width;
+		double vscale = (double) widget_height / 
+			win->tile_source->display_height;
+		double scale = VIPS_MIN( hscale, vscale );
 
-	image_window_set_scale( win, scale );
+		image_window_set_scale( win, scale );
+	}
 }
 
 static void
@@ -440,12 +442,15 @@ image_window_duplicate_action( GSimpleAction *action,
         new = image_window_new( app ); 
         gtk_window_present( GTK_WINDOW( new ) );
 
-	if( !(tile_source = tile_source_duplicate( win->tile_source )) ) {
-                image_window_error( new ); 
-                return;
-        }
-	image_window_set_tile_source( new, tile_source );
-	VIPS_UNREF( tile_source );
+	if( win->tile_source ) {
+		if( !(tile_source = 
+			tile_source_duplicate( win->tile_source )) ) {
+			image_window_error( new ); 
+			return;
+		}
+		image_window_set_tile_source( new, tile_source );
+		VIPS_UNREF( tile_source );
+	}
 
         gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
         gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
@@ -508,7 +513,8 @@ image_window_replace_action( GSimpleAction *action,
                 NULL );
         gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
 
-        if( (file = tile_source_get_file( win->tile_source )) ) {
+        if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
                 gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
                         file, NULL );
                 VIPS_UNREF( file );
@@ -548,27 +554,29 @@ image_window_saveas_action( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        GtkWidget *dialog;
-        GFile *file;
+	if( win->tile_source ) {
+		GtkWidget *dialog;
+		GFile *file;
 
-        dialog = gtk_file_chooser_dialog_new( "Save file",
-                GTK_WINDOW( win ) , 
-                GTK_FILE_CHOOSER_ACTION_SAVE,
-                "_Cancel", GTK_RESPONSE_CANCEL,
-                "_Save", GTK_RESPONSE_ACCEPT,
-                NULL );
-        gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+		dialog = gtk_file_chooser_dialog_new( "Save file",
+			GTK_WINDOW( win ) , 
+			GTK_FILE_CHOOSER_ACTION_SAVE,
+			"_Cancel", GTK_RESPONSE_CANCEL,
+			"_Save", GTK_RESPONSE_ACCEPT,
+			NULL );
+		gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
 
-        if( (file = tile_source_get_file( win->tile_source )) ) {
-                gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
-                        file, NULL );
-                VIPS_UNREF( file );
-        }
+		if( (file = tile_source_get_file( win->tile_source )) ) {
+			gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+				file, NULL );
+			VIPS_UNREF( file );
+		}
 
-        g_signal_connect( dialog, "response", 
-                G_CALLBACK( image_window_saveas_response ), win );
+		g_signal_connect( dialog, "response", 
+			G_CALLBACK( image_window_saveas_response ), win );
 
-        gtk_widget_show( dialog );
+		gtk_widget_show( dialog );
+	}
 }
 
 static void
@@ -851,24 +859,30 @@ static void
 image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
-        int page = VIPS_CLIP( 0, tile_source->page, tile_source->n_pages - 1 );
 
-        g_object_set( tile_source,
-                "page", (page + 1) % tile_source->n_pages,
-                NULL );
+	if( win->tile_source ) {
+		int n_pages = win->tile_source->n_pages;
+		int page = VIPS_CLIP( 0, win->tile_source->page, n_pages - 1 );
+
+		g_object_set( win->tile_source,
+			"page", (page + 1) % n_pages,
+			NULL );
+	}
 }
 
 static void
 image_window_prev( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
-        int page = VIPS_CLIP( 0, tile_source->page, tile_source->n_pages - 1 );
 
-        g_object_set( tile_source,
-                "page", page == 0 ? tile_source->n_pages - 1 : page - 1,
-                NULL );
+        if( win->tile_source ) {
+		int n_pages = win->tile_source->n_pages;
+		int page = VIPS_CLIP( 0, win->tile_source->page, n_pages - 1 );
+
+		g_object_set( win->tile_source,
+			"page", page == 0 ? n_pages - 1 : page - 1,
+			NULL );
+	}
 }
 
 static int
@@ -909,51 +923,53 @@ image_window_scale( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
-        VipsImage *image = tile_source_get_image( tile_source );
-        double image_scale = image_window_get_scale( win );
 
-        int left, top, width, height;
-        VipsImage *context;
-        double scale, offset;
+	VipsImage *image;
 
-        if( !image )
-                return;
+	if( win->tile_source &&
+		(image = tile_source_get_image( win->tile_source )) ) {
+		double image_scale;
+		int left, top, width, height;
+		VipsImage *context;
+		double scale, offset;
 
-        image_window_get_position( win, &left, &top, &width, &height );
-        left /= image_scale;
-        top /= image_scale;
-        width /= image_scale;
-        height /= image_scale;
+		image_scale = image_window_get_scale( win );
+		image_window_get_position( win, &left, &top, &width, &height );
+		left /= image_scale;
+		top /= image_scale;
+		width /= image_scale;
+		height /= image_scale;
 
-        /* FIXME ... this will be incredibly slow, esp. for large images.
-         * Instead, just search the cached tiles we have.
-         */
+		/* FIXME ... this will be incredibly slow, esp. for large 
+		 * images. Instead, it would be better to just search the 
+		 * cached tiles we have.
+		 */
 
-        context = vips_image_new();
-        if( image_window_find_scale( win, VIPS_OBJECT( context ), image,
-                left, top, width, height, &scale, &offset ) ) {
-                image_window_error( win );
-                g_object_unref( context );
-                return;
-        }
-        g_object_unref( context );
+		context = vips_image_new();
+		if( image_window_find_scale( win, VIPS_OBJECT( context ), image,
+			left, top, width, height, &scale, &offset ) ) {
+			image_window_error( win );
+			g_object_unref( context );
+			return;
+		}
+		g_object_unref( context );
 
-        g_object_set( tile_source,
-                "scale", scale,
-                "offset", offset,
-                NULL );
+		g_object_set( win->tile_source,
+			"scale", scale,
+			"offset", offset,
+			NULL );
+	}
 }
 
 static void
 image_window_log( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
 
-        g_object_set( tile_source,
-                "log", g_variant_get_boolean( state ),
-                NULL );
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"log", g_variant_get_boolean( state ),
+			NULL );
 
         g_simple_action_set_state( action, state );
 }
@@ -963,11 +979,11 @@ image_window_falsecolour( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
 
-        g_object_set( tile_source,
-                "falsecolour", g_variant_get_boolean( state ),
-                NULL );
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"falsecolour", g_variant_get_boolean( state ),
+			NULL );
         
         g_simple_action_set_state( action, state );
 }
@@ -984,7 +1000,6 @@ image_window_mode( GSimpleAction *action,
         GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        TileSource *tile_source = win->tile_source;
 
         const gchar *str;
         TileSourceMode mode;
@@ -1003,9 +1018,10 @@ image_window_mode( GSimpleAction *action,
                  */
                 return;
 
-        g_object_set( tile_source,
-                "mode", mode,
-                NULL );
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"mode", mode,
+			NULL );
 
         g_simple_action_set_state( action, state );
 }
@@ -1016,12 +1032,13 @@ image_window_reset( GSimpleAction *action,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        g_object_set( win->tile_source,
-                "falsecolour", FALSE,
-                "log", FALSE,
-                "scale", 1.0,
-                "offset", 0.0,
-                NULL );
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"falsecolour", FALSE,
+			"log", FALSE,
+			"scale", 1.0,
+			"offset", 0.0,
+			NULL );
 }
 
 static GActionEntry image_window_entries[] = {

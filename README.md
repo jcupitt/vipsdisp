@@ -136,17 +136,13 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-  startup
-
-    vipsdisp no-such-file
-
-  segv
+- replace image, no progress bar
 
 - rendering
 
     there's still a slight flicker, sometimes
 
-    hitching during zoom on MRXS
+    mysterious hitching during zoom on MRXS
 
     css animation for zoom?
 

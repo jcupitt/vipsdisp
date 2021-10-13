@@ -334,6 +334,9 @@ infobar_position_changed( ImageWindow *win, Infobar *infobar )
 		GTK_ACTION_BAR( infobar->action_bar ) ) )
 		return;
 
+	if( !image_window_get_tilesource( infobar->win ) )
+		return;
+
 #ifdef DEBUG
 	printf( "infobar_position_changed:\n" ); 
 #endif /*DEBUG*/
