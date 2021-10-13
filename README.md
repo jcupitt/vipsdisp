@@ -136,33 +136,28 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- rendering:
+  startup
 
-    display flashes on next-page, even if all pages are the same size and the
-    pyr and tiles are not being rebuilt ... why?
+    vipsdisp no-such-file
+
+  segv
+
+- rendering
+
+    there's still a slight flicker, sometimes
+
+    hitching during zoom on MRXS
 
     css animation for zoom?
 
-- ome-tiff pages as bands ... info bar displays only one band
+  ome
+
+  - pages as bands ... info bar displays only one band
+
+    how should we handle images which include labels, macros, thumbnails and
+    pyramids?
 
 - add imagemagick to get dicom loader?
-
-  only schedule the next paint when the current one finishes?
-
-  see `conversion_page_flip()` -- try: 
-  
-  1. start a timer
-
-  2. set page flip going
-
-  3. in repaint, set an idle task when we paint the final tile (how do we
-     know? no idea)
-
-  4. idle task checks the timer, computes elapsed time, sets the next page
-     flip timeout for (delay - time elapsed)
-
-     could skip frames for very slow updates? track `t` rather than having a
-     timeout, and pick a frame from that?
 
 - auto reload on file change, or support F5 for reload?
 

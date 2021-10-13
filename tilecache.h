@@ -39,11 +39,6 @@ typedef struct _TileCache {
          */
         GSList **tiles;
 
-        /* Result of fetch from tilesource: for each level, the list of 
-         * tiles with pixels we can show
-         */
-        GSList **valid;
-
         /* The result of the visibility test: for each level, the list of
          * valid tiles which intersect the viewport and which are not
          * obscured.

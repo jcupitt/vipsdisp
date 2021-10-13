@@ -34,7 +34,6 @@ tile_cache_free_pyramid( TileCache *tile_cache )
                 }
 
                 VIPS_FREEF( g_slist_free, tile_cache->tiles[i] );
-                VIPS_FREEF( g_slist_free, tile_cache->valid[i] );
                 VIPS_FREEF( g_slist_free, tile_cache->visible[i] );
                 VIPS_FREEF( g_slist_free, tile_cache->free[i] );
 
@@ -175,8 +174,8 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         int i;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
         printf( "tile_cache_build_pyramid:\n" );
+#endif /*DEBUG*/
 
         tile_cache_free_pyramid( tile_cache );
 
@@ -219,7 +218,6 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         }
 
         tile_cache->tiles = VIPS_ARRAY( NULL, n_levels, GSList * );
-        tile_cache->valid = VIPS_ARRAY( NULL, n_levels, GSList * );
         tile_cache->visible = VIPS_ARRAY( NULL, n_levels, GSList * );
         tile_cache->free = VIPS_ARRAY( NULL, n_levels, GSList * );
 
@@ -270,8 +268,14 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
         for( i = z; i < tile_cache->n_levels; i++ ) {
                 GSList *p;
 
-                for( p = tile_cache->valid[i]; p; p = p->next ) {
+                for( p = tile_cache->tiles[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
+
+			/* Ignore tiles with no current or previous pixels.
+			 */
+			if( !tile->valid &&
+				!tile->texture )
+				continue;
 
                         if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
                                 tile_cache->visible[z] = 
@@ -311,8 +315,6 @@ tile_cache_free_oldest( TileCache *tile_cache, int z )
 
                         tile_cache->tiles[z] = 
                                 g_slist_remove( tile_cache->tiles[z], tile );
-                        tile_cache->valid[z] = 
-                                g_slist_remove( tile_cache->valid[z], tile );
                         tile_cache->visible[z] = 
                                 g_slist_remove( tile_cache->visible[z], tile );
                         tile_cache->free[z] = 
@@ -389,10 +391,9 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 #ifdef DEBUG
 
         for( i = 0; i < tile_cache->n_levels; i++ ) {
-                printf( "  level %d, %d tiles, %d valid, %d visible, %d free\n",
+                printf( "  level %d, %d tiles, %d visible, %d free\n",
                         i, 
                         g_slist_length( tile_cache->tiles[i] ),
-                        g_slist_length( tile_cache->valid[i] ),
                         g_slist_length( tile_cache->visible[i] ),
                         g_slist_length( tile_cache->free[i] ) );
         }
@@ -470,16 +471,8 @@ tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
                         g_slist_prepend( tile_cache->tiles[z], tile );
         }
 
-        if( !tile->valid ) {
+        if( !tile->valid ) 
                 tile_source_fill_tile( tile_cache->tile_source, tile );
-
-                /* It might now be valid, if pixels have come
-                 * in from the pipeline.
-                 */
-                if( tile->valid ) 
-                        tile_cache->valid[z] = 
-                                g_slist_prepend( tile_cache->valid[z], tile );
-        }
 }
 
 /* Fetch the tiles in an area.
@@ -625,8 +618,8 @@ tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
         int old_z = tile_cache->z;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
         printf( "tile_cache_source_changed:\n" );
+#endif /*DEBUG*/
 
         tile_cache_build_pyramid( tile_cache );
 
@@ -653,13 +646,11 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
         for( i = 0; i < tile_cache->n_levels; i++ ) {
                 GSList *p;
 
-                for( p = tile_cache->valid[i]; p; p = p->next ) {
+                for( p = tile_cache->tiles[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
 
                         tile->valid = FALSE;
                 }
-
-                VIPS_FREEF( g_slist_free, tile_cache->valid[i] );
         }
 
         tile_cache_fetch_area( tile_cache, &tile_cache->viewport );

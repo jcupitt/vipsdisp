@@ -276,6 +276,8 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
         imagedisplay_set_hadjustment_values( imagedisplay );
         imagedisplay_set_vadjustment_values( imagedisplay );
 
+        imagedisplay_set_transform( imagedisplay, 
+                imagedisplay->x, imagedisplay->y, imagedisplay->scale );
 }
 
 /* Large change, we need to relayout.
@@ -294,8 +296,6 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
                 tile_cache->tile_source->display_height;
 
         imagedisplay_layout( imagedisplay );
-
-        gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 
 /* Tiles have changed, but not image geometry. Perhaps falsecolour.
@@ -418,8 +418,7 @@ imagedisplay_set_property( GObject *object,
                 imagedisplay_set_transform( imagedisplay, 
                         imagedisplay->x, 
                         imagedisplay->y, 
-                        g_value_get_double( value ) );
-
+			g_value_get_double( value ) );
                 imagedisplay_layout( imagedisplay );
                 break;
 
@@ -534,9 +533,6 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 #endif /*DEBUG*/
 
         imagedisplay_layout( imagedisplay );
-
-        imagedisplay_set_transform( imagedisplay, 
-                imagedisplay->x, imagedisplay->y, imagedisplay->scale );
 }
 
 static void

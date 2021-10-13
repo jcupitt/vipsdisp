@@ -69,8 +69,6 @@ tile_new( VipsImage *level, int left, int top, int z )
         VipsRect tile_bounds;
         VipsRect image_bounds;
 
-        printf( "tile_new: %d x %d\n", left, top );
-
         tile->region = vips_region_new( level );
         tile->z = z;
 
@@ -105,12 +103,15 @@ tile_new( VipsImage *level, int left, int top, int z )
 GdkTexture *
 tile_get_texture( Tile *tile )
 {
+	/* This mustn't be a completely empty tile -- there must be either
+	 * fresh, valid pixels, or an old texture. 
+         */
+        g_assert( tile->texture ||
+                tile->valid );
+
         /* The tile is being shown, so it must be a useful one.
          */
         tile_touch( tile );
-
-        if( !tile->valid )
-                return( NULL );
 
         /* We have to make textures via pixbuf (!?!!?).
          */
@@ -138,6 +139,8 @@ tile_get_texture( Tile *tile )
 void
 tile_free_texture( Tile *tile )
 {
+	g_assert( tile->valid );
+
         VIPS_UNREF( tile->texture );
         VIPS_UNREF( tile->pixbuf );
 }
