@@ -180,7 +180,8 @@ tile_source_open( TileSource *tile_source, int level )
         return( image );
 }
 
-/* Run by the main GUI thread when an update comes in. 
+/* Run by the main GUI thread when a notify comes in from libvips that a tile 
+ * we requested is now available.
  */
 static gboolean
 tile_source_render_notify_idle( void *user_data )
@@ -188,7 +189,12 @@ tile_source_render_notify_idle( void *user_data )
         TileSourceUpdate *update = (TileSourceUpdate *) user_data;
         TileSource *tile_source = update->tile_source;
 
-        tile_source_area_changed( tile_source, &update->rect, update->z );
+        /* Only bother fetching the updated tile if it's from our current 
+         * pipeline.
+         */
+        if( update->image == tile_source->display ) 
+                tile_source_area_changed( tile_source, 
+                        &update->rect, update->z );
 
         /* The update that's just for this one event needs freeing.
          */
@@ -198,9 +204,8 @@ tile_source_render_notify_idle( void *user_data )
 }
 
 /* Come here from the vips_sink_screen() background thread when a tile has been
- * calculated. We can'touch the GUI since this is a bbackground thread, so 
- * we add an idle callback which will be
- * run by the main GUI thread when it next hits the mainloop.
+ * calculated. This is a bbackground thread, so we add an idle callback 
+ * which will be run by the main thread when it next hits the mainloop.
  */
 static void
 tile_source_render_notify( VipsImage *image, VipsRect *rect, void *client )
@@ -437,7 +442,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
         x = vips_image_new();
         mask = vips_image_new();
         if( vips_sink_screen( image, x, mask, 
-                TILE_SIZE, TILE_SIZE, 400, 0, 
+                TILE_SIZE, TILE_SIZE, MAX_TILES, 0, 
                 tile_source_render_notify, update ) ) {
                 VIPS_UNREF( x );
                 VIPS_UNREF( mask );
@@ -1683,7 +1688,8 @@ int
 tile_source_fill_tile( TileSource *tile_source, Tile *tile ) 
 {
 #ifdef DEBUG
-        printf( "tile_source_fill_tile:\n" ); 
+        printf( "tile_source_fill_tile: %d x %d\n",
+             tile->region->valid.left, tile->region->valid.top ); 
 #endif /*DEBUG*/
 
         /* Change z if necessary.
@@ -1717,10 +1723,11 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
                 tile->region->valid.top ) )
                 return( -1 );
 
-        /* The pixels have changed, note that this tile will need a 
-         * new texture.
+        /* Do we have new, valid pixels? The texture will need updating on the
+         * next snapshot.
          */
-        tile_free_texture( tile );
+        if( tile->valid )
+                tile_free_texture( tile );
 
         return( 0 );
 }

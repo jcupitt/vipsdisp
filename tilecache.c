@@ -5,11 +5,6 @@
 #define DEBUG
  */
 
-/* Keep this many non-visible tiles around as a cache. Enough to fill a 4k 
- * screen 2x over.
- */
-#define TILE_KEEP (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
-
 enum {
         /* Signals. 
          */
@@ -180,8 +175,8 @@ tile_cache_build_pyramid( TileCache *tile_cache )
         int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_build_pyramid:\n" );
 #endif /*DEBUG*/
+        printf( "tile_cache_build_pyramid:\n" );
 
         tile_cache_free_pyramid( tile_cache );
 
@@ -279,7 +274,6 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
                         Tile *tile = TILE( p->data );
 
                         if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
-                                tile_touch( tile );
                                 tile_cache->visible[z] = 
                                         g_slist_prepend( tile_cache->visible[z],
                                                 tile );
@@ -287,18 +281,6 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
                         }
                 }
         }
-}
-
-static void
-tile_cache_free_tile( TileCache *tile_cache, Tile *tile )
-{
-        int z = tile->z;
-
-        g_assert( g_slist_find( tile_cache->tiles[z], tile ) );
-
-        tile_cache->tiles[z] = g_slist_remove( tile_cache->tiles[z], tile );
-        tile_cache->valid[z] = g_slist_remove( tile_cache->valid[z], tile );
-        VIPS_UNREF( tile );
 }
 
 static int
@@ -314,19 +296,28 @@ static void
 tile_cache_free_oldest( TileCache *tile_cache, int z )
 {
         int n_free = g_slist_length( tile_cache->free[z] );
+        int n_to_free = VIPS_MAX( 0, n_free - MAX_TILES );
 
-        if( n_free > TILE_KEEP ) {
+        if( n_to_free > 0 ) {
                 int i;
 
                 tile_cache->free[z] = g_slist_sort( tile_cache->free[z], 
                         tile_cache_sort_lru );
 
-                for( i = 0; i < n_free - TILE_KEEP; i++ ) {
+                for( i = 0; i < n_to_free; i++ ) {
                         Tile *tile = TILE( tile_cache->free[z]->data );
 
-                        tile_cache_free_tile( tile_cache, tile );
+                        g_assert( g_slist_find( tile_cache->tiles[z], tile ) );
+
+                        tile_cache->tiles[z] = 
+                                g_slist_remove( tile_cache->tiles[z], tile );
+                        tile_cache->valid[z] = 
+                                g_slist_remove( tile_cache->valid[z], tile );
+                        tile_cache->visible[z] = 
+                                g_slist_remove( tile_cache->visible[z], tile );
                         tile_cache->free[z] = 
                                 g_slist_remove( tile_cache->free[z], tile );
+                        VIPS_UNREF( tile );
                 }
         }
 }
@@ -634,8 +625,8 @@ tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
         int old_z = tile_cache->z;
 
 #ifdef DEBUG
-        printf( "tile_cache_source_changed:\n" );
 #endif /*DEBUG*/
+        printf( "tile_cache_source_changed:\n" );
 
         tile_cache_build_pyramid( tile_cache );
 
@@ -693,15 +684,27 @@ tile_cache_source_area_changed( TileSource *tile_source,
                 area->width, area->height, z );
 #endif /*DEBUG*/
 
+        /* z might have changed since we asked for these tiles.
+         */
+        if( z != tile_cache->z )
+                return;
+
         bounds.left = area->left << z;
         bounds.top = area->top << z;
         bounds.width = area->width << z;
         bounds.height = area->height << z;
+
+        /* Don't bother refreshing tiles outside the viewport.
+         */
+        vips_rect_intersectrect( &bounds, &tile_cache->viewport, &bounds );
+        if( vips_rect_isempty( &bounds ) )
+                return;
+
         tile_cache_fetch_area( tile_cache, &bounds );
 
         tile_cache_compute_visibility( tile_cache );
 
-        /* Tell our clients.
+        /* Tell our clients to repaint.
          */
         tile_cache_area_changed( tile_cache, area, z );
 }

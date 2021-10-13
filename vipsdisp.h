@@ -20,6 +20,10 @@
  */
 #define TILE_SIZE (256)
 
+/* Cache size -- enough for two 4k displays. 
+ */
+#define MAX_TILES (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
+
 #include "gtkutil.h"
 #include "tslider.h"
 #include "vipsdispapp.h"

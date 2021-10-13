@@ -138,28 +138,14 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering:
 
-    display out of date tiles rather than no tiles
-
-      we need to distinguish tiles with no pixels in them ever, from tiles 
-      with out of date pixels
-
-      how about keeping the old texture after making a tile invalid, and
-      displaying that in the snapshot?
-
-    need some way to cancel out of date requests 
-      
-      has to be in sink_screen, I guess
-
-      can sink_screen spot tiles only it has a ref to? perhaps they could be
-      junked before being calculated?
+    display flashes on next-page, even if all pages are the same size and the
+    pyr and tiles are not being rebuilt ... why?
 
     css animation for zoom?
 
 - ome-tiff pages as bands ... info bar displays only one band
 
 - add imagemagick to get dicom loader?
-
-- GIFs flicker horribly if frames take too long to appear
 
   only schedule the next paint when the current one finishes?
 
