@@ -613,6 +613,10 @@ tile_source_update_display( TileSource *tile_source )
         VipsImage *display;
         VipsImage *mask;
 
+#ifdef DEBUG
+        printf( "tile_source_update_display:\n" );
+#endif /*DEBUG*/
+
         /* Don't update if we're still loading.
          */
         if( !tile_source->loaded ||
@@ -1687,10 +1691,10 @@ tile_source_new_from_file( GFile *file )
 int
 tile_source_fill_tile( TileSource *tile_source, Tile *tile ) 
 {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         printf( "tile_source_fill_tile: %d x %d\n",
              tile->region->valid.left, tile->region->valid.top ); 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
         /* Change z if necessary.
          */
@@ -1710,9 +1714,9 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
         tile->valid = VIPS_REGION_ADDR( tile_source->mask_region, 
                 tile->region->valid.left, tile->region->valid.top )[0];
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         printf( "  valid = %d\n", tile->valid ); 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
         /* We must always prepare the region, even if we know it's blank,
          * since this will trigger the background render.
@@ -1726,8 +1730,10 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
         /* Do we have new, valid pixels? The texture will need updating on the
          * next snapshot.
          */
-        if( tile->valid )
+        if( tile->valid ) {
                 tile_free_texture( tile );
+                (void) tile_get_texture( tile );
+        }
 
         return( 0 );
 }

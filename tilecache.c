@@ -2,6 +2,7 @@
 
 /*
 #define DEBUG_SNAPSHOT
+#define DEBUG_VERBOSE
 #define DEBUG
  */
 
@@ -752,19 +753,19 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
         gtk_snapshot_scale( snapshot, mscale, mscale );
 #endif /*DEBUG_SNAPSHOT*/
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
                 x, y, scale );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
         /* If there's an alpha, we'll need a backdrop.
          */
         if( vips_image_hasalpha( tile_cache->tile_source->image ) ) {
                 graphene_rect_t bounds;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
                 printf( "tile_cache_snapshot: drawing checkerboard\n" );
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
                 bounds.origin.x = tile_cache->viewport.left * scale - x;  
                 bounds.origin.y = tile_cache->viewport.top * scale - y;  

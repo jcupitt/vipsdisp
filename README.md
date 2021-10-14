@@ -142,7 +142,22 @@ $ ./vipsdisp ~/pics/k2.jpg
 
     there's still a slight flicker, sometimes
 
-    mysterious hitching during zoom on MRXS
+      the checkerboard sometimes pops up for a frame with openslide images
+
+      try adding some code to see if we ever display transparent tiles by
+      mistake?
+
+      occasional flicker with GIF might be the same thing
+
+    mysterious hitching during zoom on MRXS, probably on pyr layer shift
+
+      not fetch_area or update_display
+
+      snapshot is not being called during the hitches
+
+      do tile notifies stop coming in?
+
+      
 
     css animation for zoom?
 
