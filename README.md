@@ -157,8 +157,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
       do tile notifies stop coming in?
 
-      
-
     css animation for zoom?
 
   ome

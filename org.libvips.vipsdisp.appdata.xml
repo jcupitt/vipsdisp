@@ -53,6 +53,13 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.0" date="2021-10-14">
+      <description>
+        This release improves screen repainting and adds a new "pages as bands"
+        display mode, useful for for OME TIFF images.
+      </description>
+    </release>
+
     <release version="1.0" date="2021-09-28">
       <description>
         First relased version.
