@@ -254,3 +254,13 @@ Install the appdata checker:
 flatpak install flathub org.freedesktop.appstream-glib
 flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
 ```
+
+## Uploading to flathub
+
+Push to master on:
+
+        https://github.com/flathub/org.libvips.vipsdisp 
+
+then check the build status here:
+
+        https://flathub.org/builds/#/apps/org.libvips.vipsdisp
