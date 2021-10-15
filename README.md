@@ -1,10 +1,10 @@
 # vipsdisp
 
-This is a C program to display an image with libvips and gtk+4. This is
-supposed to be a slightly useful image viewer. It can display huge (many,
-many GB) images quickly and without using much memory. It supports many
-scientific and technical image formats, including TIFF, WEBP, JP2K, JXL, PNG, 
-JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
+This program displays an image with libvips and gtk+4. This is supposed
+to be a slightly useful image viewer. It can display huge (many, many GB)
+images quickly and without using much memory. It supports many scientific
+and technical image formats, including TIFF, WEBP, JP2K, JXL, PNG, JPEG,
+SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
 supports pixel types from 1 bit mono to 128-bit double precision complex.
 
 All of the UI can make finding the details of image display in the sourcecode
@@ -50,20 +50,23 @@ Just click "install".
   heavy load.
 
 * Select *Display control bar* from the top-right menu and a useful
-  set of visualization options appear. It supports three main display modes:
-  Toilet roll (sorry), Multipage and Animated.
+  set of visualization options appear. It supports four main display modes:
+  Toilet roll (sorry), Multipage, Animated, and Pages as Bands.
 
 * In Toilet roll mode, a multi-page image is presented as a tall, thin strip
   of images. In Multipage, you see a single page at a time, with a page-select
-  spinner (you can also use the `<` and `>` keys to flip pages). In animated
-  mode, pages flip automatically on a timeout. 
+  spinner (you can also use the `crtl-<` and `ctrl->` keys to flip pages). In
+  animated mode, pages flip automatically on a timeout. In pages-as-bands
+  mode, many-page single-band images (eg. OME-TIFF) are presented as a 
+  single colour image.
 
 * You can select falsecolour and log-scale filters, useful for many scientific
   images. Scale and offset sliders let you adjust image brightness to see into
   darker areas (useful for HDR and many scientific images).
 
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
-  and nicely animated.
+  and nicely animated. The image is rendered with the GPU, so display ought to
+  be fast.
 
 ## Build from source
 
@@ -103,7 +106,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 * Ctrl + number keys to pick a particular zoom out
 * 0 for best fit
 * i, + / o, - to zoom in and out
-* ctrl-, ctrl-. prev page, next page
+* ctrl-<, ctrl->. prev page, next page
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
@@ -153,7 +156,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
       snapshot is not being called during the hitches
 
-      do tile notifies stop coming in?
+      looks like the sudden rush of notifications on a level shift starves the
+      glib main loop
 
     css animation for zoom?
 

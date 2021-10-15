@@ -53,9 +53,9 @@ visualisation options and display modes.
 
   <releases>
 
-    <release version="2.1" date="2021-mm-dd">
+    <release version="2.1" date="2021-10-15">
       <description>
-        This release has better desktop integration, 
+        This release has better desktop integration, and uses gtk4-wayland. 
       </description>
     </release>
 
