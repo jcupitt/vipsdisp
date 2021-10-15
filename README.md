@@ -67,15 +67,14 @@ Just click "install".
 
 ## Build from source
 
-You need gtk4. On Ubuntu 21.04, build with:
+You need gtk4. On Ubuntu 21.10, build with:
 
 ```
 $ cd gtk
 $ git checkout 4.3.2
 $ meson _build . \
   --prefix=/home/john/vips \
-  --libdir=/home/john/vips/lib \
-  -Dwayland-backend=false
+  --libdir=/home/john/vips/lib 
 $ cd _build
 $ ninja
 $ ninja install
@@ -83,8 +82,7 @@ $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ gtk4-demo
 ```
 
-Disable wayland, since 21.04's wayland is too old. Use 4.3.2 or you'll need
-a new pango.
+gtk 4.4 needs a newer pango than Ubuntu 21.10 has, so stick with 4.3.
 
 Then for vipsdisp:
 

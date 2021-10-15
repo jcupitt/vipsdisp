@@ -614,6 +614,9 @@ AM_BACKSLASH
 AM_DEFAULT_VERBOSITY
 AM_DEFAULT_V
 AM_V
+CSCOPE
+ETAGS
+CTAGS
 am__untar
 am__tar
 AMTAR
@@ -2384,6 +2387,20 @@ am__tar='$${TAR-tar} chof - "$$tardir"' am__untar='$${TAR-tar} xf -'
 
 
 
+
+
+# Variables for tags utilities; see am/tags.am
+if test -z "$CTAGS"; then
+  CTAGS=ctags
+fi
+
+if test -z "$ETAGS"; then
+  ETAGS=etags
+fi
+
+if test -z "$CSCOPE"; then
+  CSCOPE=cscope
+fi
 
 
 
@@ -4658,19 +4675,19 @@ fi
 
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gtk4-x11 vips >= 8.1" >&5
-$as_echo_n "checking for gtk4-x11 vips >= 8.1... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gtk4-wayland vips >= 8.11" >&5
+$as_echo_n "checking for gtk4-wayland vips >= 8.11... " >&6; }
 
 if test -n "$PKGFLAGS_CFLAGS"; then
     pkg_cv_PKGFLAGS_CFLAGS="$PKGFLAGS_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gtk4-x11 vips >= 8.1\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "gtk4-x11 vips >= 8.1") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gtk4-wayland vips >= 8.11\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "gtk4-wayland vips >= 8.11") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PKGFLAGS_CFLAGS=`$PKG_CONFIG --cflags "gtk4-x11 vips >= 8.1" 2>/dev/null`
+  pkg_cv_PKGFLAGS_CFLAGS=`$PKG_CONFIG --cflags "gtk4-wayland vips >= 8.11" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -4682,12 +4699,12 @@ if test -n "$PKGFLAGS_LIBS"; then
     pkg_cv_PKGFLAGS_LIBS="$PKGFLAGS_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gtk4-x11 vips >= 8.1\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "gtk4-x11 vips >= 8.1") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"gtk4-wayland vips >= 8.11\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "gtk4-wayland vips >= 8.11") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_PKGFLAGS_LIBS=`$PKG_CONFIG --libs "gtk4-x11 vips >= 8.1" 2>/dev/null`
+  pkg_cv_PKGFLAGS_LIBS=`$PKG_CONFIG --libs "gtk4-wayland vips >= 8.11" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -4708,14 +4725,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        PKGFLAGS_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk4-x11 vips >= 8.1" 2>&1`
+	        PKGFLAGS_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "gtk4-wayland vips >= 8.11" 2>&1`
         else
-	        PKGFLAGS_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk4-x11 vips >= 8.1" 2>&1`
+	        PKGFLAGS_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "gtk4-wayland vips >= 8.11" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$PKGFLAGS_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (gtk4-x11 vips >= 8.1) were not met:
+	as_fn_error $? "Package requirements (gtk4-wayland vips >= 8.11) were not met:
 
 $PKGFLAGS_PKG_ERRORS
 
