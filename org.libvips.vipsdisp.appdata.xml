@@ -53,6 +53,12 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.1" date="2021-mm-dd">
+      <description>
+        This release has better desktop integration, 
+      </description>
+    </release>
+
     <release version="2.0" date="2021-10-14">
       <description>
         This release improves screen repainting and adds a new "pages as bands"

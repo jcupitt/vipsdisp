@@ -180,6 +180,19 @@ $ ./vipsdisp ~/pics/k2.jpg
 - perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
   then?
 
+## Version bump checklist
+
+Version needs updating in the following places:
+
+- **`org.libvips.vipsdisp.appdata.xml`** and some release notes and a date as
+  well.
+
+- **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
+
+- **`org.libvips.vipsdisp.desktop`** also has a version number.
+
+- **`vipsdispapp.c`** the version arg to the About dialog.
+
 ## flatpak
 
 Add the `flathub` repo:
