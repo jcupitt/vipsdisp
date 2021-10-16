@@ -1,3 +1,7 @@
+## 2.2, started 14/10/21
+
+- add "d" to enable debug rendering
+
 ## 2.1, started 14/10/21
 
 - switch to gtk4-wayland

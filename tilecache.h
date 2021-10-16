@@ -69,6 +69,6 @@ void tile_cache_set_viewport( TileCache *tile_cache,
         VipsRect *viewport, int z );
 
 void tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
-	double x, double y, double scale );
+	double x, double y, double scale, gboolean debug );
 
 #endif /*__TILE_CACHE_H*/

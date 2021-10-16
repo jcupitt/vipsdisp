@@ -729,29 +729,19 @@ tile_cache_new( TileSource *tile_source )
  */
 void 
 tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
-        double x, double y, double scale )
+        double x, double y, double scale, gboolean debug )
 {
         int i;
 
-#ifdef DEBUG_SNAPSHOT
-        float width = tile_cache->viewport.width * scale;
-        float height = tile_cache->viewport.height * scale;
-        float size0 = TILE_SIZE * scale;
+	/* In debug mode, scale and offset so we can see tile clipping. 
+	 */
+        float debug_scale = 0.9;
+        graphene_point_t debug_offset = { 32, 32 };
 
-        float hscale = (float) (width - 2 * size0) / width;
-        float vscale = (float) (height - 2 * size0) / height;
-        float mscale = VIPS_MIN( hscale, vscale );
-
-        graphene_point_t offset;
-
-        offset.x = (width - width * mscale) / 2;
-        offset.y = (height - height * mscale) / 2;
-        gtk_snapshot_translate( snapshot, &offset );
-
-        /* Scale down to show render edges
-         */
-        gtk_snapshot_scale( snapshot, mscale, mscale );
-#endif /*DEBUG_SNAPSHOT*/
+	if( debug ) {
+		gtk_snapshot_translate( snapshot, &debug_offset );
+		gtk_snapshot_scale( snapshot, debug_scale, debug_scale );
+	}
 
 #ifdef DEBUG_VERBOSE
         printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
@@ -801,72 +791,94 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                                  tile_get_texture( tile ), 
                                  &bounds );
 
-#ifdef DEBUG_SNAPSHOT
-{
-                        GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
-                                tile->bounds.left * scale - x,
-                                tile->bounds.top * scale - y,
-                                tile->bounds.width * scale,
-                                tile->bounds.height * scale );
-                        float border_width[4] = { 2, 2, 2, 2 };
-                        GdkRGBA border_colour[4] = { 
-                                { 0, 1, 0, 1 },
-                                { 0, 1, 0, 1 },
-                                { 0, 1, 0, 1 },
-                                { 0, 1, 0, 1 },
-                        };
+			/* In debug mode, draw the edges and add text for the 
+			 * tile pointer and age.
+			 */
+			if( debug ) {
+				GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
+					tile->bounds.left * scale - x,
+					tile->bounds.top * scale - y,
+					tile->bounds.width * scale,
+					tile->bounds.height * scale );
+				float border_width[4] = { 2, 2, 2, 2 };
+				GdkRGBA border_colour[4] = { 
+					{ 0, 1, 0, 1 },
+					{ 0, 1, 0, 1 },
+					{ 0, 1, 0, 1 },
+					{ 0, 1, 0, 1 },
+				};
 
-                        cairo_t *cr;
-                        char str[256];
-                        VipsBuf buf = VIPS_BUF_STATIC( str );
+				gtk_snapshot_append_border( snapshot, 
+					&outline, 
+					border_width, border_colour );
 
-                        gtk_snapshot_append_border( snapshot, 
-                                &outline, border_width, border_colour );
+				/* If we are drawing a low-res tile at the
+				 * back of the stack, it can get extremly
+				 * large with big images. Cairo hates large
+				 * surfaces, so skip the text annotation in
+				 * this case.
+				 */
+				if( bounds.size.width < 32000 &&
+					bounds.size.height < 32000 ) {
+					cairo_t *cr;
+					char str[256];
+					VipsBuf buf = VIPS_BUF_STATIC( str );
 
-                        cr = gtk_snapshot_append_cairo( snapshot, &bounds );
+					cr = gtk_snapshot_append_cairo( 
+						snapshot, &bounds );
 
-                        cairo_set_source_rgb( cr, 0, 1, 0 );
-                        cairo_set_font_size( cr, 12 );
+					cairo_set_source_rgb( cr, 0, 1, 0 );
+					cairo_set_font_size( cr, 12 );
 
-                        cairo_move_to( cr,
-                                bounds.origin.x + 0.1 * bounds.size.width,
-                                bounds.origin.y + 0.1 * bounds.size.height );
-                        vips_buf_appendf( &buf, "%p", tile );
-                        cairo_show_text( cr,vips_buf_all( &buf ) );
+					cairo_move_to( cr,
+						bounds.origin.x + 
+							0.1 * 
+							bounds.size.width,
+						bounds.origin.y + 
+							0.1 * 
+							bounds.size.height );
+					vips_buf_appendf( &buf, "%p", tile );
+					cairo_show_text( cr,
+						vips_buf_all( &buf ) );
 
-                        cairo_move_to( cr, 
-                                bounds.origin.x + 0.1 * bounds.size.width,
-                                bounds.origin.y + 0.2 * bounds.size.height );
-                        vips_buf_rewind( &buf );
-                        vips_buf_appendf( &buf, "%d", tile->time );
-                        cairo_show_text( cr,vips_buf_all( &buf ) );
+					cairo_move_to( cr, 
+						bounds.origin.x + 
+							0.1 * 
+							bounds.size.width,
+						bounds.origin.y + 
+							0.2 * 
+							bounds.size.height );
+					vips_buf_rewind( &buf );
+					vips_buf_appendf( &buf, "%d", 
+						tile->time );
+					cairo_show_text( cr,
+						vips_buf_all( &buf ) );
 
-                        cairo_destroy( cr );
-}
-#endif /*DEBUG_SNAPSHOT*/
+					cairo_destroy( cr );
+				}
+			}
                 }
         }
 
-#ifdef DEBUG_SNAPSHOT
-{
-        #define BORDER ((GdkRGBA) { 1, 0, 0, 1 })
+	/* Draw a box for the viewport.
+	 */
+	if( debug ) {
+		#define BORDER ((GdkRGBA) { 1, 0, 0, 1 })
 
-        GskRoundedRect outline;
+		GskRoundedRect outline;
 
-        gsk_rounded_rect_init_from_rect( &outline, 
-                &GRAPHENE_RECT_INIT(
-                        tile_cache->viewport.left * scale - x,
-                        tile_cache->viewport.top * scale - y,
-                        tile_cache->viewport.width * scale,
-                        tile_cache->viewport.height * scale
-                ), 
-                0 );
+		gsk_rounded_rect_init_from_rect( &outline, 
+			&GRAPHENE_RECT_INIT(
+				tile_cache->viewport.left * scale - x,
+				tile_cache->viewport.top * scale - y,
+				tile_cache->viewport.width * scale,
+				tile_cache->viewport.height * scale
+			), 
+			0 );
 
-        gtk_snapshot_append_border( snapshot, 
-                &outline, 
-                (float[4]) { 2, 2, 2, 2 },
-                (GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
-
-}
-#endif /*DEBUG_SNAPSHOT*/
+		gtk_snapshot_append_border( snapshot, 
+			&outline, 
+			(float[4]) { 2, 2, 2, 2 },
+			(GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
+	}
 }

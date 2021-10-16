@@ -45,6 +45,10 @@ struct _Imagedisplay {
         double x, y;
 
         GdkTexture *checkerboard;
+
+	/* Draw the screen in debug mode.
+	 */
+	gboolean debug;
 };
 
 /* imagedisplay is actually a drawing area the size of the widget on screen: we 
@@ -70,6 +74,10 @@ enum {
         PROP_X,
         PROP_Y,
         PROP_SCALE,
+
+        /* Draw snapshot in debug mode.
+         */
+        PROP_DEBUG,
 
         SIG_LAST
 };
@@ -427,6 +435,11 @@ imagedisplay_set_property( GObject *object,
                 imagedisplay_layout( imagedisplay );
                 break;
 
+        case PROP_DEBUG:
+                imagedisplay->debug = g_value_get_boolean( value );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+                break;
+
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
                 break;
@@ -472,6 +485,10 @@ imagedisplay_get_property( GObject *object,
                 g_value_set_double( value, imagedisplay->scale );
                 break;
 
+        case PROP_DEBUG:
+                g_value_set_boolean( value, imagedisplay->debug );
+                break;
+
         default:
                 G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
                 break;
@@ -500,7 +517,8 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 		tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
 			imagedisplay->x - imagedisplay->paint_rect.left, 
 			imagedisplay->y - imagedisplay->paint_rect.top, 
-			imagedisplay->scale );
+			imagedisplay->scale,
+		        imagedisplay->debug );
 
         gtk_snapshot_pop( snapshot );
 
@@ -525,7 +543,6 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
                         &outline, 
                         (float[4]) { 2, 2, 2, 2 },
                         (GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
-
         }
 }
 
@@ -641,6 +658,13 @@ imagedisplay_class_init( ImagedisplayClass *class )
                         _( "Scale" ),
                         _( "Scale of viewport" ),
                         -VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
+                        G_PARAM_READWRITE ) );
+
+        g_object_class_install_property( gobject_class, PROP_DEBUG,
+                g_param_spec_boolean( "debug",
+                        _( "Debug" ),
+                        _( "Render snapshot in debug mode" ),
+			FALSE,
                         G_PARAM_READWRITE ) );
 
         g_object_class_override_property( gobject_class, 

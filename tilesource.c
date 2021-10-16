@@ -433,6 +433,17 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                 image = x;
         }
 
+	/* A slow operation, handy for checking rendering order.
+	 *
+	if( vips_gaussblur( image, &x, 100, NULL ) ) {
+		VIPS_UNREF( image );
+		return( NULL ); 
+	}
+	VIPS_UNREF( image );
+	image = x;
+	 *
+	 */
+
         /* Need something to track the z at which we made this sink_screen.
          */
         update = VIPS_NEW( image, TileSourceUpdate );

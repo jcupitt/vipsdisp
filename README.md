@@ -105,6 +105,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 * Number keys to pick a particular magnification
 * Ctrl + number keys to pick a particular zoom out
 * 0 for best fit
+* d, to toggle debug rendering mode
 * i, + / o, - to zoom in and out
 * ctrl-<, ctrl->. prev page, next page
 * Mouse drag to pan
@@ -144,9 +145,6 @@ $ ./vipsdisp ~/pics/k2.jpg
     there's still a slight flicker, sometimes
 
       the checkerboard sometimes pops up for a frame with openslide images
-
-      try adding some code to see if we ever display transparent tiles by
-      mistake?
 
       occasional flicker with GIF might be the same thing
 

@@ -295,6 +295,20 @@ image_window_get_scale( ImageWindow *win )
 }
 
 static void
+image_window_toggle_debug( ImageWindow *win )
+{
+	gboolean debug;
+
+        g_object_get( win->imagedisplay, 
+		"debug", &debug,
+		NULL );
+
+        g_object_set( win->imagedisplay, 
+		"debug", !debug,
+		NULL );
+}
+
+static void
 image_window_set_position( ImageWindow *win, double x, double y )
 {
         GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment( 
@@ -706,6 +720,10 @@ image_window_key_pressed( GtkEventControllerKey *self,
                 image_window_bestfit( win );
                 handled = TRUE;
                 break;
+
+        case GDK_KEY_d:
+		image_window_toggle_debug( win );
+		break;
 
         default:
                 break;
