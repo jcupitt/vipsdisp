@@ -157,6 +157,13 @@ $ ./vipsdisp ~/pics/k2.jpg
       looks like the sudden rush of notifications on a level shift starves the
       glib main loop
 
+      can we do more work in background threads? eg. the fg thread is doing
+      the display bar right now
+
+      maybe make the display pipeline end in a tilecache rather than a
+      sinkscreen, and make the _rgb pipeline end with _sink_screen instead?
+      we could maybe even move texture generation to the background
+
     css animation for zoom?
 
   ome
