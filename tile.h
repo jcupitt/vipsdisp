@@ -42,6 +42,11 @@ typedef struct _Tile {
 	 */
 	gboolean valid;
 
+	/* TRUE if sink_screen has notified us that fresh pixels are
+	 * now available.
+	 */
+	gboolean ready;
+
         /* Pixels going out to the scene graph. NULL if the texture needs 
 	 * regenerating.
          */

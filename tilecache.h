@@ -16,17 +16,9 @@
 typedef struct _TileCache {
         GObject parent_instance;
 
-        /* Fill tiles with this.
+        /* Fetch tiles from here.
          */
         TileSource *tile_source;
-
-        /* The pyr level we are viewing. 0 is the full res image.
-         */
-        int z;
-
-        /* The viewport. This is always in level 0 coordinates.
-         */
-        VipsRect viewport;
 
         /* The levels of the pyramid, indexed by z. 0 is the full res image.
          * These are RGB or RGBA images, filled by tile_source.
@@ -40,7 +32,7 @@ typedef struct _TileCache {
         GSList **tiles;
 
         /* The result of the visibility test: for each level, the list of
-         * valid tiles which intersect the viewport and which are not
+         * valid tiles which touch the viewport and which are not
          * obscured.
          */
         GSList **visible;
@@ -65,10 +57,11 @@ GType tile_cache_get_type( void );
 
 TileCache *tile_cache_new( TileSource *tile_source );
 
-void tile_cache_set_viewport( TileCache *tile_cache, 
-        VipsRect *viewport, int z );
-
+/* Render the tiles to a snapshot.
+ */
 void tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
-	double x, double y, double scale, gboolean debug );
+	double scale, double x, double y,
+	VipsRect *paint_rect,
+	gboolean debug );
 
 #endif /*__TILE_CACHE_H*/

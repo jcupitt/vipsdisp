@@ -1,10 +1,10 @@
 #include "vipsdisp.h"
 
 /*
-#define DEBUG_SNAPSHOT
 #define DEBUG_VERBOSE
 #define DEBUG
  */
+#define DEBUG_RENDER_TIME
 
 enum {
         /* Signals. 
@@ -43,12 +43,6 @@ tile_cache_free_pyramid( TileCache *tile_cache )
 
         VIPS_FREE( tile_cache->levels );
         tile_cache->n_levels = 0;
-
-        tile_cache->z = 0;
-        tile_cache->viewport.left = 0;
-        tile_cache->viewport.top = 0;
-        tile_cache->viewport.width = 0;
-        tile_cache->viewport.height = 0;
 }
 
 static void
@@ -235,12 +229,10 @@ tile_cache_build_pyramid( TileCache *tile_cache )
 /* Expand a rect out to the set of tiles it touches on this level.
  */
 static void
-tile_cache_tiles_for_rect( TileCache *tile_cache, 
-        VipsRect *rect, VipsRect *touches )
+tile_cache_tiles_for_rect( TileCache *tile_cache, VipsRect *rect, int z,
+	VipsRect *touches )
 {
-        int z = tile_cache->z;
         int size0 = TILE_SIZE << z;
-
         int left = VIPS_ROUND_DOWN( rect->left, size0 );
         int top = VIPS_ROUND_DOWN( rect->top, size0 );
         int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
@@ -326,9 +318,9 @@ tile_cache_free_oldest( TileCache *tile_cache, int z )
 }
 
 static void
-tile_cache_compute_visibility( TileCache *tile_cache )
+tile_cache_compute_visibility( TileCache *tile_cache, 
+	VipsRect *viewport, int z )
 {
-        int z = tile_cache->z;
         int size0 = TILE_SIZE << z;
         int start_time = tile_get_time();
 
@@ -338,9 +330,9 @@ tile_cache_compute_visibility( TileCache *tile_cache )
         VipsRect bounds;
         GSList *p;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         printf( "tile_cache_compute_visibility:\n" ); 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
         /* We're rebuilding these.
          */
@@ -351,8 +343,7 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 
         /* The rect of tiles touched by the viewport.
          */
-        tile_cache_tiles_for_rect( tile_cache, 
-                &tile_cache->viewport, &touches );
+        tile_cache_tiles_for_rect( tile_cache, viewport, z, &touches );
 
         /* Search for the highest res tile for every position in the 
          * viewport.
@@ -389,7 +380,7 @@ tile_cache_compute_visibility( TileCache *tile_cache )
         for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
                 tile_cache_free_oldest( tile_cache, i );
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 
         for( i = 0; i < tile_cache->n_levels; i++ ) {
                 printf( "  level %d, %d tiles, %d visible, %d free\n",
@@ -426,11 +417,11 @@ tile_cache_compute_visibility( TileCache *tile_cache )
 
         }
 
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 }
 
 static Tile *
-tile_cache_find( TileCache *tile_cache, VipsRect *bounds, int z )
+tile_cache_find( TileCache *tile_cache, VipsRect *tile_rect, int z )
 {
         GSList *p;
         Tile *tile;
@@ -438,42 +429,51 @@ tile_cache_find( TileCache *tile_cache, VipsRect *bounds, int z )
         for( p = tile_cache->tiles[z]; p; p = p->next ) {
                 tile = TILE( p->data );
 
-                if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) 
+                if( vips_rect_overlapsrect( &tile->bounds, tile_rect ) ) 
                         return( tile );
         }
 
         return( NULL );
 }
 
-/* Fetch a single tile.
+/* Fetch a single tile. If we have this tile already, refresh if there are new
+ * pixels available.
  */
 static void
-tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
+tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 {
-        int z = tile_cache->z;
-
         Tile *tile;
 
-#ifdef DEBUG
-        printf( "tile_cache_get: left = %d, top = %d, "
-                "width = %d, height = %d\n", 
-                bounds->left, bounds->top,
-                bounds->width, bounds->height );
-#endif /*DEBUG*/
-
         /* Look for an existing tile, or make a new one.
+	 *
+	 * FIXME ... this could be a hash. Could other lookups be hashes as
+	 * well, if we rescale x/y for changes in z?
          */
-        if( !(tile = tile_cache_find( tile_cache, bounds, z )) ) {
+        if( !(tile = tile_cache_find( tile_cache, tile_rect, z )) ) {
                 if( !(tile = tile_new( tile_cache->levels[z], 
-                        bounds->left >> z, bounds->top >> z, z )) )
+                        tile_rect->left >> z, tile_rect->top >> z, z )) )
                         return;
 
                 tile_cache->tiles[z] = 
                         g_slist_prepend( tile_cache->tiles[z], tile );
-        }
+	}
 
-        if( !tile->valid ) 
+	if( !tile->valid ||
+		tile->ready ) {
+		/* The tile might have no pixels, or might need refreshing
+		 * because the bg render has finished with it.
+		 */
+#ifdef DEBUG_VERBOSE
+		printf( "tile_cache_get: fetching left = %d, top = %d, "
+			"width = %d, height = %d, z = %d\n", 
+			tile_rect->left, tile_rect->top,
+			tile_rect->width, tile_rect->height,
+			z );
+#endif /*DEBUG_VERBOSE*/
+
                 tile_source_fill_tile( tile_cache->tile_source, tile );
+		tile->ready = FALSE;
+	}
 }
 
 /* Fetch the tiles in an area.
@@ -483,26 +483,25 @@ tile_cache_get( TileCache *tile_cache, VipsRect *bounds )
  * so we have to add in a spiral from the outside in.
  */
 static void
-tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
+tile_cache_fetch_area( TileCache *tile_cache, VipsRect *viewport, int z )
 {
-        int z = tile_cache->z;
         int size0 = TILE_SIZE << z;
 
         /* All the tiles rect touches in this pyr level.
          */
-        int left = VIPS_ROUND_DOWN( rect->left, size0 );
-        int top = VIPS_ROUND_DOWN( rect->top, size0 );
-        int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
-        int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( rect ), size0 );
+        int left = VIPS_ROUND_DOWN( viewport->left, size0 );
+        int top = VIPS_ROUND_DOWN( viewport->top, size0 );
+        int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( viewport ), size0 );
+        int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( viewport ), size0 );
 
         /* Do the four edges, then step in. Loop until the centre is empty.
          */
         for(;;) {
-                VipsRect tile;
+                VipsRect tile_rect;
                 int x, y;
 
-                tile.width = size0;
-                tile.height = size0;
+                tile_rect.width = size0;
+                tile_rect.height = size0;
 
                 if( right - left <= 0 ||
                         bottom - top <= 0 )
@@ -511,9 +510,9 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
                 /* Top edge.
                  */
                 for( x = left; x < right; x += size0 ) {
-                        tile.left = x;
-                        tile.top = top;
-                        tile_cache_get( tile_cache, &tile );
+                        tile_rect.left = x;
+                        tile_rect.top = top;
+                        tile_cache_get( tile_cache, &tile_rect, z );
                 }
 
                 top += size0;
@@ -524,9 +523,9 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
                 /* Bottom edge.
                  */
                 for( x = left; x < right; x += size0 ) {
-                        tile.left = x;
-                        tile.top = bottom - size0;
-                        tile_cache_get( tile_cache, &tile );
+                        tile_rect.left = x;
+                        tile_rect.top = bottom - size0;
+                        tile_cache_get( tile_cache, &tile_rect, z );
                 }
 
                 bottom -= size0;
@@ -537,9 +536,9 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
                 /* Left edge.
                  */
                 for( y = top; y < bottom; y += size0 ) {
-                        tile.left = left;
-                        tile.top = y;
-                        tile_cache_get( tile_cache, &tile );
+                        tile_rect.left = left;
+                        tile_rect.top = y;
+                        tile_cache_get( tile_cache, &tile_rect, z );
                 }
 
                 left += size0;
@@ -550,9 +549,9 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
                 /* Right edge.
                  */
                 for( y = top; y < bottom; y += size0 ) {
-                        tile.left = right - size0;
-                        tile.top = y;
-                        tile_cache_get( tile_cache, &tile );
+                        tile_rect.left = right - size0;
+                        tile_rect.top = y;
+                        tile_cache_get( tile_cache, &tile_rect, z );
                 }
 
                 right -= size0;
@@ -562,81 +561,28 @@ tile_cache_fetch_area( TileCache *tile_cache, VipsRect *rect )
         }
 }
 
-/* Set the layer and the rect within that layer that we want to display.
- * viewport in level0 coordinates.
+/* Eevetrything has changed, eg. page turn and the image geometry has changed.
  */
-void 
-tile_cache_set_viewport( TileCache *tile_cache, VipsRect *viewport, int z )
-{
-        int old_z = tile_cache->z;
-
-        VipsRect old_touches;
-        VipsRect touches;
-
-#ifdef DEBUG
-        printf( "tile_cache_set_viewport: left = %d, top = %d, "
-                "width = %d, height = %d, z = %d\n", 
-                viewport->left, viewport->top,
-                viewport->width, viewport->height, 
-                z );
-#endif /*DEBUG*/
-
-        /* The pyramid may not have loaded hyet.
-         */
-        if( !tile_cache->levels )
-                return;
-
-        g_assert( z >= 0 && z < tile_cache->n_levels );
-
-        /* The rect of tiles touched by the current viewport.
-         */
-        tile_cache_tiles_for_rect( tile_cache, 
-                &tile_cache->viewport, &old_touches );
-
-        /* Save viewport in level0 coordinates.
-         */
-        tile_cache->viewport = *viewport;
-        tile_cache->z = z;
-
-        /* The rect of tiles touched by the new viewport.
-         */
-        tile_cache_tiles_for_rect( tile_cache, 
-                &tile_cache->viewport, &touches );
-
-        /* Has z changed, or has the set of tiles in the viewport changed?
-         */
-        if( z != old_z ||
-                !vips_rect_equalsrect( &old_touches, &touches ) ) {
-                tile_cache_fetch_area( tile_cache, &touches );
-                tile_cache_compute_visibility( tile_cache );
-        }
-}
-
 static void
 tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
 {
-        VipsRect old_viewport = tile_cache->viewport;
-        int old_z = tile_cache->z;
-
 #ifdef DEBUG
         printf( "tile_cache_source_changed:\n" );
 #endif /*DEBUG*/
 
+	/* This will junk all tiles.
+	 */
         tile_cache_build_pyramid( tile_cache );
 
-        tile_cache_set_viewport( tile_cache, &old_viewport, old_z );
-
-        /* Tell our clients.
-         */
         tile_cache_changed( tile_cache );
 }
 
 /* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark 
- * all tiles invalid and refetch the viewport.
+ * all tiles invalid and reemit.
  */
-static void
+void
 tile_cache_source_tiles_changed( TileSource *tile_source, 
-        TileCache *tile_cache )
+	TileCache *tile_cache )
 {
         int i;
 
@@ -651,54 +597,48 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
                         Tile *tile = TILE( p->data );
 
                         tile->valid = FALSE;
+                        tile->ready = FALSE;
                 }
         }
-
-        tile_cache_fetch_area( tile_cache, &tile_cache->viewport );
-
-        tile_cache_compute_visibility( tile_cache );
 
         tile_cache_tiles_changed( tile_cache );
 }
 
-/* Some tiles have been computed. Fetch any invalid tiles in this rect.
+/* The bg render thread says some tiles have fresh pixels.
  */
 static void
 tile_cache_source_area_changed( TileSource *tile_source, 
-        VipsRect *area, int z, TileCache *tile_cache )
+	VipsRect *dirty, int z, TileCache *tile_cache )
 {
-        VipsRect bounds;
+        int size0 = TILE_SIZE << z;
 
-#ifdef DEBUG
+	VipsRect touches;
+	VipsRect tile_rect;
+	int x, y;
+	Tile *tile;
+
+#ifdef DEBUG_VERBOSE
         printf( "tile_cache_source_area_changed: left = %d, top = %d, "
                 "width = %d, height = %d, z = %d\n", 
-                area->left, area->top,
-                area->width, area->height, z );
-#endif /*DEBUG*/
+                dirty->left, dirty->top,
+                dirty->width, dirty->height, z );
+#endif /*DEBUG_VERBOSE*/
 
-        /* z might have changed since we asked for these tiles.
-         */
-        if( z != tile_cache->z )
-                return;
+	/* Mark tiles in the area as ready for refetch.
+	 */
+	tile_cache_tiles_for_rect( tile_cache, dirty, z, &touches );
+	tile_rect.width = size0;
+	tile_rect.height = size0;
+	for( y = 0; y < touches.height; y += size0 )
+		for( x = 0; x < touches.width; x += size0 ) {
+			tile_rect.left = x + touches.left;
+			tile_rect.top = y + touches.top;
+			if( (tile = tile_cache_find( tile_cache, 
+				&tile_rect, z )) ) 
+				tile->ready = TRUE;
+		}
 
-        bounds.left = area->left << z;
-        bounds.top = area->top << z;
-        bounds.width = area->width << z;
-        bounds.height = area->height << z;
-
-        /* Don't bother refreshing tiles outside the viewport.
-         */
-        vips_rect_intersectrect( &bounds, &tile_cache->viewport, &bounds );
-        if( vips_rect_isempty( &bounds ) )
-                return;
-
-        tile_cache_fetch_area( tile_cache, &bounds );
-
-        tile_cache_compute_visibility( tile_cache );
-
-        /* Tell our clients to repaint.
-         */
-        tile_cache_area_changed( tile_cache, area, z );
+        tile_cache_area_changed( tile_cache, dirty, z );
 }
 
 TileCache *
@@ -709,28 +649,35 @@ tile_cache_new( TileSource *tile_source )
         tile_cache->tile_source = tile_source;
         g_object_ref( tile_source );
 
+	g_signal_connect_object( tile_source, "changed",
+		G_CALLBACK( tile_cache_source_changed ), tile_cache, 0 );
+	g_signal_connect_object( tile_source, "tiles-changed",
+		G_CALLBACK( tile_cache_source_tiles_changed ), tile_cache, 0 );
+	g_signal_connect_object( tile_source, "area-changed",
+		G_CALLBACK( tile_cache_source_area_changed ), tile_cache, 0 );
+
         /* Don't build the pyramid yet -- the source probably hasn't loaded.
          * Wait for "changed".
          */
 
-        g_signal_connect_object( tile_cache->tile_source, "changed", 
-                G_CALLBACK( tile_cache_source_changed ), tile_cache, 0 );
-        g_signal_connect_object( tile_cache->tile_source, "tiles_changed", 
-                G_CALLBACK( tile_cache_source_tiles_changed ), tile_cache, 0 );
-        g_signal_connect_object( tile_cache->tile_source, "area_changed", 
-                G_CALLBACK( tile_cache_source_area_changed ), tile_cache, 0 );
-
         return( tile_cache ); 
 }
 
-/* The tile_cale->viewport is the rect of tiles we have prepared for viewing.
- * The x, y, scale here is how we'd like them translated and scaled for the
- * screen.
+/* Scale is how much the level0 image has been scaled, x/y is the position of
+ * the top-left corner of the paint_rect area in the scaled image.
+ *
+ * paint_rect is the pixel area in gtk coordinates that we paint in the widget.
+ *
+ * Set debug to draw tile boundaries for debugging.
  */
 void 
 tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
-        double x, double y, double scale, gboolean debug )
+	double scale, double x, double y,
+	VipsRect *paint_rect,
+	gboolean debug )
 {
+	VipsRect viewport;
+	int z;
         int i;
 
 	/* In debug mode, scale and offset so we can see tile clipping. 
@@ -738,15 +685,56 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
         float debug_scale = 0.9;
         graphene_point_t debug_offset = { 32, 32 };
 
+#ifdef DEBUG_RENDER_TIME
+	GTimer *snapshot_timer = g_timer_new();
+#endif /*DEBUG_RENDER_TIME*/
+
 	if( debug ) {
 		gtk_snapshot_translate( snapshot, &debug_offset );
 		gtk_snapshot_scale( snapshot, debug_scale, debug_scale );
 	}
 
+#ifdef DEBUG
+        printf( "tile_cache_snapshot: scale = %g, x = %g, y = %g\n", 
+		scale, x, y );
+#endif /*DEBUG*/
+
 #ifdef DEBUG_VERBOSE
-        printf( "tile_cache_snapshot: x = %g, y = %g, scale = %g\n",
-                x, y, scale );
+        printf( "  paint_rect left = %d, top = %d, "
+                "width = %d, height = %d\n", 
+                paint_rect->left, paint_rect->top,
+                paint_rect->width, paint_rect->height );
 #endif /*DEBUG_VERBOSE*/
+
+	/* Pick a pyramid layer. For enlarging, we leave the z at 0 
+	 * (the highest res layer).
+	 */
+	if( scale > 1.0 || 
+		scale == 0 ) 
+		z = 0;
+	else 
+		z = VIPS_CLIP( 0, 
+			log( 1.0 / scale ) / log( 2.0 ), 
+			tile_cache->n_levels - 1 );
+
+	/* paint_rect in level0 coordinates.
+	 */
+	viewport.left = x / scale;
+	viewport.top = y / scale;
+	viewport.width = VIPS_MAX( 1, paint_rect->width / scale );
+	viewport.height = VIPS_MAX( 1, paint_rect->height / scale );
+
+	/* Fetch any tiles we are missing, update any tiles we have that have
+	 * been flagged as having pixels ready for fetching.
+	 */
+	tile_cache_fetch_area( tile_cache, &viewport, z );
+
+	/* Find the set of visible tiles, sorted back to front.
+	 *
+	 * FIXME ... we could often skip this, esp when panning, unless we
+	 * cross a tile boundary.
+	 */
+	tile_cache_compute_visibility( tile_cache, &viewport, z );
 
         /* If there's an alpha, we'll need a backdrop.
          */
@@ -757,10 +745,10 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 printf( "tile_cache_snapshot: drawing checkerboard\n" );
 #endif /*DEBUG_VERBOSE*/
 
-                bounds.origin.x = tile_cache->viewport.left * scale - x;  
-                bounds.origin.y = tile_cache->viewport.top * scale - y;  
-                bounds.size.width = tile_cache->viewport.width * scale;  
-                bounds.size.height = tile_cache->viewport.height * scale;
+                bounds.origin.x = paint_rect->left;
+                bounds.origin.y = paint_rect->top;
+                bounds.size.width = paint_rect->width;
+                bounds.size.height = paint_rect->height;
                 gtk_snapshot_push_repeat( snapshot, &bounds, NULL );
 
                 bounds.origin.x = 0;
@@ -768,13 +756,14 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 bounds.size.width = TILE_SIZE;
                 bounds.size.height = TILE_SIZE;
                 gtk_snapshot_append_texture( snapshot, 
-                        tile_cache->checkerboard,
-                        &bounds );
+			tile_cache->checkerboard, &bounds );
 
                 gtk_snapshot_pop( snapshot );
         }
 
-        for( i = tile_cache->n_levels - 1; i >= tile_cache->z; i-- ) { 
+	/* Draw all visible tiles, back to front.
+	 */
+        for( i = tile_cache->n_levels - 1; i >= z; i-- ) { 
                 GSList *p;
 
                 for( p = tile_cache->visible[i]; p; p = p->next ) {
@@ -782,24 +771,25 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
                         graphene_rect_t bounds;
 
-                        bounds.origin.x = tile->bounds.left * scale - x;  
-                        bounds.origin.y = tile->bounds.top * scale - y;  
+                        bounds.origin.x = tile->bounds.left * scale - 
+				x + paint_rect->left;
+                        bounds.origin.y = tile->bounds.top * scale - 
+				y + paint_rect->top;  
                         bounds.size.width = tile->bounds.width * scale;  
                         bounds.size.height = tile->bounds.height * scale;
 
                         gtk_snapshot_append_texture( snapshot, 
-                                 tile_get_texture( tile ), 
-                                 &bounds );
+                                 tile_get_texture( tile ), &bounds );
 
 			/* In debug mode, draw the edges and add text for the 
 			 * tile pointer and age.
 			 */
 			if( debug ) {
 				GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
-					tile->bounds.left * scale - x,
-					tile->bounds.top * scale - y,
-					tile->bounds.width * scale,
-					tile->bounds.height * scale );
+					bounds.origin.x,
+					bounds.origin.y,
+					bounds.size.width,
+					bounds.size.height );
 				float border_width[4] = { 2, 2, 2, 2 };
 				GdkRGBA border_colour[4] = { 
 					{ 0, 1, 0, 1 },
@@ -869,10 +859,10 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
 		gsk_rounded_rect_init_from_rect( &outline, 
 			&GRAPHENE_RECT_INIT(
-				tile_cache->viewport.left * scale - x,
-				tile_cache->viewport.top * scale - y,
-				tile_cache->viewport.width * scale,
-				tile_cache->viewport.height * scale
+				viewport.left * scale - x + paint_rect->left,
+				viewport.top * scale - y + paint_rect->top,
+				viewport.width * scale,
+				viewport.height * scale
 			), 
 			0 );
 
@@ -881,4 +871,10 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 			(float[4]) { 2, 2, 2, 2 },
 			(GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
 	}
+
+#ifdef DEBUG_RENDER_TIME
+        printf( "tile_cache_snapshot: %g ms\n", 
+		g_timer_elapsed( snapshot_timer, NULL ) * 1000 );
+        g_timer_destroy( snapshot_timer );
+#endif /*DEBUG_RENDER_TIME*/
 }

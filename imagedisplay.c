@@ -38,13 +38,9 @@ struct _Imagedisplay {
          * scale is how much we zoom/reduce the image by. 
          * x, y is the position of the top-left of the widget in the scaled
          * image.
-         *
-         * We compute the viewport and z we pass to tile_cache from these. 
          */
         double scale;
         double x, y;
-
-        GdkTexture *checkerboard;
 
 	/* Draw the screen in debug mode.
 	 */
@@ -71,9 +67,9 @@ enum {
 
         /* Control transform with this.
          */
+        PROP_SCALE,
         PROP_X,
         PROP_Y,
-        PROP_SCALE,
 
         /* Draw snapshot in debug mode.
          */
@@ -98,14 +94,8 @@ imagedisplay_dispose( GObject *object )
 
 static void
 imagedisplay_set_transform( Imagedisplay *imagedisplay, 
-        double x, double y, double scale )
+        double scale, double x, double y )
 {
-        int widget_width = imagedisplay->widget_rect.width;
-        int widget_height = imagedisplay->widget_rect.height;
-
-        VipsRect viewport;
-        int z;
-
         /* Sanity limits.
          */
         if( scale > 100000 || 
@@ -117,47 +107,14 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
                 y > 2 * VIPS_MAX_COORD )
                 return;
 
-        imagedisplay->x = x;
-        imagedisplay->y = y;
-        imagedisplay->scale = scale;
-
-	/* Only if we hafve an image loaded.
-	 */
-	if( imagedisplay->tile_cache ) {
-		/* Pick a pyramid layer. For enlarging, we leave the z at 0 
-		 * (the highest res layer).
-		 */
-		if( scale > 1.0 || 
-			scale == 0 ) 
-			z = 0;
-		else 
-			z = VIPS_CLIP( 0, 
-				log( 1.0 / scale ) / log( 2.0 ), 
-				imagedisplay->tile_cache->n_levels - 1 );
-
-		/* The area to display in level0 coordinates.
-		 */
-		viewport.left = x / scale;
-		viewport.top = y / scale;
-		viewport.width = VIPS_MAX( 1, widget_width / scale );
-		viewport.height = VIPS_MAX( 1, widget_height / scale );
-		vips_rect_intersectrect( &viewport, &imagedisplay->image_rect, 
-			&viewport );
-
 #ifdef DEBUG
-		printf( "imagedisplay_set_transform: "
-			"x = %g, y = %g, scale = %g\n", x, y, scale );
-		printf( "  z = %d, viewport at %d x %d, size %d x %d\n", 
-			z, 
-			viewport.left, viewport.top,
-			viewport.width, viewport.height );
+	printf( "imagedisplay_set_transform: "
+		"x = %g, y = %g, scale = %g\n", x, y, scale );
 #endif /*DEBUG*/
 
-		tile_cache_set_viewport( imagedisplay->tile_cache, 
-			&viewport, z );
-
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
-	}
+        imagedisplay->scale = scale;
+        imagedisplay->x = x;
+        imagedisplay->y = y;
 }
 
 static void
@@ -165,10 +122,8 @@ imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
         Imagedisplay *imagedisplay )
 {
         if( gtk_widget_get_realized( GTK_WIDGET( imagedisplay ) ) ) {
-                double left = 
-                        gtk_adjustment_get_value( imagedisplay->hadj );
-                double top = 
-                        gtk_adjustment_get_value( imagedisplay->vadj );
+                double left = gtk_adjustment_get_value( imagedisplay->hadj );
+                double top = gtk_adjustment_get_value( imagedisplay->vadj );
 
 #ifdef DEBUG
                 printf( "imagedisplay_adjustment_changed: %g x %g\n", 
@@ -176,7 +131,8 @@ imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
 #endif /*DEBUG*/
 
                 imagedisplay_set_transform( imagedisplay, 
-                        left, top, imagedisplay->scale );
+                        imagedisplay->scale, left, top );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
         }
 }
 
@@ -288,9 +244,6 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 
         imagedisplay_set_hadjustment_values( imagedisplay );
         imagedisplay_set_vadjustment_values( imagedisplay );
-
-        imagedisplay_set_transform( imagedisplay, 
-                imagedisplay->x, imagedisplay->y, imagedisplay->scale );
 }
 
 /* Large change, we need to relayout.
@@ -309,6 +262,8 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
                 tile_cache->tile_source->display_height;
 
         imagedisplay_layout( imagedisplay );
+
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 
 /* Tiles have changed, but not image geometry. Perhaps falsecolour.
@@ -325,8 +280,8 @@ imagedisplay_tile_cache_tiles_changed( TileCache *tile_cache,
 }
 
 static void
-imagedisplay_tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, 
-        int z, Imagedisplay *imagedisplay ) 
+imagedisplay_tile_cache_area_changed( TileCache *tile_cache, 
+	VipsRect *dirty, int z, Imagedisplay *imagedisplay ) 
 {
 #ifdef DEBUG_VERBOSE
         printf( "imagedisplay_tile_cache_area_changed: "
@@ -413,26 +368,29 @@ imagedisplay_set_property( GObject *object,
                         g_value_get_object( value ) );
                 break;
 
+        case PROP_SCALE:
+                imagedisplay_set_transform( imagedisplay, 
+			g_value_get_double( value ),
+                        imagedisplay->x, 
+                        imagedisplay->y ); 
+                imagedisplay_layout( imagedisplay );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+                break;
+
         case PROP_X:
                 imagedisplay_set_transform( imagedisplay, 
+                        imagedisplay->scale,
                         g_value_get_double( value ),
-                        imagedisplay->y, 
-                        imagedisplay->scale );
+                        imagedisplay->y );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
                 break;
 
         case PROP_Y:
                 imagedisplay_set_transform( imagedisplay, 
+                        imagedisplay->scale,
                         imagedisplay->x, 
-                        g_value_get_double( value ),
-                        imagedisplay->scale );
-                break;
-
-        case PROP_SCALE:
-                imagedisplay_set_transform( imagedisplay, 
-                        imagedisplay->x, 
-                        imagedisplay->y, 
-			g_value_get_double( value ) );
-                imagedisplay_layout( imagedisplay );
+                        g_value_get_double( value ) );
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
                 break;
 
         case PROP_DEBUG:
@@ -473,16 +431,16 @@ imagedisplay_get_property( GObject *object,
                 g_value_set_object( value, imagedisplay->tile_cache );
                 break;
 
+        case PROP_SCALE:
+                g_value_set_double( value, imagedisplay->scale );
+                break;
+
         case PROP_X:
                 g_value_set_double( value, imagedisplay->x );
                 break;
 
         case PROP_Y:
                 g_value_set_double( value, imagedisplay->y );
-                break;
-
-        case PROP_SCALE:
-                g_value_set_double( value, imagedisplay->scale );
                 break;
 
         case PROP_DEBUG:
@@ -513,11 +471,11 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
                 gtk_widget_get_width( widget ),
                 gtk_widget_get_height( widget ) )); 
 
-	if( imagedisplay->tile_cache )
+	if( imagedisplay->tile_cache &&
+		imagedisplay->tile_cache->tiles )
 		tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
-			imagedisplay->x - imagedisplay->paint_rect.left, 
-			imagedisplay->y - imagedisplay->paint_rect.top, 
-			imagedisplay->scale,
+			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
+			&imagedisplay->paint_rect,
 		        imagedisplay->debug );
 
         gtk_snapshot_pop( snapshot );
@@ -556,6 +514,8 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 #endif /*DEBUG*/
 
         imagedisplay_layout( imagedisplay );
+
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
 }
 
 static void
@@ -639,6 +599,13 @@ imagedisplay_class_init( ImagedisplayClass *class )
                         TILE_CACHE_TYPE,
                         G_PARAM_READWRITE ) );
 
+        g_object_class_install_property( gobject_class, PROP_SCALE,
+                g_param_spec_double( "scale",
+                        _( "Scale" ),
+                        _( "Scale of viewport" ),
+                        -VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
+                        G_PARAM_READWRITE ) );
+
         g_object_class_install_property( gobject_class, PROP_X,
                 g_param_spec_double( "x",
                         _( "x" ),
@@ -650,13 +617,6 @@ imagedisplay_class_init( ImagedisplayClass *class )
                 g_param_spec_double( "y",
                         _( "y" ),
                         _( "Vertical position of viewport" ),
-                        -VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
-                        G_PARAM_READWRITE ) );
-
-        g_object_class_install_property( gobject_class, PROP_SCALE,
-                g_param_spec_double( "scale",
-                        _( "Scale" ),
-                        _( "Scale of viewport" ),
                         -VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
                         G_PARAM_READWRITE ) );
 

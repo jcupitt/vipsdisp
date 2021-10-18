@@ -142,29 +142,10 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - rendering
 
-    there's still a slight flicker, sometimes
+    30fps GIFs can drop frames
 
-      the checkerboard sometimes pops up for a frame with openslide images
-
-      occasional flicker with GIF might be the same thing
-
-    mysterious hitching during zoom on MRXS, probably on pyr layer shift
-
-      not fetch_area or update_display
-
-      snapshot is not being called during the hitches
-
-      looks like the sudden rush of notifications on a level shift starves the
-      glib main loop
-
-      can we do more work in background threads? eg. the fg thread is doing
-      the display bar right now
-
-      maybe make the display pipeline end in a tilecache rather than a
-      sinkscreen, and make the _rgb pipeline end with _sink_screen instead?
-      we could maybe even move texture generation to the background
-
-    css animation for zoom?
+    css animation for zoom? maybe spot key down / key up for i/o and 
+    animate zoom ourselves?
 
   ome
 
