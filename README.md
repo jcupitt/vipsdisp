@@ -138,19 +138,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- can still show black tiles occasionally?
+
 - replace image, no progress bar
 
 - shrink to fit on load?
-
-- rendering
-
-    look for key up / key down and use that to drive smoother zoom / pan
-    animations
-
-      use a 60fps animation tick?
-
-    css animation for zoom? maybe spot key down / key up for i/o and 
-    animate zoom ourselves?
 
   ome
 

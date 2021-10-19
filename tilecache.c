@@ -342,14 +342,13 @@ tile_cache_print( TileCache *tile_cache )
 				tile ) >= 0;
 
                         printf( "    @ %d x %d, %d x %d, "
-				"valid = %d, ready = %d, visible = %d, "
+				"valid = %d, visible = %d, "
 				"texture = %p\n",
                                 tile->bounds.left,
                                 tile->bounds.top,
                                 tile->bounds.width,
                                 tile->bounds.height,
                                 tile->valid,
-                                tile->ready,
 			     	visible,
 			     	tile->texture );
                 }
@@ -463,8 +462,7 @@ tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
                         g_slist_prepend( tile_cache->tiles[z], tile );
 	}
 
-	if( !tile->valid ||
-		tile->ready ) {
+	if( !tile->valid ) {
 		/* The tile might have no pixels, or might need refreshing
 		 * because the bg render has finished with it.
 		 */
@@ -477,7 +475,6 @@ tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 #endif /*DEBUG_VERBOSE*/
 
                 tile_source_fill_tile( tile_cache->tile_source, tile );
-		tile->ready = FALSE;
 	}
 }
 
@@ -604,7 +601,6 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
 			/* We must refetch.
 			 */
                         tile->valid = FALSE;
-                        tile->ready = FALSE;
                 }
         }
 
