@@ -140,8 +140,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - can still show black tiles occasionally?
 
-- replace image, no progress bar
-
 - shrink to fit on load? 
 
     eog starts in best-fit mode (resize image on window resize)

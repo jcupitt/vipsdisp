@@ -47,6 +47,8 @@ tile_source_dispose( GObject *object )
         printf( "tile_source_dispose:\n" ); 
 #endif /*DEBUG*/
 
+	VIPS_FREEF( g_source_remove, tile_source->page_flip_id );
+
         VIPS_UNREF( tile_source->source );
         VIPS_UNREF( tile_source->image );
         VIPS_UNREF( tile_source->image_region );
@@ -55,6 +57,7 @@ tile_source_dispose( GObject *object )
         VIPS_UNREF( tile_source->rgb );
         VIPS_UNREF( tile_source->rgb_region );
         VIPS_UNREF( tile_source->mask_region );
+
         VIPS_FREE( tile_source->delay );
 
         G_OBJECT_CLASS( tile_source_parent_class )->dispose( object );
