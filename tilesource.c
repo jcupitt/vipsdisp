@@ -1738,13 +1738,13 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
                 tile->region->valid.top ) )
                 return( -1 );
 
-        /* Do we have new, valid pixels? The texture will need updating on the
-         * next snapshot.
+        /* Do we have new, valid pixels? Update the texture. We need to do
+	 * this now since the data in the region may change later.
          */
         if( tile->valid ) {
                 tile_free_texture( tile );
-                (void) tile_get_texture( tile );
-        }
+		tile_get_texture( tile );
+	}
 
         return( 0 );
 }

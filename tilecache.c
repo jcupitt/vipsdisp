@@ -3,8 +3,8 @@
 /*
 #define DEBUG_VERBOSE
 #define DEBUG
- */
 #define DEBUG_RENDER_TIME
+ */
 
 enum {
         /* Signals. 
@@ -271,6 +271,7 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
 				continue;
 
                         if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
+				tile_touch( tile );
                                 tile_cache->visible[z] = 
                                         g_slist_prepend( tile_cache->visible[z],
                                                 tile );
@@ -316,6 +317,45 @@ tile_cache_free_oldest( TileCache *tile_cache, int z )
                 }
         }
 }
+
+#ifdef DEBUG_VERBOSE
+static void
+tile_cache_print( TileCache *tile_cache )
+{
+	int i;
+
+        for( i = 0; i < tile_cache->n_levels; i++ ) {
+                printf( "  level %d, %d tiles, %d visible, %d free\n",
+                        i, 
+                        g_slist_length( tile_cache->tiles[i] ),
+                        g_slist_length( tile_cache->visible[i] ),
+                        g_slist_length( tile_cache->free[i] ) );
+        }
+
+        for( i = 0; i < tile_cache->n_levels; i++ ) {
+		GSList *p;
+
+                printf( "  level %d tiles:\n", i ); 
+                for( p = tile_cache->tiles[i]; p; p = p -> next ) {
+                        Tile *tile = TILE( p->data );
+			int visible = g_slist_index( tile_cache->visible[i], 
+				tile ) >= 0;
+
+                        printf( "    @ %d x %d, %d x %d, "
+				"valid = %d, ready = %d, visible = %d, "
+				"texture = %p\n",
+                                tile->bounds.left,
+                                tile->bounds.top,
+                                tile->bounds.width,
+                                tile->bounds.height,
+                                tile->valid,
+                                tile->ready,
+			     	visible,
+			     	tile->texture );
+                }
+        }
+}
+#endif /*DEBUG_VERBOSE*/
 
 static void
 tile_cache_compute_visibility( TileCache *tile_cache, 
@@ -381,42 +421,7 @@ tile_cache_compute_visibility( TileCache *tile_cache,
                 tile_cache_free_oldest( tile_cache, i );
 
 #ifdef DEBUG_VERBOSE
-
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                printf( "  level %d, %d tiles, %d visible, %d free\n",
-                        i, 
-                        g_slist_length( tile_cache->tiles[i] ),
-                        g_slist_length( tile_cache->visible[i] ),
-                        g_slist_length( tile_cache->free[i] ) );
-        }
-
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                printf( "  level %d tiles:\n", i ); 
-                for( p = tile_cache->tiles[i]; p; p = p -> next ) {
-                        Tile *tile = TILE( p->data );
-
-                        printf( "    @ %d x %d, %d x %d, valid = %d\n",
-                                tile->bounds.left,
-                                tile->bounds.top,
-                                tile->bounds.width,
-                                tile->bounds.height,
-                                tile->valid );
-                }
-
-                printf( "  level %d visible:\n", i ); 
-                for( p = tile_cache->visible[i]; p; p = p -> next ) {
-                        Tile *tile = TILE( p->data );
-
-                        printf( "    @ %d x %d, %d x %d, valid = %d\n",
-                                tile->bounds.left,
-                                tile->bounds.top,
-                                tile->bounds.width,
-                                tile->bounds.height,
-                                tile->valid );
-                }
-
-        }
-
+	tile_cache_print( tile_cache );
 #endif /*DEBUG_VERBOSE*/
 }
 
@@ -596,6 +601,8 @@ tile_cache_source_tiles_changed( TileSource *tile_source,
                 for( p = tile_cache->tiles[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
 
+			/* We must refetch.
+			 */
                         tile->valid = FALSE;
                         tile->ready = FALSE;
                 }
@@ -610,13 +617,6 @@ static void
 tile_cache_source_area_changed( TileSource *tile_source, 
 	VipsRect *dirty, int z, TileCache *tile_cache )
 {
-        int size0 = TILE_SIZE << z;
-
-	VipsRect touches;
-	VipsRect tile_rect;
-	int x, y;
-	Tile *tile;
-
 #ifdef DEBUG_VERBOSE
         printf( "tile_cache_source_area_changed: left = %d, top = %d, "
                 "width = %d, height = %d, z = %d\n", 
@@ -624,19 +624,10 @@ tile_cache_source_area_changed( TileSource *tile_source,
                 dirty->width, dirty->height, z );
 #endif /*DEBUG_VERBOSE*/
 
-	/* Mark tiles in the area as ready for refetch.
+	/* Immediately fetch the updated tile. If we wait for snapshot, the
+	 * animation page may have changed.
 	 */
-	tile_cache_tiles_for_rect( tile_cache, dirty, z, &touches );
-	tile_rect.width = size0;
-	tile_rect.height = size0;
-	for( y = 0; y < touches.height; y += size0 )
-		for( x = 0; x < touches.width; x += size0 ) {
-			tile_rect.left = x + touches.left;
-			tile_rect.top = y + touches.top;
-			if( (tile = tile_cache_find( tile_cache, 
-				&tile_rect, z )) ) 
-				tile->ready = TRUE;
-		}
+	tile_cache_fetch_area( tile_cache, dirty, z );
 
         tile_cache_area_changed( tile_cache, dirty, z );
 }
@@ -778,8 +769,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                         bounds.size.width = tile->bounds.width * scale;  
                         bounds.size.height = tile->bounds.height * scale;
 
-                        gtk_snapshot_append_texture( snapshot, 
-                                 tile_get_texture( tile ), &bounds );
+			gtk_snapshot_append_texture( snapshot,
+				 tile_get_texture( tile ), &bounds );
 
 			/* In debug mode, draw the edges and add text for the 
 			 * tile pointer and age.

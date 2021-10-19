@@ -22,6 +22,7 @@ tile_dispose( GObject *object )
 
         VIPS_UNREF( tile->texture );
         VIPS_UNREF( tile->pixbuf );
+	VIPS_FREE( tile->data_copy );
         VIPS_UNREF( tile->region );
 
         G_OBJECT_CLASS( tile_parent_class )->dispose( object );
@@ -109,17 +110,31 @@ tile_get_texture( Tile *tile )
         g_assert( tile->texture ||
                 tile->valid );
 
-        /* The tile is being shown, so it must be a useful one.
+        /* The tile is being shown, so it must be useful.
          */
         tile_touch( tile );
 
-        /* We have to make textures via pixbuf (!?!!?).
-         */
-        if( !tile->pixbuf ) 
-                tile->pixbuf = gdk_pixbuf_new_from_data( 
-                        VIPS_REGION_ADDR( tile->region, 
+	/* It's three steps to make the texture:
+	 *
+	 * 	1. We must make a copy of the pixel data from libvips, to stop
+	 * 	   it being changed under our feet.
+	 *
+	 * 	2. Wrap a pixbuf around that copy.
+	 *
+	 * 	3. Tag it as a texture that may need upload tyo the GPU.
+	 */
+	if( !tile->texture ) {
+		VIPS_FREE( tile->data_copy );
+		tile->data_copy = g_memdup2( 
+			VIPS_REGION_ADDR( tile->region,
                                 tile->region->valid.left,
                                 tile->region->valid.top ),
+			VIPS_REGION_SIZEOF_LINE( tile->region ) *
+			tile->region->valid.height );
+
+		VIPS_UNREF( tile->pixbuf );
+                tile->pixbuf = gdk_pixbuf_new_from_data( 
+                        tile->data_copy, 
                         GDK_COLORSPACE_RGB,
                         tile->region->im->Bands == 4,
                         8,
@@ -127,8 +142,9 @@ tile_get_texture( Tile *tile )
                         tile->region->valid.height,
                         VIPS_REGION_LSKIP( tile->region ),
                         NULL, NULL );
-        if( !tile->texture )
+
                 tile->texture = gdk_texture_new_for_pixbuf( tile->pixbuf );
+	}
 
         return( tile->texture );
 }

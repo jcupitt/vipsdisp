@@ -140,9 +140,14 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - replace image, no progress bar
 
+- shrink to fit on load
+
 - rendering
 
-    30fps GIFs can drop frames
+    look for key up / key down and use that to drive smoother zoom / pan
+    animations
+
+      use a 60fps animation tick?
 
     css animation for zoom? maybe spot key down / key up for i/o and 
     animate zoom ourselves?
