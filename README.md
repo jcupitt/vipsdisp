@@ -142,7 +142,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - replace image, no progress bar
 
-- shrink to fit on load?
+- shrink to fit on load? 
+
+    eog starts in best-fit mode (resize image on window resize)
+    you can select eg. "33%" and then image size is locked on window resize
+    zoom / unzoom with ctrl-+ and ctrl--
 
   ome
 
