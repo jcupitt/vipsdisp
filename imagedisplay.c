@@ -661,7 +661,7 @@ imagedisplay_new( TileCache *tile_cache )
 
 void
 imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, 
-        int x_image, int y_image, double *x_gtk, double *y_gtk )
+        double x_image, double y_image, double *x_gtk, double *y_gtk )
 {
         *x_gtk = x_image * imagedisplay->scale - 
                 imagedisplay->x + 

@@ -302,7 +302,7 @@ infobar_status_update( Infobar *infobar )
 	printf( "infobar_status_update:\n" ); 
 #endif /*DEBUG*/
 
-	image_window_get_last( infobar->win, &image_x, &image_y );
+	image_window_get_mouse_position( infobar->win, &image_x, &image_y );
 
 	vips_buf_appendf( &buf, "%d", (int) image_x ); 
 	gtk_label_set_text( GTK_LABEL( infobar->x ), 

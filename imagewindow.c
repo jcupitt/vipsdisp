@@ -16,10 +16,10 @@ struct _ImageWindow
         TileCache *tile_cache;
 
         /* Last known mouse postion, in gtk coordinates. We keep these in gtk
-	 * cods so we don't need to update them on paz / zoom.
+	 * cods so we don't need to update them on pan / zoom.
          */
-        double last_x;
-        double last_y;
+        double last_x_gtk;
+        double last_y_gtk;
 
         /* For drag, the window position where we started, in gtk coordinates.
          */
@@ -330,12 +330,12 @@ image_window_set_position( ImageWindow *win, double x, double y )
 
 }
 
-/* Set a new mag, keeping the pixel at x/y at the same position on the 
- * screen.
+/* Set a new mag, keeping the pixel at x/y in the image at the same position 
+ * on the screen.
  */
 static void     
 image_window_set_scale_position( ImageWindow *win, 
-	double scale, double x, double y )
+	double scale, double x_image, double y_image )
 {                       
         double old_x, old_y;
         double new_x, new_y;
@@ -348,7 +348,7 @@ image_window_set_scale_position( ImageWindow *win,
         /* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
          */
         imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-                x, y, &old_x, &old_y ); 
+                x_image, y_image, &old_x, &old_y ); 
 
         image_window_set_scale( win, scale );
 
@@ -357,11 +357,14 @@ image_window_set_scale_position( ImageWindow *win,
 	 * the difference.
          */
         imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
-                x, y, &new_x, &new_y );
+                x_image, y_image, &new_x, &new_y );
 
+	/* Add 0.5 since we (in effect) cast to int here and we want round to
+	 * nearest.
+	 */
         image_window_get_position( win, &left, &top, &width, &height );
         image_window_set_position( win, 
-		left + new_x - old_x, top + new_y - old_y );
+		left + new_x - old_x + 0.5, top + new_y - old_y + 0.5 );
 }
 
 void
@@ -616,21 +619,21 @@ image_window_tick( GtkWidget *widget,
 	gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
 	double dt = (double) (frame_time - now) / G_TIME_SPAN_SECOND;
 
-	double image_x;
-	double image_y;
+	double x_image;
+	double y_image;
 
 #ifdef DEBUG
 	printf( "image_window_tick:\n" );
 #endif /*DEBUG*/
 
-	image_window_get_last( win, &image_x, &image_y );
+	image_window_get_mouse_position( win, &x_image, &y_image );
 
 	if( win->scale_rate != 1.0 ) {
 		double scale = image_window_get_scale( win );
 		double new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
 
                 image_window_set_scale_position( win, 
-			new_scale, image_x, image_y );
+			new_scale, x_image, y_image );
 	}
 
 	return( G_SOURCE_CONTINUE );
@@ -832,8 +835,8 @@ image_window_motion( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	win->last_x = x;
-	win->last_y = y;
+	win->last_x_gtk = x;
+	win->last_y_gtk = y;
 
         image_window_position_changed( win );
 }
@@ -844,19 +847,19 @@ image_window_scroll( GtkEventControllerMotion *self,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	double image_x;
-	double image_y;
+	double x_image;
+	double y_image;
 
-	image_window_get_last( win, &image_x, &image_y );
+	image_window_get_mouse_position( win, &x_image, &y_image );
 
         if( dy > 0 ) 
                 image_window_set_scale_position( win, 
 			SCALE_STEP * image_window_get_scale( win ), 
-			image_x, image_y );
+			x_image, y_image );
         else 
                 image_window_set_scale_position( win, 
 			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
-			image_x, image_y );
+			x_image, y_image );
 
         return( TRUE );
 }
@@ -1374,8 +1377,9 @@ image_window_open( ImageWindow *win, GFile *file )
 }
 
 void
-image_window_get_last( ImageWindow *win, double *last_x, double *last_y )
+image_window_get_mouse_position( ImageWindow *win, 
+	double *x_image, double *y_image )
 {
         imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-		win->last_x, win->last_y, last_x, last_y );
+		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
 }
