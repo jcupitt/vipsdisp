@@ -140,7 +140,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - replace image, no progress bar
 
-- shrink to fit on load
+- shrink to fit on load?
 
 - rendering
 

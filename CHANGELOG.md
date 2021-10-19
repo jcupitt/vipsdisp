@@ -1,6 +1,8 @@
 ## 2.2, started 14/10/21
 
 - add "d" to enable debug rendering
+- more rendering reworking should be much faster and smoother
+- added animations for pan/zoom
 
 ## 2.1, started 14/10/21
 

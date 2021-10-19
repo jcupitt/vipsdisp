@@ -4,9 +4,9 @@
 
 #include "vipsdisp.h"
 
-/* How much to scale view by each step.
+/* How much to scale view by each frame.
  */
-#define SCALE_STEP (1.02)
+#define SCALE_STEP (2.0)
 
 struct _ImageWindow
 {
@@ -25,6 +25,11 @@ struct _ImageWindow
          */
         int drag_start_x;
         int drag_start_y;
+
+	/* For animatiing zoom. 
+	 */
+	guint tick_handler;
+	double scale_rate;
 
         GtkWidget *title;
         GtkWidget *subtitle;
@@ -602,6 +607,62 @@ image_window_close_action( GSimpleAction *action,
         gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
+static gboolean
+image_window_tick( GtkWidget *widget, 
+	GdkFrameClock *frame_clock, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	gint64 now = g_get_monotonic_time();
+	gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
+	double dt = (double) (frame_time - now) / G_TIME_SPAN_SECOND;
+
+	double image_x;
+	double image_y;
+
+#ifdef DEBUG
+	printf( "image_window_tick:\n" );
+#endif /*DEBUG*/
+
+	image_window_get_last( win, &image_x, &image_y );
+
+	if( win->scale_rate != 1.0 ) {
+		double scale = image_window_get_scale( win );
+		double new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
+
+                image_window_set_scale_position( win, 
+			new_scale, image_x, image_y );
+	}
+
+	return( G_SOURCE_CONTINUE );
+}
+
+static gboolean
+image_window_is_animating( ImageWindow *win )
+{
+	return( win->scale_rate != 1.0 );
+}
+
+static void
+image_window_start_animation( ImageWindow *win )
+{
+	if( image_window_is_animating( win ) &&
+		!win->tick_handler )
+		win->tick_handler = gtk_widget_add_tick_callback( 
+			GTK_WIDGET( win ),
+			image_window_tick, win, NULL );
+}
+
+static void
+image_window_stop_animation( ImageWindow *win )
+{
+	if( !image_window_is_animating( win ) &&
+		win->tick_handler ) {
+		gtk_widget_remove_tick_callback( GTK_WIDGET( win ), 
+			win->tick_handler );
+		win->tick_handler = 0;
+	}
+}
+
 static struct {
         int keyval;
         double scale;
@@ -622,97 +683,81 @@ image_window_key_pressed( GtkEventControllerKey *self,
         guint keyval, guint keycode, GdkModifierType state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-        GtkAdjustment *hadj = gtk_scrolled_window_get_hadjustment(
-                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
-        GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
-                GTK_SCROLLED_WINDOW( win->scrolled_window ) );
-        double hstep = gtk_adjustment_get_step_increment( hadj );
-        double vstep = gtk_adjustment_get_step_increment( vadj );
-        double image_width = gtk_adjustment_get_upper( hadj );
-        double image_height = gtk_adjustment_get_upper( vadj );
-        double window_left = gtk_adjustment_get_value( hadj );
-        double window_top = gtk_adjustment_get_value( vadj );
-        double window_width = gtk_adjustment_get_page_size( hadj );
-        double window_height = gtk_adjustment_get_page_size( vadj );
+	GtkScrolledWindow *scrolled_window = 
+		GTK_SCROLLED_WINDOW( win->scrolled_window );
 
         gboolean handled;
-	double image_x;
-	double image_y;
+        gboolean ret;
 
 #ifdef DEBUG
         printf( "image_window_key_pressed: keyval = %d, state = %d\n", 
                 keyval, state );
 #endif /*DEBUG*/
 
-	image_window_get_last( win, &image_x, &image_y );
         handled = FALSE;
 
         switch( keyval ) {
         case GDK_KEY_plus:
         case GDK_KEY_i:
-                image_window_set_scale_position( win, 
-			SCALE_STEP * image_window_get_scale( win ), 
-			image_x, image_y );
+		win->scale_rate = SCALE_STEP;
                 handled = TRUE;
                 break;
 
         case GDK_KEY_o:
         case GDK_KEY_minus:
-                image_window_set_scale_position( win, 
-			(1.0 / SCALE_STEP) * image_window_get_scale( win ), 
-			image_x, image_y );
+		win->scale_rate = 0.5 / SCALE_STEP;
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Left:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_position( win, 
-                                window_left - window_width, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_PAGE_BACKWARD, TRUE, &ret);
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_position( win, 
-                                0, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_START, TRUE, &ret);
                 else
-                        image_window_set_position( win, 
-                                window_left - hstep, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_STEP_LEFT, TRUE, &ret);
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Right:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_position( win, 
-                                window_left + window_width, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_PAGE_FORWARD, TRUE, &ret);
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_position( win, 
-                                image_width - window_width, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_END, TRUE, &ret);
                 else
-                        image_window_set_position( win, 
-                                window_left + hstep, window_top );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_STEP_RIGHT, TRUE, &ret);
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Up:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_position( win, 
-                                window_left, window_top - window_height );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_PAGE_UP, FALSE, &ret);
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_position( win, 
-                                window_left, 0 );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_START, FALSE, &ret);
                 else
-                        image_window_set_position( win, 
-                                window_left, window_top - vstep );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_STEP_UP, FALSE, &ret);
                 handled = TRUE;
                 break;
 
         case GDK_KEY_Down:
                 if( state & GDK_SHIFT_MASK )
-                        image_window_set_position( win, 
-                                window_left, window_top + window_height );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_PAGE_DOWN, FALSE, &ret);
                 else if( state & GDK_CONTROL_MASK )
-                        image_window_set_position( win, 
-                                window_left, image_height - window_height );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_END, FALSE, &ret);
                 else
-                        image_window_set_position( win, 
-                                window_left, window_top + vstep );
+			g_signal_emit_by_name( scrolled_window, "scroll-child",
+				GTK_SCROLL_STEP_DOWN, FALSE, &ret);
                 handled = TRUE;
                 break;
 
@@ -747,7 +792,38 @@ image_window_key_pressed( GtkEventControllerKey *self,
                         }
         }
 
+	if( handled )
+		image_window_start_animation( win );
+
         return( handled );
+}
+
+static gboolean 
+image_window_key_released( GtkEventControllerKey *self,
+        guint keyval, guint keycode, GdkModifierType state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+        gboolean handled;
+
+	handled = FALSE;
+
+        switch( keyval ) {
+        case GDK_KEY_plus:
+        case GDK_KEY_i:
+        case GDK_KEY_o:
+        case GDK_KEY_minus:
+		win->scale_rate = 1.0;
+                handled = TRUE;
+                break;
+
+	default:
+		break;
+	}
+
+	image_window_stop_animation( win );
+
+	return( handled );
 }
 
 static void
@@ -1097,6 +1173,7 @@ image_window_init( ImageWindow *win )
 
         win->progress_timer = g_timer_new();
         win->last_progress_time = -1;
+        win->scale_rate = 1.0;
         win->settings = g_settings_new( APP_ID );
 
         gtk_widget_init_template( GTK_WIDGET( win ) );
@@ -1128,6 +1205,8 @@ image_window_init( ImageWindow *win )
         controller = GTK_EVENT_CONTROLLER( gtk_event_controller_key_new() );
         g_signal_connect( controller, "key-pressed", 
                 G_CALLBACK( image_window_key_pressed ), win );
+        g_signal_connect( controller, "key-released", 
+                G_CALLBACK( image_window_key_released ), win );
         gtk_widget_add_controller( win->imagedisplay, controller );
 
         controller = GTK_EVENT_CONTROLLER( gtk_event_controller_motion_new() );
