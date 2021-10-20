@@ -3,6 +3,7 @@
 - add "d" to enable debug rendering
 - another reworking of rendering ... should be much faster and smoother
 - added animations for pan/zoom
+- shrink to fit on load
 
 ## 2.1, started 14/10/21
 

@@ -140,13 +140,7 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - can still show black tiles occasionally?
 
-- shrink to fit on load? 
-
-    eog starts in best-fit mode (resize image on window resize)
-    you can select eg. "33%" and then image size is locked on window resize
-    zoom / unzoom with ctrl-+ and ctrl--
-
-  ome
+- ome
 
   - pages as bands ... info bar displays only one band
 

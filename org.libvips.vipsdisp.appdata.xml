@@ -53,6 +53,13 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.2" date="2021-10-20">
+      <description>
+        This release improves screen repainting further, adds a set of 
+        animations for image navigation, and fixes several minor bugs.
+      </description>
+    </release>
+
     <release version="2.1" date="2021-10-15">
       <description>
         This release has better desktop integration, and uses gtk4-wayland. 

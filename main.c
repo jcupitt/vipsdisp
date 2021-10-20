@@ -24,6 +24,8 @@ main( int argc, char **argv )
                 G_LOG_LEVEL_CRITICAL |
                 G_LOG_LEVEL_WARNING  |
                 0 );
+
+        g_setenv( "G_DEBUG", "fatal-warnings", FALSE );
 #endif /*DEBUG*/
 
         app = vipsdisp_app_new();
