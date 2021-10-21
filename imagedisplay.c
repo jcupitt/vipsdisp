@@ -45,6 +45,10 @@ struct _Imagedisplay {
 	/* Draw the screen in debug mode.
 	 */
 	gboolean debug;
+
+	/* _layout will pick a scale to fit the image to the window.
+	 */
+	gboolean bestfit;
 };
 
 /* imagedisplay is actually a drawing area the size of the widget on screen: we 
@@ -226,6 +230,38 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
         imagedisplay->widget_rect.height = 
                 gtk_widget_get_height( GTK_WIDGET( imagedisplay ) );
 
+	/* width and height will be 0 if _layout runs too early to be useful.
+	 */
+	if( !imagedisplay->widget_rect.width ||
+		!imagedisplay->widget_rect.height )
+		return;
+
+	/* If there's no image yet, we can't do anything.
+	 */
+	if( !imagedisplay->tile_cache )
+		return;
+
+	/* Do this the first time we have the image.
+	 */
+	if( imagedisplay->bestfit ) {
+		double hscale = (double) imagedisplay->widget_rect.width / 
+			imagedisplay->image_rect.width;
+		double vscale = (double) imagedisplay->widget_rect.height / 
+			imagedisplay->image_rect.height;
+
+                imagedisplay_set_transform( imagedisplay, 
+			VIPS_MIN( hscale, vscale ),
+                        imagedisplay->x, 
+                        imagedisplay->y ); 
+
+#ifdef DEBUG
+		printf( "imagedisplay_layout: bestfit sets scale = %g\n",
+			imagedisplay->scale );
+#endif /*DEBUG*/
+
+		imagedisplay->bestfit = FALSE;
+	}
+
         imagedisplay->paint_rect.width = VIPS_MIN( 
                 imagedisplay->widget_rect.width, 
                 imagedisplay->image_rect.width * imagedisplay->scale );
@@ -255,6 +291,10 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
 #ifdef DEBUG
         printf( "imagedisplay_tile_cache_changed:\n" ); 
 #endif /*DEBUG*/
+
+	/* Always shrink-to-fit new image sources.
+	 */
+	imagedisplay->bestfit = TRUE;
 
         imagedisplay->image_rect.width = 
                 tile_cache->tile_source->display_width;
@@ -314,6 +354,10 @@ imagedisplay_set_tile_cache( Imagedisplay *imagedisplay,
         g_signal_connect_object( tile_cache, "area-changed", 
                 G_CALLBACK( imagedisplay_tile_cache_area_changed ), 
                 imagedisplay, 0 );
+
+	/* Do initial change to init.
+	 */
+	imagedisplay_tile_cache_changed( tile_cache, imagedisplay );
 }
 
 static void

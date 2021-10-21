@@ -138,8 +138,6 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- initial shrink-to-fit fails for small images
-
 - can still show black tiles occasionally?
 
 - ome

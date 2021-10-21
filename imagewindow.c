@@ -156,6 +156,10 @@ image_window_get_scale( ImageWindow *win )
 		"scale", &scale,
 		NULL );
 
+#ifdef DEBUG
+        printf( "image_window_get_scale: %g\n", scale );
+#endif /*DEBUG*/
+
 	return( scale );
 }
 
@@ -327,8 +331,6 @@ image_window_posteval( VipsImage *image,
 {
         gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
                 FALSE );
-
-	image_window_bestfit( win );
 }
 
 static void

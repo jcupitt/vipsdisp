@@ -1,3 +1,7 @@
+## 2.3, started 20/10/21
+
+- better initial shrink-to-fit logic
+
 ## 2.2, started 14/10/21
 
 - add "d" to enable debug rendering
