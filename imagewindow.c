@@ -50,6 +50,8 @@ struct _ImageWindow
         GTimer *progress_timer;
         double last_progress_time;
 
+	gint64 last_frame_time;
+
         GSettings *settings;
 };
 
@@ -625,15 +627,17 @@ image_window_tick( GtkWidget *widget,
 	GdkFrameClock *frame_clock, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	gint64 now = g_get_monotonic_time();
 	gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
-	double dt = (double) (frame_time - now) / G_TIME_SPAN_SECOND;
+	double dt = win->last_frame_time > 0 ?
+		(double) (frame_time - win->last_frame_time) / 
+			G_TIME_SPAN_SECOND : 
+		1.0 / G_TIME_SPAN_SECOND;
 
 	double x_image;
 	double y_image;
 
 #ifdef DEBUG
-	printf( "image_window_tick:\n" );
+	printf( "image_window_tick: dt = %g\n", dt );
 #endif /*DEBUG*/
 
 	image_window_get_mouse_position( win, &x_image, &y_image );
@@ -645,6 +649,8 @@ image_window_tick( GtkWidget *widget,
                 image_window_set_scale_position( win, 
 			new_scale, x_image, y_image );
 	}
+
+	win->last_frame_time = frame_time;
 
 	return( G_SOURCE_CONTINUE );
 }
@@ -659,10 +665,12 @@ static void
 image_window_start_animation( ImageWindow *win )
 {
 	if( image_window_is_animating( win ) &&
-		!win->tick_handler )
+		!win->tick_handler ) {
+		win->last_frame_time = -1;
 		win->tick_handler = gtk_widget_add_tick_callback( 
 			GTK_WIDGET( win ),
 			image_window_tick, win, NULL );
+	}
 }
 
 static void
@@ -1264,7 +1272,7 @@ image_window_pressed_cb( GtkGestureClick *gesture,
 	gtk_popover_set_pointing_to( GTK_POPOVER( win->right_click_menu ),
 		&(const GdkRectangle){ x, y, 1, 1 } );
 
-	/* This producesa lot of warnings :( not sure why.
+	/* This produces a lot of warnings :( not sure why.
 	 */
 	gtk_popover_popup( GTK_POPOVER( win->right_click_menu ) );
 }
