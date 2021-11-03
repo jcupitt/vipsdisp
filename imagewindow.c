@@ -31,6 +31,7 @@ struct _ImageWindow
 	guint tick_handler;
 	double scale_rate;
 
+        GtkWidget *right_click_menu;
         GtkWidget *title;
         GtkWidget *subtitle;
         GtkWidget *gears;
@@ -75,6 +76,7 @@ image_window_dispose( GObject *object )
 
         VIPS_UNREF( win->tile_source );
         VIPS_UNREF( win->tile_cache );
+	VIPS_FREEF( gtk_widget_unparent, win->right_click_menu );
         VIPS_FREEF( g_timer_destroy, win->progress_timer );
 
         G_OBJECT_CLASS( image_window_parent_class )->dispose( object );
@@ -1178,8 +1180,6 @@ static GActionEntry image_window_entries[] = {
 static void
 image_window_init( ImageWindow *win )
 {
-        GtkBuilder *builder;
-        GMenuModel *menu;
         GtkEventController *controller;
 
         win->progress_timer = g_timer_new();
@@ -1189,12 +1189,7 @@ image_window_init( ImageWindow *win )
 
         gtk_widget_init_template( GTK_WIDGET( win ) );
 
-        builder = gtk_builder_new_from_resource( 
-                APP_PATH "/imagewindow-menu.ui" );
-        menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
-                "imagewindow-menu" ) );
-        gtk_menu_button_set_menu_model( GTK_MENU_BUTTON( win->gears ), menu );
-        g_object_unref( builder );
+	gtk_widget_set_parent( win->right_click_menu, GTK_WIDGET( win ) );
 
         g_object_set( win->display_bar,
                 "image-window", win,
@@ -1262,6 +1257,18 @@ image_window_init( ImageWindow *win )
 
 }
 
+static void
+image_window_pressed_cb( GtkGestureClick *gesture,
+	guint n_press, double x, double y, ImageWindow *win )
+{
+	gtk_popover_set_pointing_to( GTK_POPOVER( win->right_click_menu ),
+		&(const GdkRectangle){ x, y, 1, 1 } );
+
+	/* This producesa lot of warnings :( not sure why.
+	 */
+	gtk_popover_popup( GTK_POPOVER( win->right_click_menu ) );
+}
+
 #define BIND( field ) \
         gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
                 ImageWindow, field );
@@ -1274,6 +1281,7 @@ image_window_class_init( ImageWindowClass *class )
         gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
                 APP_PATH "/imagewindow.ui");
 
+        BIND( right_click_menu );
         BIND( title );
         BIND( subtitle );
         BIND( gears );
@@ -1286,6 +1294,9 @@ image_window_class_init( ImageWindowClass *class )
         BIND( imagedisplay );
         BIND( display_bar );
         BIND( info_bar );
+
+	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
+		image_window_pressed_cb );
 
         image_window_signals[SIG_STATUS_CHANGED] = g_signal_new( 
                 "status-changed",

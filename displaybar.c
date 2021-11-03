@@ -207,8 +207,6 @@ displaybar_offset_value_changed( Tslider *slider,
 static void
 displaybar_init( Displaybar *displaybar )
 {
-        GtkBuilder *builder;
-        GMenuModel *menu;
         Tslider *tslider;
 
 #ifdef DEBUG
@@ -248,15 +246,6 @@ displaybar_init( Displaybar *displaybar )
         g_signal_connect( displaybar->offset, "changed",
                 G_CALLBACK( displaybar_offset_value_changed ), 
                 displaybar );
-
-        builder = gtk_builder_new_from_resource( 
-                APP_PATH "/displaybar-menu.ui" );
-        menu = G_MENU_MODEL( gtk_builder_get_object( builder, 
-                "displaybar-menu" ) );
-        gtk_menu_button_set_menu_model( 
-                GTK_MENU_BUTTON( displaybar->gears ), menu );
-        g_object_unref( builder );
-
 }
 
 #define BIND( field ) \
