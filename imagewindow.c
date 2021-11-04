@@ -1197,8 +1197,6 @@ image_window_init( ImageWindow *win )
 
         gtk_widget_init_template( GTK_WIDGET( win ) );
 
-	gtk_widget_set_parent( win->right_click_menu, GTK_WIDGET( win ) );
-
         g_object_set( win->display_bar,
                 "image-window", win,
                 NULL );
@@ -1272,7 +1270,9 @@ image_window_pressed_cb( GtkGestureClick *gesture,
 	gtk_popover_set_pointing_to( GTK_POPOVER( win->right_click_menu ),
 		&(const GdkRectangle){ x, y, 1, 1 } );
 
-	/* This produces a lot of warnings :( not sure why.
+	/* This produces a lot of warnings :( not sure why. I tried calling
+	 * gtk_popover_present() in realize to force allocation, but it didn't
+	 * help.
 	 */
 	gtk_popover_popup( GTK_POPOVER( win->right_click_menu ) );
 }

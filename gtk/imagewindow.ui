@@ -114,20 +114,6 @@
     <property name="default-width">600</property>
     <property name="default-height">400</property>
 
-    <child>
-      <object class="GtkPopoverMenu" id="right_click_menu">
-        <property name="has-arrow">0</property>
-        <property name="menu-model">imagewindow-menu</property>
-      </object> 
-    </child>
-
-    <child> 
-      <object class="GtkGestureClick">
-        <property name="button">3</property>
-        <signal name="pressed" handler="image_window_pressed_cb"/>
-      </object>
-    </child>
-
     <child type="titlebar">
       <object class="GtkHeaderBar" id="header">
 
@@ -216,6 +202,21 @@
             <property name="vexpand">true</property>
             <child>
               <object class="Imagedisplay" id="imagedisplay">
+
+                <child>
+                  <object class="GtkPopoverMenu" id="right_click_menu">
+                    <property name="has-arrow">0</property>
+                    <property name="menu-model">imagewindow-menu</property>
+                  </object> 
+                </child>
+
+                <child> 
+                  <object class="GtkGestureClick">
+                    <property name="button">3</property>
+                    <signal name="pressed" handler="image_window_pressed_cb"/>
+                  </object>
+                </child>
+
               </object>
             </child>
           </object>
