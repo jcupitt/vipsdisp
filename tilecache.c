@@ -762,8 +762,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 				x + paint_rect->left;
                         bounds.origin.y = tile->bounds.top * scale - 
 				y + paint_rect->top;  
-                        bounds.size.width = tile->bounds.width * scale;  
-                        bounds.size.height = tile->bounds.height * scale;
+                        bounds.size.width = tile->bounds.width * scale + 0.5;  
+                        bounds.size.height = tile->bounds.height * scale + 0.5;
 
 			gtk_snapshot_append_texture( snapshot,
 				 tile_get_texture( tile ), &bounds );

@@ -563,22 +563,13 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 }
 
 static void
-imagedisplay_focus_enter( GtkEventController *controller, 
-        Imagedisplay *imagedisplay )
+imagedisplay_focus_notify( GtkEventControllerFocus *focus,
+	GParamSpec *pspec, gpointer user_data )
 {
-#ifdef DEBUG
-        printf( "imagedisplay_focus_enter:\n" );
-#endif /*DEBUG*/
+        Imagedisplay *imagedisplay = (Imagedisplay *) user_data;
 
-        gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
-}
-
-static void
-imagedisplay_focus_leave( GtkEventController *controller, 
-        Imagedisplay *imagedisplay )
-{
 #ifdef DEBUG
-        printf( "imagedisplay_focus_leave:\n" );
+        printf( "imagedisplay_focus_notify: %s\n", pspec->name );
 #endif /*DEBUG*/
 
         gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
@@ -602,17 +593,14 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 
         imagedisplay->scale = 1;
 
-        gtk_widget_set_focusable( GTK_WIDGET( imagedisplay ), TRUE );
-
         g_signal_connect( GTK_DRAWING_AREA( imagedisplay ), "resize",
                 G_CALLBACK( imagedisplay_resize ), NULL);
 
+        gtk_widget_set_focusable( GTK_WIDGET( imagedisplay ), TRUE );
         controller = gtk_event_controller_focus_new();
-        g_signal_connect( controller, "enter", 
-                G_CALLBACK( imagedisplay_focus_enter ), imagedisplay );
-        g_signal_connect( controller, "leave", 
-                G_CALLBACK( imagedisplay_focus_leave ), imagedisplay );
         gtk_widget_add_controller( GTK_WIDGET( imagedisplay ), controller );
+	g_signal_connect( controller, "notify::is-focus",
+                G_CALLBACK( imagedisplay_focus_notify ), imagedisplay );
 
         controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
         g_signal_connect( controller, "pressed", 
