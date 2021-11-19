@@ -1216,19 +1216,13 @@ tile_source_set_image( TileSource *tile_source, VipsImage *image )
         printf( "tile_source_set_image:\n" );
 #endif /*DEBUG*/
 
-        /* Only call this once.
-         */
-        g_assert( !tile_source->image );
-
-        tile_source->image = image;
-        g_object_ref( image );
-        tile_source->image_region = vips_region_new( tile_source->image );
         tile_source->width = image->Xsize;
         tile_source->height = vips_image_get_page_height( image );
+        tile_source->bands = image->Bands;
         tile_source->n_pages = vips_image_get_n_pages( image );
         tile_source->n_subifds = vips_image_get_n_subifds( image );
 
-        /* No repoening, so have (in effect) all pages open at once.
+        /* No reopening, so have (in effect) all pages open at once.
          */
         tile_source->type = TILE_SOURCE_TYPE_TOILET_ROLL;
 
@@ -1257,10 +1251,18 @@ tile_source_new_from_image( VipsImage *image )
 {
         TileSource *tile_source = g_object_new( TILE_SOURCE_TYPE, NULL );
 
+        /* Only call this once.
+         */
+        g_assert( !tile_source->image );
+
         if( tile_source_set_image( tile_source, image ) ) {
                 VIPS_UNREF( tile_source );
                 return( NULL );
         }
+
+        tile_source->image = image;
+        g_object_ref( image );
+        tile_source->image_region = vips_region_new( tile_source->image );
 
         return( tile_source );
 }
@@ -1460,18 +1462,44 @@ tile_source_new_from_source( VipsSource *source )
          */
         tile_source->loader = vips_nickname_find( g_type_from_name( loader ) );
 
-        /* A very basic open to fetch metadata. This can change during 
-         * sniffing if this is a pyramid etc.
+        /* A very basic open to fetch metadata. 
          */
-        if( !(image = vips_image_new_from_source( source, "", NULL )) ) {
+        if( !(image = vips_image_new_from_source( source, "", 
+		NULL )) ) {
                 VIPS_UNREF( tile_source );
                 return( NULL );
         }
+
         if( tile_source_set_image( tile_source, image ) ) {
                 VIPS_UNREF( image );
                 VIPS_UNREF( tile_source );
                 return( NULL );
         }
+
+        /* For openslide, we can read out the level structure directly.
+         */
+        if( vips_image_get_typeof( image, "openslide.level-count" ) ) {
+                int level_count;
+                int level;
+
+                level_count = get_int( image, "openslide.level-count", 1 );
+                level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS );
+                tile_source->level_count = level_count;
+
+                for( level = 0; level < level_count; level++ ) {
+                        char name[256];
+
+                        vips_snprintf( name, 256,
+                                "openslide.level[%d].width", level );
+                        tile_source->level_width[level] =
+                                 get_int( tile_source->image, name, 0 );
+                        vips_snprintf( name, 256,
+                                "openslide.level[%d].height", level );
+                        tile_source->level_height[level] =
+                                get_int( tile_source->image, name, 0 );
+                }
+        }
+
         VIPS_UNREF( image );
 
         /* Can we open in toilet-roll mode? We need to test that n_pages and
@@ -1525,32 +1553,7 @@ tile_source_new_from_source( VipsSource *source )
          */
         tile_source->all_mono = 
                 tile_source->pages_same_size && 
-                tile_source->image->Bands == 1;
-
-        /* For openslide, we can directly read out the level structure.
-         */
-        if( vips_isprefix( "openslide", tile_source->loader ) ) {
-                int level_count;
-                int level;
-
-                level_count = get_int( tile_source->image, 
-                        "openslide.level-count", 1 );
-                level_count = VIPS_CLIP( 1, level_count, MAX_LEVELS );
-                tile_source->level_count = level_count;
-
-                for( level = 0; level < level_count; level++ ) {
-                        char name[256];
-
-                        vips_snprintf( name, 256,
-                                "openslide.level[%d].width", level );
-                        tile_source->level_width[level] =
-                                 get_int( tile_source->image, name, 0 );
-                        vips_snprintf( name, 256,
-                                "openslide.level[%d].height", level );
-                        tile_source->level_height[level] =
-                                get_int( tile_source->image, name, 0 );
-                }
-        }
+                tile_source->bands == 1;
 
         /* Test for a subifd pyr first, since we can do that from just
          * one page.
@@ -1582,25 +1585,6 @@ tile_source_new_from_source( VipsSource *source )
                         tile_source->type = TILE_SOURCE_TYPE_MULTIPAGE;
         }
 
-        /* And now we can reopen in the correct mode.
-         */
-        if( !(image = tile_source_open( tile_source, 0 )) ) {
-                VIPS_UNREF( tile_source );
-                return( NULL );
-        }
-        VIPS_UNREF( tile_source->image );
-        tile_source->image = image;
-
-        /* Must remake this too.
-         */
-        VIPS_UNREF( tile_source->image_region );
-        tile_source->image_region = vips_region_new( tile_source->image );
-
-#ifdef DEBUG
-        printf( "tile_source_new_from_source: after sniff\n" );
-        tile_source_print( tile_source );
-#endif /*DEBUG*/
-
         /* Pick a default display mode.
          */
         if( tile_source->type == TILE_SOURCE_TYPE_TOILET_ROLL ) {
@@ -1615,8 +1599,24 @@ tile_source_new_from_source( VipsSource *source )
                 mode = TILE_SOURCE_MODE_MULTIPAGE;
 
 #ifdef DEBUG
-       printf( "starting in mode %s\n", mode_name( mode ) );
+        printf( "tile_source_new_from_source: after sniff\n" );
+        tile_source_print( tile_source );
 #endif /*DEBUG*/
+
+        /* And now we can reopen in the correct mode.
+         */
+        if( !(image = tile_source_open( tile_source, 0 )) ) {
+                VIPS_UNREF( tile_source );
+                return( NULL );
+        }
+	g_assert( !tile_source->image );
+	g_assert( !tile_source->image_region );
+        tile_source->image = image;
+        tile_source->image_region = vips_region_new( tile_source->image );
+
+	/* image_region is used by the bg load thread.
+	 */
+	vips__region_no_ownership( tile_source->image_region );
 
         g_object_set( tile_source, 
                 "mode", mode, 

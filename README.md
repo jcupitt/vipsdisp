@@ -138,6 +138,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- constantly flip pages on single-page GIFs
+
 - can still show black tiles occasionally?
 
 - ome

@@ -117,6 +117,7 @@ typedef struct _TileSource {
          */
         int width;
         int height;
+        int bands;
         int n_pages;
         int n_subifds;
         int *delay;
@@ -214,7 +215,6 @@ typedef struct _TileSourceClass {
 
 GType tile_source_get_type( void );
 
-TileSource *tile_source_new_from_image( VipsImage *image );
 TileSource *tile_source_new_from_source( VipsSource *source );
 TileSource *tile_source_new_from_file( GFile *file );
 
