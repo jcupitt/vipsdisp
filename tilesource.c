@@ -1492,11 +1492,11 @@ tile_source_new_from_source( VipsSource *source )
                         vips_snprintf( name, 256,
                                 "openslide.level[%d].width", level );
                         tile_source->level_width[level] =
-                                 get_int( tile_source->image, name, 0 );
+                                 get_int( image, name, 0 );
                         vips_snprintf( name, 256,
                                 "openslide.level[%d].height", level );
                         tile_source->level_height[level] =
-                                get_int( tile_source->image, name, 0 );
+                                get_int( image, name, 0 );
                 }
         }
 
