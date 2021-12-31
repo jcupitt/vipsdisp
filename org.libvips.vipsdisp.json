@@ -321,8 +321,8 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://github.com/libvips/libvips/releases/download/v8.11.4/vips-8.11.4.tar.gz",
-                    "sha256" : "5043f38828a0ff9f2275f9252f69e14f701ef11f55786cda8aa6ce2c4fbed2f7"
+                    "url" : "https://github.com/libvips/libvips/releases/download/v8.12.1/vips-8.12.1.tar.gz",
+                    "sha256" : "474d8439244cd26c504812fd623259f806c32553b38d2a54798c9766135f5a5c"
                 }
             ]
         },
@@ -340,7 +340,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v2.2",
+                    "tag" : "v2.3",
                     "commit" : "af6487ad48f845226254b99c6ceb91e8c323f318"
                 }
             ]

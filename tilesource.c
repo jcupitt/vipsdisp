@@ -1345,7 +1345,7 @@ tile_source_get_pyramid_page( TileSource *tile_source )
                 int expected_level_width;
                 int expected_level_height;
 
-                /* Just bail out if there are too many levels.
+                /* Stop checking if there are too many levels.
                  */
                 if( i >= MAX_LEVELS )
                         break;
@@ -1358,6 +1358,14 @@ tile_source_get_pyramid_page( TileSource *tile_source )
 
                 expected_level_width = tile_source->width / (1 << i);
                 expected_level_height = tile_source->height / (1 << i);
+
+		/* We've found enough levels, and the levels have become very
+		 * small.
+		 */
+		if( i > 2 && 
+			(expected_level_width < 32 ||
+			 expected_level_height < 32) )
+			break;
 
                 /* This won't be exact due to rounding etc.
                  */
@@ -1375,7 +1383,7 @@ tile_source_get_pyramid_page( TileSource *tile_source )
         /* Tag as a page pyramid.
          */
         tile_source->page_pyramid = TRUE;
-        tile_source->level_count = tile_source->n_pages;
+        tile_source->level_count = i;
 }
 
 static void

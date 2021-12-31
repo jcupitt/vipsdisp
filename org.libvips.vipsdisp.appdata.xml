@@ -53,6 +53,13 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.3" date="2021-12-31">
+      <description>
+        Better initial shrink-to-fit logic. Right-button menu on image. Better 
+        focus handling. Better image format detection. Better handling of tile o        joins. Update to libvips 8.12.
+      </description>
+    </release>
+
     <release version="2.2" date="2021-10-20">
       <description>
         This release improves screen repainting further, adds a set of 
