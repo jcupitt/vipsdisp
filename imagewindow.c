@@ -6,7 +6,7 @@
 
 /* How much to scale view by each frame.
  */
-#define SCALE_STEP (2.0)
+#define SCALE_STEP (1.1)
 
 struct _ImageWindow
 {
@@ -720,13 +720,13 @@ image_window_key_pressed( GtkEventControllerKey *self,
         switch( keyval ) {
         case GDK_KEY_plus:
         case GDK_KEY_i:
-		win->scale_rate = SCALE_STEP;
+		win->scale_rate = 1.5 * SCALE_STEP;
                 handled = TRUE;
                 break;
 
         case GDK_KEY_o:
         case GDK_KEY_minus:
-		win->scale_rate = 0.5 / SCALE_STEP;
+		win->scale_rate = 0.2 / SCALE_STEP;
                 handled = TRUE;
                 break;
 
@@ -870,7 +870,7 @@ image_window_scroll( GtkEventControllerMotion *self,
 
 	image_window_get_mouse_position( win, &x_image, &y_image );
 
-        if( dy > 0 ) 
+        if( dy < 0 ) 
                 image_window_set_scale_position( win, 
 			SCALE_STEP * image_window_get_scale( win ), 
 			x_image, y_image );

@@ -1,3 +1,7 @@
+## master
+
+- match zoom direction and step size on scrollwheel with eog
+
 ## 2.3, started 20/10/21
 
 - better initial shrink-to-fit logic
