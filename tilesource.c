@@ -173,6 +173,12 @@ tile_source_open( TileSource *tile_source, int level )
                         "n", n,
                         NULL );
         }
+        else if( vips_isprefix( "svg", tile_source->loader ) ) {
+                image = vips_image_new_from_source( tile_source->source,
+                        "", 
+                        "scale", 10.0 / (1 << level),
+                        NULL );
+	}
         else 
                 /* Don't support any page spec.
                  */
@@ -1505,6 +1511,39 @@ tile_source_new_from_source( VipsSource *source )
                                 "openslide.level[%d].height", level );
                         tile_source->level_height[level] =
                                 get_int( image, name, 0 );
+                }
+        }
+
+        if( vips_isprefix( "svg", tile_source->loader ) ) {
+                int size;
+                int n_levels;
+                int tile_levels;
+                int level;
+
+		/* Yuk ... apply the 10* SVG zoom.
+		 */
+                x = vips_image_new_from_source( tile_source->source,
+                        "", 
+                        "scale", 10.0,
+                        NULL );
+		tile_source->width = x->Xsize;
+		tile_source->height = x->Ysize;
+		VIPS_UNREF( x );
+
+		/* Fake the pyramid geometry. No sense going smaller than 
+		 * a tile.
+		 */
+                size = VIPS_MAX( tile_source->width, tile_source->height );
+                n_levels = ceil( log2( size ) );
+                tile_levels = ceil( log2( TILE_SIZE ) );
+                tile_source->level_count = 
+			VIPS_CLIP( 1, n_levels - tile_levels, MAX_LEVELS );
+
+                for( level = 0; level < tile_source->level_count; level++ ) {
+                        tile_source->level_width[level] =
+				tile_source->width / (1 << level);
+                        tile_source->level_height[level] =
+				tile_source->height / (1 << level);
                 }
         }
 
