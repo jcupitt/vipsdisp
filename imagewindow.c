@@ -29,6 +29,8 @@ struct _ImageWindow
         /* For pinch zoom, zoom position that we started.
          */
         double last_scale;
+        double scale_cx;
+        double scale_cy;
 
 	/* For animatiing zoom. 
 	 */
@@ -891,12 +893,18 @@ image_window_scale_begin( GtkGesture* self, GdkEventSequence* sequence, gpointer
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	win->last_scale = image_window_get_scale( win );
+	double finger_cx;
+	double finger_cy;
+	gtk_gesture_get_bounding_box_center (self, &finger_cx, &finger_cy);
+	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
 }
 static void
 image_window_scale_changed( GtkGestureZoom *self, gdouble scale, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	image_window_set_scale( win, scale * win->last_scale );
+
+	image_window_set_scale_position( win, scale * win->last_scale, win->scale_cx, win->scale_cy );
 }
 
 static void
