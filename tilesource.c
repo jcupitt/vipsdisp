@@ -1514,6 +1514,8 @@ tile_source_new_from_source( VipsSource *source )
                 }
         }
 
+        VIPS_UNREF( image );
+
         if( vips_isprefix( "svg", tile_source->loader ) ) {
                 int size;
                 int n_levels;
@@ -1546,8 +1548,6 @@ tile_source_new_from_source( VipsSource *source )
 				tile_source->height / (1 << level);
                 }
         }
-
-        VIPS_UNREF( image );
 
         /* Can we open in toilet-roll mode? We need to test that n_pages and
          * page_size are sane too. 
