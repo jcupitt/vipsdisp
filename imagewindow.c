@@ -26,6 +26,12 @@ struct _ImageWindow
         int drag_start_x;
         int drag_start_y;
 
+        /* For pinch zoom, zoom position that we started.
+         */
+        double last_scale;
+        double scale_cx;
+        double scale_cy;
+
 	/* For animatiing zoom. 
 	 */
 	guint tick_handler;
@@ -883,6 +889,25 @@ image_window_scroll( GtkEventControllerMotion *self,
 }
 
 static void
+image_window_scale_begin( GtkGesture* self, GdkEventSequence* sequence, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	win->last_scale = image_window_get_scale( win );
+	double finger_cx;
+	double finger_cy;
+	gtk_gesture_get_bounding_box_center (self, &finger_cx, &finger_cy);
+	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
+}
+static void
+image_window_scale_changed( GtkGestureZoom *self, gdouble scale, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_set_scale_position( win, scale * win->last_scale, win->scale_cx, win->scale_cy );
+}
+
+static void
 image_window_drag_begin( GtkEventControllerMotion *self,
         gdouble start_x, gdouble start_y, gpointer user_data )
 {
@@ -1233,6 +1258,13 @@ image_window_init( ImageWindow *win )
                 GTK_EVENT_CONTROLLER_SCROLL_VERTICAL ) );
         g_signal_connect( controller, "scroll", 
                 G_CALLBACK( image_window_scroll ), win );
+        gtk_widget_add_controller( win->imagedisplay, controller );
+
+        controller = GTK_EVENT_CONTROLLER( gtk_gesture_zoom_new() );
+        g_signal_connect( controller, "begin",
+                G_CALLBACK( image_window_scale_begin ), win );
+        g_signal_connect( controller, "scale-changed",
+                G_CALLBACK( image_window_scale_changed ), win );
         gtk_widget_add_controller( win->imagedisplay, controller );
 
         /* And drag to pan.
