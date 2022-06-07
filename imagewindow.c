@@ -410,6 +410,31 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 }
 
 static void
+image_window_tile_cache_changed( TileCache *tile_cache, ImageWindow *win )
+{
+        GVariant *state;
+        const char *str;
+
+#ifdef DEBUG
+        printf( "image_window_tile_cache_changed:\n" );
+#endif /*DEBUG*/
+
+        if( tile_cache->background == TILE_CACHE_BACKGROUND_CHECKERBOARD )
+                str = "checkerboard";
+        else if( tile_cache->background == TILE_CACHE_BACKGROUND_BLACK )
+                str = "black";
+        else if( tile_cache->background == TILE_CACHE_BACKGROUND_WHITE )
+                str = "white";
+        else
+                str = NULL;
+
+        if( str ) {
+                state = g_variant_new_string( str );
+                change_state( GTK_WIDGET( win ), "background", state );
+        }
+}
+
+static void
 image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 {
         gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
@@ -1167,6 +1192,35 @@ image_window_mode( GSimpleAction *action,
 }
 
 static void
+image_window_background( GSimpleAction *action,
+        GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+        const gchar *str;
+        TileCacheBackground background;
+
+        str = g_variant_get_string( state, NULL );
+        if( g_str_equal( str, "checkerboard" ) ) 
+                background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+        else if( g_str_equal( str, "black" ) ) 
+                background = TILE_CACHE_BACKGROUND_BLACK;
+        else if( g_str_equal( str, "white" ) ) 
+                background = TILE_CACHE_BACKGROUND_WHITE;
+        else
+                /* Ignore attempted change.
+                 */
+                return;
+
+	if( win->tile_cache )
+		g_object_set( win->tile_cache,
+			"background", background,
+			NULL );
+
+        g_simple_action_set_state( action, state );
+}
+
+static void
 image_window_reset( GSimpleAction *action, 
         GVariant *state, gpointer user_data )
 {
@@ -1206,6 +1260,8 @@ static GActionEntry image_window_entries[] = {
         { "falsecolour",
                 image_window_toggle, NULL, "false", image_window_falsecolour },
         { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
+        { "background", image_window_radio, "s", 
+		"'checkerboard'", image_window_background },
 
         { "reset", image_window_reset },
 };
@@ -1388,6 +1444,8 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
         g_signal_connect_object( win->tile_source, "changed", 
                 G_CALLBACK( image_window_tile_source_changed ), win, 0 );
+        g_signal_connect_object( win->tile_cache, "changed", 
+                G_CALLBACK( image_window_tile_cache_changed ), win, 0 );
 
         if( !(title = (char *) tile_source_get_path( tile_source )) ) 
                 title = "Untitled";

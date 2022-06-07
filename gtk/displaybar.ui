@@ -48,6 +48,26 @@
 
     <section>
       <item>
+        <attribute name='label' translatable='yes'>Checkerboard background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>checkerboard</attribute>
+      </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>White background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>white</attribute>
+      </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Black background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>black</attribute>
+      </item>
+    </section>
+
+    <section>
+      <item>
         <attribute name='label' translatable='yes'>Reset</attribute>
         <attribute name='action'>win.reset</attribute>
       </item>

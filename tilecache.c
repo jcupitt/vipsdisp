@@ -7,6 +7,10 @@
  */
 
 enum {
+	/* Properties.
+	 */
+        PROP_BACKGROUND = 1,
+
         /* Signals. 
          */
         SIG_CHANGED,            
@@ -57,7 +61,7 @@ tile_cache_dispose( GObject *object )
         tile_cache_free_pyramid( tile_cache );
 
         VIPS_UNREF( tile_cache->tile_source );
-	VIPS_UNREF( tile_cache->checkerboard );
+	VIPS_UNREF( tile_cache->background_texture );
 
         G_OBJECT_CLASS( tile_cache_parent_class )->dispose( object );
 }
@@ -92,7 +96,7 @@ tile_cache_checkerboard_destroy_notify( guchar* pixels, gpointer data )
 /* Make a GdkTexture for the checkerboard pattern we use for compositing.
  */
 static GdkTexture *
-tile_cache_checkerboard( void )
+tile_cache_texture( TileCacheBackground background )
 {
         VipsPel *data;
         GdkPixbuf *pixbuf;
@@ -100,12 +104,30 @@ tile_cache_checkerboard( void )
         int x, y, z;
 
         data = g_malloc( TILE_SIZE * TILE_SIZE * 3 );
-        for( y = 0; y < TILE_SIZE; y++ )
-                for( x = 0; x < TILE_SIZE; x++ )
-                        for( z = 0; z < 3; z++ )
-                                data[y * TILE_SIZE * 3 + x * 3 + z] =
-                                       ((x >> 4) + (y >> 4)) % 2 == 0 ? 
-                                               128 : 180;
+
+	for( y = 0; y < TILE_SIZE; y++ )
+		for( x = 0; x < TILE_SIZE; x++ )
+			for( z = 0; z < 3; z++ ) {
+				int v;
+
+				switch( background ) {
+				case TILE_CACHE_BACKGROUND_CHECKERBOARD:
+					v = ((x >> 4) + (y >> 4)) % 2 == 0 ? 
+					       128 : 180;
+					break;
+
+				case TILE_CACHE_BACKGROUND_WHITE:
+					v = 255;
+					break;
+
+				case TILE_CACHE_BACKGROUND_BLACK:
+				default:
+					v = 0;
+					break;
+				}
+
+				data[y * TILE_SIZE * 3 + x * 3 + z] = v;
+			}
 
         pixbuf = gdk_pixbuf_new_from_data( data, GDK_COLORSPACE_RGB,
                 FALSE, 8,
@@ -122,7 +144,54 @@ tile_cache_checkerboard( void )
 static void
 tile_cache_init( TileCache *tile_cache )
 {
-        tile_cache->checkerboard = tile_cache_checkerboard();
+        tile_cache->background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+        tile_cache->background_texture = 
+		tile_cache_texture( tile_cache->background );
+}
+
+static void
+tile_cache_set_property( GObject *object, 
+        guint prop_id, const GValue *value, GParamSpec *pspec )
+{
+        TileCache *tile_cache = (TileCache *) object;
+
+        int i;
+
+        switch( prop_id ) {
+        case PROP_BACKGROUND:
+                i = g_value_get_int( value );
+                if( i >= 0 &&
+                        i < TILE_CACHE_BACKGROUND_LAST &&
+                        tile_cache->background != i ) {
+                        tile_cache->background = i;
+			VIPS_UNREF( tile_cache->background_texture );
+			tile_cache->background_texture = 
+				tile_cache_texture( tile_cache->background );
+			tile_cache_tiles_changed( tile_cache );
+                }
+                break;
+
+        default:
+                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+                break;
+        }
+}
+
+static void
+tile_cache_get_property( GObject *object, 
+        guint prop_id, GValue *value, GParamSpec *pspec )
+{
+        TileCache *tile_cache = (TileCache *) object;
+
+        switch( prop_id ) {
+        case PROP_BACKGROUND:
+                g_value_set_int( value, tile_cache->background );
+                break;
+
+        default:
+                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+                break;
+        }
 }
 
 static void
@@ -131,6 +200,16 @@ tile_cache_class_init( TileCacheClass *class )
         GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 
         gobject_class->dispose = tile_cache_dispose;
+        gobject_class->set_property = tile_cache_set_property;
+        gobject_class->get_property = tile_cache_get_property;
+
+        g_object_class_install_property( gobject_class, PROP_BACKGROUND,
+                g_param_spec_int( "background",
+                        _( "Background" ),
+                        _( "Background mode" ),
+                        0, TILE_CACHE_BACKGROUND_LAST - 1, 
+                        TILE_CACHE_BACKGROUND_CHECKERBOARD,
+                        G_PARAM_READWRITE ) );
 
         tile_cache_signals[SIG_CHANGED] = g_signal_new( "changed",
                 G_TYPE_FROM_CLASS( class ),
@@ -729,7 +808,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 graphene_rect_t bounds;
 
 #ifdef DEBUG_VERBOSE
-                printf( "tile_cache_snapshot: drawing checkerboard\n" );
+                printf( "tile_cache_snapshot: drawing background\n" );
 #endif /*DEBUG_VERBOSE*/
 
                 bounds.origin.x = paint_rect->left;
@@ -743,7 +822,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 bounds.size.width = TILE_SIZE;
                 bounds.size.height = TILE_SIZE;
                 gtk_snapshot_append_texture( snapshot, 
-			tile_cache->checkerboard, &bounds );
+			tile_cache->background_texture, &bounds );
 
                 gtk_snapshot_pop( snapshot );
         }
