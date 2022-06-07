@@ -1348,6 +1348,8 @@ image_window_init( ImageWindow *win )
                 g_settings_get_value( win->settings, "control" ) );
         change_state( GTK_WIDGET( win ), "info", 
                 g_settings_get_value( win->settings, "info" ) );
+        change_state( GTK_WIDGET( win ), "background", 
+                g_settings_get_value( win->settings, "background" ) );
 
 }
 
