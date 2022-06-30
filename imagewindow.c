@@ -421,10 +421,10 @@ image_window_tile_cache_changed( TileCache *tile_cache, ImageWindow *win )
 
         if( tile_cache->background == TILE_CACHE_BACKGROUND_CHECKERBOARD )
                 str = "checkerboard";
-        else if( tile_cache->background == TILE_CACHE_BACKGROUND_BLACK )
-                str = "black";
         else if( tile_cache->background == TILE_CACHE_BACKGROUND_WHITE )
                 str = "white";
+        else if( tile_cache->background == TILE_CACHE_BACKGROUND_BLACK )
+                str = "black";
         else
                 str = NULL;
 
@@ -1201,21 +1201,25 @@ image_window_background( GSimpleAction *action,
         TileCacheBackground background;
 
         str = g_variant_get_string( state, NULL );
+
+	printf( "image_window_background: %s\n", str );
+
         if( g_str_equal( str, "checkerboard" ) ) 
                 background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
-        else if( g_str_equal( str, "black" ) ) 
-                background = TILE_CACHE_BACKGROUND_BLACK;
         else if( g_str_equal( str, "white" ) ) 
                 background = TILE_CACHE_BACKGROUND_WHITE;
+        else if( g_str_equal( str, "black" ) ) 
+                background = TILE_CACHE_BACKGROUND_BLACK;
         else
                 /* Ignore attempted change.
                  */
                 return;
 
-	if( win->tile_cache )
+	if( win->tile_cache ) {
 		g_object_set( win->tile_cache,
 			"background", background,
 			NULL );
+	}
 
         g_simple_action_set_state( action, state );
 }
@@ -1431,6 +1435,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
         win->tile_source = tile_source;
 	g_object_ref( tile_source );
+	printf( "tile_cache_new:\n" );
         win->tile_cache = tile_cache_new( win->tile_source );
 
         g_object_set( win->imagedisplay,

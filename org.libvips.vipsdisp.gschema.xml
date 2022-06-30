@@ -1,8 +1,8 @@
 <schemalist>
   <enum id="org.libvips.vipsdisp.background">
-    <value nick="Checkerboard" value="0"/>
-    <value nick="White" value="1"/>
-    <value nick="Black" value="2"/>
+    <value nick="checkerboard" value="0"/>
+    <value nick="white" value="1"/>
+    <value nick="black" value="2"/>
   </enum>
 
   <schema path="/org/libvips/vipsdisp/" id="org.libvips.vipsdisp">
@@ -56,7 +56,7 @@
     </key>
 
     <key name="background" enum="org.libvips.vipsdisp.background">
-      <default>'Checkerboard'</default>
+      <default>'checkerboard'</default>
       <summary>Background</summary>
       <description>The background texture for image rendering</description>
     </key>
