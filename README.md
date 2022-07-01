@@ -138,16 +138,37 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- switcher does not remember settings wtf
+
+- ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
+
+- info bar crashes
+
+    - info bar does not take page number into account
+
+    - pages as bands ... info bar displays only one band
+
+      how should we handle images which include labels, macros, thumbnails?
+
+- zoom menu could have 10:1 and 1:10 as well?
+
+- zoom on the audi PDF seems to be broken
+
+    - look at the PDF / SVG zoom patch again?
+
+- improve initial size 
+
+    - fit image aspect ratio? 
+
+    - take progress bar into account
+
+* rename replace as open, and include an icon
+
 - constantly flip pages on single-page GIFs
 
 - can still show black tiles occasionally?
 
-- ome
-
-  - pages as bands ... info bar displays only one band
-
-    how should we handle images which include labels, macros, thumbnails and
-    pyramids?
+    - we could shrink tiles on zoom out (we only expand tiles now)
 
 - add imagemagick to get dicom loader?
 
@@ -155,6 +176,8 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - load image with long progress bar, ^D during load, progress bar stops
   updating
+
+- no progress bar for replace? it works for initial load though
 
 - header display
 

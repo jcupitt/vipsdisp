@@ -4,32 +4,6 @@
 - support pinch zoom [earboxer]
 - background switcher
 
-## Issues
-
-* switcher does not remember settings wtf
-
-* ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
-
-* info bar crashes
-
-    - info bar does not take page number into account
-
-* zoom menu could have 10:1 and 1:10 as well?
-
-* zoom on the audi PDF seems to be broken
-
-    - look at the PDF / SVG zoom patch again?
-
-* improve initial size 
-
-    - fit image aspect ratio? 
-
-    - take progress bar into account
-
-* rename replace as open, and include an icon
-
-* no progress bar for replace? it works for initial load though
-
 ## 2.3, started 20/10/21
 
 - better initial shrink-to-fit logic
