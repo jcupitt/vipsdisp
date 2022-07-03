@@ -70,28 +70,24 @@ Just click "install".
 
 ## Build from source
 
-You need gtk4. On Ubuntu 21.10, build with:
+You need gtk4. On Ubuntu 22.04, build with:
 
 ```
 $ cd gtk
-$ git checkout 4.3.2
-$ meson _build . \
+$ meson build . \
   --prefix=/home/john/vips \
   --libdir=/home/john/vips/lib 
-$ cd _build
+  -Dintrospection=disabled \
+$ cd build
 $ ninja
 $ ninja install
-$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ gtk4-demo
 ```
-
-gtk 4.4 needs a newer pango than Ubuntu 21.10 has, so stick with 4.3.
 
 Then for vipsdisp:
 
 ```
 $ ./autogen.sh --prefix=/home/john/vips 
-$ make
+$ make V=0
 $ make install
 $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
 $ ./vipsdisp ~/pics/k2.jpg
@@ -142,13 +138,15 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 - ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
 
-- info bar crashes
+- info bar:
+
+    - will not display complex numbers correctly ... need to unpack to bands
 
     - info bar does not take page number into account
 
     - pages as bands ... info bar displays only one band
 
-      how should we handle images which include labels, macros, thumbnails?
+- how should we handle images which include labels, macros, thumbnails?
 
 - zoom menu could have 10:1 and 1:10 as well?
 

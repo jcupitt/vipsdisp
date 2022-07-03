@@ -1264,6 +1264,10 @@ tile_source_new_from_image( VipsImage *image )
         g_object_ref( image );
         tile_source->image_region = vips_region_new( tile_source->image );
 
+	/* image_region is used by the bg load thread.
+	 */
+	vips__region_no_ownership( tile_source->image_region );
+
         return( tile_source );
 }
 
@@ -1803,24 +1807,18 @@ tile_source_get_image( TileSource *tile_source )
         return( tile_source->image );
 }
 
-VipsPel *
-tile_source_get_pixel( TileSource *tile_source, int x, int y )
+gboolean
+tile_source_get_pixel( TileSource *tile_source, 
+	double **vector, int *n, int x, int y )
 {
-        VipsRect rect;
-
         if( !tile_source->loaded ||
-                !tile_source->image ||
-                !tile_source->image_region )
-                return( NULL );
+                !tile_source->image )
+                return( FALSE );
 
-        rect.left = x;
-        rect.top = y;
-        rect.width = 1;
-        rect.height = 1;
-        if( vips_region_prepare( tile_source->image_region, &rect ) )
-                return( NULL );
+	if( vips_getpoint( tile_source->image, vector, n, x, y, NULL ) )
+                return( FALSE );
 
-        return( VIPS_REGION_ADDR( tile_source->image_region, x, y ) );
+        return( TRUE );
 }
 
 TileSource *
