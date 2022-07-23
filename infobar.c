@@ -147,22 +147,6 @@ infobar_status_value_set_array( Infobar *infobar, double *d )
         }
 }
 
-void 
-infobar_status_value( Infobar *infobar, int x, int y ) 
-{
-        TileSource *tile_source = image_window_get_tilesource( infobar->win );
-        VipsImage *image = tile_source_get_image( tile_source );
-
-        double *vector;
-	int n;
-
-        if( image &&
-                tile_source_get_pixel( tile_source, &vector, &n, x, y ) ) { 
-		infobar_status_value_set_array( infobar, vector );
-		g_free( vector );
-        }
-}
-
 void
 infobar_status_update( Infobar *infobar )
 {
@@ -172,6 +156,8 @@ infobar_status_update( Infobar *infobar )
         VipsBuf buf = VIPS_BUF_STATIC( str );
         double image_x;
         double image_y;
+	double *vector;
+	int n;
 
 #ifdef DEBUG
         printf( "infobar_status_update:\n" ); 
@@ -189,7 +175,11 @@ infobar_status_update( Infobar *infobar )
                 vips_buf_all( &buf ) ); 
         vips_buf_rewind( &buf ); 
 
-        infobar_status_value( infobar, (int) image_x, (int) image_y ); 
+	if( image_window_get_pixel( infobar->win, &vector, &n, 
+		image_x, image_y ) ) {
+		infobar_status_value_set_array( infobar, vector );
+		g_free( vector );
+	}
 
         vips_buf_rewind( &buf ); 
         vips_buf_appendf( &buf, "Magnification " );

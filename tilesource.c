@@ -724,7 +724,7 @@ tile_source_page_flip( void *user_data )
                         timeout = tile_source->delay[i];
         }
 
-        /* vipsdisp struggles at more than 30fps.
+        /* vipsdisp can struggle at more than 30fps.
          */
         timeout = VIPS_CLIP( 33, timeout, 100000 );
 
