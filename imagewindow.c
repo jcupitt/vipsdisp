@@ -1278,7 +1278,7 @@ image_window_init( ImageWindow *win )
         win->progress_timer = g_timer_new();
         win->last_progress_time = -1;
         win->scale_rate = 1.0;
-        win->settings = g_settings_new( APP_ID );
+        win->settings = g_settings_new( APPLICATION_ID );
 
         gtk_widget_init_template( GTK_WIDGET( win ) );
 

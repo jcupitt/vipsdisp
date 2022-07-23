@@ -63,11 +63,11 @@ vipsdisp_app_about_activated( GSimpleAction *action,
 #endif /*DEBUG*/
 
         gtk_show_about_dialog( win ? GTK_WINDOW( win ) : NULL, 
-                "program-name", "vipsdisp",
-                "logo-icon-name", "org.libvips.vipsdisp",
+                "program-name", PACKAGE,
+                "logo-icon-name", APPLICATION_ID,
                 "title", _( "About vipsdisp" ),
                 "authors", authors,
-                "version", "v2.3",
+                "version", VERSION,
                 "comments", _( "An image viewer for very large images" ),
                 "license-type", GTK_LICENSE_MIT_X11,
                 "website-label", "Visit vipsdisp on github",
@@ -174,7 +174,7 @@ VipsdispApp *
 vipsdisp_app_new( void )
 {
         return( g_object_new( VIPSDISP_APP_TYPE, 
-                "application-id", APP_ID,
+                "application-id", APPLICATION_ID,
                 "flags", G_APPLICATION_HANDLES_OPEN,
                 "inactivity-timeout", 3000,
                 "register-session", TRUE,

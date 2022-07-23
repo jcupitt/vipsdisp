@@ -1,11 +1,14 @@
 #ifndef __VIPSDISP_H
 #define __VIPSDISP_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif /*HAVE_CONFIG_H*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define APP_ID "org.libvips.vipsdisp"
 #define APP_PATH "/org/libvips/vipsdisp"
 
 #include <gtk/gtk.h>

@@ -86,11 +86,18 @@ $ ninja install
 Then for vipsdisp:
 
 ```
-$ ./autogen.sh --prefix=/home/john/vips 
-$ make V=0
-$ make install
+$ cd vipsdisp
+$ meson setup build --prefix=~/vips
+$ cd build
+$ ninja
+$ ninja install
+```
+
+And to run:
+
+```
 $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ ./vipsdisp ~/pics/k2.jpg
+$ vipsdisp ~/pics/k2.jpg
 ```
 
 ## Shortcuts
@@ -196,8 +203,6 @@ Version needs updating in the following places:
 - **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
 
 - **`org.libvips.vipsdisp.desktop`** also has a version number.
-
-- **`vipsdispapp.c`** the version arg to the About dialog.
 
 ## flatpak
 
