@@ -1480,7 +1480,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 }
 
 TileSource *
-image_window_get_tilesource( ImageWindow *win )
+image_window_get_tile_source( ImageWindow *win )
 {
         return( win->tile_source );
 }

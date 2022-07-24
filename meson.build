@@ -29,6 +29,7 @@ foreach define: set_defines
 endforeach
 
 add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
+# so it can find config.h
 add_project_arguments('-I.', language: 'c')
 
 configure_file(

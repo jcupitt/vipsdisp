@@ -147,11 +147,7 @@ $ vipsdisp ~/pics/k2.jpg
 
 - info bar:
 
-    - info bar does not take page number into account
-
     - pages as bands ... info bar displays only one band
-
-    - should update on page flip
 
     - will not display complex numbers correctly ... need to unpack to bands
 

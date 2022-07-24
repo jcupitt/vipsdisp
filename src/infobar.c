@@ -120,16 +120,6 @@ infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar )
         }
 }
 
-/* Imagewindow has a new tile_source.
- */
-static void
-infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
-{
-        g_signal_connect_object( image_window_get_tilesource( win ), "changed", 
-                G_CALLBACK( infobar_tile_source_changed ), 
-                infobar, 0 );
-}
-
 static void 
 infobar_status_value_set_array( Infobar *infobar, double *d )
 {
@@ -199,7 +189,7 @@ infobar_status_changed( ImageWindow *win, Infobar *infobar )
                 GTK_ACTION_BAR( infobar->action_bar ) ) )
                 return;
 
-        if( !image_window_get_tilesource( infobar->win ) )
+        if( !image_window_get_tile_source( infobar->win ) )
                 return;
 
 #ifdef DEBUG
@@ -207,6 +197,22 @@ infobar_status_changed( ImageWindow *win, Infobar *infobar )
 #endif /*DEBUG*/
 
         infobar_status_update( infobar );
+}
+
+/* Imagewindow has a new tile_source.
+ */
+static void
+infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
+{
+	TileSource *tile_source = image_window_get_tile_source( win );
+
+        g_signal_connect_object( tile_source, "changed", 
+                G_CALLBACK( infobar_tile_source_changed ), 
+                infobar, 0 );
+
+        g_signal_connect_object( tile_source, "page-changed", 
+                G_CALLBACK( infobar_status_changed ), 
+                infobar, 0 );
 }
 
 static void
