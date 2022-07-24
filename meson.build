@@ -29,6 +29,7 @@ foreach define: set_defines
 endforeach
 
 add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
+add_project_arguments('-I.', language: 'c')
 
 configure_file(
   output: 'config.h',
@@ -45,52 +46,11 @@ vipsdisp_deps = [
   m_dep,
 ]
 
-marshal = gnome.genmarshal(
-  'vipsdispmarshal',
-  prefix: 'vipsdisp',
-  sources: 'vipsdispmarshal.list',
-)
-
-resources = gnome.compile_resources(
-  'vipsdisp-gresources',
-  'vipsdisp.gresources.xml',
-  source_dir: 'gtk',
-)
-
 install_data(application_id + '.gschema.xml', 
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas')
 meson.add_install_script('meson_post_install.py')
 
-executable('vipsdisp', [
-  marshal,
-  resources,
-  'displaybar.c',
-  'displaybar.h',
-  'gtkutil.c',
-  'gtkutil.h',
-  'imagedisplay.c',
-  'imagedisplay.h',
-  'imagewindow.c',
-  'imagewindow.h',
-  'infobar.c',
-  'infobar.h',
-  'main.c',
-  'tile.c',
-  'tilecache.c',
-  'tilecache.h',
-  'tile.h',
-  'tilesource.c',
-  'tilesource.h',
-  'tslider.c',
-  'tslider.h',
-  'vipsdispapp.c',
-  'vipsdispapp.h',
-  'vipsdisp.h',
-],
-  dependencies: vipsdisp_deps,
-  install: true,
-)
-
+subdir('src')
 
 # still to do ... we had these lines in Makefile.am
 #
