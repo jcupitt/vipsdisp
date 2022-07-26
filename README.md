@@ -159,14 +159,6 @@ $ vipsdisp ~/pics/k2.jpg
 
     - look at the PDF / SVG zoom patch again?
 
-- improve initial size 
-
-    - fit image aspect ratio? 
-
-    - take progress bar into account
-
-- rename replace as open, and include an icon
-
 - can still show black tiles occasionally?
 
     - we could shrink tiles on zoom out (we only expand tiles now)

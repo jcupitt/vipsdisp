@@ -914,22 +914,28 @@ image_window_scroll( GtkEventControllerMotion *self,
 }
 
 static void
-image_window_scale_begin( GtkGesture* self, GdkEventSequence* sequence, gpointer user_data )
+image_window_scale_begin( GtkGesture* self, 
+	GdkEventSequence* sequence, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	win->last_scale = image_window_get_scale( win );
+
 	double finger_cx;
 	double finger_cy;
-	gtk_gesture_get_bounding_box_center (self, &finger_cx, &finger_cy);
+
+	win->last_scale = image_window_get_scale( win );
+	gtk_gesture_get_bounding_box_center( self, &finger_cx, &finger_cy );
+
 	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
 		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
 }
 static void
-image_window_scale_changed( GtkGestureZoom *self, gdouble scale, gpointer user_data )
+image_window_scale_changed( GtkGestureZoom *self, 
+	gdouble scale, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	image_window_set_scale_position( win, scale * win->last_scale, win->scale_cx, win->scale_cy );
+	image_window_set_scale_position( win, 
+		scale * win->last_scale, win->scale_cx, win->scale_cy );
 }
 
 static void
@@ -1435,7 +1441,6 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
         win->tile_source = tile_source;
 	g_object_ref( tile_source );
-	printf( "tile_cache_new:\n" );
         win->tile_cache = tile_cache_new( win->tile_source );
 
         g_object_set( win->imagedisplay,
@@ -1462,9 +1467,26 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 		char str[256];
 		VipsBuf buf = VIPS_BUF_STATIC( str );
 
-                vips_object_summary( VIPS_OBJECT( image ), &buf );
-                vips_buf_appendf( &buf, ", " );
-                vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+                vips_buf_appendf( &buf, "%dx%d, ", 
+			tile_source->width, tile_source->height );
+		if( tile_source->n_pages > 1 )
+			vips_buf_appendf( &buf, "%d pages, ", 
+				tile_source->n_pages );
+		if( vips_image_get_coding( image ) == VIPS_CODING_NONE ) 
+			vips_buf_appendf( &buf,
+				g_dngettext( GETTEXT_PACKAGE,
+					" %s, %d band, %s",
+					" %s, %d bands, %s",
+					image->Bands ),
+				vips_enum_nick( VIPS_TYPE_BAND_FORMAT,
+					image->BandFmt ),
+				vips_image_get_bands( image ),
+				vips_enum_nick( VIPS_TYPE_INTERPRETATION,
+					image->Type ) );
+		else
+			vips_buf_appendf( &buf, ", %s",
+				vips_enum_nick( VIPS_TYPE_CODING,
+					vips_image_get_coding( image ) ) );
                 vips_buf_appendf( &buf, ", %g x %g p/mm",
                         image->Xres, image->Yres );
 		gtk_label_set_text( GTK_LABEL( win->subtitle ), 

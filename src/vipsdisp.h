@@ -18,6 +18,7 @@
 /* i18n placeholder.
  */
 #define _(S) (S)
+#define GETTEXT_PACKAGE "vipsdisp"
 
 /* The tile size for image rendering.
  */

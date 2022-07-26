@@ -378,24 +378,6 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                 }
                 x = t[4];
 
-                /* Scale to a sensible size ... aim for a height of 256
-                 * elements.
-                if( in->Xsize == 1 && t[1]->Xsize > 256 ) {
-                        if( im_subsample( t[1], t[2], t[1]->Xsize / 256, 1 ) ) {
-                                im_close( out );
-                                return( NULL );
-                        }
-                }
-                else if( in->Ysize == 1 && t[1]->Ysize > 256 ) {
-                        if( im_subsample( t[1], t[2], 1, t[1]->Ysize / 256 ) ) {
-                                im_close( out );
-                                return( NULL );
-                        }
-                }
-                else
-                        t[2] = t[1];
-                 */
-
                 image = x;
                 g_object_ref( image ); 
                 VIPS_UNREF( context );
