@@ -789,7 +789,8 @@ tile_source_set_property( GObject *object,
                         if( tile_source->page_flip_id )
                                 VIPS_FREEF( g_source_remove, 
                                         tile_source->page_flip_id );
-                        if( tile_source->mode == TILE_SOURCE_MODE_ANIMATED )
+                        if( tile_source->mode == TILE_SOURCE_MODE_ANIMATED &&
+				tile_source->n_pages > 1 )
                                 tile_source->page_flip_id = g_timeout_add( 100, 
                                         tile_source_page_flip, tile_source );
                 }

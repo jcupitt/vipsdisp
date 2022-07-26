@@ -165,9 +165,7 @@ $ vipsdisp ~/pics/k2.jpg
 
     - take progress bar into account
 
-* rename replace as open, and include an icon
-
-- constantly flip pages on single-page GIFs
+- rename replace as open, and include an icon
 
 - can still show black tiles occasionally?
 

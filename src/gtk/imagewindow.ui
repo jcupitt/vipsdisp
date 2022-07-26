@@ -119,7 +119,7 @@
 
         <child type="start">
           <object class="GtkButton">
-            <property name="label">Replace</property>
+            <property name="label">Open</property>
             <property name="action-name">win.replace</property>
           </object>
         </child>
