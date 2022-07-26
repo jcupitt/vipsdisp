@@ -141,7 +141,7 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- switcher does not remember settings wtf
+- background switcher does not remember settings wtf
 
 - ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
 
