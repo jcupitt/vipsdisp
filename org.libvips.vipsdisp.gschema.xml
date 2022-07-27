@@ -56,7 +56,7 @@
     </key>
 
     <key name="background" enum="org.libvips.vipsdisp.background">
-      <default>'checkerboard'</default>
+      <default>'white'</default>
       <summary>Background</summary>
       <description>The background texture for image rendering</description>
     </key>

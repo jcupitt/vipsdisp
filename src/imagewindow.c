@@ -32,7 +32,7 @@ struct _ImageWindow
         double scale_cx;
         double scale_cy;
 
-	/* For animatiing zoom. 
+	/* For animating zoom. 
 	 */
 	guint tick_handler;
 	double scale_rate;
@@ -406,31 +406,6 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
         if( str_mode ) {
                 state = g_variant_new_string( str_mode );
                 change_state( GTK_WIDGET( win ), "mode", state );
-        }
-}
-
-static void
-image_window_tile_cache_changed( TileCache *tile_cache, ImageWindow *win )
-{
-        GVariant *state;
-        const char *str;
-
-#ifdef DEBUG
-        printf( "image_window_tile_cache_changed:\n" );
-#endif /*DEBUG*/
-
-        if( tile_cache->background == TILE_CACHE_BACKGROUND_CHECKERBOARD )
-                str = "checkerboard";
-        else if( tile_cache->background == TILE_CACHE_BACKGROUND_WHITE )
-                str = "white";
-        else if( tile_cache->background == TILE_CACHE_BACKGROUND_BLACK )
-                str = "black";
-        else
-                str = NULL;
-
-        if( str ) {
-                state = g_variant_new_string( str );
-                change_state( GTK_WIDGET( win ), "background", state );
         }
 }
 
@@ -1197,18 +1172,10 @@ image_window_mode( GSimpleAction *action,
         g_simple_action_set_state( action, state );
 }
 
-static void
-image_window_background( GSimpleAction *action,
-        GVariant *state, gpointer user_data )
+static TileCacheBackground
+background_to_enum( const char *str )
 {
-        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-        const gchar *str;
         TileCacheBackground background;
-
-        str = g_variant_get_string( state, NULL );
-
-	printf( "image_window_background: %s\n", str );
 
         if( g_str_equal( str, "checkerboard" ) ) 
                 background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
@@ -1217,9 +1184,20 @@ image_window_background( GSimpleAction *action,
         else if( g_str_equal( str, "black" ) ) 
                 background = TILE_CACHE_BACKGROUND_BLACK;
         else
-                /* Ignore attempted change.
-                 */
-                return;
+                background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+
+	return( background );
+}
+
+static void
+image_window_background( GSimpleAction *action,
+        GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        TileCacheBackground background = 
+		background_to_enum( g_variant_get_string( state, NULL ) );
+
+	printf( "image_window_background: %d\n", background );
 
 	if( win->tile_cache ) {
 		g_object_set( win->tile_cache,
@@ -1358,8 +1336,6 @@ image_window_init( ImageWindow *win )
                 g_settings_get_value( win->settings, "control" ) );
         change_state( GTK_WIDGET( win ), "info", 
                 g_settings_get_value( win->settings, "info" ) );
-        change_state( GTK_WIDGET( win ), "background", 
-                g_settings_get_value( win->settings, "background" ) );
 
 }
 
@@ -1456,8 +1432,6 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
         g_signal_connect_object( win->tile_source, "changed", 
                 G_CALLBACK( image_window_tile_source_changed ), win, 0 );
-        g_signal_connect_object( win->tile_cache, "changed", 
-                G_CALLBACK( image_window_tile_cache_changed ), win, 0 );
 
         if( !(title = (char *) tile_source_get_path( tile_source )) ) 
                 title = "Untitled";
@@ -1493,7 +1467,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 			vips_buf_all( &buf ) );
         }
 
-	/* Initial active state.
+	/* Initial state.
 	 */
 	tile_source->active = 
 		g_settings_get_boolean( win->settings, "control" );
