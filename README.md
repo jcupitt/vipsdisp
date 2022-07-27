@@ -141,27 +141,10 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- background switcher does not remember settings wtf
+- window duplicate ... background is not copied
 
-    - set the default to "white" in the schema, see:
-
-        image_window_background: white
-
-          image_window_init calls 
-            g_settings_get_value( win->settings, "background" )
-          then change_state()
-          but fails to set anything, since tile_cache does not exist yet
-
-        image_window_background: checkerboard
-
-          image_window_tile_cache_changed
-            tile_cache->background
-          then change state
-
-    - we need a "background" prop on imagewindow which we save / restore / etc.,
-      then changes to that  value are pushed down to tile_cache
-
-
+  look at scale / offset / falsecolour and make sure background does all 
+  those things
 
 - ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
 

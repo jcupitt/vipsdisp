@@ -474,7 +474,7 @@ image_window_duplicate_action( GSimpleAction *action,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         VipsdispApp *app;
-	TileSource *tile_source;
+        TileSource *tile_source;
         ImageWindow *new;
         int width, height;
 
@@ -482,15 +482,15 @@ image_window_duplicate_action( GSimpleAction *action,
         new = image_window_new( app ); 
         gtk_window_present( GTK_WINDOW( new ) );
 
-	if( win->tile_source ) {
-		if( !(tile_source = 
-			tile_source_duplicate( win->tile_source )) ) {
-			image_window_error( new ); 
-			return;
-		}
-		image_window_set_tile_source( new, tile_source );
-		VIPS_UNREF( tile_source );
-	}
+        if( win->tile_source ) {
+                if( !(tile_source = 
+                        tile_source_duplicate( win->tile_source )) ) {
+                        image_window_error( new ); 
+                        return;
+                }
+                image_window_set_tile_source( new, tile_source );
+                VIPS_UNREF( tile_source );
+        }
 
         gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
         gtk_window_set_default_size( GTK_WINDOW( new ), width, height );

@@ -1807,13 +1807,43 @@ tile_source_get_pixel( TileSource *tile_source,
 TileSource *
 tile_source_duplicate( TileSource *tile_source )
 {
-        g_assert( FALSE );
+        GFile *file;
+	TileSource *new_tile_source;
+        int mode;
+        double scale;
+        double offset;
+        int page;
+        gboolean falsecolour;
+        gboolean log;
+        gboolean active;
 
-        /* FIXME ... see conversion_set_conversion()
-         *
-         *
-         * tile_source_get_file(), then new_from_file, then copy settings
-         */
+        if( !(file = tile_source_get_file( tile_source )) )
+                return( NULL );
 
-        return( NULL );
+        if( !(new_tile_source = tile_source_new_from_file( file )) ) {
+                VIPS_UNREF( file );
+                return( NULL );
+        }
+
+        g_object_get( tile_source, 
+		"mode", &mode,
+		"scale", &scale,
+		"offset", &offset,
+		"page", &page,
+		"falsecolour", &falsecolour,
+		"log", &log,
+		"active", &active,
+		NULL );
+
+        g_object_set( new_tile_source, 
+		"mode", mode,
+		"scale", scale,
+		"offset", offset,
+		"page", page,
+		"falsecolour", falsecolour,
+		"log", log,
+		"active", active,
+		NULL );
+
+        return( new_tile_source );
 }
