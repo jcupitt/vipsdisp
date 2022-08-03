@@ -1530,9 +1530,16 @@ tile_source_new_from_source( VipsSource *source )
 
 		/* Compute a zoom (scale) factor which will keep us under 32k
 		 * pixels per axis.
+		 *
+		 * Very large scales produce very large performance problems in
+		 * librsvg.
 		 */
-		tile_source->zoom = 32767.0 / 
-			VIPS_MAX( image->Xsize, image->Ysize );
+		tile_source->zoom = VIPS_CLIP( 1, 
+			32767.0 / VIPS_MAX( image->Xsize, image->Ysize ),
+			200 );
+
+		printf( "tile_source_new_from_source: zoom = %g\n", 
+			tile_source->zoom );
 
 		/* Apply the zoom and build the pyramid.
 		 */

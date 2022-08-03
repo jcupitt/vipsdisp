@@ -141,9 +141,20 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- zoom on the audi PDF seems to be broken
+- look at the PDF / SVG zoom patch again?
 
-    - look at the PDF / SVG zoom patch again?
+    infobar causes huge performance problems with svg, since it updates in the
+    GUI loop
+
+    maybe fetch values from tile_source instead? we could pick from the current
+    pyr layer, perhaps? would we need to cache that?
+
+
+  - titlebar should display width/height for base open, not for scaled (ie.
+    pyramid) open
+
+
+
 
 - info bar:
 
