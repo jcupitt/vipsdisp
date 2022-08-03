@@ -141,8 +141,6 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
-
 - info bar:
 
     - pages as bands ... info bar displays only one band
@@ -173,9 +171,6 @@ $ vipsdisp ~/pics/k2.jpg
 - header display
 
 - load options? save options? eg. load SVG at $x DPI
-
-- perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
-  then?
 
 ## Version bump checklist
 

@@ -3,6 +3,7 @@
 - match zoom direction and step size on scrollwheel with eog
 - support pinch zoom [earboxer]
 - background switcher
+- better visualisation of high bit-depth images
 
 ## 2.3, started 20/10/21
 

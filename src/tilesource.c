@@ -237,6 +237,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
         VipsImage *x;
         VipsImage *mask;
         int n_bands;
+        VipsInterpretation interpretation;
         TileSourceUpdate *update;
 
         g_assert( mask_out ); 
@@ -399,7 +400,11 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                 image = x;
         }
 
-        if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, NULL ) ) {
+        if( image->BandFmt != VIPS_FORMAT_UCHAR )
+		interpretation = VIPS_INTERPRETATION_scRGB;
+	else
+		interpretation = VIPS_INTERPRETATION_sRGB;
+        if( vips_colourspace( image, &x, interpretation, NULL ) ) {
                 VIPS_UNREF( image );
                 return( NULL ); 
         }
@@ -482,16 +487,37 @@ tile_source_image_log( VipsImage *image )
         return( image );
 }
 
-/* Build the second half of the image pipeline.
+/* Build the second half of the image pipeline. The image can be sRGB or a
+ * high-precision scRGB image.
  */
 static VipsImage *
 tile_source_rgb_image( TileSource *tile_source, VipsImage *in ) 
 {
         VipsImage *image;
         VipsImage *x;
+	VipsImage *alpha;
 
         image = in;
         g_object_ref( image ); 
+
+	/* We don't want these to touch alpha (if any) ... remove and 
+	 * reattach at the end.
+	 */
+	alpha = NULL;
+	if( vips_image_hasalpha( image ) ) { 
+		if( vips_extract_band( image, &alpha, 3, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+		if( vips_extract_band( image, &x, 0, 
+			"n", 3, NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
 
         if( tile_source->active &&
                 (tile_source->scale != 1.0 ||
@@ -499,26 +525,6 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
                  tile_source->falsecolour ||
                  tile_source->log ||
                  image->Type == VIPS_INTERPRETATION_FOURIER) ) {
-                VipsImage *alpha;
-
-                /* We don't want these to touch alpha (if any) ... remove and 
-                 * reattach at the end.
-                 */
-                alpha = NULL;
-                if( vips_image_hasalpha( image ) ) { 
-                        if( vips_extract_band( image, &alpha, 3, NULL ) ) {
-                                VIPS_UNREF( image );
-                                return( NULL ); 
-                        }
-                        if( vips_extract_band( image, &x, 0, 
-                                "n", 3, NULL ) ) {
-                                VIPS_UNREF( image );
-                                VIPS_UNREF( alpha );
-                                return( NULL ); 
-                        }
-                        VIPS_UNREF( image );
-                        image = x;
-                }
 
                 if( tile_source->log ||
                         image->Type == VIPS_INTERPRETATION_FOURIER ) { 
@@ -533,9 +539,15 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
                 if( tile_source->scale != 1.0 ||
                         tile_source->offset != 0.0 ) {
+			/* Scale offset down for scrgb images.
+			 */
+			double offset = 
+				image->Type == VIPS_INTERPRETATION_sRGB ?
+				tile_source->offset :
+				tile_source->offset / 255.0;
+
                         if( vips_linear1( image, &x, 
-                                tile_source->scale, tile_source->offset, 
-                                "uchar", TRUE, 
+                                tile_source->scale, offset, 
                                 NULL ) ) {
                                 VIPS_UNREF( image );
                                 VIPS_UNREF( alpha );
@@ -544,36 +556,44 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
                         VIPS_UNREF( image );
                         image = x;
                 }
+	}
 
-                if( tile_source->falsecolour ) {
-                        if( vips_falsecolour( image, &x, NULL ) ) {
-                                VIPS_UNREF( image );
-                                VIPS_UNREF( alpha );
-                                return( NULL ); 
-                        }
-                        VIPS_UNREF( image );
-                        image = x;
-                }
+	/* It might be scRGB. This must come after scale/offset.
+	 */
+	if( in->Type != VIPS_INTERPRETATION_sRGB ) {
+		if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, 
+			NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
 
-                if( alpha ) {
-                        if( vips_bandjoin2( image, alpha, &x, NULL ) ) {
-                                VIPS_UNREF( image );
-                                VIPS_UNREF( alpha );
-                                return( NULL ); 
-                        }
+	/* This must be after conversion to sRGB.
+	 */
+        if( tile_source->active &&
+                tile_source->falsecolour ) {
+		if( vips_falsecolour( image, &x, NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
 
-                        VIPS_UNREF( image );
-                        VIPS_UNREF( alpha );
-                        image = x;
-                }
-        }
+	if( alpha ) {
+		if( vips_bandjoin2( image, alpha, &x, NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+		}
 
-        if( vips_cast_uchar( image, &x, NULL ) ) {
-                VIPS_UNREF( image );
-                return( NULL ); 
-        }
-        VIPS_UNREF( image );
-        image = x;
+		VIPS_UNREF( image );
+		VIPS_UNREF( alpha );
+		image = x;
+	}
 
         return( image );
 }
@@ -1582,10 +1602,11 @@ tile_source_new_from_source( VipsSource *source )
 
         /* Pick a default display mode.
          */
-        if( tile_source->type == TILE_SOURCE_TYPE_TOILET_ROLL ) {
+        if( tile_source->type == TILE_SOURCE_TYPE_TOILET_ROLL &&
+                tile_source->n_pages > 1 ) {
                 if( tile_source->delay )
                         mode = TILE_SOURCE_MODE_ANIMATED;
-                else if( tile_source->all_mono )
+		if( tile_source->all_mono )
                         mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
                 else
                         mode = TILE_SOURCE_MODE_MULTIPAGE;
