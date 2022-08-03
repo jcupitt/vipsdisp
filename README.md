@@ -141,11 +141,6 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- window duplicate ... background is not copied
-
-  look at scale / offset / falsecolour and make sure background does all 
-  those things
-
 - ~/AI/b0.png (ushort PNG with low numeric values) cannot be visualised
 
 - info bar:

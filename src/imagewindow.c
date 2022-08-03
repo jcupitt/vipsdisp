@@ -495,11 +495,9 @@ image_window_duplicate_action( GSimpleAction *action,
         gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
         gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
 
-        /* falsecolour etc. are copied when we copy the tile_source. We
-         * just copy the window state here.
-         */
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+        copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
         /* We want to init the scroll position, but we can't do that until the
          * adj range is set, and that won't happen until the image is loaded.
@@ -1199,11 +1197,10 @@ image_window_background( GSimpleAction *action,
 
 	printf( "image_window_background: %d\n", background );
 
-	if( win->tile_cache ) {
+	if( win->tile_cache ) 
 		g_object_set( win->tile_cache,
 			"background", background,
 			NULL );
-	}
 
         g_simple_action_set_state( action, state );
 }
@@ -1220,6 +1217,11 @@ image_window_reset( GSimpleAction *action,
 			"log", FALSE,
 			"scale", 1.0,
 			"offset", 0.0,
+			NULL );
+
+	if( win->tile_cache ) 
+		g_object_set( win->tile_cache,
+			"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
 			NULL );
 }
 
