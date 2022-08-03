@@ -11,8 +11,11 @@ disp-gresources.c
 .*.swp
 TAGS
 Makefile
+Makefile.in
 scan
 config.*
+configure
+configure~
 autom4te.cache
 aclocal.m4
 m4/

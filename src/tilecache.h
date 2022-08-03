@@ -1,6 +1,15 @@
 #ifndef __TILE_CACHE_H
 #define __TILE_CACHE_H
 
+/* The background modes we support.
+ */
+typedef enum _TileCacheBackground {
+        TILE_CACHE_BACKGROUND_CHECKERBOARD,
+        TILE_CACHE_BACKGROUND_WHITE,
+        TILE_CACHE_BACKGROUND_BLACK,
+        TILE_CACHE_BACKGROUND_LAST
+} TileCacheBackground;
+
 #define TILE_CACHE_TYPE (tile_cache_get_type())
 #define TILE_CACHE( obj ) \
         (G_TYPE_CHECK_INSTANCE_CAST( (obj), TYPE_TILE_CACHE, TileCache ))
@@ -15,6 +24,10 @@
 
 typedef struct _TileCache {
         GObject parent_instance;
+
+	/* Background rendering style.
+	 */
+	TileCacheBackground background;
 
         /* Fetch tiles from here.
          */
@@ -44,7 +57,7 @@ typedef struct _TileCache {
 
         /* Paint the backdrop with this.
          */
-        GdkTexture *checkerboard;
+        GdkTexture *background_texture;
 
 } TileCache;
 

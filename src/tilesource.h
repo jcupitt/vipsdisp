@@ -225,7 +225,8 @@ GFile *tile_source_get_file( TileSource *tile_source );
 int tile_source_write_to_file( TileSource *tile_source, GFile *file );
 
 VipsImage *tile_source_get_image( TileSource *tile_source );
-VipsPel *tile_source_get_pixel( TileSource *tile_source, int x, int y );
+gboolean tile_source_get_pixel( TileSource *tile_source, 
+	double **vector, int *n, int x, int y );
 TileSource *tile_source_duplicate( TileSource *tile_source );
 
 #endif /*__TILE_SOURCE_H*/

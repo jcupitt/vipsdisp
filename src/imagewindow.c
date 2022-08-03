@@ -26,7 +26,13 @@ struct _ImageWindow
         int drag_start_x;
         int drag_start_y;
 
-	/* For animatiing zoom. 
+        /* For pinch zoom, zoom position that we started.
+         */
+        double last_scale;
+        double scale_cx;
+        double scale_cy;
+
+	/* For animating zoom. 
 	 */
 	guint tick_handler;
 	double scale_rate;
@@ -468,7 +474,7 @@ image_window_duplicate_action( GSimpleAction *action,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         VipsdispApp *app;
-	TileSource *tile_source;
+        TileSource *tile_source;
         ImageWindow *new;
         int width, height;
 
@@ -476,24 +482,22 @@ image_window_duplicate_action( GSimpleAction *action,
         new = image_window_new( app ); 
         gtk_window_present( GTK_WINDOW( new ) );
 
-	if( win->tile_source ) {
-		if( !(tile_source = 
-			tile_source_duplicate( win->tile_source )) ) {
-			image_window_error( new ); 
-			return;
-		}
-		image_window_set_tile_source( new, tile_source );
-		VIPS_UNREF( tile_source );
-	}
+        if( win->tile_source ) {
+                if( !(tile_source = 
+                        tile_source_duplicate( win->tile_source )) ) {
+                        image_window_error( new ); 
+                        return;
+                }
+                image_window_set_tile_source( new, tile_source );
+                VIPS_UNREF( tile_source );
+        }
 
         gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
         gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
 
-        /* falsecolour etc. are copied when we copy the tile_source. We
-         * just copy the window state here.
-         */
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+        copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
         /* We want to init the scroll position, but we can't do that until the
          * adj range is set, and that won't happen until the image is loaded.
@@ -883,6 +887,31 @@ image_window_scroll( GtkEventControllerMotion *self,
 }
 
 static void
+image_window_scale_begin( GtkGesture* self, 
+	GdkEventSequence* sequence, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	double finger_cx;
+	double finger_cy;
+
+	win->last_scale = image_window_get_scale( win );
+	gtk_gesture_get_bounding_box_center( self, &finger_cx, &finger_cy );
+
+	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
+}
+static void
+image_window_scale_changed( GtkGestureZoom *self, 
+	gdouble scale, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_set_scale_position( win, 
+		scale * win->last_scale, win->scale_cx, win->scale_cy );
+}
+
+static void
 image_window_drag_begin( GtkEventControllerMotion *self,
         gdouble start_x, gdouble start_y, gpointer user_data )
 {
@@ -1141,6 +1170,41 @@ image_window_mode( GSimpleAction *action,
         g_simple_action_set_state( action, state );
 }
 
+static TileCacheBackground
+background_to_enum( const char *str )
+{
+        TileCacheBackground background;
+
+        if( g_str_equal( str, "checkerboard" ) ) 
+                background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+        else if( g_str_equal( str, "white" ) ) 
+                background = TILE_CACHE_BACKGROUND_WHITE;
+        else if( g_str_equal( str, "black" ) ) 
+                background = TILE_CACHE_BACKGROUND_BLACK;
+        else
+                background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+
+	return( background );
+}
+
+static void
+image_window_background( GSimpleAction *action,
+        GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+        TileCacheBackground background = 
+		background_to_enum( g_variant_get_string( state, NULL ) );
+
+	printf( "image_window_background: %d\n", background );
+
+	if( win->tile_cache ) 
+		g_object_set( win->tile_cache,
+			"background", background,
+			NULL );
+
+        g_simple_action_set_state( action, state );
+}
+
 static void
 image_window_reset( GSimpleAction *action, 
         GVariant *state, gpointer user_data )
@@ -1153,6 +1217,11 @@ image_window_reset( GSimpleAction *action,
 			"log", FALSE,
 			"scale", 1.0,
 			"offset", 0.0,
+			NULL );
+
+	if( win->tile_cache ) 
+		g_object_set( win->tile_cache,
+			"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
 			NULL );
 }
 
@@ -1181,6 +1250,8 @@ static GActionEntry image_window_entries[] = {
         { "falsecolour",
                 image_window_toggle, NULL, "false", image_window_falsecolour },
         { "mode", image_window_radio, "s", "'multipage'", image_window_mode },
+        { "background", image_window_radio, "s", 
+		"'checkerboard'", image_window_background },
 
         { "reset", image_window_reset },
 };
@@ -1193,7 +1264,7 @@ image_window_init( ImageWindow *win )
         win->progress_timer = g_timer_new();
         win->last_progress_time = -1;
         win->scale_rate = 1.0;
-        win->settings = g_settings_new( APP_ID );
+        win->settings = g_settings_new( APPLICATION_ID );
 
         gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1233,6 +1304,13 @@ image_window_init( ImageWindow *win )
                 GTK_EVENT_CONTROLLER_SCROLL_VERTICAL ) );
         g_signal_connect( controller, "scroll", 
                 G_CALLBACK( image_window_scroll ), win );
+        gtk_widget_add_controller( win->imagedisplay, controller );
+
+        controller = GTK_EVENT_CONTROLLER( gtk_gesture_zoom_new() );
+        g_signal_connect( controller, "begin",
+                G_CALLBACK( image_window_scale_begin ), win );
+        g_signal_connect( controller, "scale-changed",
+                G_CALLBACK( image_window_scale_changed ), win );
         gtk_widget_add_controller( win->imagedisplay, controller );
 
         /* And drag to pan.
@@ -1365,16 +1443,33 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 		char str[256];
 		VipsBuf buf = VIPS_BUF_STATIC( str );
 
-                vips_object_summary( VIPS_OBJECT( image ), &buf );
-                vips_buf_appendf( &buf, ", " );
-                vips_buf_append_size( &buf, VIPS_IMAGE_SIZEOF_IMAGE( image ) );
+                vips_buf_appendf( &buf, "%dx%d, ", 
+			tile_source->width, tile_source->height );
+		if( tile_source->n_pages > 1 )
+			vips_buf_appendf( &buf, "%d pages, ", 
+				tile_source->n_pages );
+		if( vips_image_get_coding( image ) == VIPS_CODING_NONE ) 
+			vips_buf_appendf( &buf,
+				g_dngettext( GETTEXT_PACKAGE,
+					" %s, %d band, %s",
+					" %s, %d bands, %s",
+					image->Bands ),
+				vips_enum_nick( VIPS_TYPE_BAND_FORMAT,
+					image->BandFmt ),
+				vips_image_get_bands( image ),
+				vips_enum_nick( VIPS_TYPE_INTERPRETATION,
+					image->Type ) );
+		else
+			vips_buf_appendf( &buf, ", %s",
+				vips_enum_nick( VIPS_TYPE_CODING,
+					vips_image_get_coding( image ) ) );
                 vips_buf_appendf( &buf, ", %g x %g p/mm",
                         image->Xres, image->Yres );
 		gtk_label_set_text( GTK_LABEL( win->subtitle ), 
 			vips_buf_all( &buf ) );
         }
 
-	/* Initial active state.
+	/* Initial state.
 	 */
 	tile_source->active = 
 		g_settings_get_boolean( win->settings, "control" );
@@ -1383,7 +1478,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 }
 
 TileSource *
-image_window_get_tilesource( ImageWindow *win )
+image_window_get_tile_source( ImageWindow *win )
 {
         return( win->tile_source );
 }
@@ -1409,4 +1504,43 @@ image_window_get_mouse_position( ImageWindow *win,
 {
         imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
 		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
+}
+
+gboolean
+image_window_get_pixel( ImageWindow *win, double **vector, int *n, 
+	double image_x, double image_y )
+{
+	TileSource *tile_source = win->tile_source;
+
+        VipsImage *image;
+
+        if( !(image = tile_source_get_image( tile_source )) )
+		return( FALSE );
+
+	switch( tile_source->mode ) {
+	case TILE_SOURCE_MODE_TOILET_ROLL:
+                if( !tile_source_get_pixel( tile_source, vector, n, 
+			image_x, image_y ) ) 
+			return( FALSE );	
+		break;
+
+	case TILE_SOURCE_MODE_MULTIPAGE:
+	case TILE_SOURCE_MODE_ANIMATED:
+                if( !tile_source_get_pixel( tile_source, vector, n, 
+			image_x, 
+			image_y + tile_source->page * tile_source->height  ) ) 
+			return( FALSE );	
+		break;
+
+	case TILE_SOURCE_MODE_PAGES_AS_BANDS:
+		/* Not implemented.
+		 */
+		return( FALSE );
+		break;
+
+	default:
+		return( FALSE );
+	}
+
+	return( TRUE );
 }

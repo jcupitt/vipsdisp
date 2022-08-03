@@ -74,7 +74,7 @@ static void
 displaybar_image_window_changed( ImageWindow *win, 
 	Displaybar *displaybar )
 {
-	TileSource *tile_source = image_window_get_tilesource( win );
+	TileSource *tile_source = image_window_get_tile_source( win );
 
         g_signal_connect_object( tile_source, "changed", 
                 G_CALLBACK( displaybar_tile_source_changed ), 
@@ -165,7 +165,7 @@ displaybar_page_value_changed( GtkSpinButton *spin_button,
         Displaybar *displaybar )
 {
 	TileSource *tile_source = 
-		image_window_get_tilesource( displaybar->win );
+		image_window_get_tile_source( displaybar->win );
         int new_page = gtk_spin_button_get_value_as_int( spin_button );
 
 #ifdef DEBUG
@@ -183,7 +183,7 @@ displaybar_scale_value_changed( Tslider *slider,
         Displaybar *displaybar )
 {
 	TileSource *tile_source = 
-		image_window_get_tilesource( displaybar->win );
+		image_window_get_tile_source( displaybar->win );
 
 	if( tile_source )
 		g_object_set( tile_source,
@@ -196,7 +196,7 @@ displaybar_offset_value_changed( Tslider *slider,
         Displaybar *displaybar )
 {
 	TileSource *tile_source = 
-		image_window_get_tilesource( displaybar->win );
+		image_window_get_tile_source( displaybar->win );
 
 	if( tile_source )
 		g_object_set( tile_source,

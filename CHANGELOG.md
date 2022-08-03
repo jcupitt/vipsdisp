@@ -1,6 +1,9 @@
 ## master
 
 - match zoom direction and step size on scrollwheel with eog
+- support pinch zoom [earboxer]
+- background switcher
+- better visualisation of high bit-depth images
 
 ## 2.3, started 20/10/21
 
@@ -8,8 +11,8 @@
 
 ## 2.2, started 14/10/21
 
-- add "d" to enable debug rendering
-- another reworking of rendering ... should be much faster and smoother
+- press "d" to enable debug rendering
+- another reworking of rendering ... should be faster and smoother again
 - added animations for pan/zoom
 - shrink to fit on load
 

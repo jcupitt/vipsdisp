@@ -70,31 +70,34 @@ Just click "install".
 
 ## Build from source
 
-You need gtk4. On Ubuntu 21.10, build with:
+You need gtk4. On Ubuntu 22.04, build with:
 
 ```
 $ cd gtk
-$ git checkout 4.3.2
-$ meson _build . \
+$ meson build . \
   --prefix=/home/john/vips \
   --libdir=/home/john/vips/lib 
-$ cd _build
+  -Dintrospection=disabled \
+$ cd build
 $ ninja
 $ ninja install
-$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ gtk4-demo
 ```
-
-gtk 4.4 needs a newer pango than Ubuntu 21.10 has, so stick with 4.3.
 
 Then for vipsdisp:
 
 ```
-$ ./autogen.sh --prefix=/home/john/vips 
-$ make
-$ make install
+$ cd vipsdisp
+$ meson setup build --prefix=~/vips
+$ cd build
+$ ninja
+$ ninja install
+```
+
+And to run:
+
+```
 $ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ ./vipsdisp ~/pics/k2.jpg
+$ vipsdisp ~/pics/k2.jpg
 ```
 
 ## Shortcuts
@@ -138,16 +141,23 @@ $ ./vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- constantly flip pages on single-page GIFs
+- info bar:
+
+    - pages as bands ... info bar displays only one band
+
+    - will not display complex numbers correctly ... need to unpack to bands
+
+- how should we handle images which include labels, macros, thumbnails?
+
+- zoom menu could have 10:1 and 1:10 as well?
+
+- zoom on the audi PDF seems to be broken
+
+    - look at the PDF / SVG zoom patch again?
 
 - can still show black tiles occasionally?
 
-- ome
-
-  - pages as bands ... info bar displays only one band
-
-    how should we handle images which include labels, macros, thumbnails and
-    pyramids?
+    - we could shrink tiles on zoom out (we only expand tiles now)
 
 - add imagemagick to get dicom loader?
 
@@ -156,12 +166,11 @@ $ ./vipsdisp ~/pics/k2.jpg
 - load image with long progress bar, ^D during load, progress bar stops
   updating
 
+- no progress bar for replace? it works for initial load though
+
 - header display
 
 - load options? save options? eg. load SVG at $x DPI
-
-- perhaps convert to scrgb before scale/offet? we'd maybe keep float precision
-  then?
 
 ## Version bump checklist
 
@@ -173,8 +182,6 @@ Version needs updating in the following places:
 - **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
 
 - **`org.libvips.vipsdisp.desktop`** also has a version number.
-
-- **`vipsdispapp.c`** the version arg to the About dialog.
 
 ## flatpak
 

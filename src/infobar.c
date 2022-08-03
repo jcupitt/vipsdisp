@@ -120,16 +120,6 @@ infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar )
         }
 }
 
-/* Imagewindow has a new tile_source.
- */
-static void
-infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
-{
-        g_signal_connect_object( image_window_get_tilesource( win ), "changed", 
-                G_CALLBACK( infobar_tile_source_changed ), 
-                infobar, 0 );
-}
-
 static void 
 infobar_status_value_set_array( Infobar *infobar, double *d )
 {
@@ -147,147 +137,6 @@ infobar_status_value_set_array( Infobar *infobar, double *d )
         }
 }
 
-/* Display a LABPACK value.
- */
-static void
-infobar_status_value_labpack( Infobar *infobar, VipsPel *p )
-{
-        unsigned int iL = (p[0] << 2) | (p[3] >> 6);
-        signed int ia = ((signed char) p[1] << 3) | ((p[3] >> 3) & 0x7);
-        signed int ib = ((signed char) p[2] << 3) | (p[3] & 0x7);
-
-        double d[3];
-
-        d[0] = 100.0 * iL / 1023.0;
-        d[1] = 0.125 * ia;
-        d[2] = 0.125 * ib;
-
-        infobar_status_value_set_array( infobar, d );
-}
-
-/* Diplay a RAD. 
- */
-static void
-infobar_status_value_rad( Infobar *infobar, VipsPel *p )
-{
-        double f = ldexp( 1.0, p[3] - (128 + 8) );
-
-        double d[3];
-
-        d[0] = (p[0] + 0.5) * f;
-        d[1] = (p[1] + 0.5) * f;
-        d[2] = (p[2] + 0.5) * f;
-
-        infobar_status_value_set_array( infobar, d );
-}
-
-static void 
-infobar_status_value_uncoded( Infobar *infobar, VipsPel *p )
-{
-        TileSource *tile_source = image_window_get_tilesource( infobar->win );
-        VipsImage *image = tile_source_get_image( tile_source );
-
-        int i;
-        GSList *q;
-
-        for( i = 0, q = infobar->value_widgets; q; q = q->next, i++ ) {
-                GtkWidget *label = GTK_WIDGET( q->data );
-
-                char str[64];
-                VipsBuf buf = VIPS_BUF_STATIC( str );
-
-                switch( image->BandFmt ) {
-                case VIPS_FORMAT_UCHAR:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((unsigned char *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_CHAR:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((char *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_USHORT:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((unsigned short *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_SHORT:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((short *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_UINT:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((unsigned int *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_INT:
-                        vips_buf_appendf( &buf, 
-                                "%d", ((int *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_FLOAT:
-                        vips_buf_appendf( &buf, 
-                                "%g", ((float *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_COMPLEX:
-                        vips_buf_appendf( &buf, 
-                                "(%g, %g)", ((float *)p)[0], ((float *)p)[1] );
-                        break;
-
-                case VIPS_FORMAT_DOUBLE:
-                        vips_buf_appendf( &buf, 
-                                "%g", ((double *)p)[0] );
-                        break;
-
-                case VIPS_FORMAT_DPCOMPLEX:
-                        vips_buf_appendf( &buf, 
-                                "(%g, %g)", 
-                                ((double *)p)[0], 
-                                ((double *)p)[1] );
-                        break;
-
-                default:
-                        break;
-                }
-
-                gtk_label_set_text( GTK_LABEL( label ), vips_buf_all( &buf ) );
-
-                p += VIPS_IMAGE_SIZEOF_ELEMENT( image );
-        }
-}
-
-void 
-infobar_status_value( Infobar *infobar, int x, int y ) 
-{
-        TileSource *tile_source = image_window_get_tilesource( infobar->win );
-        VipsImage *image = tile_source_get_image( tile_source );
-
-        VipsPel *ink;
-
-        if( image &&
-                (ink = tile_source_get_pixel( tile_source, x, y )) ) { 
-                switch( image->Coding ) { 
-                case VIPS_CODING_LABQ:
-                        infobar_status_value_labpack( infobar, ink );
-                        break;
-
-                case VIPS_CODING_RAD:
-                        infobar_status_value_rad( infobar, ink );
-                        break;
-
-                case VIPS_CODING_NONE:
-                        infobar_status_value_uncoded( infobar, ink );
-                        break;
-
-                default:
-                        break;
-                }
-        }
-}
-
 void
 infobar_status_update( Infobar *infobar )
 {
@@ -297,6 +146,8 @@ infobar_status_update( Infobar *infobar )
         VipsBuf buf = VIPS_BUF_STATIC( str );
         double image_x;
         double image_y;
+	double *vector;
+	int n;
 
 #ifdef DEBUG
         printf( "infobar_status_update:\n" ); 
@@ -314,7 +165,11 @@ infobar_status_update( Infobar *infobar )
                 vips_buf_all( &buf ) ); 
         vips_buf_rewind( &buf ); 
 
-        infobar_status_value( infobar, (int) image_x, (int) image_y ); 
+	if( image_window_get_pixel( infobar->win, &vector, &n, 
+		image_x, image_y ) ) {
+		infobar_status_value_set_array( infobar, vector );
+		g_free( vector );
+	}
 
         vips_buf_rewind( &buf ); 
         vips_buf_appendf( &buf, "Magnification " );
@@ -334,7 +189,7 @@ infobar_status_changed( ImageWindow *win, Infobar *infobar )
                 GTK_ACTION_BAR( infobar->action_bar ) ) )
                 return;
 
-        if( !image_window_get_tilesource( infobar->win ) )
+        if( !image_window_get_tile_source( infobar->win ) )
                 return;
 
 #ifdef DEBUG
@@ -342,6 +197,22 @@ infobar_status_changed( ImageWindow *win, Infobar *infobar )
 #endif /*DEBUG*/
 
         infobar_status_update( infobar );
+}
+
+/* Imagewindow has a new tile_source.
+ */
+static void
+infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
+{
+	TileSource *tile_source = image_window_get_tile_source( win );
+
+        g_signal_connect_object( tile_source, "changed", 
+                G_CALLBACK( infobar_tile_source_changed ), 
+                infobar, 0 );
+
+        g_signal_connect_object( tile_source, "page-changed", 
+                G_CALLBACK( infobar_status_changed ), 
+                infobar, 0 );
 }
 
 static void

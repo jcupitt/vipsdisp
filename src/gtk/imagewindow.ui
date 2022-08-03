@@ -112,14 +112,14 @@
   <template class="ImageWindow" parent="GtkApplicationWindow">
     <property name="title" translatable="yes">Image window</property>
     <property name="default-width">600</property>
-    <property name="default-height">400</property>
+    <property name="default-height">600</property>
 
     <child type="titlebar">
       <object class="GtkHeaderBar" id="header">
 
         <child type="start">
           <object class="GtkButton">
-            <property name="label">Replace</property>
+            <property name="label">Open</property>
             <property name="action-name">win.replace</property>
           </object>
         </child>

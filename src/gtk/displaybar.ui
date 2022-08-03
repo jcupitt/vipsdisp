@@ -21,16 +21,17 @@
     </section>
 
     <section>
-      <item>
-        <attribute name='label' translatable='yes'>Toilet roll</attribute>
-        <attribute name='action'>win.mode</attribute>
-        <attribute name='target'>toilet-roll</attribute>
-      </item>
 
       <item>
         <attribute name='label' translatable='yes'>Multipage</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>multipage</attribute>
+      </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Toilet roll</attribute>
+        <attribute name='action'>win.mode</attribute>
+        <attribute name='target'>toilet-roll</attribute>
       </item>
 
       <item>
@@ -43,6 +44,26 @@
         <attribute name='label' translatable='yes'>Pages as bands</attribute>
         <attribute name='action'>win.mode</attribute>
         <attribute name='target'>pages-as-bands</attribute>
+      </item>
+    </section>
+
+    <section>
+      <item>
+        <attribute name='label' translatable='yes'>Checkerboard background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>checkerboard</attribute>
+      </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>White background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>white</attribute>
+      </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Black background</attribute>
+        <attribute name='action'>win.background</attribute>
+        <attribute name='target'>black</attribute>
       </item>
     </section>
 
