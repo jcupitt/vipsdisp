@@ -122,6 +122,7 @@ typedef struct _TileSource {
         int n_subifds;
         int *delay;
         int n_delay;
+        double zoom;
 
         /* If all the pages are the same size and format, we can load as a 
          * toilet roll.

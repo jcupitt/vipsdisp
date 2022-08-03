@@ -141,6 +141,10 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- zoom on the audi PDF seems to be broken
+
+    - look at the PDF / SVG zoom patch again?
+
 - info bar:
 
     - pages as bands ... info bar displays only one band
@@ -150,10 +154,6 @@ $ vipsdisp ~/pics/k2.jpg
 - how should we handle images which include labels, macros, thumbnails?
 
 - zoom menu could have 10:1 and 1:10 as well?
-
-- zoom on the audi PDF seems to be broken
-
-    - look at the PDF / SVG zoom patch again?
 
 - can still show black tiles occasionally?
 

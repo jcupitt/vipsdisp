@@ -176,7 +176,7 @@ tile_source_open( TileSource *tile_source, int level )
         else if( vips_isprefix( "svg", tile_source->loader ) ) {
                 image = vips_image_new_from_source( tile_source->source,
                         "", 
-                        "scale", 10.0 / (1 << level),
+                        "scale", tile_source->zoom / (1 << level),
                         NULL );
 	}
         else 
@@ -954,6 +954,7 @@ static void
 tile_source_init( TileSource *tile_source )
 {
         tile_source->scale = 1.0;
+        tile_source->zoom = 1.0;
 }
 
 static void
@@ -1521,19 +1522,23 @@ tile_source_new_from_source( VipsSource *source )
                 }
         }
 
-        VIPS_UNREF( image );
-
         if( vips_isprefix( "svg", tile_source->loader ) ) {
                 int size;
                 int n_levels;
                 int tile_levels;
                 int level;
 
-		/* Yuk ... apply the 10* SVG zoom.
+		/* Compute a zoom (scale) factor which will keep us under 32k
+		 * pixels per axis.
+		 */
+		tile_source->zoom = 32767.0 / 
+			VIPS_MAX( image->Xsize, image->Ysize );
+
+		/* Apply the zoom and build the pyramid.
 		 */
                 x = vips_image_new_from_source( tile_source->source,
                         "", 
-                        "scale", 10.0,
+                        "scale", tile_source->zoom,
                         NULL );
 		tile_source->width = x->Xsize;
 		tile_source->height = x->Ysize;
@@ -1555,6 +1560,8 @@ tile_source_new_from_source( VipsSource *source )
 				tile_source->height / (1 << level);
                 }
         }
+
+        VIPS_UNREF( image );
 
         /* Can we open in toilet-roll mode? We need to test that n_pages and
          * page_size are sane too. 
