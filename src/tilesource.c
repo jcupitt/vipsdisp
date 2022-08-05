@@ -1664,7 +1664,7 @@ tile_source_new_from_source( VipsSource *source )
                 tile_source->n_pages > 1 ) {
                 if( tile_source->delay )
                         mode = TILE_SOURCE_MODE_ANIMATED;
-		if( tile_source->all_mono )
+		else if( tile_source->all_mono )
                         mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
                 else
                         mode = TILE_SOURCE_MODE_MULTIPAGE;

@@ -148,8 +148,8 @@ $ vipsdisp ~/pics/k2.jpg
 
   scale by tile_source->zoom
 
-
-- GIFs not defaulting to animated any more
+- before we can do fancy PDF zooming, we'll need to split page and zoom in
+  tile_source_open()
 
 - info bar:
 
@@ -173,6 +173,8 @@ $ vipsdisp ~/pics/k2.jpg
   updating
 
 - no progress bar for replace? it works for initial load though
+
+- progress bar occasionally never shows even on a long load
 
 - header display
 
