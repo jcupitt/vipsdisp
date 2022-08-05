@@ -148,6 +148,10 @@ image_window_set_scale( ImageWindow *win, double scale )
         printf( "image_window_set_scale: %g\n", scale );
 #endif /*DEBUG*/
 
+        /* Scale by the zoom factor (SVG etc. scale) we picked on load.
+         */
+        scale /= win->tile_source->zoom;
+
         g_object_set( win->imagedisplay, 
 		"scale", scale,
 		NULL );
@@ -165,6 +169,10 @@ image_window_get_scale( ImageWindow *win )
         g_object_get( win->imagedisplay, 
 		"scale", &scale,
 		NULL );
+
+        /* Scale by the zoom factor (SVG etc. scale) we picked on load.
+         */
+        scale *= win->tile_source->zoom;
 
 #ifdef DEBUG
         printf( "image_window_get_scale: %g\n", scale );
@@ -250,7 +258,7 @@ image_window_bestfit( ImageWindow *win )
 			win->tile_source->display_height;
 		double scale = VIPS_MIN( hscale, vscale );
 
-		image_window_set_scale( win, scale );
+		image_window_set_scale( win, scale * win->tile_source->zoom );
 	}
 }
 
