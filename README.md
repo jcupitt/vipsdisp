@@ -141,17 +141,12 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- look at the PDF / SVG zoom patch again?
+- 1:1 should display at titlebar size
 
-  - libvips renders svg tiles at 2000 x 2000 ... why do we seem to redraw 
-    every 256 x 256?
+  so for SVG that'd mean a lot of zooming out ... need to set info bar mag as
+  well
 
-  - titlebar should display width/height for base open, not for scaled (ie.
-    pyramid) open
-
-    maybe need a new tilesource member for header-bar image? it's no longer 
-    guaranteed to be the same as the base pyr layer
-
+  scale by tile_source->zoom
 
 
 - GIFs not defaulting to animated any more

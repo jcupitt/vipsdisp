@@ -1439,12 +1439,12 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
                 title = "Untitled";
         gtk_label_set_text( GTK_LABEL( win->title ), title );
 
-        if( (image = tile_source_get_image( tile_source )) ) {
+        if( (image = tile_source_get_base_image( tile_source )) ) {
 		char str[256];
 		VipsBuf buf = VIPS_BUF_STATIC( str );
 
                 vips_buf_appendf( &buf, "%dx%d, ", 
-			tile_source->width, tile_source->height );
+			image->Xsize, image->Ysize );
 		if( tile_source->n_pages > 1 )
 			vips_buf_appendf( &buf, "%d pages, ", 
 				tile_source->n_pages );

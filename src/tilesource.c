@@ -50,6 +50,7 @@ tile_source_dispose( GObject *object )
 	VIPS_FREEF( g_source_remove, tile_source->page_flip_id );
 
         VIPS_UNREF( tile_source->source );
+        VIPS_UNREF( tile_source->base );
         VIPS_UNREF( tile_source->image );
         VIPS_UNREF( tile_source->image_region );
         VIPS_UNREF( tile_source->display );
@@ -1228,6 +1229,11 @@ tile_source_set_image( TileSource *tile_source, VipsImage *image )
         printf( "tile_source_set_image:\n" );
 #endif /*DEBUG*/
 
+	/* Note the base open ... this gets used for eg. the titlebar.
+	 */
+	tile_source->base = image;
+	g_object_ref( tile_source->base );
+
         tile_source->width = image->Xsize;
         tile_source->height = vips_image_get_page_height( image );
         tile_source->bands = image->Bands;
@@ -1857,10 +1863,21 @@ tile_source_write_to_file( TileSource *tile_source, GFile *file )
         return( result );
 }
 
+/* The image as used to generate the display, so including page extraction and
+ * composition.
+ */
 VipsImage *
 tile_source_get_image( TileSource *tile_source )
 {
         return( tile_source->image );
+}
+
+/* The base image is the plain open, so no scaling or page extraction.
+ */
+VipsImage *
+tile_source_get_base_image( TileSource *tile_source )
+{
+        return( tile_source->base );
 }
 
 gboolean

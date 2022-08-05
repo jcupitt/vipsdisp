@@ -93,6 +93,7 @@ typedef struct _TileSource {
          */
         const char *loader;
         VipsSource *source;
+        VipsImage *base;
 
         /* The image we are displaying, and something to fetch pixels from it
          * with. 
@@ -226,6 +227,7 @@ GFile *tile_source_get_file( TileSource *tile_source );
 int tile_source_write_to_file( TileSource *tile_source, GFile *file );
 
 VipsImage *tile_source_get_image( TileSource *tile_source );
+VipsImage *tile_source_get_base_image( TileSource *tile_source );
 gboolean tile_source_get_pixel( TileSource *tile_source, 
 	double **vector, int *n, int x, int y );
 TileSource *tile_source_duplicate( TileSource *tile_source );

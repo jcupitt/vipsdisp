@@ -4,6 +4,10 @@
 - support pinch zoom [earboxer]
 - background switcher
 - better visualisation of high bit-depth images
+- better redraw tree computation
+- much faster info bar updates
+- update infobar on page flip
+- implement SVG zoom
 
 ## 2.3, started 20/10/21
 
