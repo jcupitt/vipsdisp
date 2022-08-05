@@ -1,9 +1,9 @@
 #include "vipsdisp.h"
 
 /*
-#define DEBUG_VERBOSE
 #define DEBUG
 #define DEBUG_RENDER_TIME
+#define DEBUG_VERBOSE
  */
 
 enum {
@@ -342,6 +342,7 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
 
                 for( p = tile_cache->tiles[i]; p; p = p->next ) {
                         Tile *tile = TILE( p->data );
+			GSList **visible = &tile_cache->visible[i];
 
 			/* Ignore tiles with no current or previous pixels.
 			 */
@@ -349,11 +350,14 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
 				!tile->texture )
 				continue;
 
+			/* Ignore tiles we're already drawing.
+			 */
+			if( g_slist_index( *visible, tile ) >= 0 ) 
+				continue;
+
                         if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
 				tile_touch( tile );
-                                tile_cache->visible[z] = 
-                                        g_slist_prepend( tile_cache->visible[z],
-                                                tile );
+                                *visible = g_slist_prepend( *visible, tile );
                                 return;
                         }
                 }
@@ -449,7 +453,7 @@ tile_cache_compute_visibility( TileCache *tile_cache,
         GSList *p;
 
 #ifdef DEBUG_VERBOSE
-        printf( "tile_cache_compute_visibility:\n" ); 
+        printf( "tile_cache_compute_visibility: z = %d\n", z ); 
 #endif /*DEBUG_VERBOSE*/
 
         /* We're rebuilding these.
@@ -729,6 +733,58 @@ tile_cache_new( TileSource *tile_source )
         return( tile_cache ); 
 }
 
+static void
+tile_cache_draw_bounds( GtkSnapshot *snapshot, 
+	Tile *tile, graphene_rect_t *bounds )
+{
+	static float border_width[4] = { 2, 2, 2, 2 };
+	static GdkRGBA border_colour[4] = { 
+		{ 0, 1, 0, 1 },
+		{ 0, 1, 0, 1 },
+		{ 0, 1, 0, 1 },
+		{ 0, 1, 0, 1 },
+	};
+
+	GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
+		bounds->origin.x,
+		bounds->origin.y,
+		bounds->size.width,
+		bounds->size.height );
+
+	gtk_snapshot_append_border( snapshot, &outline, 
+		border_width, border_colour );
+
+	/* If we are drawing a low-res tile at the back of the stack, it can 
+	 * get extremly large with big images. Cairo hates large surfaces, 
+	 * so skip the text annotation in this case.
+	 */
+	if( bounds->size.width < 32000 &&
+		bounds->size.height < 32000 ) {
+		cairo_t *cr;
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+		cr = gtk_snapshot_append_cairo( snapshot, bounds );
+
+		cairo_set_source_rgb( cr, 0, 1, 0 );
+		cairo_set_font_size( cr, 12 );
+
+		cairo_move_to( cr,
+			bounds->origin.x + 0.1 * bounds->size.width,
+			bounds->origin.y + 0.1 * bounds->size.height );
+		vips_buf_appendf( &buf, "%p", tile );
+		cairo_show_text( cr, vips_buf_all( &buf ) );
+
+		cairo_move_to( cr, bounds->origin.x + 0.1 * bounds->size.width,
+			bounds->origin.y + 0.2 * bounds->size.height );
+		vips_buf_rewind( &buf );
+		vips_buf_appendf( &buf, "%d", tile->time );
+		cairo_show_text( cr, vips_buf_all( &buf ) );
+
+		cairo_destroy( cr );
+	}
+}
+
 /* Scale is how much the level0 image has been scaled, x/y is the position of
  * the top-left corner of the paint_rect area in the scaled image.
  *
@@ -827,7 +883,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
                 gtk_snapshot_pop( snapshot );
         }
 
-	/* Draw all visible tiles, back to front.
+	/* Draw all visible tiles, low res (at the back) to high res (at the
+	 * front).
 	 */
         for( i = tile_cache->n_levels - 1; i >= z; i-- ) { 
                 GSList *p;
@@ -850,69 +907,9 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 			/* In debug mode, draw the edges and add text for the 
 			 * tile pointer and age.
 			 */
-			if( debug ) {
-				GskRoundedRect outline = GSK_ROUNDED_RECT_INIT( 
-					bounds.origin.x,
-					bounds.origin.y,
-					bounds.size.width,
-					bounds.size.height );
-				float border_width[4] = { 2, 2, 2, 2 };
-				GdkRGBA border_colour[4] = { 
-					{ 0, 1, 0, 1 },
-					{ 0, 1, 0, 1 },
-					{ 0, 1, 0, 1 },
-					{ 0, 1, 0, 1 },
-				};
-
-				gtk_snapshot_append_border( snapshot, 
-					&outline, 
-					border_width, border_colour );
-
-				/* If we are drawing a low-res tile at the
-				 * back of the stack, it can get extremly
-				 * large with big images. Cairo hates large
-				 * surfaces, so skip the text annotation in
-				 * this case.
-				 */
-				if( bounds.size.width < 32000 &&
-					bounds.size.height < 32000 ) {
-					cairo_t *cr;
-					char str[256];
-					VipsBuf buf = VIPS_BUF_STATIC( str );
-
-					cr = gtk_snapshot_append_cairo( 
-						snapshot, &bounds );
-
-					cairo_set_source_rgb( cr, 0, 1, 0 );
-					cairo_set_font_size( cr, 12 );
-
-					cairo_move_to( cr,
-						bounds.origin.x + 
-							0.1 * 
-							bounds.size.width,
-						bounds.origin.y + 
-							0.1 * 
-							bounds.size.height );
-					vips_buf_appendf( &buf, "%p", tile );
-					cairo_show_text( cr,
-						vips_buf_all( &buf ) );
-
-					cairo_move_to( cr, 
-						bounds.origin.x + 
-							0.1 * 
-							bounds.size.width,
-						bounds.origin.y + 
-							0.2 * 
-							bounds.size.height );
-					vips_buf_rewind( &buf );
-					vips_buf_appendf( &buf, "%d", 
-						tile->time );
-					cairo_show_text( cr,
-						vips_buf_all( &buf ) );
-
-					cairo_destroy( cr );
-				}
-			}
+			if( debug ) 
+				tile_cache_draw_bounds( snapshot, 
+					tile, &bounds );
                 }
         }
 

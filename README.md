@@ -143,18 +143,18 @@ $ vipsdisp ~/pics/k2.jpg
 
 - look at the PDF / SVG zoom patch again?
 
-    infobar causes huge performance problems with svg, since it updates in the
-    GUI loop
-
-    maybe fetch values from tile_source instead? we could pick from the current
-    pyr layer, perhaps? would we need to cache that?
-
+  - libvips renders svg tiles at 2000 x 2000 ... why do we seem to redraw 
+    every 256 x 256?
 
   - titlebar should display width/height for base open, not for scaled (ie.
     pyramid) open
 
+    maybe need a new tilesource member for header-bar image? it's no longer 
+    guaranteed to be the same as the base pyr layer
 
 
+
+- GIFs not defaulting to animated any more
 
 - info bar:
 

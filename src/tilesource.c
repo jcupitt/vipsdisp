@@ -242,8 +242,6 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
         VipsImage *image;
         VipsImage *x;
         VipsImage *mask;
-        int n_bands;
-        VipsInterpretation interpretation;
         TileSourceUpdate *update;
 
         g_assert( mask_out ); 
@@ -406,29 +404,6 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                 image = x;
         }
 
-        if( image->BandFmt != VIPS_FORMAT_UCHAR )
-		interpretation = VIPS_INTERPRETATION_scRGB;
-	else
-		interpretation = VIPS_INTERPRETATION_sRGB;
-        if( vips_colourspace( image, &x, interpretation, NULL ) ) {
-                VIPS_UNREF( image );
-                return( NULL ); 
-        }
-        VIPS_UNREF( image );
-        image = x;
-
-        /* Remove any extra bands to leave just RGB or RGBA.
-         */
-        n_bands = vips_image_hasalpha( image ) ? 4 : 3;
-        if( image->Bands > n_bands ) {
-                if( vips_extract_band( image, &x, 0, "n", n_bands, NULL ) ) {
-                        VIPS_UNREF( image );
-                        return( NULL ); 
-                }
-                VIPS_UNREF( image );
-                image = x;
-        }
-
 	/* A slow operation, handy for checking rendering order.
 	 *
 	if( vips_gaussblur( image, &x, 100, NULL ) ) {
@@ -501,29 +476,42 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 {
         VipsImage *image;
         VipsImage *x;
+        VipsInterpretation interpretation;
+        int n_bands;
 	VipsImage *alpha;
 
         image = in;
         g_object_ref( image ); 
 
-	/* We don't want these to touch alpha (if any) ... remove and 
-	 * reattach at the end.
+	/* To an RGB-like space.
+	 */
+        if( image->BandFmt != VIPS_FORMAT_UCHAR )
+		interpretation = VIPS_INTERPRETATION_scRGB;
+	else
+		interpretation = VIPS_INTERPRETATION_sRGB;
+        if( vips_colourspace( image, &x, interpretation, NULL ) ) {
+                VIPS_UNREF( image );
+                return( NULL ); 
+        }
+        VIPS_UNREF( image );
+        image = x;
+
+        /* Remove any extra bands to leave just RGB or RGBA.
+         */
+        n_bands = vips_image_hasalpha( image ) ? 4 : 3;
+        if( image->Bands > n_bands ) {
+                if( vips_extract_band( image, &x, 0, "n", n_bands, NULL ) ) {
+                        VIPS_UNREF( image );
+                        return( NULL ); 
+                }
+                VIPS_UNREF( image );
+                image = x;
+        }
+
+	/* We don't want vis controls to touch alpha ... if we're doing vis,
+	 * remove and reattach at the end.
 	 */
 	alpha = NULL;
-	if( vips_image_hasalpha( image ) ) { 
-		if( vips_extract_band( image, &alpha, 3, NULL ) ) {
-			VIPS_UNREF( image );
-			return( NULL ); 
-		}
-		if( vips_extract_band( image, &x, 0, 
-			"n", 3, NULL ) ) {
-			VIPS_UNREF( image );
-			VIPS_UNREF( alpha );
-			return( NULL ); 
-		}
-		VIPS_UNREF( image );
-		image = x;
-	}
 
         if( tile_source->active &&
                 (tile_source->scale != 1.0 ||
@@ -531,6 +519,20 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
                  tile_source->falsecolour ||
                  tile_source->log ||
                  image->Type == VIPS_INTERPRETATION_FOURIER) ) {
+		if( vips_image_hasalpha( image ) ) { 
+			if( vips_extract_band( image, &alpha, 3, NULL ) ) {
+				VIPS_UNREF( image );
+				return( NULL ); 
+			}
+			if( vips_extract_band( image, &x, 0, 
+				"n", 3, NULL ) ) {
+				VIPS_UNREF( image );
+				VIPS_UNREF( alpha );
+				return( NULL ); 
+			}
+			VIPS_UNREF( image );
+			image = x;
+		}
 
                 if( tile_source->log ||
                         image->Type == VIPS_INTERPRETATION_FOURIER ) { 
@@ -1538,9 +1540,6 @@ tile_source_new_from_source( VipsSource *source )
 			32767.0 / VIPS_MAX( image->Xsize, image->Ysize ),
 			200 );
 
-		printf( "tile_source_new_from_source: zoom = %g\n", 
-			tile_source->zoom );
-
 		/* Apply the zoom and build the pyramid.
 		 */
                 x = vips_image_new_from_source( tile_source->source,
@@ -1872,7 +1871,16 @@ tile_source_get_pixel( TileSource *tile_source,
                 !tile_source->image )
                 return( FALSE );
 
-	if( vips_getpoint( tile_source->image, vector, n, x, y, NULL ) )
+	/* The ->display image is cached in a sink screen, so this will be 
+	 * quick, even for things like svg and pdf.
+	 *
+	 * x and y are in base image coordinates, so we need to scale by the
+	 * current z.
+	 */
+	if( vips_getpoint( tile_source->display, vector, n, 
+		x / (1 << tile_source->current_z), 
+		y / (1 << tile_source->current_z), 
+		NULL ) )
                 return( FALSE );
 
         return( TRUE );

@@ -1512,11 +1512,6 @@ image_window_get_pixel( ImageWindow *win, double **vector, int *n,
 {
 	TileSource *tile_source = win->tile_source;
 
-        VipsImage *image;
-
-        if( !(image = tile_source_get_image( tile_source )) )
-		return( FALSE );
-
 	switch( tile_source->mode ) {
 	case TILE_SOURCE_MODE_TOILET_ROLL:
                 if( !tile_source_get_pixel( tile_source, vector, n, 
