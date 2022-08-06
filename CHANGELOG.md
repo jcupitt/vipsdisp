@@ -1,13 +1,14 @@
 ## master
 
 - match zoom direction and step size on scrollwheel with eog
-- support pinch zoom [earboxer]
-- background switcher
+- basic support for pinch zoom [earboxer]
+- new display menu items let you pick image background 
 - better visualisation of high bit-depth images
 - better redraw tree computation
 - much faster info bar updates
 - update infobar on page flip
 - implement SVG zoom
+- better OME tiff support
 
 ## 2.3, started 20/10/21
 

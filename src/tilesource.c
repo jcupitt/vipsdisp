@@ -340,12 +340,21 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
                         VIPS_UNREF( image );
                         return( NULL );
                 }
-
-                x->Type = VIPS_INTERPRETATION_MULTIBAND;
-
                 VIPS_UNREF( image );
                 VIPS_UNREF( context );
                 image = x;
+
+                /* Pick an interpretation ... one of the RGB types, if we
+                 * can.
+                 */
+                if( image->Bands < 3 )
+                        image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? 
+                                VIPS_INTERPRETATION_GREY16 :
+                                VIPS_INTERPRETATION_B_W;
+                else
+                        image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? 
+                                VIPS_INTERPRETATION_RGB16 :
+                                VIPS_INTERPRETATION_sRGB;
         }
 
         /* Histogram type ... plot the histogram. 
@@ -476,8 +485,8 @@ static VipsImage *
 tile_source_rgb_image( TileSource *tile_source, VipsImage *in ) 
 {
         VipsImage *image;
-        VipsImage *x;
         VipsInterpretation interpretation;
+        VipsImage *x;
         int n_bands;
 	VipsImage *alpha;
 
@@ -485,12 +494,16 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
         g_object_ref( image ); 
 
 	/* To an RGB-like space.
+         *
+         * 8 bit images are fine as 8 bit for scale/offset etc., other types
+         * need more precision.
 	 */
-        if( image->BandFmt != VIPS_FORMAT_UCHAR )
-		interpretation = VIPS_INTERPRETATION_scRGB;
-	else
-		interpretation = VIPS_INTERPRETATION_sRGB;
-        if( vips_colourspace( image, &x, interpretation, NULL ) ) {
+        interpretation = vips_band_format_is8bit( image->BandFmt ) ?
+                VIPS_INTERPRETATION_sRGB :
+                VIPS_INTERPRETATION_scRGB;
+
+        if( vips_colourspace( image, &x, interpretation, 
+                NULL ) ) {
                 VIPS_UNREF( image );
                 return( NULL ); 
         }
@@ -593,6 +606,16 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 	}
 
 	if( alpha ) {
+                /* Alpha might be eg. float.
+                 */
+                if( vips_cast( alpha, &x, image->BandFmt, NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+                }
+		VIPS_UNREF( alpha );
+		alpha = x;
+
 		if( vips_bandjoin2( image, alpha, &x, NULL ) ) {
 			VIPS_UNREF( image );
 			VIPS_UNREF( alpha );
@@ -617,8 +640,10 @@ tile_source_update_rgb( TileSource *tile_source )
                 VipsImage *rgb;
 
                 if( !(rgb = tile_source_rgb_image( tile_source, 
-                        tile_source->display )) ) 
+                        tile_source->display )) ) {
+                        printf( "tile_source_rgb_image failed!\n" );
                         return( -1 ); 
+                }
                 VIPS_UNREF( tile_source->rgb );
                 tile_source->rgb = rgb;
 
@@ -1888,16 +1913,24 @@ tile_source_get_pixel( TileSource *tile_source,
                 !tile_source->image )
                 return( FALSE );
 
-	/* The ->display image is cached in a sink screen, so this will be 
-	 * quick, even for things like svg and pdf.
-	 *
-	 * x and y are in base image coordinates, so we need to scale by the
+        /* x and y are in base image coordinates, so we need to scale by the
 	 * current z.
 	 */
-	if( vips_getpoint( tile_source->display, vector, n, 
-		x / (1 << tile_source->current_z), 
-		y / (1 << tile_source->current_z), 
-		NULL ) )
+        x /= 1 << tile_source->current_z;
+        y /= 1 << tile_source->current_z;
+
+        /* Block outside the image.
+         */
+        if( x < 0 || 
+                y < 0 || 
+                x >= tile_source->display->Xsize ||
+                y >= tile_source->display->Ysize )
+                return( FALSE );
+
+	/* The ->display image is cached in a sink screen, so this will be 
+	 * reasonably quick, even for things like svg and pdf.
+	 */
+	if( vips_getpoint( tile_source->display, vector, n, x, y, NULL ) )
                 return( FALSE );
 
         return( TRUE );

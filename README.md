@@ -141,29 +141,46 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- 1:1 should display at titlebar size
+- pages as bands
 
-  so for SVG that'd mean a lot of zooming out ... need to set info bar mag as
-  well
+    $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
 
-  scale by tile_source->zoom
+        page flip resets zoom and scroll
 
-- before we can do fancy PDF zooming, we'll need to split page and zoom in
-  tile_source_open()
+        does not page flip to smaller pages correctly
+
+- colour:
+
+    - with eg. SVS, we won't get the ICC profile from openslide
+
+        - maybe fetch the profile ourselves with a tiffopen? we'll need a
+          special path for this
 
 - info bar:
 
+    - update pixel value in a bg thread? we do it in the GUI thread right now
+      and it can cause terrible hitching
+
     - pages as bands ... info bar displays only one band
 
-    - will not display complex numbers correctly ... need to unpack to bands
+    - will not display complex numbers correctly ... need to unpack to bands,
+      or does getpoint do this already?
+
+- zooming:
+
+    - zoom / zoom in menu item could step in by more, and animate the zoom as
+      well?
+
+    - we could shrink tiles on zoom out (we only expand tiles now)
+
+    - before we can do fancy PDF zooming, we'll need to split page and zoom in
+      tile_source_open()
 
 - how should we handle images which include labels, macros, thumbnails?
 
-- zoom menu could have 10:1 and 1:10 as well?
+    - load options? save options? 
 
-- can still show black tiles occasionally?
-
-    - we could shrink tiles on zoom out (we only expand tiles now)
+- flatpak build needs git master libvips
 
 - add imagemagick to get dicom loader?
 
@@ -177,8 +194,6 @@ $ vipsdisp ~/pics/k2.jpg
 - progress bar occasionally never shows even on a long load
 
 - header display
-
-- load options? save options? eg. load SVG at $x DPI
 
 ## Version bump checklist
 

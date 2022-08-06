@@ -65,7 +65,7 @@ static const int infobar_label_width[] = {
 static void
 infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar ) 
 {
-        VipsImage *image = tile_source_get_image( tile_source );
+        VipsImage *image = tile_source->display;
 
         GSList *p;
         VipsBandFormat format;
@@ -140,6 +140,7 @@ infobar_status_value_set_array( Infobar *infobar, double *d )
 void
 infobar_status_update( Infobar *infobar )
 {
+        TileSource *tile_source = image_window_get_tile_source( infobar->win );
         double scale = image_window_get_scale( infobar->win );
 
         char str[64];
@@ -165,7 +166,7 @@ infobar_status_update( Infobar *infobar )
                 vips_buf_all( &buf ) ); 
         vips_buf_rewind( &buf ); 
 
-	if( image_window_get_pixel( infobar->win, &vector, &n, 
+	if( tile_source_get_pixel( tile_source, &vector, &n, 
 		image_x, image_y ) ) {
 		infobar_status_value_set_array( infobar, vector );
 		g_free( vector );

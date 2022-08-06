@@ -1513,37 +1513,3 @@ image_window_get_mouse_position( ImageWindow *win,
         imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
 		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
 }
-
-gboolean
-image_window_get_pixel( ImageWindow *win, double **vector, int *n, 
-	double image_x, double image_y )
-{
-	TileSource *tile_source = win->tile_source;
-
-	switch( tile_source->mode ) {
-	case TILE_SOURCE_MODE_TOILET_ROLL:
-                if( !tile_source_get_pixel( tile_source, vector, n, 
-			image_x, image_y ) ) 
-			return( FALSE );	
-		break;
-
-	case TILE_SOURCE_MODE_MULTIPAGE:
-	case TILE_SOURCE_MODE_ANIMATED:
-                if( !tile_source_get_pixel( tile_source, vector, n, 
-			image_x, 
-			image_y + tile_source->page * tile_source->height  ) ) 
-			return( FALSE );	
-		break;
-
-	case TILE_SOURCE_MODE_PAGES_AS_BANDS:
-		/* Not implemented.
-		 */
-		return( FALSE );
-		break;
-
-	default:
-		return( FALSE );
-	}
-
-	return( TRUE );
-}
