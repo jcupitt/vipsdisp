@@ -38,7 +38,7 @@ configure_file(
 )
 
 vips_dep = dependency('vips', version: '>=8.11')
-gtk_dep = dependency('gtk4-wayland')
+gtk_dep = dependency('gtk4')
 m_dep = cc.find_library('m')
 
 vipsdisp_deps = [
