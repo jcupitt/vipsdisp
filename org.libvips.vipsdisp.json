@@ -312,17 +312,12 @@
         {
             "name" : "libvips",
             "builddir" : true,
-            "buildsystem" : "autotools",
-            "build-options" : {
-                "env" : {
-                    "V" : "0"
-                }
-            },
+            "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "archive",
-                    "url" : "https://github.com/libvips/libvips/releases/download/v8.12.1/vips-8.12.1.tar.gz",
-                    "sha256" : "474d8439244cd26c504812fd623259f806c32553b38d2a54798c9766135f5a5c"
+                    "type" : "git",
+                    "url" : "https://github.com/libvips/libvips.git",
+                    "commit" : "eb632c1f9bfc3fa36ef321445d4cbf941b17b76d"
                 }
             ]
         },
@@ -330,12 +325,7 @@
         {
             "name" : "vipsdisp",
             "builddir" : true,
-            "buildsystem" : "autotools",
-            "build-options" : {
-                "env" : {
-                    "V" : "0"
-                }
-            },
+            "buildsystem" : "meson",
             "sources" : [
                 {
                     "type" : "git",
