@@ -341,7 +341,7 @@
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
                     "tag" : "v2.4",
-                    "commit" : "6555013dcc9fd1abaefe4bb2932b8111121fe8fb"
+                    "commit" : "a6f04f23d8f876e20a7741c292484e4ce976a7ee"
                 }
             ]
         }
