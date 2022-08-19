@@ -282,7 +282,7 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
         imagedisplay_set_vadjustment_values( imagedisplay );
 }
 
-/* Large change, we need to relayout.
+/* Large change, we need to relayout. 
  */
 static void
 imagedisplay_tile_cache_changed( TileCache *tile_cache, 
@@ -292,8 +292,6 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
         printf( "imagedisplay_tile_cache_changed:\n" ); 
 #endif /*DEBUG*/
 
-	/* Always shrink-to-fit new image sources.
-	 */
 	imagedisplay->bestfit = TRUE;
 
         imagedisplay->image_rect.width = 

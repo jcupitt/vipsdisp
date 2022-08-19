@@ -145,9 +145,21 @@ $ vipsdisp ~/pics/k2.jpg
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
 
-        page flip resets zoom and scroll
+        - zooming out with the mousewheel on page 0 produces a lot of tile
+          read errors, and even out of order read
+
+            missing pyr levels? seem to try to read a subifd that's not there
+
+        flip to last page, zoom, lots of repaint errors
+
+        maybe join first N pages (while pages same size) in pages as bands 
+        mode?
 
         does not page flip to smaller pages correctly
+
+            reset zoom/scroll on pagegflip if the page size changes?
+
+        same for audi r8 pdf page flip I guess?
 
 - colour:
 

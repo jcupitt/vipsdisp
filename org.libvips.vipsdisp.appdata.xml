@@ -53,6 +53,14 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.4" date="2022-08-19">
+      <description>
+        Faster, smoother pan and zoom. Selectable image background. Better 
+        visualisation of HDR images. Better SVG support. Better OME TIFF 
+        support.
+      </description>
+    </release>
+
     <release version="2.3" date="2021-12-31">
       <description>
         Better initial shrink-to-fit logic. Right-button menu on image. Better 

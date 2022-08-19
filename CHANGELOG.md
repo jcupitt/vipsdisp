@@ -1,5 +1,7 @@
 ## master
 
+## 2.4, 19/8/22
+
 - match zoom direction and step size on scrollwheel with eog
 - basic support for pinch zoom [earboxer]
 - new display menu items let you pick image background 
