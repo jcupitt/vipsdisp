@@ -49,19 +49,12 @@ vipsdisp_deps = [
 
 install_data(application_id + '.gschema.xml', 
   install_dir: get_option('datadir') / 'glib-2.0' / 'schemas')
+install_data(application_id + '.appdata.xml', 
+  install_dir: get_option('datadir') / 'appdata')
+install_data(application_id + '.desktop', 
+  install_dir: get_option('datadir') / 'applications')
+install_data(application_id + '.png', 
+  install_dir: get_option('datadir') / 'icons' / '128x128')
 meson.add_install_script('meson_post_install.py')
 
 subdir('src')
-
-# still to do ... we had these lines in Makefile.am
-#
-# vipsdispdir = $(datadir)/icons/hicolor/128x128/apps
-# vipsdispappdir = $(datadir)/applications
-# vipsdispappdatadir = $(datadir)/metainfo
-#
-# vipsdisp_DATA = org.libvips.vipsdisp.png
-# vipsdispapp_DATA = org.libvips.vipsdisp.desktop
-# vipsdispappdata_DATA = org.libvips.vipsdisp.appdata.xml
-
-
-
