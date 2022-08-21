@@ -333,7 +333,9 @@
             "builddir" : true,
             "buildsystem" : "meson",
             "config-opts" : [
-                "--buildtype=release"
+                "--buildtype=release",
+                "-Ddeprecated=false",
+                "-Dmodules=disabled"
             ],
             "sources" : [
                 {
