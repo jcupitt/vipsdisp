@@ -216,8 +216,6 @@ Version needs updating in the following places:
 
 - **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
 
-- **`org.libvips.vipsdisp.desktop`** also has a version number.
-
 ## flatpak
 
 Add the `flathub` repo:
