@@ -141,14 +141,6 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- scale and offset are broken argh
-
-    - seem to work with falsecolor enabled though
-
-- printf() left on
-
-    image_window_background: 2
-
 - pages as bands
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 

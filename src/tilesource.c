@@ -502,8 +502,7 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
                 VIPS_INTERPRETATION_sRGB :
                 VIPS_INTERPRETATION_scRGB;
 
-        if( vips_colourspace( image, &x, interpretation, 
-                NULL ) ) {
+        if( vips_colourspace( image, &x, interpretation, NULL ) ) {
                 VIPS_UNREF( image );
                 return( NULL ); 
         }
@@ -582,15 +581,26 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 	/* It might be scRGB. This must come after scale/offset.
 	 */
-	if( in->Type != VIPS_INTERPRETATION_sRGB ) {
+	if( image->Type != VIPS_INTERPRETATION_sRGB ) {
 		if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, 
 			NULL ) ) {
 			VIPS_UNREF( image );
+                        VIPS_UNREF( alpha );
 			return( NULL ); 
 		}
 		VIPS_UNREF( image );
 		image = x;
 	}
+
+        if( image->BandFmt != VIPS_FORMAT_UCHAR ) {
+                if( vips_cast( image, &x, VIPS_FORMAT_UCHAR, NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+                }
+		VIPS_UNREF( image );
+		image = x;
+        }
 
 	/* This must be after conversion to sRGB.
 	 */

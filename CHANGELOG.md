@@ -1,6 +1,9 @@
 ## master
 
+## 2.4.1, 21/8/22
+
 - remove stray printfs
+- fix scale + offset sliders
 
 ## 2.4, 19/8/22
 
