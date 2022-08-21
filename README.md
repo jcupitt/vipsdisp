@@ -277,6 +277,12 @@ flatpak install flathub org.freedesktop.appstream-glib
 flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
 ```
 
+Also:
+
+```
+desktop-file-validate org.libvips.vipsdisp.desktop 
+```
+
 ## Uploading to flathub
 
 Push to master on:

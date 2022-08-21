@@ -11,7 +11,9 @@
         "--socket=wayland",
         "--talk-name=org.gtk.vfs.*",
         "--filesystem=xdg-run/gvfsd",
-        "--filesystem=home"
+        "--filesystem=home",
+        "--filesystem=/mnt",
+        "--filesystem=/srv"
     ],
     "cleanup" : [
         "/include",
@@ -20,6 +22,7 @@
         "/lib/cmake",
         "/lib/openjpeg-*",
         "/lib/libhdf5.settings",
+        "/lib/debug",
         "/man",
         "/share/aclocal",
         "/share/doc",
@@ -56,9 +59,9 @@
         "/bin/vips",
         "/bin/vipsheader",
         "/bin/vipsedit",
-        "/bin/vips-*",
         "/bin/vipsprofile",
         "/bin/vipsthumbnail",
+        "/bin/jxlinfo",
         "*.la",
         "*.a"
     ],
@@ -72,8 +75,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libjxl/libjxl.git",
-                    "tag" : "v0.5",
-                    "commit" : "c4e0877f93506e880cd922f6c94644d79ae9adff"
+                    "tag" : "v0.7rc",
+                    "commit" : "980c90f65f41066cc4959b4eb80eba906867103b"
                 }
             ]
         },
@@ -86,8 +89,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/uclouvain/openjpeg.git",
-                    "tag" : "v2.4.0",
-                    "commit" : "37ac30ceff6640bbab502388c5e0fa0bff23f505"
+                    "tag" : "v2.5.0",
+                    "commit" : "a5891555eb49ed7cc26b2901ea680acda136d811"
                 }
             ]
         },
@@ -104,7 +107,7 @@
                         ]
                     }
                 }
-	    },
+            },
             "sources" : [
                 {
                     "type" : "git",
@@ -123,8 +126,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/randy408/libspng.git",
-                    "tag" : "v0.6.3",
-                    "commit" : "de6f83bc641477352de6ff6be08012df024dcfe0"
+                    "tag" : "v0.7.2",
+                    "commit" : "4baa1b1384da4ae9ddbe42a90e5f6300afb44fe7"
                 }
             ]
         },
@@ -310,9 +313,28 @@
         },
 
         {
+            "name" : "cgif",
+            "buildsystem" : "meson",
+            "config-opts" : [
+                "--buildtype=release"
+            ],
+            "builddir" : true,
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/dloebl/cgif.git",
+                    "tag" : "V0.3.0"
+                }
+            ]
+        },
+
+        {
             "name" : "libvips",
             "builddir" : true,
             "buildsystem" : "meson",
+            "config-opts" : [
+                "--buildtype=release"
+            ],
             "sources" : [
                 {
                     "type" : "git",
@@ -326,11 +348,14 @@
             "name" : "vipsdisp",
             "builddir" : true,
             "buildsystem" : "meson",
+            "config-opts" : [
+                "--buildtype=release"
+            ],
             "sources" : [
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v2.4b"
+                    "tag" : "v2.4e"
                 }
             ]
         }
