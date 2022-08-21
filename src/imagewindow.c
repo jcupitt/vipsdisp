@@ -1203,8 +1203,6 @@ image_window_background( GSimpleAction *action,
         TileCacheBackground background = 
 		background_to_enum( g_variant_get_string( state, NULL ) );
 
-	printf( "image_window_background: %d\n", background );
-
 	if( win->tile_cache ) 
 		g_object_set( win->tile_cache,
 			"background", background,
