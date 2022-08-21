@@ -357,7 +357,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v2.4e"
+                    "tag" : "v2.4.1"
                 }
             ]
         }
