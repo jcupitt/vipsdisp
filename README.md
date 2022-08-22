@@ -225,10 +225,11 @@ flatpak remote-add --if-not-exists \
   flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
-Install the gtk4 SDK:
+Install the gtk4 SDK and runtime:
 
 ```
 flatpak install org.gnome.Sdk//41
+flatpak install org.gnome.Platform//41
 ```
 
 Build:
