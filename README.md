@@ -141,14 +141,26 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
-- pages as bands
+- tile read errors:
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
 
-        - zooming out with the mousewheel on page 0 produces a lot of tile
-          read errors, and even out of order read
+        - (vipsdisp:110067): VIPS-WARNING **: 18:05:16.244: 
+            error in tile 0 x 256: tiff2vips: 
+                out of order read -- at line 3328, but line 256 requested
 
-            missing pyr levels? seem to try to read a subifd that's not there
+    page 0, subifd 2 and subifd 3 are untiled!!!
+
+    we need to decompress the whole layer before we view :( 
+
+- need to separate page and zoom for ome-tiff, since we have many-page
+  subifd pyramids
+
+    - useful for fixing PDF zoom in the way we fixed SVG zoom too
+
+- pages as bands
+
+    $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
 
         flip to last page, zoom, lots of repaint errors
 
@@ -228,8 +240,8 @@ flatpak remote-add --if-not-exists \
 Install the gtk4 SDK and runtime:
 
 ```
-flatpak install org.gnome.Sdk//41
-flatpak install org.gnome.Platform//41
+flatpak install org.gnome.Sdk//42
+flatpak install org.gnome.Platform//42
 ```
 
 Build:
