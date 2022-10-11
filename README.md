@@ -141,6 +141,9 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- can we move "new_from_file" into a bg thread? the GUI will pause on huge
+  SVGs on zoom change right now
+
 - tile read errors:
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
@@ -191,6 +194,10 @@ $ vipsdisp ~/pics/k2.jpg
       or does getpoint do this already?
 
 - zooming:
+
+    - better pinch zoom support
+
+        we should take the coordinates of the pinch gesture into account
 
     - zoom / zoom in menu item could step in by more, and animate the zoom as
       well?
