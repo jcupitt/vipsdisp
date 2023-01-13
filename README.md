@@ -141,6 +141,9 @@ $ vipsdisp ~/pics/k2.jpg
 
 ## TODO
 
+- allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
+  "load options" expander, and save should have "save options"
+
 - can we move "new_from_file" into a bg thread? the GUI will pause on huge
   SVGs on zoom change right now
 
@@ -247,17 +250,19 @@ flatpak remote-add --if-not-exists \
 Install the gtk4 SDK and runtime:
 
 ```
-flatpak install org.gnome.Sdk//42
-flatpak install org.gnome.Platform//42
+flatpak install org.gnome.Sdk//43
+flatpak install org.gnome.Platform//43
 ```
 
-Build:
+Allow file. Recent security changes to git will cause submodule checkout
+to fail inside flatpak. If you get errors like `fatal: transport 'file'
+not allowed`, reenable file transport with:
 
 ```
-flatpak-builder --force-clean build-dir org.libvips.vipsdisp.json
+git config --global protocol.file.allow always
 ```
 
-Install the binary you just made to your local account and try running it:
+Build and try running it:
 
 ```
 flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.json
