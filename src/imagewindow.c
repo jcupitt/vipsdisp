@@ -50,6 +50,7 @@ struct _ImageWindow
         GtkWidget *imagedisplay;
         GtkWidget *display_bar;
         GtkWidget *info_bar;
+        GtkWidget *saveoptions;
 
         /* Throttle progress bar updates to a few per second with this.
          */
@@ -505,6 +506,7 @@ image_window_duplicate_action( GSimpleAction *action,
 
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+        copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "saveoptions" );
         copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
         /* We want to init the scroll position, but we can't do that until the
@@ -1008,6 +1010,19 @@ image_window_info( GSimpleAction *action,
 }
 
 static void
+image_window_saveoptions( GSimpleAction *action, 
+        GVariant *state, gpointer user_data )
+{
+        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+        g_object_set( win->saveoptions,
+                "revealed", g_variant_get_boolean( state ),
+                NULL );
+
+        g_simple_action_set_state( action, state );
+}
+
+static void
 image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -1248,6 +1263,8 @@ static GActionEntry image_window_entries[] = {
                 image_window_control },
         { "info", image_window_toggle, NULL, "false", 
                 image_window_info },
+        { "saveoptions", image_window_toggle, NULL, "false", 
+                image_window_saveoptions },
 
         { "next", image_window_next },
         { "prev", image_window_prev },
@@ -1280,6 +1297,10 @@ image_window_init( ImageWindow *win )
         g_object_set( win->info_bar,
                 "image-window", win,
                 NULL );
+        g_object_set( win->saveoptions,
+                "image-window", win,
+                NULL );
+
 
         g_signal_connect_object( win->progress_cancel, "clicked", 
                 G_CALLBACK( image_window_cancel_clicked ), win, 0 );
@@ -1338,12 +1359,20 @@ image_window_init( ImageWindow *win )
                 "revealed", 
                 G_SETTINGS_BIND_DEFAULT );
 
+        g_settings_bind( win->settings, "saveoptions",
+                G_OBJECT( win->saveoptions ),
+                "revealed", 
+                G_SETTINGS_BIND_DEFAULT );
+
+
         /* Initial menu state from settings.
          */
         change_state( GTK_WIDGET( win ), "control", 
                 g_settings_get_value( win->settings, "control" ) );
         change_state( GTK_WIDGET( win ), "info", 
                 g_settings_get_value( win->settings, "info" ) );
+        change_state( GTK_WIDGET( win ), "saveoptions", 
+                g_settings_get_value( win->settings, "saveoptions" ) );
 
 }
 
@@ -1386,6 +1415,7 @@ image_window_class_init( ImageWindowClass *class )
         BIND( imagedisplay );
         BIND( display_bar );
         BIND( info_bar );
+        BIND( saveoptions );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
 		image_window_pressed_cb );

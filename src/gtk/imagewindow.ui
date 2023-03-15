@@ -91,6 +91,10 @@
         <attribute name="label" translatable="yes">Info bar</attribute>
         <attribute name="action">win.info</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">Save options</attribute>
+        <attribute name="action">win.saveoptions</attribute>
+      </item>
     </section>
 
     <section>
@@ -229,6 +233,11 @@
 
         <child>
           <object class="Infobar" id="info_bar">
+          </object>
+        </child>
+
+        <child>
+          <object class="Saveoptions" id="saveoptions">
           </object>
         </child>
 

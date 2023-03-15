@@ -38,6 +38,7 @@
 #include "imagedisplay.h"
 #include "imagewindow.h"
 #include "infobar.h"
+#include "saveoptions.h"
 #include "displaybar.h"
 
 #endif /* __VIPSDISP_H */

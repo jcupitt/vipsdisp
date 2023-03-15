@@ -4,6 +4,7 @@
   <gresource prefix="/org/libvips/vipsdisp">
     <file preprocess="xml-stripblanks">imagewindow.ui</file>
     <file preprocess="xml-stripblanks">infobar.ui</file>
+    <file preprocess="xml-stripblanks">saveoptions.ui</file>
     <file preprocess="xml-stripblanks">displaybar.ui</file>
     <file preprocess="xml-stripblanks">tslider.ui</file>
   </gresource>
