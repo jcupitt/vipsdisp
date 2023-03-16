@@ -54,6 +54,11 @@
         <attribute name='label' translatable='yes'>Save as ...</attribute>
         <attribute name='action'>win.saveas</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">Options ...</attribute>
+        <attribute name="action">win.saveoptions</attribute>
+      </item>
+
     </section>
 
     <section>
@@ -90,10 +95,6 @@
       <item>
         <attribute name="label" translatable="yes">Info bar</attribute>
         <attribute name="action">win.info</attribute>
-      </item>
-      <item>
-        <attribute name="label" translatable="yes">Save options</attribute>
-        <attribute name="action">win.saveoptions</attribute>
       </item>
     </section>
 

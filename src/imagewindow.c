@@ -1016,7 +1016,7 @@ image_window_saveoptions( GSimpleAction *action,
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
         g_object_set( win->saveoptions,
-                "revealed", g_variant_get_boolean( state ),
+                "visible", g_variant_get_boolean( state ),
                 NULL );
 
         g_simple_action_set_state( action, state );
@@ -1361,7 +1361,7 @@ image_window_init( ImageWindow *win )
 
         g_settings_bind( win->settings, "saveoptions",
                 G_OBJECT( win->saveoptions ),
-                "revealed", 
+                "visible", 
                 G_SETTINGS_BIND_DEFAULT );
 
 

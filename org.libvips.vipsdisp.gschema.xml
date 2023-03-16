@@ -63,6 +63,30 @@
       </description>
     </key>
 
+    <key name="bool0" type="b">
+      <default>true</default>
+      <summary>bool0</summary>
+      <description>The boolean value of the 0th checkbox.</description>
+    </key>
+
+    <key name="bool1" type="b">
+      <default>true</default>
+      <summary>bool0</summary>
+      <description>The boolean value of the 1st checkbox.</description>
+    </key>
+
+    <key name="uint0" type="u">
+      <default>0</default>
+      <summary>uint0</summary>
+      <description>The unsigned integer value of the 0th scale widget.</description>
+    </key>
+
+    <key name="string0" type="s">
+      <default>'go vips!'</default>
+      <summary>string0</summary>
+      <description>The string value of the 0th text widget.</description>
+    </key>
+
     <key name="background" enum="org.libvips.vipsdisp.background">
       <default>'white'</default>
       <summary>Background</summary>
