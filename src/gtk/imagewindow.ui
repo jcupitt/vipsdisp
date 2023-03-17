@@ -237,11 +237,6 @@
           </object>
         </child>
 
-        <child>
-          <object class="Saveoptions" id="saveoptions">
-          </object>
-        </child>
-
       </object>
     </child>
 

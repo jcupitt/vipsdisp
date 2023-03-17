@@ -144,6 +144,7 @@ saveoptions_set_property( GObject *object,
 				G_SETTINGS_BIND_DEFAULT );
 
 			gtk_widget_set_parent( it, parent );
+
 		}
 
                 break;
