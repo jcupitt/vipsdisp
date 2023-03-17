@@ -54,10 +54,6 @@
         <attribute name='label' translatable='yes'>Save as ...</attribute>
         <attribute name='action'>win.saveas</attribute>
       </item>
-      <item>
-        <attribute name="label" translatable="yes">Options ...</attribute>
-        <attribute name="action">win.saveoptions</attribute>
-      </item>
 
     </section>
 

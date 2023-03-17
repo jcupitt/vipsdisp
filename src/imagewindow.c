@@ -572,6 +572,8 @@ image_window_replace_action( GSimpleAction *action,
         gtk_widget_show( dialog );
 }
 
+static void image_window_open_saveoptions( ImageWindow * );
+
 static void
 image_window_saveas_response( GtkDialog *dialog, 
         gint response_id, gpointer user_data )
@@ -587,9 +589,17 @@ image_window_saveas_response( GtkDialog *dialog,
         image_window_error_hide( win ); 
         gtk_window_destroy( GTK_WINDOW( dialog ) );
 
-        if( response_id == GTK_RESPONSE_ACCEPT &&
-                tile_source_write_to_file( win->tile_source, file ) ) 
-                image_window_error( win );
+        //if( response_id == GTK_RESPONSE_ACCEPT &&
+        //        tile_source_write_to_file( win->tile_source, file ) ) 
+        //        image_window_error( win );
+
+	switch( response_id ){
+	case GTK_RESPONSE_ACCEPT:
+		image_window_open_saveoptions( win );
+		
+	default:
+		/* pass */
+	}
 
         VIPS_UNREF( file ); 
 }
@@ -1011,25 +1021,14 @@ image_window_info( GSimpleAction *action,
 }
 
 static void
-image_window_saveoptions( GSimpleAction *action, 
-        GVariant *state, gpointer user_data )
+image_window_open_saveoptions( ImageWindow *win )
 {
-        ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	Saveoptions *saveoptions = saveoptions_new( win );
 	GtkWidget *new_win = gtk_window_new();
-
-	gboolean visible = g_variant_get_boolean( state );
-        g_object_set( saveoptions,
-                "visible", visible,
-                NULL );
-	
-	if( visible ){
-		gtk_window_set_child( GTK_WINDOW( new_win ), GTK_WIDGET( saveoptions ) );
-		gtk_window_set_modal( GTK_WINDOW( new_win ), TRUE );
-		gtk_widget_show( GTK_WIDGET( new_win ) );
-	}
-
-        g_simple_action_set_state( action, state );
+        g_object_set( saveoptions, "visible", TRUE, NULL );
+	gtk_window_set_child( GTK_WINDOW( new_win ), GTK_WIDGET( saveoptions ) );
+	gtk_window_set_modal( GTK_WINDOW( new_win ), TRUE );
+	gtk_widget_show( GTK_WIDGET( new_win ) );
 }
 
 static void
@@ -1273,8 +1272,6 @@ static GActionEntry image_window_entries[] = {
                 image_window_control },
         { "info", image_window_toggle, NULL, "false", 
                 image_window_info },
-        { "saveoptions", image_window_toggle, NULL, "false", 
-                image_window_saveoptions },
 
         { "next", image_window_next },
         { "prev", image_window_prev },
@@ -1371,10 +1368,6 @@ image_window_init( ImageWindow *win )
                 g_settings_get_value( win->settings, "control" ) );
         change_state( GTK_WIDGET( win ), "info", 
                 g_settings_get_value( win->settings, "info" ) );
-
-        change_state( GTK_WIDGET( win ), "saveoptions", 
-                g_settings_get_value( win->settings, "saveoptions" ) );
-
 }
 
 static void

@@ -23,14 +23,6 @@
       </description>
     </key>
 
-    <key type="b" name="saveoptions">
-      <default>false</default>
-      <summary>Show save options</summary>
-      <description>
-        If set, show the save options.
-      </description>
-    </key>
-
     <key type="d" name="scale">
       <default>1.0</default>
       <summary>Scale</summary>
