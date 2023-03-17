@@ -15,6 +15,8 @@ struct _ImageWindow
         TileSource *tile_source;
         TileCache *tile_cache;
 
+	GFile *target_file;
+
         /* Last known mouse postion, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
          */
@@ -580,18 +582,21 @@ image_window_saveas_response( GtkDialog *dialog,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-        GFile *file;
+	/* Replace the old target file (or set the target file for the first
+	 * time), unless the GTK file thing returns a null file.
+	 */
+	GFile *file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+	if ( !file )
+		return;
+	if( win->target_file )
+        	VIPS_UNREF( win->target_file ); 
+        win->target_file = file;
 
         /* We need to pop down immediately so we expose the cancel
          * button.
          */
-        file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
         image_window_error_hide( win ); 
         gtk_window_destroy( GTK_WINDOW( dialog ) );
-
-        //if( response_id == GTK_RESPONSE_ACCEPT &&
-        //        tile_source_write_to_file( win->tile_source, file ) ) 
-        //        image_window_error( win );
 
 	switch( response_id ){
 	case GTK_RESPONSE_ACCEPT:
@@ -600,8 +605,6 @@ image_window_saveas_response( GtkDialog *dialog,
 	default:
 		/* pass */
 	}
-
-        VIPS_UNREF( file ); 
 }
 
 static void
@@ -1020,15 +1023,64 @@ image_window_info( GSimpleAction *action,
         g_simple_action_set_state( action, state );
 }
 
+/* Close the window containing the saveoptions when the window's cancel button
+ * is pressed.
+ */
+static void
+cancel_cb( GtkWidget *it, gpointer _windows )
+{
+	GtkWindow **windows = (GtkWindow **) _windows;
+	//ImageWindow *image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
+	GtkWindow *saveoptions_window = GTK_WINDOW( windows[1] );
+	gtk_window_close( GTK_WINDOW( saveoptions_window ) );
+	free(windows);
+}
+
+
+/* Save the image, and close the window containing the saveoptions when
+ * the window's save button is pressed.
+ */
+static void
+save_cb( GtkWidget *it, gpointer _windows )
+{
+	GtkWindow **windows = (GtkWindow **) _windows;
+	ImageWindow *image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
+	GtkWindow *saveoptions_window = GTK_WINDOW( windows[1] );
+        if( tile_source_write_to_file( image_window->tile_source, image_window->target_file ) )
+        	image_window_error( image_window );
+
+	gtk_window_close( GTK_WINDOW( saveoptions_window ) );
+	free(windows);
+}
+
+#define DEFAULT_SPACING 10
+
 static void
 image_window_open_saveoptions( ImageWindow *win )
 {
 	Saveoptions *saveoptions = saveoptions_new( win );
-	GtkWidget *new_win = gtk_window_new();
+	GtkWidget *saveoptions_win = gtk_window_new();
+	gtk_window_set_modal( GTK_WINDOW( saveoptions_win ), TRUE );
         g_object_set( saveoptions, "visible", TRUE, NULL );
-	gtk_window_set_child( GTK_WINDOW( new_win ), GTK_WIDGET( saveoptions ) );
-	gtk_window_set_modal( GTK_WINDOW( new_win ), TRUE );
-	gtk_widget_show( GTK_WIDGET( new_win ) );
+	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING);
+	gtk_window_set_child( GTK_WINDOW( saveoptions_win ), vbox );
+	gtk_box_append(GTK_BOX( vbox ), GTK_WIDGET( saveoptions ) );
+	GtkWidget *cancel = gtk_button_new_with_label("Cancel");
+	GtkWidget *save = gtk_button_new_with_label("Save");
+	gtk_widget_set_margin_end( save, DEFAULT_SPACING );
+	GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
+	gtk_widget_set_halign( hbox, GTK_ALIGN_END);
+	gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
+	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( cancel ) );
+	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( save ) );
+	gtk_box_append( GTK_BOX( vbox ), GTK_WIDGET( hbox ) );
+	gpointer **windows = calloc( 2, sizeof( GtkWindow* ) );
+	windows[0] = (gpointer) win;
+	windows[1] = (gpointer) saveoptions_win;
+	g_signal_connect( cancel, "clicked", G_CALLBACK( cancel_cb ), windows );
+	g_signal_connect( save, "clicked", G_CALLBACK( save_cb ), windows );
+
+	gtk_widget_show( GTK_WIDGET( saveoptions_win ) );
 }
 
 static void
