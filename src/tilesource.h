@@ -224,7 +224,7 @@ int tile_source_fill_tile( TileSource *tile_source, Tile *tile );
 
 const char *tile_source_get_path( TileSource *tile_source );
 GFile *tile_source_get_file( TileSource *tile_source );
-int tile_source_write_to_file( TileSource *tile_source, GFile *file );
+int tile_source_write_to_file( TileSource *tile_source, VipsOperation *operation );
 
 VipsImage *tile_source_get_image( TileSource *tile_source );
 VipsImage *tile_source_get_base_image( TileSource *tile_source );

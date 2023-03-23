@@ -10,4 +10,8 @@ G_DECLARE_FINAL_TYPE( Saveoptions, saveoptions, VIPSDISP, SAVEOPTIONS, GtkWidget
 
 Saveoptions *saveoptions_new( ImageWindow *win );
 
+void
+saveoptions_build_save_operation( Saveoptions *saveoptions,
+	VipsOperation *operation );
+
 #endif /* __SAVEOPTIONS_H */
