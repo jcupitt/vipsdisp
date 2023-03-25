@@ -1092,7 +1092,7 @@ save_cb( GtkWidget *it, gpointer _windows )
         if( tile_source_write_to_file( image_window->tile_source, operation ) )
         	image_window_error( image_window );
 
-	g_free( operation_name );
+	//g_free( operation_name );
 	gtk_window_close( GTK_WINDOW( saveoptions_window ) );
 	free(windows);
 }
@@ -1106,7 +1106,7 @@ image_window_open_saveoptions( ImageWindow *win )
 	GtkWidget *saveoptions_win, *vbox, *cancel, *save, *hbox;
 	gpointer **windows;
 
-	puts("image_window_open_saveoptions");
+	//puts("image_window_open_saveoptions");
 
 	saveoptions = saveoptions_new( win );
 	saveoptions_win = gtk_window_new();
@@ -1625,7 +1625,7 @@ image_window_get_tile_source( ImageWindow *win )
 GFile *
 image_window_get_target_file( ImageWindow *win )
 {
-	puts("image_window_get_target_file");
+	//puts("image_window_get_target_file");
 	return( win->target_file );
 }
 

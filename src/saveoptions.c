@@ -32,13 +32,13 @@ enum {
 static void
 saveoptions_dispose( GObject *object )
 {
-        Saveoptions *saveoptions = (Saveoptions *) object;
+        //Saveoptions *saveoptions = (Saveoptions *) object;
 
 #ifdef DEBUG
         printf( "saveoptions_dispose:\n" ); 
 #endif /*DEBUG*/
 
-        VIPS_FREEF( gtk_widget_unparent, saveoptions->content_area );
+        //VIPS_FREEF( gtk_widget_unparent, saveoptions->content_area );
 
         G_OBJECT_CLASS( saveoptions_parent_class )->dispose( object );
 }
@@ -82,7 +82,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	VipsArgumentClass *argument_class, Saveoptions *saveoptions,
 	VipsObject *operation )
 {
-	puts("saveoptions_build_save_operation_argument_map_fn_helper");
+	//puts("saveoptions_build_save_operation_argument_map_fn_helper");
 
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	GtkWidget *it, *box, *parent;
@@ -107,7 +107,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		//}
 	}
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+		//GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
 
 		box = gtk_widget_get_first_child( parent );
 		it = gtk_widget_get_last_child( box );
@@ -116,8 +116,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		const char* text = gtk_entry_buffer_get_text( buffer );
 		const char* none = "none";
 
-		if( !pspec_string->default_value
-			|| !strlen( pspec_string->default_value ) )
+		if( !text || !strlen( text ) )
 			g_object_set( VIPS_OBJECT( operation ),
 				property_name, none,
 				NULL );
@@ -142,6 +141,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		gtk_widget_unparent( it );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+		return;
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
 		box = gtk_widget_get_first_child( parent );
@@ -209,20 +209,20 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		// May just handle array-valued properties on a name-by-name
 		// basis
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-			puts("array of int");
+			//puts("array of int");
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-			puts("array of double");
+			//puts("array of double");
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-			puts("array of images");
+			//puts("array of images");
 		}
 		else {
-			puts("unsupported boxed type");
+			//puts("unsupported boxed type");
 		}
 	}
 	else {
-		puts("unsupported type");
+		//puts("unsupported type");
 	}
 }
 
@@ -234,7 +234,7 @@ saveoptions_build_save_operation_argument_map_fn( VipsObject *operation,
 	void *a,
 	void *b )
 {
-	puts("saveoptions_build_save_operation_argument_map_fn");
+	//puts("saveoptions_build_save_operation_argument_map_fn");
 	VipsArgumentFlags flags = argument_class->flags;
 	Saveoptions *saveoptions = (Saveoptions *)a; 
 
@@ -251,7 +251,7 @@ void
 saveoptions_build_save_operation( Saveoptions *saveoptions,
 	VipsOperation *operation )
 {
-	puts("saveoptions_build_save_operation");
+	//puts("saveoptions_build_save_operation");
 	vips_argument_map( VIPS_OBJECT( operation ),
 		saveoptions_build_save_operation_argument_map_fn,
 		SAVEOPTIONS( saveoptions ),
@@ -263,7 +263,7 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	VipsArgumentClass *argument_class, GtkWidget *parent,
 	VipsObject *operation )
 {
-	puts("saveoptions_build_ui_argument_map_fn_helper");
+	//puts("saveoptions_build_ui_argument_map_fn_helper");
 
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
@@ -272,7 +272,7 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 
 	property_name = g_param_spec_get_name( pspec );
 
-	printf("property_name: %s\n", property_name);
+	//printf("property_name: %s\n", property_name);
 
 	//const gchar *property_nickname, *property_blurb;
 	//property_nickname = g_param_spec_get_nick( pspec );
@@ -281,52 +281,55 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		/* I don't think any of the save options take a vipsimage
 		 */
-		puts( "VipsImage" );
+		//puts( "VipsImage" );
 	}
 	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
 		(oclass = g_type_class_ref( otype )) ) {
 		/* I don't think any of the save options take a VipsObject except for
 		 * background which takes a VipsArrayDouble
 		 */
-		puts( "VipsObject subclass" );
-		puts( oclass->description );
+		//puts( "VipsObject subclass" );
+		//puts( oclass->description );
 	}
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-		puts( "string" );
-		if ( pspec_string->default_value )
-			puts( pspec_string->default_value );
+		//GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+		//puts( "string" );
+		//if ( pspec_string->default_value )
+			//puts( pspec_string->default_value );
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
 		gtk_widget_set_parent( gtk_text_new(), it );
 		gtk_widget_set_parent( it, parent );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		GParamSpecBoolean *pspec_bool = G_PARAM_SPEC_BOOLEAN( pspec );
-		puts( "bool" );
-		printf( "%d\n", pspec_bool->default_value );
+		//GParamSpecBoolean *pspec_bool = G_PARAM_SPEC_BOOLEAN( pspec );
+		//puts( "bool" );
+		//printf( "%d\n", pspec_bool->default_value );
 
 		it = gtk_check_button_new_with_label( property_name );
 		gtk_widget_set_parent( it, parent );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+		return;
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
-		puts( "enum" );
+		//puts( "enum" );
 
-		printf( "default: %d\n", pspec_enum->default_value );
+		//printf( "default: %d\n", pspec_enum->default_value );
 
-		const char **property_nicknames = calloc( pspec_enum->enum_class->n_values,
-			sizeof( pspec_enum->default_value ) );
+		const char **property_nicknames =
+			g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( pspec_enum->default_value ) );
 
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i ) {
-			printf( "%d, %s, %s\n",
-				i,
-				pspec_enum->enum_class->values[i].value_nick,
-				pspec_enum->enum_class->values[i].value_name );
+			//printf( "%d, %s, %s\n",
+			//	i,
+			//	pspec_enum->enum_class->values[i].value_nick,
+			//	pspec_enum->enum_class->values[i].value_name );
 			property_nicknames[i] =
 				pspec_enum->enum_class->values[i].value_nick;
 		}
+
+		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
 
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
@@ -334,15 +337,15 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 			gtk_drop_down_new_from_strings( property_nicknames ), it );
 		gtk_widget_set_parent( it, parent );
 
-		free( property_nicknames );
+		//free( property_nicknames );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
-		puts("int64");
-		printf( "%ld-%ld, %ld\n",
-			pspec_int64->minimum,
-			pspec_int64->maximum,
-			pspec_int64->default_value );
+		//puts("int64");
+		//printf( "%ld-%ld, %ld\n",
+		//	pspec_int64->minimum,
+		//	pspec_int64->maximum,
+		//	pspec_int64->default_value );
 
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
@@ -354,11 +357,11 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
-		puts("int");
-		printf( "%d-%d, %d\n",
-			pspec_int->minimum,
-			pspec_int->maximum,
-			pspec_int->default_value );
+		//puts("int");
+		//printf( "%d-%d, %d\n",
+		//	pspec_int->minimum,
+		//	pspec_int->maximum,
+		//	pspec_int->default_value );
 
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
@@ -370,11 +373,11 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
-		puts( "uint64" );
-		printf( "%"G_GUINT64_FORMAT"-%"G_GUINT64_FORMAT", %"G_GUINT64_FORMAT"\n",
-			pspec_uint64->minimum,
-			pspec_uint64->maximum,
-			pspec_uint64->default_value );
+		//puts( "uint64" );
+		//printf( "%"G_GUINT64_FORMAT"-%"G_GUINT64_FORMAT", %"G_GUINT64_FORMAT"\n",
+		//	pspec_uint64->minimum,
+		//	pspec_uint64->maximum,
+		//	pspec_uint64->default_value );
 
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
@@ -386,11 +389,11 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
-		puts( "double" );
-		printf( "%g-%g, %g\n",
-			pspec_double->minimum,
-			pspec_double->maximum,
-			pspec_double->default_value );
+		//puts( "double" );
+		//printf( "%g-%g, %g\n",
+		//	pspec_double->minimum,
+		//	pspec_double->maximum,
+		//	pspec_double->default_value );
 
 		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 		gtk_widget_set_parent( gtk_label_new( property_name ), it );
@@ -404,20 +407,20 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 		// May just handle array-valued properties on a name-by-name
 		// basis
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-			puts("array of int");
+			//puts("array of int");
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-			puts("array of double");
+			//puts("array of double");
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-			puts("array of images");
+			//puts("array of images");
 		}
 		else {
-			puts("unsupported boxed type");
+			//puts("unsupported boxed type");
 		}
 	}
 	else {
-		puts("unsupported type");
+		//puts("unsupported type");
 	}
 }
 
@@ -429,7 +432,7 @@ saveoptions_build_ui_argument_map_fn( VipsObject *operation,
 	void *a,
 	void *b )
 {
-	puts("saveoptions_build_ui_argument_map_fn");
+	//puts("saveoptions_build_ui_argument_map_fn");
 
 	VipsArgumentFlags flags = argument_class->flags;
 	GtkWidget *parent = (GtkWidget *)a; 
@@ -449,7 +452,7 @@ saveoptions_build_ui_argument_map_fn( VipsObject *operation,
 static void
 saveoptions_build_ui( GtkWidget *parent, VipsOperation *operation )
 {
-	puts("saveoptions_build_ui");
+	//puts("saveoptions_build_ui");
 
 	g_assert( parent != NULL );
 	g_assert( operation != NULL );
@@ -485,19 +488,19 @@ static void
 saveoptions_set_property( GObject *object, 
         guint prop_id, const GValue *value, GParamSpec *pspec )
 {
-	puts("saveoptions_set_property");
+	//puts("saveoptions_set_property");
 
         Saveoptions *saveoptions = (Saveoptions *) object;
 
         switch( prop_id ) {
         case PROP_IMAGE_WINDOW:
-		puts("PROP_IMAGE_WINDOW");
+		//puts("PROP_IMAGE_WINDOW");
                 saveoptions_set_image_window( saveoptions, 
                         VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
                 break;
 
         case PROP_VISIBLE:
-		puts("PROP_VISIBLE");
+		//puts("PROP_VISIBLE");
 		GtkWidget *parent, *it;
 		GFile *target_file;
 		gchar *path, *filename_suffix, *operation_name;
@@ -529,13 +532,13 @@ saveoptions_set_property( GObject *object,
 
 		operation_name = g_strdup_printf( "%ssave", ++filename_suffix );
 
-		printf("operation_name: %s\n", operation_name);
+		//printf("operation_name: %s\n", operation_name);
 
 		operation = vips_operation_new( operation_name );
 
 		saveoptions_build_ui( parent, operation );
 
-		g_free( operation_name );
+		//g_free( operation_name );
 
                 break;
 
@@ -572,7 +575,7 @@ static void
 saveoptions_init( Saveoptions *saveoptions )
 {
 #ifdef DEBUG
-        printf( "saveoptions_init:\n" ); 
+        //printf( "saveoptions_init:\n" ); 
 #endif /*DEBUG*/
 
 	saveoptions->settings = g_settings_new( APPLICATION_ID );
@@ -591,7 +594,7 @@ saveoptions_class_init( SaveoptionsClass *class )
         GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
-        printf( "saveoptions_class_init:\n" ); 
+        //printf( "saveoptions_class_init:\n" ); 
 #endif /*DEBUG*/
 
         G_OBJECT_CLASS( class )->dispose = saveoptions_dispose;
@@ -628,7 +631,7 @@ saveoptions_new( ImageWindow *win )
         Saveoptions *saveoptions;
 
 #ifdef DEBUG
-        printf( "saveoptions_new:\n" ); 
+        //printf( "saveoptions_new:\n" ); 
 #endif /*DEBUG*/
 
         saveoptions = g_object_new( saveoptions_get_type(), 
