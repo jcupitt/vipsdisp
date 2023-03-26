@@ -1151,8 +1151,6 @@ image_window_open_saveoptions( ImageWindow *win )
 	GtkWidget *saveoptions_win, *vbox, *cancel, *save, *hbox;
 	gpointer **windows;
 
-	//puts("image_window_open_saveoptions");
-
 	saveoptions = saveoptions_new( win );
 	saveoptions_win = gtk_window_new();
 
@@ -1670,7 +1668,6 @@ image_window_get_tile_source( ImageWindow *win )
 GFile *
 image_window_get_target_file( ImageWindow *win )
 {
-	//puts("image_window_get_target_file");
 	return( win->target_file );
 }
 
