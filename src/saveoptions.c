@@ -71,18 +71,22 @@ saveoptions_set_image_window( Saveoptions *saveoptions, ImageWindow *win )
 
 static void
 saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
-	VipsArgumentClass *argument_class, Saveoptions *saveoptions,
+	VipsArgumentClass *argument_class, GtkWidget **widget_iterator,
 	VipsObject *operation )
 {
+	if ( !widget_iterator || !*widget_iterator )
+		return;
+
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-	GtkWidget *it, *box, *parent;
+	GtkWidget *it, *box;
 	const gchar *property_name;
 
-	parent = saveoptions->content_area;
-
 	property_name = g_param_spec_get_name( pspec );
+	
+	puts(property_name);
 
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
+		return;
 	}
 	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) ) {
 		//VipsObjectClass *oclass;
@@ -90,11 +94,12 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		//if ( oclass ) {
 		// 	...
 		//}
+		return;
 	}
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		//GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
 
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
 		it = gtk_widget_get_last_child( box );
 
 		GtkEntryBuffer *buffer = gtk_text_get_buffer( GTK_TEXT( it ) );
@@ -110,26 +115,22 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 			g_object_set( VIPS_OBJECT( operation ),
 				property_name, text,
 				NULL );
-			
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		it = gtk_widget_get_first_child( parent );
+		it = *widget_iterator;
+
+		it = gtk_widget_get_last_child( it );
 
 		gboolean active = gtk_check_button_get_active( GTK_CHECK_BUTTON( it ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, active,
 			NULL );
-
-		gtk_widget_unparent( it );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-		return;
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
 		it = gtk_widget_get_last_child( box );
 
 		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( it ) );
@@ -139,11 +140,9 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
 		it = gtk_widget_get_last_child( box );
 
 		gint64 value = (gint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
@@ -151,11 +150,10 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
+
 		it = gtk_widget_get_last_child( box );
 
 		gint64 value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
@@ -163,11 +161,9 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
 		it = gtk_widget_get_last_child( box );
 
 		guint64 value = (guint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
@@ -175,11 +171,9 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-		box = gtk_widget_get_first_child( parent );
+		box = *widget_iterator;
 		it = gtk_widget_get_last_child( box );
 
 		gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
@@ -187,8 +181,6 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
-
-		gtk_widget_unparent( box );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
@@ -199,9 +191,13 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		}
 		else {
 		}
+		return;
 	}
 	else {
+		return;
 	}
+
+	*widget_iterator = gtk_widget_get_next_sibling( *widget_iterator );
 }
 
 static void *
@@ -213,13 +209,13 @@ saveoptions_build_save_operation_argument_map_fn( VipsObject *operation,
 	void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
-	Saveoptions *saveoptions = (Saveoptions *)a; 
+	GtkWidget **widget_iterator = (GtkWidget **)a;
 
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
 		saveoptions_build_save_operation_argument_map_fn_helper( pspec,
-			argument_class, saveoptions, operation );
+			argument_class, widget_iterator, operation );
 
 	return NULL;
 }
@@ -228,9 +224,15 @@ void
 saveoptions_build_save_operation( Saveoptions *saveoptions,
 	VipsOperation *operation )
 {
+	GtkWidget *content_area, *widget_iterator;
+	content_area = gtk_widget_get_first_child( GTK_WIDGET( saveoptions ) );
+	widget_iterator = gtk_widget_get_first_child( content_area );
+
+	g_assert( widget_iterator );
+
 	vips_argument_map( VIPS_OBJECT( operation ),
 		saveoptions_build_save_operation_argument_map_fn,
-		SAVEOPTIONS( saveoptions ),
+		&widget_iterator,
 		NULL);
 }
 
@@ -262,11 +264,12 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		//GParamSpecBoolean *pspec_bool = G_PARAM_SPEC_BOOLEAN( pspec );
 
-		it = gtk_check_button_new_with_label( property_name );
+		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
+		gtk_widget_set_parent( gtk_label_new( property_name ), it );
+		gtk_widget_set_parent( gtk_check_button_new(), it );
 		gtk_widget_set_parent( it, parent );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-		return;
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
 		const char **property_nicknames =
