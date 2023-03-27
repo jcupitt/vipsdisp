@@ -273,7 +273,7 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
 		const char **property_nicknames =
-			g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( pspec_enum->default_value ) );
+			g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
 
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i ) {
 			property_nicknames[i] =
