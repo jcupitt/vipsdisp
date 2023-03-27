@@ -1092,51 +1092,6 @@ save_cb( GtkWidget *it, gpointer _windows )
         if( tile_source_write_to_file( image_window->tile_source, operation ) )
         	image_window_error( image_window );
 
-	//g_free( operation_name );
-
-	GtkWidget *w0 = gtk_window_get_child( saveoptions_window );
-
-	g_assert( w0 );
-
-	GtkWidget *w1 = gtk_widget_get_first_child( w0 );
-
-	g_assert( w1 );
-
-	GtkWidget *w2 = gtk_widget_get_last_child( w0 );
-
-	g_assert( w1 != w2 );
-
-	GtkWidget *t = w1;
-
-	int count = 1;
-
-	while ( t != w2 ) {
-		t = gtk_widget_get_next_sibling( t );
-		count++;
-	}
-
-	g_assert( count == 2 );
-
-	GtkWidget *w4 = gtk_widget_get_first_child( w1 );
-
-	g_assert( w4 );
-
-	gtk_widget_unparent( w4 );
-
-	t = gtk_widget_get_first_child( w1 );
-
-	g_assert( !t );
-
-	gtk_widget_unparent( w1 );
-
-	gtk_widget_unparent( w2 );
-
-	t = gtk_widget_get_first_child( w0 );
-
-	g_assert( !t );
-
-	// No need to unref w0, since it is part of the template
-
 	gtk_window_destroy( GTK_WINDOW( saveoptions_window ) );
 
 	free(windows);
