@@ -32,8 +32,8 @@ enum {
 static void
 saveoptions_dispose( GObject *object )
 {
-        //Saveoptions *saveoptions = (Saveoptions *) object;
-        //VIPS_FREEF( gtk_widget_unparent, saveoptions->content_area );
+        Saveoptions *saveoptions = (Saveoptions *) object;
+        VIPS_FREEF( gtk_widget_unparent, saveoptions->content_area );
         G_OBJECT_CLASS( saveoptions_parent_class )->dispose( object );
 }
 
