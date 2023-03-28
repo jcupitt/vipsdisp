@@ -276,12 +276,12 @@ tslider_init( Tslider *tslider )
 
 	gtk_widget_init_template( GTK_WIDGET( tslider ) );
 	
-        g_signal_connect( tslider->entry, "activate",
-                G_CALLBACK( tslider_value_activate_cb ), tslider );
-        g_signal_connect( tslider->entry, "changed",
-                G_CALLBACK( tslider_text_changed_cb ), tslider );
+	g_signal_connect( tslider->entry, "activate",
+		G_CALLBACK( tslider_value_activate_cb ), tslider );
+	g_signal_connect( tslider->entry, "changed",
+		G_CALLBACK( tslider_text_changed_cb ), tslider );
 
-        g_signal_connect( tslider->adj, "value_changed", 
+	g_signal_connect( tslider->adj, "value_changed", 
 		G_CALLBACK( tslider_value_changed_cb ), tslider );
 
 	tslider->auto_link = TRUE;

@@ -9,15 +9,15 @@
 enum {
 	/* Properties.
 	 */
-        PROP_BACKGROUND = 1,
+	PROP_BACKGROUND = 1,
 
-        /* Signals. 
-         */
-        SIG_CHANGED,            
-        SIG_TILES_CHANGED,            
-        SIG_AREA_CHANGED,            
+	/* Signals. 
+	 */
+	SIG_CHANGED,		
+	SIG_TILES_CHANGED,	      
+	SIG_AREA_CHANGED,	     
 
-        SIG_LAST
+	SIG_LAST
 };
 
 static guint tile_cache_signals[SIG_LAST] = { 0 };
@@ -27,70 +27,70 @@ G_DEFINE_TYPE( TileCache, tile_cache, G_TYPE_OBJECT );
 static void
 tile_cache_free_pyramid( TileCache *tile_cache )
 {
-        int i;
+	int i;
 
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                GSList *p;
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
+		GSList *p;
 
-                for( p = tile_cache->tiles[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+		for( p = tile_cache->tiles[i]; p; p = p->next ) {
+			Tile *tile = TILE( p->data );
 
-                        VIPS_UNREF( tile );
-                }
+			VIPS_UNREF( tile );
+		}
 
-                VIPS_FREEF( g_slist_free, tile_cache->tiles[i] );
-                VIPS_FREEF( g_slist_free, tile_cache->visible[i] );
-                VIPS_FREEF( g_slist_free, tile_cache->free[i] );
+		VIPS_FREEF( g_slist_free, tile_cache->tiles[i] );
+		VIPS_FREEF( g_slist_free, tile_cache->visible[i] );
+		VIPS_FREEF( g_slist_free, tile_cache->free[i] );
 
-                VIPS_UNREF( tile_cache->levels[i] );
-        }
+		VIPS_UNREF( tile_cache->levels[i] );
+	}
 
-        VIPS_FREE( tile_cache->levels );
-        tile_cache->n_levels = 0;
+	VIPS_FREE( tile_cache->levels );
+	tile_cache->n_levels = 0;
 }
 
 static void
 tile_cache_dispose( GObject *object )
 {
-        TileCache *tile_cache = (TileCache *) object;
+	TileCache *tile_cache = (TileCache *) object;
 
 #ifdef DEBUG
-        printf( "tile_cache_dispose: %p\n", object );
+	printf( "tile_cache_dispose: %p\n", object );
 #endif /*DEBUG*/
 
-        tile_cache_free_pyramid( tile_cache );
+	tile_cache_free_pyramid( tile_cache );
 
-        VIPS_UNREF( tile_cache->tile_source );
+	VIPS_UNREF( tile_cache->tile_source );
 	VIPS_UNREF( tile_cache->background_texture );
 
-        G_OBJECT_CLASS( tile_cache_parent_class )->dispose( object );
+	G_OBJECT_CLASS( tile_cache_parent_class )->dispose( object );
 }
 
 static void
 tile_cache_changed( TileCache *tile_cache )
 {
-        g_signal_emit( tile_cache, 
-                tile_cache_signals[SIG_CHANGED], 0 );
+	g_signal_emit( tile_cache, 
+		tile_cache_signals[SIG_CHANGED], 0 );
 }
 
 static void
 tile_cache_tiles_changed( TileCache *tile_cache )
 {
-        g_signal_emit( tile_cache, 
-                tile_cache_signals[SIG_TILES_CHANGED], 0 );
+	g_signal_emit( tile_cache, 
+		tile_cache_signals[SIG_TILES_CHANGED], 0 );
 }
 
 static void
 tile_cache_area_changed( TileCache *tile_cache, VipsRect *dirty, int z )
 {
-        g_signal_emit( tile_cache, 
-                tile_cache_signals[SIG_AREA_CHANGED], 0, dirty, z );
+	g_signal_emit( tile_cache, 
+		tile_cache_signals[SIG_AREA_CHANGED], 0, dirty, z );
 }
 
 static void
 tile_cache_checkerboard_destroy_notify( guchar* pixels, gpointer data )
 {
-        g_free( pixels );
+	g_free( pixels );
 }
 
 /* Make a GdkTexture for the checkerboard pattern we use for compositing.
@@ -98,12 +98,12 @@ tile_cache_checkerboard_destroy_notify( guchar* pixels, gpointer data )
 static GdkTexture *
 tile_cache_texture( TileCacheBackground background )
 {
-        VipsPel *data;
-        GdkPixbuf *pixbuf;
-        GdkTexture *texture;
-        int x, y, z;
+	VipsPel *data;
+	GdkPixbuf *pixbuf;
+	GdkTexture *texture;
+	int x, y, z;
 
-        data = g_malloc( TILE_SIZE * TILE_SIZE * 3 );
+	data = g_malloc( TILE_SIZE * TILE_SIZE * 3 );
 
 	for( y = 0; y < TILE_SIZE; y++ )
 		for( x = 0; x < TILE_SIZE; x++ )
@@ -129,179 +129,179 @@ tile_cache_texture( TileCacheBackground background )
 				data[y * TILE_SIZE * 3 + x * 3 + z] = v;
 			}
 
-        pixbuf = gdk_pixbuf_new_from_data( data, GDK_COLORSPACE_RGB,
-                FALSE, 8,
-                TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
-                tile_cache_checkerboard_destroy_notify, NULL );
+	pixbuf = gdk_pixbuf_new_from_data( data, GDK_COLORSPACE_RGB,
+		FALSE, 8,
+		TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
+		tile_cache_checkerboard_destroy_notify, NULL );
 
-        texture = gdk_texture_new_for_pixbuf( pixbuf );
+	texture = gdk_texture_new_for_pixbuf( pixbuf );
 
-        g_object_unref( pixbuf );
+	g_object_unref( pixbuf );
 
-        return( texture );
+	return( texture );
 }
 
 static void
 tile_cache_init( TileCache *tile_cache )
 {
-        tile_cache->background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
-        tile_cache->background_texture = 
+	tile_cache->background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+	tile_cache->background_texture = 
 		tile_cache_texture( tile_cache->background );
 }
 
 static void
 tile_cache_set_property( GObject *object, 
-        guint prop_id, const GValue *value, GParamSpec *pspec )
+	guint prop_id, const GValue *value, GParamSpec *pspec )
 {
-        TileCache *tile_cache = (TileCache *) object;
+	TileCache *tile_cache = (TileCache *) object;
 
-        int i;
+	int i;
 
-        switch( prop_id ) {
-        case PROP_BACKGROUND:
-                i = g_value_get_int( value );
-                if( i >= 0 &&
-                        i < TILE_CACHE_BACKGROUND_LAST &&
-                        tile_cache->background != i ) {
-                        tile_cache->background = i;
+	switch( prop_id ) {
+	case PROP_BACKGROUND:
+		i = g_value_get_int( value );
+		if( i >= 0 &&
+			i < TILE_CACHE_BACKGROUND_LAST &&
+			tile_cache->background != i ) {
+			tile_cache->background = i;
 			VIPS_UNREF( tile_cache->background_texture );
 			tile_cache->background_texture = 
 				tile_cache_texture( tile_cache->background );
 			tile_cache_tiles_changed( tile_cache );
-                }
-                break;
+		}
+		break;
 
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-                break;
-        }
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
 }
 
 static void
 tile_cache_get_property( GObject *object, 
-        guint prop_id, GValue *value, GParamSpec *pspec )
+	guint prop_id, GValue *value, GParamSpec *pspec )
 {
-        TileCache *tile_cache = (TileCache *) object;
+	TileCache *tile_cache = (TileCache *) object;
 
-        switch( prop_id ) {
-        case PROP_BACKGROUND:
-                g_value_set_int( value, tile_cache->background );
-                break;
+	switch( prop_id ) {
+	case PROP_BACKGROUND:
+		g_value_set_int( value, tile_cache->background );
+		break;
 
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-                break;
-        }
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		break;
+	}
 }
 
 static void
 tile_cache_class_init( TileCacheClass *class )
 {
-        GObjectClass *gobject_class = G_OBJECT_CLASS( class );
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 
-        gobject_class->dispose = tile_cache_dispose;
-        gobject_class->set_property = tile_cache_set_property;
-        gobject_class->get_property = tile_cache_get_property;
+	gobject_class->dispose = tile_cache_dispose;
+	gobject_class->set_property = tile_cache_set_property;
+	gobject_class->get_property = tile_cache_get_property;
 
-        g_object_class_install_property( gobject_class, PROP_BACKGROUND,
-                g_param_spec_int( "background",
-                        _( "Background" ),
-                        _( "Background mode" ),
-                        0, TILE_CACHE_BACKGROUND_LAST - 1, 
-                        TILE_CACHE_BACKGROUND_CHECKERBOARD,
-                        G_PARAM_READWRITE ) );
+	g_object_class_install_property( gobject_class, PROP_BACKGROUND,
+		g_param_spec_int( "background",
+			_( "Background" ),
+			_( "Background mode" ),
+			0, TILE_CACHE_BACKGROUND_LAST - 1, 
+			TILE_CACHE_BACKGROUND_CHECKERBOARD,
+			G_PARAM_READWRITE ) );
 
-        tile_cache_signals[SIG_CHANGED] = g_signal_new( "changed",
-                G_TYPE_FROM_CLASS( class ),
-                G_SIGNAL_RUN_LAST,
-                0,
-                NULL, NULL,
-                g_cclosure_marshal_VOID__VOID,
-                G_TYPE_NONE, 0 ); 
+	tile_cache_signals[SIG_CHANGED] = g_signal_new( "changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
 
-        tile_cache_signals[SIG_TILES_CHANGED] = g_signal_new( "tiles-changed",
-                G_TYPE_FROM_CLASS( class ),
-                G_SIGNAL_RUN_LAST,
-                0,
-                NULL, NULL,
-                g_cclosure_marshal_VOID__VOID,
-                G_TYPE_NONE, 0 ); 
+	tile_cache_signals[SIG_TILES_CHANGED] = g_signal_new( "tiles-changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
 
-        tile_cache_signals[SIG_AREA_CHANGED] = g_signal_new( "area-changed",
-                G_TYPE_FROM_CLASS( class ),
-                G_SIGNAL_RUN_LAST,
-                0,
-                NULL, NULL,
-                vipsdisp_VOID__POINTER_INT,
-                G_TYPE_NONE, 2,
-                G_TYPE_POINTER,
-                G_TYPE_INT );
+	tile_cache_signals[SIG_AREA_CHANGED] = g_signal_new( "area-changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		vipsdisp_VOID__POINTER_INT,
+		G_TYPE_NONE, 2,
+		G_TYPE_POINTER,
+		G_TYPE_INT );
 
 }
 
 static void
 tile_cache_build_pyramid( TileCache *tile_cache )
 {
-        int n_levels;
-        int level_width;
-        int level_height;
-        int i;
+	int n_levels;
+	int level_width;
+	int level_height;
+	int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_build_pyramid:\n" );
+	printf( "tile_cache_build_pyramid:\n" );
 #endif /*DEBUG*/
 
-        tile_cache_free_pyramid( tile_cache );
+	tile_cache_free_pyramid( tile_cache );
 
-        /* How many levels? Keep shrinking until we get down to one tile on
-         * one axis.
-         */
-        level_width = tile_cache->tile_source->display_width;
-        level_height = tile_cache->tile_source->display_height;
-        n_levels = 1;
-        for(;;) {
-                if( level_width <= TILE_SIZE ||
-                        level_height <= TILE_SIZE )
-                        break;
+	/* How many levels? Keep shrinking until we get down to one tile on
+	 * one axis.
+	 */
+	level_width = tile_cache->tile_source->display_width;
+	level_height = tile_cache->tile_source->display_height;
+	n_levels = 1;
+	for(;;) {
+		if( level_width <= TILE_SIZE ||
+			level_height <= TILE_SIZE )
+			break;
 
-                level_width >>= 1;
-                level_height >>= 1;
-                n_levels += 1;
-        }
+		level_width >>= 1;
+		level_height >>= 1;
+		n_levels += 1;
+	}
 
-        tile_cache->n_levels = n_levels;
+	tile_cache->n_levels = n_levels;
 
-        tile_cache->levels = VIPS_ARRAY( NULL, n_levels, VipsImage * );
-        level_width = tile_cache->tile_source->display_width;
-        level_height = tile_cache->tile_source->display_height;
-        for( i = 0; i < n_levels; i++ ) {
-                tile_cache->levels[i] = vips_image_new();
+	tile_cache->levels = VIPS_ARRAY( NULL, n_levels, VipsImage * );
+	level_width = tile_cache->tile_source->display_width;
+	level_height = tile_cache->tile_source->display_height;
+	for( i = 0; i < n_levels; i++ ) {
+		tile_cache->levels[i] = vips_image_new();
 
-                vips_image_init_fields( tile_cache->levels[i],
-                        level_width,
-                        level_height,
-                        tile_cache->tile_source->rgb->Bands,
-                        tile_cache->tile_source->rgb->BandFmt,
-                        tile_cache->tile_source->rgb->Coding,
-                        tile_cache->tile_source->rgb->Type,
-                        tile_cache->tile_source->rgb->Xres,
-                        tile_cache->tile_source->rgb->Yres );
+		vips_image_init_fields( tile_cache->levels[i],
+			level_width,
+			level_height,
+			tile_cache->tile_source->rgb->Bands,
+			tile_cache->tile_source->rgb->BandFmt,
+			tile_cache->tile_source->rgb->Coding,
+			tile_cache->tile_source->rgb->Type,
+			tile_cache->tile_source->rgb->Xres,
+			tile_cache->tile_source->rgb->Yres );
 
-                level_width >>= 1;
-                level_height >>= 1;
-        }
+		level_width >>= 1;
+		level_height >>= 1;
+	}
 
-        tile_cache->tiles = VIPS_ARRAY( NULL, n_levels, GSList * );
-        tile_cache->visible = VIPS_ARRAY( NULL, n_levels, GSList * );
-        tile_cache->free = VIPS_ARRAY( NULL, n_levels, GSList * );
+	tile_cache->tiles = VIPS_ARRAY( NULL, n_levels, GSList * );
+	tile_cache->visible = VIPS_ARRAY( NULL, n_levels, GSList * );
+	tile_cache->free = VIPS_ARRAY( NULL, n_levels, GSList * );
 
 #ifdef DEBUG
-        printf( "        %d pyr levels\n", n_levels );
-        for( i = 0; i < n_levels; i++ ) 
-                printf( "        %d) %d x %d\n", 
-                        i, 
-                        tile_cache->levels[i]->Xsize,
-                        tile_cache->levels[i]->Ysize );
+	printf( "	 %d pyr levels\n", n_levels );
+	for( i = 0; i < n_levels; i++ ) 
+		printf( "	 %d) %d x %d\n", 
+			i, 
+			tile_cache->levels[i]->Xsize,
+			tile_cache->levels[i]->Ysize );
 #endif /*DEBUG*/
 }
 
@@ -311,23 +311,23 @@ static void
 tile_cache_tiles_for_rect( TileCache *tile_cache, VipsRect *rect, int z,
 	VipsRect *touches )
 {
-        int size0 = TILE_SIZE << z;
-        int left = VIPS_ROUND_DOWN( rect->left, size0 );
-        int top = VIPS_ROUND_DOWN( rect->top, size0 );
-        int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
-        int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( rect ), size0 );
+	int size0 = TILE_SIZE << z;
+	int left = VIPS_ROUND_DOWN( rect->left, size0 );
+	int top = VIPS_ROUND_DOWN( rect->top, size0 );
+	int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( rect ), size0 );
+	int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( rect ), size0 );
 
-        touches->left = left;
-        touches->top = top;
-        touches->width = right - left;
-        touches->height = bottom - top;
+	touches->left = left;
+	touches->top = top;
+	touches->width = right - left;
+	touches->height = bottom - top;
 
-        /* We can have rects outside the image. Make sure they stay empty.
-         */
-        if( vips_rect_isempty( rect ) ) {
-                touches->width = 0;
-                touches->height = 0;
-        }
+	/* We can have rects outside the image. Make sure they stay empty.
+	 */
+	if( vips_rect_isempty( rect ) ) {
+		touches->width = 0;
+		touches->height = 0;
+	}
 }
 
 /* Find the first visible tile in a hole.
@@ -335,13 +335,13 @@ tile_cache_tiles_for_rect( TileCache *tile_cache, VipsRect *rect, int z,
 static void
 tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
 {
-        int i;
+	int i;
 
-        for( i = z; i < tile_cache->n_levels; i++ ) {
-                GSList *p;
+	for( i = z; i < tile_cache->n_levels; i++ ) {
+		GSList *p;
 
-                for( p = tile_cache->tiles[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+		for( p = tile_cache->tiles[i]; p; p = p->next ) {
+			Tile *tile = TILE( p->data );
 			GSList **visible = &tile_cache->visible[i];
 
 			/* Ignore tiles with no current or previous pixels.
@@ -355,50 +355,50 @@ tile_cache_fill_hole( TileCache *tile_cache, VipsRect *bounds, int z )
 			if( g_slist_index( *visible, tile ) >= 0 ) 
 				continue;
 
-                        if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
+			if( vips_rect_overlapsrect( &tile->bounds, bounds ) ) {
 				tile_touch( tile );
-                                *visible = g_slist_prepend( *visible, tile );
-                                return;
-                        }
-                }
-        }
+				*visible = g_slist_prepend( *visible, tile );
+				return;
+			}
+		}
+	}
 }
 
 static int
 tile_cache_sort_lru( const void *a, const void *b )
 {
-        Tile *t1 = TILE( a );
-        Tile *t2 = TILE( b );
+	Tile *t1 = TILE( a );
+	Tile *t2 = TILE( b );
 
-        return( t1->time - t2->time );
+	return( t1->time - t2->time );
 }
 
 static void
 tile_cache_free_oldest( TileCache *tile_cache, int z )
 {
-        int n_free = g_slist_length( tile_cache->free[z] );
-        int n_to_free = VIPS_MAX( 0, n_free - MAX_TILES );
+	int n_free = g_slist_length( tile_cache->free[z] );
+	int n_to_free = VIPS_MAX( 0, n_free - MAX_TILES );
 
-        if( n_to_free > 0 ) {
-                int i;
+	if( n_to_free > 0 ) {
+		int i;
 
-                tile_cache->free[z] = g_slist_sort( tile_cache->free[z], 
-                        tile_cache_sort_lru );
+		tile_cache->free[z] = g_slist_sort( tile_cache->free[z], 
+			tile_cache_sort_lru );
 
-                for( i = 0; i < n_to_free; i++ ) {
-                        Tile *tile = TILE( tile_cache->free[z]->data );
+		for( i = 0; i < n_to_free; i++ ) {
+			Tile *tile = TILE( tile_cache->free[z]->data );
 
-                        g_assert( g_slist_find( tile_cache->tiles[z], tile ) );
+			g_assert( g_slist_find( tile_cache->tiles[z], tile ) );
 
-                        tile_cache->tiles[z] = 
-                                g_slist_remove( tile_cache->tiles[z], tile );
-                        tile_cache->visible[z] = 
-                                g_slist_remove( tile_cache->visible[z], tile );
-                        tile_cache->free[z] = 
-                                g_slist_remove( tile_cache->free[z], tile );
-                        VIPS_UNREF( tile );
-                }
-        }
+			tile_cache->tiles[z] = 
+				g_slist_remove( tile_cache->tiles[z], tile );
+			tile_cache->visible[z] = 
+				g_slist_remove( tile_cache->visible[z], tile );
+			tile_cache->free[z] = 
+				g_slist_remove( tile_cache->free[z], tile );
+			VIPS_UNREF( tile );
+		}
+	}
 }
 
 #ifdef DEBUG_VERBOSE
@@ -407,35 +407,35 @@ tile_cache_print( TileCache *tile_cache )
 {
 	int i;
 
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                printf( "  level %d, %d tiles, %d visible, %d free\n",
-                        i, 
-                        g_slist_length( tile_cache->tiles[i] ),
-                        g_slist_length( tile_cache->visible[i] ),
-                        g_slist_length( tile_cache->free[i] ) );
-        }
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
+		printf( "  level %d, %d tiles, %d visible, %d free\n",
+			i, 
+			g_slist_length( tile_cache->tiles[i] ),
+			g_slist_length( tile_cache->visible[i] ),
+			g_slist_length( tile_cache->free[i] ) );
+	}
 
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
 		GSList *p;
 
-                printf( "  level %d tiles:\n", i ); 
-                for( p = tile_cache->tiles[i]; p; p = p -> next ) {
-                        Tile *tile = TILE( p->data );
+		printf( "  level %d tiles:\n", i ); 
+		for( p = tile_cache->tiles[i]; p; p = p -> next ) {
+			Tile *tile = TILE( p->data );
 			int visible = g_slist_index( tile_cache->visible[i], 
 				tile ) >= 0;
 
-                        printf( "    @ %d x %d, %d x %d, "
+			printf( "    @ %d x %d, %d x %d, "
 				"valid = %d, visible = %d, "
 				"texture = %p\n",
-                                tile->bounds.left,
-                                tile->bounds.top,
-                                tile->bounds.width,
-                                tile->bounds.height,
-                                tile->valid,
-			     	visible,
-			     	tile->texture );
-                }
-        }
+				tile->bounds.left,
+				tile->bounds.top,
+				tile->bounds.width,
+				tile->bounds.height,
+				tile->valid,
+				visible,
+				tile->texture );
+		}
+	}
 }
 #endif /*DEBUG_VERBOSE*/
 
@@ -443,64 +443,64 @@ static void
 tile_cache_compute_visibility( TileCache *tile_cache, 
 	VipsRect *viewport, int z )
 {
-        int size0 = TILE_SIZE << z;
-        int start_time = tile_get_time();
+	int size0 = TILE_SIZE << z;
+	int start_time = tile_get_time();
 
-        int i;
-        VipsRect touches;
-        int x, y;
-        VipsRect bounds;
-        GSList *p;
+	int i;
+	VipsRect touches;
+	int x, y;
+	VipsRect bounds;
+	GSList *p;
 
 #ifdef DEBUG_VERBOSE
-        printf( "tile_cache_compute_visibility: z = %d\n", z ); 
+	printf( "tile_cache_compute_visibility: z = %d\n", z ); 
 #endif /*DEBUG_VERBOSE*/
 
-        /* We're rebuilding these.
-         */
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                VIPS_FREEF( g_slist_free, tile_cache->visible[i] );
-                VIPS_FREEF( g_slist_free, tile_cache->free[i] );
-        }
+	/* We're rebuilding these.
+	 */
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
+		VIPS_FREEF( g_slist_free, tile_cache->visible[i] );
+		VIPS_FREEF( g_slist_free, tile_cache->free[i] );
+	}
 
-        /* The rect of tiles touched by the viewport.
-         */
-        tile_cache_tiles_for_rect( tile_cache, viewport, z, &touches );
+	/* The rect of tiles touched by the viewport.
+	 */
+	tile_cache_tiles_for_rect( tile_cache, viewport, z, &touches );
 
-        /* Search for the highest res tile for every position in the 
-         * viewport.
-         */
-        bounds.width = size0;
-        bounds.height = size0;
-        for( y = 0; y < touches.height; y += size0 ) 
-                for( x = 0; x < touches.width; x += size0 ) {
-                        bounds.left = x + touches.left;
-                        bounds.top = y + touches.top;
+	/* Search for the highest res tile for every position in the 
+	 * viewport.
+	 */
+	bounds.width = size0;
+	bounds.height = size0;
+	for( y = 0; y < touches.height; y += size0 ) 
+		for( x = 0; x < touches.width; x += size0 ) {
+			bounds.left = x + touches.left;
+			bounds.top = y + touches.top;
 
-                        tile_cache_fill_hole( tile_cache, &bounds, z );
-                }
+			tile_cache_fill_hole( tile_cache, &bounds, z );
+		}
 
-        /* So any tiles we've not touched must be invisible and therefore 
-         * candidates for freeing.
-         */
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                for( p = tile_cache->tiles[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+	/* So any tiles we've not touched must be invisible and therefore 
+	 * candidates for freeing.
+	 */
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
+		for( p = tile_cache->tiles[i]; p; p = p->next ) {
+			Tile *tile = TILE( p->data );
 
-                        if( tile->time < start_time ) 
-                                tile_cache->free[i] = 
-                                        g_slist_prepend( tile_cache->free[i], 
-                                                tile );
-                }
-        }
+			if( tile->time < start_time ) 
+				tile_cache->free[i] = 
+					g_slist_prepend( tile_cache->free[i], 
+						tile );
+		}
+	}
 
-        /* Free the oldest few unused tiles in each level. 
-         *
-         * Never free tiles in the lowest-res few levels. They are useful for 
-         * filling in holes and take little memory.
-         */
-        for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
-                tile_cache_free_oldest( tile_cache, i );
+	/* Free the oldest few unused tiles in each level. 
+	 *
+	 * Never free tiles in the lowest-res few levels. They are useful for 
+	 * filling in holes and take little memory.
+	 */
+	for( i = 0; i < tile_cache->n_levels - 3; i++ ) 
+		tile_cache_free_oldest( tile_cache, i );
 
 #ifdef DEBUG_VERBOSE
 	tile_cache_print( tile_cache );
@@ -510,17 +510,17 @@ tile_cache_compute_visibility( TileCache *tile_cache,
 static Tile *
 tile_cache_find( TileCache *tile_cache, VipsRect *tile_rect, int z )
 {
-        GSList *p;
-        Tile *tile;
+	GSList *p;
+	Tile *tile;
 
-        for( p = tile_cache->tiles[z]; p; p = p->next ) {
-                tile = TILE( p->data );
+	for( p = tile_cache->tiles[z]; p; p = p->next ) {
+		tile = TILE( p->data );
 
-                if( vips_rect_overlapsrect( &tile->bounds, tile_rect ) ) 
-                        return( tile );
-        }
+		if( vips_rect_overlapsrect( &tile->bounds, tile_rect ) ) 
+			return( tile );
+	}
 
-        return( NULL );
+	return( NULL );
 }
 
 /* Fetch a single tile. If we have this tile already, refresh if there are new
@@ -529,20 +529,20 @@ tile_cache_find( TileCache *tile_cache, VipsRect *tile_rect, int z )
 static void
 tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 {
-        Tile *tile;
+	Tile *tile;
 
-        /* Look for an existing tile, or make a new one.
+	/* Look for an existing tile, or make a new one.
 	 *
 	 * FIXME ... this could be a hash. Could other lookups be hashes as
 	 * well, if we rescale x/y for changes in z?
-         */
-        if( !(tile = tile_cache_find( tile_cache, tile_rect, z )) ) {
-                if( !(tile = tile_new( tile_cache->levels[z], 
-                        tile_rect->left >> z, tile_rect->top >> z, z )) )
-                        return;
+	 */
+	if( !(tile = tile_cache_find( tile_cache, tile_rect, z )) ) {
+		if( !(tile = tile_new( tile_cache->levels[z], 
+			tile_rect->left >> z, tile_rect->top >> z, z )) )
+			return;
 
-                tile_cache->tiles[z] = 
-                        g_slist_prepend( tile_cache->tiles[z], tile );
+		tile_cache->tiles[z] = 
+			g_slist_prepend( tile_cache->tiles[z], tile );
 	}
 
 	if( !tile->valid ) {
@@ -557,7 +557,7 @@ tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 			z );
 #endif /*DEBUG_VERBOSE*/
 
-                tile_source_fill_tile( tile_cache->tile_source, tile );
+		tile_source_fill_tile( tile_cache->tile_source, tile );
 	}
 }
 
@@ -570,80 +570,80 @@ tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 static void
 tile_cache_fetch_area( TileCache *tile_cache, VipsRect *viewport, int z )
 {
-        int size0 = TILE_SIZE << z;
+	int size0 = TILE_SIZE << z;
 
-        /* All the tiles rect touches in this pyr level.
-         */
-        int left = VIPS_ROUND_DOWN( viewport->left, size0 );
-        int top = VIPS_ROUND_DOWN( viewport->top, size0 );
-        int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( viewport ), size0 );
-        int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( viewport ), size0 );
+	/* All the tiles rect touches in this pyr level.
+	 */
+	int left = VIPS_ROUND_DOWN( viewport->left, size0 );
+	int top = VIPS_ROUND_DOWN( viewport->top, size0 );
+	int right = VIPS_ROUND_UP( VIPS_RECT_RIGHT( viewport ), size0 );
+	int bottom = VIPS_ROUND_UP( VIPS_RECT_BOTTOM( viewport ), size0 );
 
-        /* Do the four edges, then step in. Loop until the centre is empty.
-         */
-        for(;;) {
-                VipsRect tile_rect;
-                int x, y;
+	/* Do the four edges, then step in. Loop until the centre is empty.
+	 */
+	for(;;) {
+		VipsRect tile_rect;
+		int x, y;
 
-                tile_rect.width = size0;
-                tile_rect.height = size0;
+		tile_rect.width = size0;
+		tile_rect.height = size0;
 
-                if( right - left <= 0 ||
-                        bottom - top <= 0 )
-                        break;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
 
-                /* Top edge.
-                 */
-                for( x = left; x < right; x += size0 ) {
-                        tile_rect.left = x;
-                        tile_rect.top = top;
-                        tile_cache_get( tile_cache, &tile_rect, z );
-                }
+		/* Top edge.
+		 */
+		for( x = left; x < right; x += size0 ) {
+			tile_rect.left = x;
+			tile_rect.top = top;
+			tile_cache_get( tile_cache, &tile_rect, z );
+		}
 
-                top += size0;
-                if( right - left <= 0 ||
-                        bottom - top <= 0 )
-                        break;
+		top += size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
 
-                /* Bottom edge.
-                 */
-                for( x = left; x < right; x += size0 ) {
-                        tile_rect.left = x;
-                        tile_rect.top = bottom - size0;
-                        tile_cache_get( tile_cache, &tile_rect, z );
-                }
+		/* Bottom edge.
+		 */
+		for( x = left; x < right; x += size0 ) {
+			tile_rect.left = x;
+			tile_rect.top = bottom - size0;
+			tile_cache_get( tile_cache, &tile_rect, z );
+		}
 
-                bottom -= size0;
-                if( right - left <= 0 ||
-                        bottom - top <= 0 )
-                        break;
+		bottom -= size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
 
-                /* Left edge.
-                 */
-                for( y = top; y < bottom; y += size0 ) {
-                        tile_rect.left = left;
-                        tile_rect.top = y;
-                        tile_cache_get( tile_cache, &tile_rect, z );
-                }
+		/* Left edge.
+		 */
+		for( y = top; y < bottom; y += size0 ) {
+			tile_rect.left = left;
+			tile_rect.top = y;
+			tile_cache_get( tile_cache, &tile_rect, z );
+		}
 
-                left += size0;
-                if( right - left <= 0 ||
-                        bottom - top <= 0 )
-                        break;
+		left += size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
 
-                /* Right edge.
-                 */
-                for( y = top; y < bottom; y += size0 ) {
-                        tile_rect.left = right - size0;
-                        tile_rect.top = y;
-                        tile_cache_get( tile_cache, &tile_rect, z );
-                }
+		/* Right edge.
+		 */
+		for( y = top; y < bottom; y += size0 ) {
+			tile_rect.left = right - size0;
+			tile_rect.top = y;
+			tile_cache_get( tile_cache, &tile_rect, z );
+		}
 
-                right -= size0;
-                if( right - left <= 0 ||
-                        bottom - top <= 0 )
-                        break;
-        }
+		right -= size0;
+		if( right - left <= 0 ||
+			bottom - top <= 0 )
+			break;
+	}
 }
 
 /* Eevetrything has changed, eg. page turn and the image geometry has changed.
@@ -652,14 +652,14 @@ static void
 tile_cache_source_changed( TileSource *tile_source, TileCache *tile_cache )
 {
 #ifdef DEBUG
-        printf( "tile_cache_source_changed:\n" );
+	printf( "tile_cache_source_changed:\n" );
 #endif /*DEBUG*/
 
 	/* This will junk all tiles.
 	 */
-        tile_cache_build_pyramid( tile_cache );
+	tile_cache_build_pyramid( tile_cache );
 
-        tile_cache_changed( tile_cache );
+	tile_cache_changed( tile_cache );
 }
 
 /* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark 
@@ -669,25 +669,25 @@ void
 tile_cache_source_tiles_changed( TileSource *tile_source, 
 	TileCache *tile_cache )
 {
-        int i;
+	int i;
 
 #ifdef DEBUG
-        printf( "tile_cache_source_tiles_changed:\n" );
+	printf( "tile_cache_source_tiles_changed:\n" );
 #endif /*DEBUG*/
 
-        for( i = 0; i < tile_cache->n_levels; i++ ) {
-                GSList *p;
+	for( i = 0; i < tile_cache->n_levels; i++ ) {
+		GSList *p;
 
-                for( p = tile_cache->tiles[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+		for( p = tile_cache->tiles[i]; p; p = p->next ) {
+			Tile *tile = TILE( p->data );
 
 			/* We must refetch.
 			 */
-                        tile->valid = FALSE;
-                }
-        }
+			tile->valid = FALSE;
+		}
+	}
 
-        tile_cache_tiles_changed( tile_cache );
+	tile_cache_tiles_changed( tile_cache );
 }
 
 /* The bg render thread says some tiles have fresh pixels.
@@ -697,10 +697,10 @@ tile_cache_source_area_changed( TileSource *tile_source,
 	VipsRect *dirty, int z, TileCache *tile_cache )
 {
 #ifdef DEBUG_VERBOSE
-        printf( "tile_cache_source_area_changed: left = %d, top = %d, "
-                "width = %d, height = %d, z = %d\n", 
-                dirty->left, dirty->top,
-                dirty->width, dirty->height, z );
+	printf( "tile_cache_source_area_changed: left = %d, top = %d, "
+		"width = %d, height = %d, z = %d\n", 
+		dirty->left, dirty->top,
+		dirty->width, dirty->height, z );
 #endif /*DEBUG_VERBOSE*/
 
 	/* Immediately fetch the updated tile. If we wait for snapshot, the
@@ -708,16 +708,16 @@ tile_cache_source_area_changed( TileSource *tile_source,
 	 */
 	tile_cache_fetch_area( tile_cache, dirty, z );
 
-        tile_cache_area_changed( tile_cache, dirty, z );
+	tile_cache_area_changed( tile_cache, dirty, z );
 }
 
 TileCache *
 tile_cache_new( TileSource *tile_source )
 {
-        TileCache *tile_cache = g_object_new( TILE_CACHE_TYPE, NULL );
+	TileCache *tile_cache = g_object_new( TILE_CACHE_TYPE, NULL );
 
-        tile_cache->tile_source = tile_source;
-        g_object_ref( tile_source );
+	tile_cache->tile_source = tile_source;
+	g_object_ref( tile_source );
 
 	g_signal_connect_object( tile_source, "changed",
 		G_CALLBACK( tile_cache_source_changed ), tile_cache, 0 );
@@ -726,11 +726,11 @@ tile_cache_new( TileSource *tile_source )
 	g_signal_connect_object( tile_source, "area-changed",
 		G_CALLBACK( tile_cache_source_area_changed ), tile_cache, 0 );
 
-        /* Don't build the pyramid yet -- the source probably hasn't loaded.
-         * Wait for "changed".
-         */
+	/* Don't build the pyramid yet -- the source probably hasn't loaded.
+	 * Wait for "changed".
+	 */
 
-        return( tile_cache ); 
+	return( tile_cache ); 
 }
 
 static void
@@ -800,12 +800,12 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 {
 	VipsRect viewport;
 	int z;
-        int i;
+	int i;
 
 	/* In debug mode, scale and offset so we can see tile clipping. 
 	 */
-        float debug_scale = 0.9;
-        graphene_point_t debug_offset = { 32, 32 };
+	float debug_scale = 0.9;
+	graphene_point_t debug_offset = { 32, 32 };
 
 #ifdef DEBUG_RENDER_TIME
 	GTimer *snapshot_timer = g_timer_new();
@@ -817,15 +817,15 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 	}
 
 #ifdef DEBUG
-        printf( "tile_cache_snapshot: scale = %g, x = %g, y = %g\n", 
+	printf( "tile_cache_snapshot: scale = %g, x = %g, y = %g\n", 
 		scale, x, y );
 #endif /*DEBUG*/
 
 #ifdef DEBUG_VERBOSE
-        printf( "  paint_rect left = %d, top = %d, "
-                "width = %d, height = %d\n", 
-                paint_rect->left, paint_rect->top,
-                paint_rect->width, paint_rect->height );
+	printf( "  paint_rect left = %d, top = %d, "
+		"width = %d, height = %d\n", 
+		paint_rect->left, paint_rect->top,
+		paint_rect->width, paint_rect->height );
 #endif /*DEBUG_VERBOSE*/
 
 	/* Pick a pyramid layer. For enlarging, we leave the z at 0 
@@ -858,48 +858,48 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 	 */
 	tile_cache_compute_visibility( tile_cache, &viewport, z );
 
-        /* If there's an alpha, we'll need a backdrop.
-         */
-        if( vips_image_hasalpha( tile_cache->tile_source->image ) ) {
-                graphene_rect_t bounds;
+	/* If there's an alpha, we'll need a backdrop.
+	 */
+	if( vips_image_hasalpha( tile_cache->tile_source->image ) ) {
+		graphene_rect_t bounds;
 
 #ifdef DEBUG_VERBOSE
-                printf( "tile_cache_snapshot: drawing background\n" );
+		printf( "tile_cache_snapshot: drawing background\n" );
 #endif /*DEBUG_VERBOSE*/
 
-                bounds.origin.x = paint_rect->left;
-                bounds.origin.y = paint_rect->top;
-                bounds.size.width = paint_rect->width;
-                bounds.size.height = paint_rect->height;
-                gtk_snapshot_push_repeat( snapshot, &bounds, NULL );
+		bounds.origin.x = paint_rect->left;
+		bounds.origin.y = paint_rect->top;
+		bounds.size.width = paint_rect->width;
+		bounds.size.height = paint_rect->height;
+		gtk_snapshot_push_repeat( snapshot, &bounds, NULL );
 
-                bounds.origin.x = 0;
-                bounds.origin.y = 0;
-                bounds.size.width = TILE_SIZE;
-                bounds.size.height = TILE_SIZE;
-                gtk_snapshot_append_texture( snapshot, 
+		bounds.origin.x = 0;
+		bounds.origin.y = 0;
+		bounds.size.width = TILE_SIZE;
+		bounds.size.height = TILE_SIZE;
+		gtk_snapshot_append_texture( snapshot, 
 			tile_cache->background_texture, &bounds );
 
-                gtk_snapshot_pop( snapshot );
-        }
+		gtk_snapshot_pop( snapshot );
+	}
 
 	/* Draw all visible tiles, low res (at the back) to high res (at the
 	 * front).
 	 */
-        for( i = tile_cache->n_levels - 1; i >= z; i-- ) { 
-                GSList *p;
+	for( i = tile_cache->n_levels - 1; i >= z; i-- ) { 
+		GSList *p;
 
-                for( p = tile_cache->visible[i]; p; p = p->next ) {
-                        Tile *tile = TILE( p->data );
+		for( p = tile_cache->visible[i]; p; p = p->next ) {
+			Tile *tile = TILE( p->data );
 
-                        graphene_rect_t bounds;
+			graphene_rect_t bounds;
 
-                        bounds.origin.x = tile->bounds.left * scale - 
+			bounds.origin.x = tile->bounds.left * scale - 
 				x + paint_rect->left;
-                        bounds.origin.y = tile->bounds.top * scale - 
+			bounds.origin.y = tile->bounds.top * scale - 
 				y + paint_rect->top;  
-                        bounds.size.width = tile->bounds.width * scale + 0.5;  
-                        bounds.size.height = tile->bounds.height * scale + 0.5;
+			bounds.size.width = tile->bounds.width * scale + 0.5;  
+			bounds.size.height = tile->bounds.height * scale + 0.5;
 
 			gtk_snapshot_append_texture( snapshot,
 				 tile_get_texture( tile ), &bounds );
@@ -910,8 +910,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 			if( debug ) 
 				tile_cache_draw_bounds( snapshot, 
 					tile, &bounds );
-                }
-        }
+		}
+	}
 
 	/* Draw a box for the viewport.
 	 */
@@ -936,8 +936,8 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 	}
 
 #ifdef DEBUG_RENDER_TIME
-        printf( "tile_cache_snapshot: %g ms\n", 
+	printf( "tile_cache_snapshot: %g ms\n", 
 		g_timer_elapsed( snapshot_timer, NULL ) * 1000 );
-        g_timer_destroy( snapshot_timer );
+	g_timer_destroy( snapshot_timer );
 #endif /*DEBUG_RENDER_TIME*/
 }
