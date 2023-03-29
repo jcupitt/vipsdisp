@@ -576,22 +576,19 @@ image_window_replace_action( GSimpleAction *action,
 }
 
 /* Close the window containing the save_options when the window's cancel button
- * is pressed.
+ * is pressed. Do not close the "Save As" dialog.
  */
 static void
 save_window_cancel_cb( GtkWidget *it, gpointer _windows )
 {
 	GtkWindow **windows = (GtkWindow **) _windows;
-	ImageWindow *image_window; 
-	image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
 	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
 	gtk_window_close( GTK_WINDOW( save_options_window ) );
 	g_free( windows );
-        gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 /* Save the image, and close the window containing the save_options when
- * the window's save button is pressed.
+ * the window's save button is pressed. Close the "Save As" dialog.
  */
 static void
 save_window_save_cb( GtkWidget *it, gpointer _windows )
