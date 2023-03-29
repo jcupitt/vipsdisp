@@ -761,9 +761,15 @@ image_window_saveas_response( GtkDialog *dialog,
         //gtk_window_destroy( GTK_WINDOW( dialog ) );
 
 	switch( response_id ){
+
 	case GTK_RESPONSE_ACCEPT:
 		image_window_open_save_options( win );
-		
+		break;
+
+	case GTK_RESPONSE_CANCEL:
+		gtk_window_destroy( GTK_WINDOW( win->saveas_dialog ) );
+		break;
+
 	default:
 		/* pass */
 	}
