@@ -690,6 +690,8 @@ image_window_open_save_options( ImageWindow *image_window )
 	 */
 	parent_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		DEFAULT_SPACING ) );
+	
+	gtk_widget_set_halign( GTK_WIDGET( parent_box ), GTK_ALIGN_FILL );
 
 	/* Make the parent box the (only) child of the save options window.
 	 */
@@ -718,7 +720,7 @@ image_window_open_save_options( ImageWindow *image_window )
 	 * buttons.
 	 */
 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
-	gtk_widget_set_halign( hbox, GTK_ALIGN_END);
+	gtk_widget_set_halign( hbox, GTK_ALIGN_END );
 	gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
 
 	/* Append the save and cancel buttons to the horizontal box.

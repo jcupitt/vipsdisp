@@ -252,11 +252,16 @@ save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	const gchar *property_name;
 	GtkBox *t;
+	GtkLabel* label;
 
 	property_name = g_param_spec_get_name( pspec );
 
 	t = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		DEFAULT_SPACING ) );
+	
+	gtk_box_set_homogeneous( t, TRUE );
+
+	gtk_widget_set_halign( GTK_WIDGET( t ), GTK_ALIGN_FILL );
 
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		return;
@@ -268,25 +273,38 @@ save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
+
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
+
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
 
 		GtkEntryBuffer* buffer =
 			gtk_entry_buffer_new( pspec_string->default_value, -1 );
 
-		gtk_box_append( GTK_BOX( t ), gtk_text_new_with_buffer( buffer ) );
+		GtkWidget *text = gtk_text_new_with_buffer( buffer );
+
+		gtk_widget_set_halign( text, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), text );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkCheckButton *check_button =
-			GTK_CHECK_BUTTON( gtk_check_button_new() );
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
 
-		gtk_check_button_set_active( check_button,
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
+
+		GtkWidget *check_button = gtk_check_button_new();
+
+		gtk_check_button_set_active( GTK_CHECK_BUTTON( check_button ),
 			pspec_boolean->default_value );
 
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( check_button ) );
+		gtk_widget_set_halign( check_button, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), check_button );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
@@ -301,74 +319,105 @@ save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
 
 		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkDropDown *drop_down = GTK_DROP_DOWN(
-			gtk_drop_down_new_from_strings( property_nicknames ) );
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
 
-		gtk_drop_down_set_selected( drop_down, pspec_enum->default_value );
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
 
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( drop_down ) );
+		GtkWidget *drop_down = 
+			gtk_drop_down_new_from_strings( property_nicknames );
+
+		gtk_drop_down_set_selected( GTK_DROP_DOWN( drop_down ),
+			pspec_enum->default_value );
+
+		gtk_widget_set_halign( drop_down, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), drop_down );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkSpinButton *spin_button = GTK_SPIN_BUTTON(
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
+
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
+
+		GtkWidget *spin_button =
 			gtk_spin_button_new_with_range( pspec_int64->minimum,
 				pspec_int64->maximum,
-				pspec_int64->maximum ) );
+				pspec_int64->maximum );
 
-		gtk_spin_button_set_value( spin_button,
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
 			(gint64)pspec_int64->default_value );
+
+		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
 
 		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( spin_button ) );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkSpinButton *spin_button = GTK_SPIN_BUTTON(
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
+
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
+
+		GtkWidget *spin_button =
 			gtk_spin_button_new_with_range( pspec_int->minimum,
 				pspec_int->maximum,
-				pspec_int->maximum ) );
+				pspec_int->maximum );
 
-		gtk_spin_button_set_value( spin_button,
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
 			(gint)pspec_int->default_value );
 
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( spin_button ) );
+		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), spin_button );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkSpinButton *spin_button = GTK_SPIN_BUTTON(
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
+
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
+
+		GtkWidget *spin_button =
 			gtk_spin_button_new_with_range( pspec_uint64->minimum,
 				pspec_uint64->maximum,
-				pspec_uint64->maximum ) );
+				pspec_uint64->maximum );
 
-		gtk_spin_button_set_value( spin_button,
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
 			(guint64)pspec_uint64->default_value );
 
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( spin_button ) );
+		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), spin_button );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
 
-		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		label = GTK_LABEL( gtk_label_new( property_name ) );
 
-		GtkSpinButton *spin_button = GTK_SPIN_BUTTON(
+		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
+
+		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
+
+		GtkWidget *spin_button =
 			gtk_spin_button_new_with_range( pspec_double->minimum,
 				pspec_double->maximum,
-				pspec_double->maximum ) );
+				pspec_double->maximum );
 
-		gtk_spin_button_set_value( spin_button,
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
 			pspec_double->default_value );
 
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( spin_button ) );
+		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
+
+		gtk_box_append( GTK_BOX( t ), spin_button );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
@@ -473,6 +522,8 @@ save_options_reset_content_box( SaveOptions *save_options )
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		DEFAULT_SPACING ) );
 
+	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
+
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = content_box;
@@ -554,6 +605,15 @@ save_options_init( SaveOptions *save_options,
 
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		DEFAULT_SPACING ) );
+	
+	gtk_box_set_homogeneous( content_box, TRUE );
+
+	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
+
+	gtk_widget_set_margin_top( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_end( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_bottom( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_start( GTK_WIDGET( content_box ), DEFAULT_SPACING );
 
 	save_options->content_box = content_box;
 
