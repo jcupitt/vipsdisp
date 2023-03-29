@@ -315,7 +315,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	/* Get the name of the property of the save operation currently being
 	 * processed. 
 	 */
-	property_name = g_param_spec_get_name( pspec );
+	property_name = g_param_spec_get_nick( pspec );
 
 	/* Create a box that will contain the label and the user input widget
 	 * for this property.
