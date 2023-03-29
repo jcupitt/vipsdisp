@@ -13,38 +13,67 @@ save_options_free( SaveOptions *save_options )
 	g_free( save_options );
 }
 
-/* TileSource has a new image.
+/* Create a new empty SaveOptions object.
  */
-static void
-save_options_tile_source_changed( TileSource *tile_source, SaveOptions *save_options ) 
+SaveOptions *
+save_options_new_empty()
 {
-	/* ... */
+	SaveOptions *save_options;
+
+	save_options = g_malloc( sizeof( SaveOptions ) );
+	save_options->parent_box = NULL;
+	save_options->image_window = NULL;
+	save_options->content_box = NULL;
+
+	return save_options;
 }
 
-/* Imagewindow has a new tile_source.
+/* Initialize a given empty SaveOptions object using a parent GtkBox and
+ * ImageWindow.
  */
 void
-save_options_image_window_changed( ImageWindow *win, SaveOptions *save_options )
-{
-	TileSource *tile_source = image_window_get_tile_source( win );
-        g_signal_connect_object( tile_source, "changed", 
-                G_CALLBACK( save_options_tile_source_changed ), 
-                save_options, 0 );
-}
-
-/* Set a new image_window
- */
-void
-save_options_set_image_window( SaveOptions *save_options,
+save_options_init( SaveOptions *save_options,
+	GtkBox *parent_box,
 	ImageWindow *image_window )
 {
-        save_options->image_window = image_window;
-        g_signal_connect_object( image_window, "changed", 
-                G_CALLBACK( save_options_image_window_changed ), 
-                save_options, 0 );
+	GtkBox *content_box;
+
+	save_options->image_window = image_window;
+
+	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+	
+	gtk_box_set_homogeneous( content_box, TRUE );
+
+	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
+
+	gtk_widget_set_margin_top( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_end( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_bottom( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+	gtk_widget_set_margin_start( GTK_WIDGET( content_box ), DEFAULT_SPACING );
+
+	save_options->content_box = content_box;
+
+	save_options->parent_box = parent_box;
+
+	gtk_box_append( parent_box, GTK_WIDGET( content_box ) );
 }
 
-/* Get the currently held image window.
+/* Create a new, initialized SaveOptions object from a parent GtkBox and an
+ * ImageWindow.
+ */
+SaveOptions *
+save_options_new( GtkBox *parent_box, ImageWindow *image_window ) 
+{
+        SaveOptions *save_options;
+		
+	save_options = save_options_new_empty();
+	save_options_init( save_options, parent_box, image_window );
+
+        return( save_options ); 
+}
+
+/* Get the the image window currently held by a SaveOptions object.
  *
  * @returns ImageWindow * (may be NULL)
  */
@@ -54,9 +83,14 @@ save_options_get_image_window( SaveOptions *save_options )
         return save_options->image_window;
 }
 
-/* This is a helper function used by
- * save_options_build_save_operation_argument_map_fn to process a single
- * property of the save operation.
+/* This is a helper function used by:
+ *
+ * 	save_options_build_save_operation_argument_map_fn
+ *
+ * to process a single property of the save operation.
+ *
+ * It sets the property to the value held by the user input widget pointed to
+ * by the widget iterator. 
  */
 static void
 save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
@@ -71,8 +105,6 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	const gchar *property_name;
 
 	property_name = g_param_spec_get_name( pspec );
-	
-	//puts(property_name);
 
 	t = gtk_widget_get_last_child( *widget_iterator );
 
@@ -239,9 +271,12 @@ save_options_build_save_operation( SaveOptions *save_options,
 		NULL);
 }
 
-/* This function is used by
- * save_options_build_content_box_argument_map_fn_helper to process one
- * property of the save operation.
+/* This function is used by:
+ *
+ * 	save_options_build_content_box_argument_map_fn_helper
+ *
+ * to process one property of the save operation. The property type and name
+ * are used to create a labelled user input element for that property.
  */
 static void
 save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
@@ -534,54 +569,39 @@ save_options_hide( SaveOptions *save_options )
 	return 0;
 }
 
-SaveOptions *
-save_options_new_empty()
+/* TileSource has a new image.
+ *
+ * Not currently used.
+ */
+static void
+save_options_tile_source_changed( TileSource *tile_source, SaveOptions *save_options ) 
 {
-	SaveOptions *save_options;
-
-	save_options = g_malloc( sizeof( SaveOptions ) );
-	save_options->parent_box = NULL;
-	save_options->image_window = NULL;
-	save_options->content_box = NULL;
-
-	return save_options;
+	/* ... */
 }
 
+/* Imagewindow has a new tile_source.
+ * 
+ * Not currently used.
+ */
 void
-save_options_init( SaveOptions *save_options,
-	GtkBox *parent_box,
+save_options_image_window_changed( ImageWindow *win, SaveOptions *save_options )
+{
+	TileSource *tile_source = image_window_get_tile_source( win );
+        g_signal_connect_object( tile_source, "changed", 
+                G_CALLBACK( save_options_tile_source_changed ), 
+                save_options, 0 );
+}
+
+/* Set a new image_window
+ * 
+ * Not currently used.
+ */
+void
+save_options_set_image_window( SaveOptions *save_options,
 	ImageWindow *image_window )
 {
-	GtkBox *content_box;
-
-	save_options->image_window = image_window;
-
-	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		DEFAULT_SPACING ) );
-	
-	gtk_box_set_homogeneous( content_box, TRUE );
-
-	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
-
-	gtk_widget_set_margin_top( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_end( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_bottom( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_start( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-
-	save_options->content_box = content_box;
-
-	save_options->parent_box = parent_box;
-
-	gtk_box_append( parent_box, GTK_WIDGET( content_box ) );
-}
-
-SaveOptions *
-save_options_new( GtkBox *parent_box, ImageWindow *image_window ) 
-{
-        SaveOptions *save_options;
-		
-	save_options = save_options_new_empty();
-	save_options_init( save_options, parent_box, image_window );
-
-        return( save_options ); 
+        save_options->image_window = image_window;
+        g_signal_connect_object( image_window, "changed", 
+                G_CALLBACK( save_options_image_window_changed ), 
+                save_options, 0 );
 }
