@@ -100,6 +100,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	if ( !widget_iterator || !*widget_iterator )
 		return;
 
+	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	GtkWidget *t;
 	const gchar *property_name;
@@ -108,18 +109,19 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 	t = gtk_widget_get_last_child( *widget_iterator );
 
+	/* Not handling VipsImage or VipsObject types yet.
+	*/
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		return;
 	}
-	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) ) {
-		//VipsObjectClass *oclass;
-		//oclass = g_type_class_ref( otype ));
-		//if ( oclass ) {
-		// 	...
-		//}
+	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
+		(oclass = g_type_class_ref( otype )) ) {
 		return;
 	}
-	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+
+	/* Handle types that are not VipsImage or VipsObject.
+	 */
+	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GtkEntryBuffer *buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
 		const char* text = gtk_entry_buffer_get_text( buffer );
 		const char* none = "none";
@@ -182,14 +184,45 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+			gint value;
+			VipsArrayInt *array_int;
+
+			value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+			/* For now just pretend every array-type parameter has
+			 * one element.
+			 */
+			array_int = vips_array_int_newv( 1, value );
+
+			g_object_set( VIPS_OBJECT( operation ),
+				property_name, array_int,
+				NULL );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+			gdouble value;
+			VipsArrayDouble *array_double;
+
+			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+			/* For now just pretend every array-type parameter has
+			 * one element.
+			 */
+			array_double = vips_array_double_newv( 1, value );
+
+			g_object_set( VIPS_OBJECT( operation ),
+				property_name, array_double,
+				NULL );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+			/* Ignore VipsImage-type parameters for now.
+			 */
+			return;
 		}
 		else {
+			/* Ignore parameters of unrecognized type for now.
+			 */
+			return;
 		}
-		return;
 	}
 	else {
 		return;
@@ -288,7 +321,12 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	const gchar *property_name;
 	GtkWidget *t, *label, *box;
 
-	/* Not handling VipsImage, VipsObject, or boxed types yet.
+	/* Get the name of the property of the save operation currently being
+	 * processed. 
+	 */
+	property_name = g_param_spec_get_nick( pspec );
+
+	/* Not handling VipsImage or VipsObject.
 	*/
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		return;
@@ -297,25 +335,9 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		(oclass = g_type_class_ref( otype )) ) {
 		return;
 	}
-	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
-		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-		}
-		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-		}
-		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-		}
-		else {
-		}
-		return;
-	}
 
-	/* Handle types that are not VipsImage, VipsObject, or boxed.
+	/* Handle types that are not VipsImage or VipsObject.
 	 */
-
-	/* Get the name of the property of the save operation currently being
-	 * processed. 
-	 */
-	property_name = g_param_spec_get_nick( pspec );
 
 	/* Create a box that will contain the label and the user input widget
 	 * for this property. Use the property blurb as a tooltip.
@@ -409,6 +431,34 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			pspec_double->default_value );
+	}
+	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+			/* No default values exist for ParamSpecBoxed, so make
+			 * some up for now.
+			 */
+			t = gtk_spin_button_new_with_range( 0, 1000, 1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+		}
+		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+			/* No default values exist for ParamSpecBoxed, so make
+			 * some up for now.
+			 */
+			t = gtk_spin_button_new_with_range( 0, 1000, .1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+		}
+		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+			/* Ignore VipsImage-type parameters for now.
+			 */
+			return;
+		}
+		else {
+			/* Ignore parameters of unrecognized type for now.
+			 */
+			return;
+		}
 	}
 	else {
 		return;
