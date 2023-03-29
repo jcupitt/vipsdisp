@@ -15,7 +15,7 @@ struct _ImageWindow
         TileSource *tile_source;
         TileCache *tile_cache;
 
-	GFile *target_file;
+	GtkDialog *saveas_dialog;
 	SaveOptions *save_options;
 
         /* Last known mouse postion, in gtk coordinates. We keep these in gtk
@@ -84,9 +84,6 @@ image_window_dispose( GObject *object )
 #ifdef DEBUG
         printf( "image_window_dispose:\n" ); 
 #endif /*DEBUG*/
-
-	if( win->target_file )
-		g_object_unref( win->target_file );
 
         VIPS_UNREF( win->tile_source );
         VIPS_UNREF( win->tile_cache );
@@ -585,9 +582,12 @@ static void
 save_window_cancel_cb( GtkWidget *it, gpointer _windows )
 {
 	GtkWindow **windows = (GtkWindow **) _windows;
+	ImageWindow *image_window; 
+	image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
 	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
 	gtk_window_close( GTK_WINDOW( save_options_window ) );
 	g_free( windows );
+        gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 /* Save the image, and close the window containing the save_options when
@@ -602,6 +602,7 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 	GtkWindow *save_options_window; 
 	gchar *path, *filename_suffix, *operation_name;
 	SaveOptions *save_options;
+	GFile *file;
 
 	/* Unpack the _windows array { image_window, save_options_window }
 	 */
@@ -613,10 +614,9 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 	 */
 	save_options = image_window->save_options;
 
-	/* Get the path from the target_file GFile held by ImageWindow,
-	 * and get the filename suffix.
-	 */
-	if( !(path = g_file_get_path( image_window->target_file ))
+	file = image_window_get_target_file( image_window );
+
+	if( !(path = g_file_get_path( file ))
 		|| !(filename_suffix = strrchr( path, '.' )) )
 		return;
 
@@ -655,6 +655,8 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 	 * save options window to the save and cancel button callback functions.
 	 */
 	g_free( windows );
+
+        gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 #define DEFAULT_SPACING 10
@@ -671,8 +673,12 @@ image_window_open_save_options( ImageWindow *image_window )
 	 */
 	save_options_window = gtk_window_new();
 
-	/* Put the window on the top and prevent the user from interacting with
-	 * other windows.
+	/* Unmodal the saveas dialog, so we can modal the save options window.
+	 */
+	gtk_window_set_modal( GTK_WINDOW( image_window->saveas_dialog ),
+		FALSE );
+
+	/* Modal the save options window.
 	 */
 	gtk_window_set_modal( GTK_WINDOW( save_options_window ), TRUE );
 
@@ -747,21 +753,13 @@ image_window_saveas_response( GtkDialog *dialog,
 {
         ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	/* Replace the old target file (or set the target file for the first
-	 * time), unless the GTK file thing returns a null file.
-	 */
-	GFile *file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-	if ( !file )
-		return;
-	if( win->target_file )
-        	VIPS_UNREF( win->target_file ); 
-        win->target_file = file;
+	win->saveas_dialog = dialog;
 
         /* We need to pop down immediately so we expose the cancel
          * button.
          */
         image_window_error_hide( win ); 
-        gtk_window_destroy( GTK_WINDOW( dialog ) );
+        //gtk_window_destroy( GTK_WINDOW( dialog ) );
 
 	switch( response_id ){
 	case GTK_RESPONSE_ACCEPT:
@@ -1670,9 +1668,14 @@ image_window_get_tile_source( ImageWindow *win )
 }
 
 GFile *
-image_window_get_target_file( ImageWindow *win )
+image_window_get_target_file( ImageWindow *image_window )
 {
-	return( win->target_file );
+	GFile *file;
+
+	file = gtk_file_chooser_get_file(
+		GTK_FILE_CHOOSER( image_window->saveas_dialog ) );
+
+	return( file );
 }
 
 void
