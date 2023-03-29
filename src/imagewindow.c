@@ -706,7 +706,7 @@ image_window_open_save_options( ImageWindow *image_window )
 	 */
 	image_window->save_options = save_options;
 
-	/* Show the SaveOptions content_area
+	/* Show the SaveOptions content_box
 	 */
 	save_options_show( save_options );
 

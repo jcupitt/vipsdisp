@@ -240,29 +240,21 @@ save_options_build_save_operation( SaveOptions *save_options,
 }
 
 /* This function is used by
- * save_options_build_content_area_argument_map_fn_helper to process one
+ * save_options_build_content_box_argument_map_fn_helper to process one
  * property of the save operation.
  */
 static void
-save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
+save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	VipsArgumentClass *argument_class, SaveOptions *save_options,
 	VipsObject *operation )
 {
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	const gchar *property_name;
-	GtkBox *t;
-	GtkLabel* label;
+	GtkWidget *t, *label, *box;
 
-	property_name = g_param_spec_get_name( pspec );
-
-	t = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
-		DEFAULT_SPACING ) );
-	
-	gtk_box_set_homogeneous( t, TRUE );
-
-	gtk_widget_set_halign( GTK_WIDGET( t ), GTK_ALIGN_FILL );
-
+	/* Not handling VipsImage, VipsObject, or boxed types yet.
+	*/
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		return;
 	}
@@ -270,41 +262,59 @@ save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
 		(oclass = g_type_class_ref( otype )) ) {
 		return;
 	}
-	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
+		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+		}
+		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+		}
+		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+		}
+		else {
+		}
+		return;
+	}
+
+	/* Handle types that are not VipsImage, VipsObject, or boxed.
+	 */
+
+	/* Get the name of the property of the save operation currently being
+	 * processed. 
+	 */
+	property_name = g_param_spec_get_name( pspec );
+
+	/* Create a box that will contain the label and the user input widget
+	 * for this property.
+	 */
+	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
+		DEFAULT_SPACING );
+	gtk_box_set_homogeneous( GTK_BOX( box ), TRUE );
+	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
+
+	/* Add the label for this property to the box.
+	 */
+	label = gtk_label_new( property_name );
+	gtk_widget_set_halign( label, GTK_ALIGN_START );
+	gtk_box_append( GTK_BOX( box ), label );
+
+	/* Add a user input widget for this property to the box. The widget
+	 * chosen depends on the type of the property. Set the initial value of
+	 * the user input widget to the default value for the property.
+	 */
+	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-
-		label = GTK_LABEL( gtk_label_new( property_name ) );
-
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
 
 		GtkEntryBuffer* buffer =
 			gtk_entry_buffer_new( pspec_string->default_value, -1 );
 
-		GtkWidget *text = gtk_text_new_with_buffer( buffer );
-
-		gtk_widget_set_halign( text, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), text );
+		t = gtk_text_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_check_button_new();
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *check_button = gtk_check_button_new();
-
-		gtk_check_button_set_active( GTK_CHECK_BUTTON( check_button ),
+		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
 			pspec_boolean->default_value );
-
-		gtk_widget_set_halign( check_button, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), check_button );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
@@ -319,132 +329,75 @@ save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
 
 		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_drop_down_new_from_strings( property_nicknames );
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *drop_down = 
-			gtk_drop_down_new_from_strings( property_nicknames );
-
-		gtk_drop_down_set_selected( GTK_DROP_DOWN( drop_down ),
+		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
 			pspec_enum->default_value );
-
-		gtk_widget_set_halign( drop_down, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), drop_down );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
+			pspec_int64->maximum, 1 );
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *spin_button =
-			gtk_spin_button_new_with_range( pspec_int64->minimum,
-				pspec_int64->maximum,
-				pspec_int64->maximum );
-
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(gint64)pspec_int64->default_value );
-
-		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( spin_button ) );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_spin_button_new_with_range( pspec_int->minimum,
+			pspec_int->maximum, 1 );
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *spin_button =
-			gtk_spin_button_new_with_range( pspec_int->minimum,
-				pspec_int->maximum,
-				pspec_int->maximum );
-
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(gint)pspec_int->default_value );
-
-		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), spin_button );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
+			pspec_uint64->maximum, 1 );
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *spin_button =
-			gtk_spin_button_new_with_range( pspec_uint64->minimum,
-				pspec_uint64->maximum,
-				pspec_uint64->maximum );
-
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(guint64)pspec_uint64->default_value );
-
-		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), spin_button );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
 
-		label = GTK_LABEL( gtk_label_new( property_name ) );
+		t = gtk_spin_button_new_with_range( pspec_double->minimum,
+			pspec_double->maximum, 1 );
 
-		gtk_widget_set_halign( GTK_WIDGET( label ), GTK_ALIGN_START );
-
-		gtk_box_append( GTK_BOX( t ), GTK_WIDGET( label ) );
-
-		GtkWidget *spin_button =
-			gtk_spin_button_new_with_range( pspec_double->minimum,
-				pspec_double->maximum,
-				pspec_double->maximum );
-
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( spin_button ),
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			pspec_double->default_value );
-
-		gtk_widget_set_halign( spin_button, GTK_ALIGN_END );
-
-		gtk_box_append( GTK_BOX( t ), spin_button );
-	}
-	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
-		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-		}
-		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-		}
-		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-		}
-		else {
-		}
-		return;
 	}
 	else {
 		return;
 	}
 
+	/* Align the user input widget.
+	 */
+	gtk_widget_set_halign( t, GTK_ALIGN_END );
+
+	
+	/* Append the user input widget to the box, which currently just contains the
+	 * label.
+	 */
+	gtk_box_append( GTK_BOX( box ), t );
+
+	/* Append the box - which now contains both the label and the user input
+	 * widget - to content box (SaveOptions::content_box). 
+	 */
 	gtk_box_append( GTK_BOX( save_options->content_box ),
-		GTK_WIDGET( t ) );
+		GTK_WIDGET( box ) );
 }
 
-/* This is the function used by save_options_build_content_area to process a
+/* This is the function used by save_options_build_content_box to process a
  * single property of the save operation.
  *
- * See also save_options_build_content_area_argument_map_fn_helper.
+ * See also save_options_build_content_box_argument_map_fn_helper.
  */
 static void *
-save_options_build_content_area_argument_map_fn( VipsObject *operation,
+save_options_build_content_box_argument_map_fn( VipsObject *operation,
 	GParamSpec *pspec,
 	VipsArgumentClass *argument_class,
 	VipsArgumentInstance *argument_instance,
@@ -461,7 +414,7 @@ save_options_build_content_area_argument_map_fn( VipsObject *operation,
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
-		save_options_build_content_area_argument_map_fn_helper( pspec,
+		save_options_build_content_box_argument_map_fn_helper( pspec,
 			argument_class, save_options, operation );
 
 	return NULL;
@@ -471,14 +424,14 @@ save_options_build_content_area_argument_map_fn( VipsObject *operation,
  * parent_box
  */
 void
-save_options_build_content_area( SaveOptions *save_options,
+save_options_build_content_box( SaveOptions *save_options,
 	VipsOperation *operation )
 {
 	g_assert( save_options->parent_box );
 	g_assert( operation );
 
 	vips_argument_map( VIPS_OBJECT( operation ),
-		save_options_build_content_area_argument_map_fn,
+		save_options_build_content_box_argument_map_fn,
 		save_options,
 		NULL);
 }
@@ -560,7 +513,7 @@ save_options_show( SaveOptions *save_options )
 	if( !(operation = vips_operation_new( operation_name )) )
 		return -2;
 
-	save_options_build_content_area( save_options, operation );
+	save_options_build_content_box( save_options, operation );
 
 	/* Return EXIT_SUCCESS code.
 	 */
