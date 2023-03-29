@@ -1,76 +1,65 @@
 #include "vipsdisp.h"
 #include <assert.h>
 
-/*
-#define DEBUG_VERBOSE
-#define DEBUG
- */
-
 #define DEFAULT_SPACING 10
 
-struct _Saveoptions {
-        GtkWidget parent_instance;
-
-        ImageWindow *win;
-
-        GtkWidget *content_area;
-
-        GSList *value_widgets;
-
-        GSettings *settings;
-};
-
-G_DEFINE_TYPE( Saveoptions, saveoptions, GTK_TYPE_WIDGET );
-
-enum {
-        PROP_IMAGE_WINDOW = 1,
-        PROP_VISIBLE,
-
-        SIG_LAST
-};
-
-static void
-saveoptions_dispose( GObject *object )
+/* Clean up the memory and widgets held by the SaveOptions object.
+ */
+void
+save_options_free( SaveOptions *save_options )
 {
-        Saveoptions *saveoptions = (Saveoptions *) object;
-        VIPS_FREEF( gtk_widget_unparent, saveoptions->content_area );
-        G_OBJECT_CLASS( saveoptions_parent_class )->dispose( object );
+	gtk_box_remove( save_options->parent_box,
+		GTK_WIDGET( save_options->content_box ) );
+	g_free( save_options );
 }
 
 /* TileSource has a new image.
  */
 static void
-saveoptions_tile_source_changed( TileSource *tile_source, Saveoptions *saveoptions ) 
+save_options_tile_source_changed( TileSource *tile_source, SaveOptions *save_options ) 
 {
-	/* */
+	/* ... */
 }
 
 /* Imagewindow has a new tile_source.
  */
-static void
-saveoptions_image_window_changed( ImageWindow *win, Saveoptions *saveoptions )
+void
+save_options_image_window_changed( ImageWindow *win, SaveOptions *save_options )
 {
 	TileSource *tile_source = image_window_get_tile_source( win );
-
         g_signal_connect_object( tile_source, "changed", 
-                G_CALLBACK( saveoptions_tile_source_changed ), 
-                saveoptions, 0 );
+                G_CALLBACK( save_options_tile_source_changed ), 
+                save_options, 0 );
 }
 
-static void
-saveoptions_set_image_window( Saveoptions *saveoptions, ImageWindow *win )
+/* Set a new image_window
+ */
+void
+save_options_set_image_window( SaveOptions *save_options,
+	ImageWindow *image_window )
 {
-        /* No need to ref ... win holds a ref to us.
-         */
-        saveoptions->win = win;
-
-        g_signal_connect_object( win, "changed", 
-                G_CALLBACK( saveoptions_image_window_changed ), 
-                saveoptions, 0 );
+        save_options->image_window = image_window;
+        g_signal_connect_object( image_window, "changed", 
+                G_CALLBACK( save_options_image_window_changed ), 
+                save_options, 0 );
 }
 
+/* Get the currently held image window.
+ *
+ * @returns ImageWindow * (may be NULL)
+ */
+ImageWindow *
+save_options_get_image_window( SaveOptions *save_options )
+{
+        return save_options->image_window;
+}
+
+/* This is a helper function used by
+ * save_options_build_save_operation_argument_map_fn to process a single
+ * property of the save operation.
+ */
 static void
-saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
+save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	VipsArgumentClass *argument_class, GtkWidget **widget_iterator,
 	VipsObject *operation )
 {
@@ -78,12 +67,14 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-	GtkWidget *it, *box;
+	GtkWidget *t;
 	const gchar *property_name;
 
 	property_name = g_param_spec_get_name( pspec );
 	
-	puts(property_name);
+	//puts(property_name);
+
+	t = gtk_widget_get_last_child( *widget_iterator );
 
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
 		return;
@@ -97,12 +88,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		//GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-
-		box = *widget_iterator;
-		it = gtk_widget_get_last_child( box );
-
-		GtkEntryBuffer *buffer = gtk_text_get_buffer( GTK_TEXT( it ) );
+		GtkEntryBuffer *buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
 		const char* text = gtk_entry_buffer_get_text( buffer );
 		const char* none = "none";
 
@@ -117,11 +103,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 				NULL );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		it = *widget_iterator;
-
-		it = gtk_widget_get_last_child( it );
-
-		gboolean active = gtk_check_button_get_active( GTK_CHECK_BUTTON( it ) );
+		gboolean active = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, active,
@@ -130,10 +112,7 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 
-		box = *widget_iterator;
-		it = gtk_widget_get_last_child( box );
-
-		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( it ) );
+		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
 
 		guint value = pspec_enum->enum_class->values[index].value;
 
@@ -142,41 +121,28 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
-		box = *widget_iterator;
-		it = gtk_widget_get_last_child( box );
-
-		gint64 value = (gint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
+		gint64 value = (gint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
-		box = *widget_iterator;
-
-		it = gtk_widget_get_last_child( box );
-
-		gint64 value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
+		gint64 value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-		box = *widget_iterator;
-		it = gtk_widget_get_last_child( box );
-
-		guint64 value = (guint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
+		guint64 value = (guint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-		box = *widget_iterator;
-		it = gtk_widget_get_last_child( box );
-
-		gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( it ) );
+		gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
@@ -200,8 +166,13 @@ saveoptions_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	*widget_iterator = gtk_widget_get_next_sibling( *widget_iterator );
 }
 
+/* This is the function used by save_options_build_save_operation to process
+ * a single property of the save operation.
+ *
+ * See also save_options_build_save_operation_argument_map_fn_helper.
+ */
 static void *
-saveoptions_build_save_operation_argument_map_fn( VipsObject *operation,
+save_options_build_save_operation_argument_map_fn( VipsObject *operation,
 	GParamSpec *pspec,
 	VipsArgumentClass *argument_class,
 	VipsArgumentInstance *argument_instance,
@@ -211,63 +182,96 @@ saveoptions_build_save_operation_argument_map_fn( VipsObject *operation,
 	VipsArgumentFlags flags = argument_class->flags;
 	GtkWidget **widget_iterator = (GtkWidget **)a;
 
+	/* Include arguments listed in the constructor.
+	 *
+	 * Exclude required or deprecated arguments.
+	 */
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
-		saveoptions_build_save_operation_argument_map_fn_helper( pspec,
+		save_options_build_save_operation_argument_map_fn_helper( pspec,
 			argument_class, widget_iterator, operation );
 
 	return NULL;
 }
 
+/* Finish building the VipsOperation, which should already have it's
+ * "filename" property set to the source file path
+ */
 void
-saveoptions_build_save_operation( Saveoptions *saveoptions,
+save_options_build_save_operation( SaveOptions *save_options,
 	VipsOperation *operation )
 {
-	GtkWidget *content_area, *widget_iterator;
-	content_area = gtk_widget_get_first_child( GTK_WIDGET( saveoptions ) );
-	widget_iterator = gtk_widget_get_first_child( content_area );
+	gchar *filename;
+	GtkWidget *widget_iterator;
+	GtkBox *content_box;
+
+	g_object_get( G_OBJECT( operation ),
+		"filename", &filename, NULL );
+
+	g_assert( filename );
+
+	/* Get the pointer to the content box widget, held by the SaveOptions
+	 * object.
+	 */
+	content_box = save_options->content_box;
+
+	g_assert( content_box );
+
+	/* The "widget iterator" is a pointer to the widget that is currently
+	 * being inspected for a value to apply to the save operation. It is
+	 * initialized to the first child of the content_box.
+	 */
+	widget_iterator =
+		gtk_widget_get_first_child( GTK_WIDGET( content_box ) );
 
 	g_assert( widget_iterator );
 
+	/* Loop over the properties of the save operation, while also advancing
+	 * the widget iterator. Apply the values from each widget to the save
+	 * operation.
+	 *
+	 * See also "save_options_build_save_operation_argument_map_fn". 
+	 */
 	vips_argument_map( VIPS_OBJECT( operation ),
-		saveoptions_build_save_operation_argument_map_fn,
+		save_options_build_save_operation_argument_map_fn,
 		&widget_iterator,
 		NULL);
 }
 
+/* This function is used by
+ * save_options_build_content_area_argument_map_fn_helper to process one
+ * property of the save operation.
+ */
 static void
-saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
-	VipsArgumentClass *argument_class, GtkWidget *parent,
+save_options_build_content_area_argument_map_fn_helper( GParamSpec *pspec,
+	VipsArgumentClass *argument_class, SaveOptions *save_options,
 	VipsObject *operation )
 {
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-	GtkWidget *it;
 	const gchar *property_name;
+	GtkBox *t;
 
 	property_name = g_param_spec_get_name( pspec );
 
+	t = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
+		DEFAULT_SPACING ) );
+
 	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
+		return;
 	}
 	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
 		(oclass = g_type_class_ref( otype )) ) {
+		return;
 	}
 	else if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		//GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent( gtk_text_new(), it );
-		gtk_widget_set_parent( it, parent );
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ), gtk_text_new() );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		//GParamSpecBoolean *pspec_bool = G_PARAM_SPEC_BOOLEAN( pspec );
-
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent( gtk_check_button_new(), it );
-		gtk_widget_set_parent( it, parent );
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ), gtk_check_button_new() );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
@@ -282,55 +286,45 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 
 		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
 
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent(
-			gtk_drop_down_new_from_strings( property_nicknames ), it );
-		gtk_widget_set_parent( it, parent );
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ),
+			gtk_drop_down_new_from_strings( property_nicknames ) );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent(
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ),
 			gtk_spin_button_new_with_range( pspec_int64->minimum,
-				pspec_int64->maximum, 1 ),
-			it);
-		gtk_widget_set_parent( it, parent );
+					pspec_int64->maximum,
+					pspec_int64->maximum ) );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
 
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent(
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ),
 			gtk_spin_button_new_with_range( pspec_int->minimum,
-				pspec_int->maximum, 1 ),
-			it );
-		gtk_widget_set_parent( it, parent );
+					pspec_int->maximum,
+					pspec_int->maximum ) );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
 
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent(
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ),
 			gtk_spin_button_new_with_range( pspec_uint64->minimum,
-				pspec_uint64->maximum, 1 ),
-			it);
-		gtk_widget_set_parent( it, parent );
+					pspec_uint64->maximum,
+					pspec_uint64->maximum ) );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
 
-		it = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
-		gtk_widget_set_parent( gtk_label_new( property_name ), it );
-		gtk_widget_set_parent(
+		gtk_box_append( GTK_BOX( t ), gtk_label_new( property_name ) );
+		gtk_box_append( GTK_BOX( t ),
 			gtk_spin_button_new_with_range( pspec_double->minimum,
-				pspec_double->maximum, .01 ),
-			it);
-		gtk_widget_set_parent( it, parent );
+					pspec_double->maximum,
+					pspec_double->maximum ) );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
@@ -341,13 +335,23 @@ saveoptions_build_ui_argument_map_fn_helper( GParamSpec *pspec,
 		}
 		else {
 		}
+		return;
 	}
 	else {
+		return;
 	}
+
+	gtk_box_append( GTK_BOX( save_options->content_box ),
+		GTK_WIDGET( t ) );
 }
 
+/* This is the function used by save_options_build_content_area to process a
+ * single property of the save operation.
+ *
+ * See also save_options_build_content_area_argument_map_fn_helper.
+ */
 static void *
-saveoptions_build_ui_argument_map_fn( VipsObject *operation,
+save_options_build_content_area_argument_map_fn( VipsObject *operation,
 	GParamSpec *pspec,
 	VipsArgumentClass *argument_class,
 	VipsArgumentInstance *argument_instance,
@@ -355,160 +359,172 @@ saveoptions_build_ui_argument_map_fn( VipsObject *operation,
 	void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
-	GtkWidget *parent = (GtkWidget *)a; 
+	SaveOptions *save_options = (SaveOptions *)a; 
 
+	/* Include arguments listed in the constructor.
+	 *
+	 * Exclude required or deprecated arguments.
+	 */
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
-		saveoptions_build_ui_argument_map_fn_helper( pspec,
-			argument_class, parent, operation );
+		save_options_build_content_area_argument_map_fn_helper( pspec,
+			argument_class, save_options, operation );
 
 	return NULL;
 }
 
-/* Build a widget containing the saveoptions UI, and attach it to the given
- * parent widget.
+/* Build a widget containing the save_options UI, and attach it to the
+ * parent_box
  */
-static void
-saveoptions_build_ui( GtkWidget *parent, VipsOperation *operation )
+void
+save_options_build_content_area( SaveOptions *save_options,
+	VipsOperation *operation )
 {
-	g_assert( parent != NULL );
-	g_assert( operation != NULL );
+	g_assert( save_options->parent_box );
+	g_assert( operation );
 
 	vips_argument_map( VIPS_OBJECT( operation ),
-		saveoptions_build_ui_argument_map_fn, parent, NULL);
+		save_options_build_content_area_argument_map_fn,
+		save_options,
+		NULL);
 }
 
-static void
-saveoptions_set_property( GObject *object, 
-        guint prop_id, const GValue *value, GParamSpec *pspec )
+/* Returns true if the content box has no children
+ */
+gboolean
+save_options_content_box_empty( SaveOptions *save_options )
 {
-        Saveoptions *saveoptions = (Saveoptions *) object;
+	GtkBox *parent_box, *child_box = NULL;
 
-        switch( prop_id ) {
-        case PROP_IMAGE_WINDOW:
-                saveoptions_set_image_window( saveoptions, 
-                        VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
-                break;
+	parent_box = save_options->content_box;
 
-        case PROP_VISIBLE:
-		GtkWidget *parent, *it;
-		GFile *target_file;
-		gchar *path, *filename_suffix, *operation_name;
-		VipsOperation *operation;
+	child_box = GTK_BOX( gtk_widget_get_first_child(
+		GTK_WIDGET( parent_box ) ) );
 
-		gboolean visible = g_value_get_boolean( value );
-
-		parent = saveoptions->content_area;
-
-		it = gtk_widget_get_first_child( parent );
-
-		if( it != NULL ) {
-			gtk_widget_unparent( it );
-			while( (it = gtk_widget_get_first_child( parent )) )
-				gtk_widget_unparent( it );
-		}
-
-		if( !visible )
-			return;
-
-		target_file = image_window_get_target_file( saveoptions->win );
-
-		if( !(path = g_file_get_path( target_file ))
-			|| !(filename_suffix = strrchr( path, '.' )) )
-			return;
-
-		operation_name = g_strdup_printf( "%ssave", ++filename_suffix );
-
-		operation = vips_operation_new( operation_name );
-
-		saveoptions_build_ui( parent, operation );
-
-                break;
-
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-                break;
-        }
+	return( !child_box );
 }
 
-static void
-saveoptions_get_property( GObject *object, 
-        guint prop_id, GValue *value, GParamSpec *pspec )
+/* Clean up the content box and all its children, and replace it with a new
+ * empty content box.
+ */
+static gint
+save_options_reset_content_box( SaveOptions *save_options )
 {
-        Saveoptions *saveoptions = (Saveoptions *) object;
+	GtkBox *content_box;
 
-        switch( prop_id ) {
-        case PROP_IMAGE_WINDOW:
-                g_value_set_object( value, saveoptions->win );
-                break;
+	content_box = save_options->content_box;
 
-        case PROP_VISIBLE:
-		GtkWidget* parent = GTK_WIDGET( saveoptions->content_area );
-		gboolean visible = gtk_widget_get_first_child( parent ) != NULL;
-                g_value_set_boolean( value, visible ); 
-                break;
+	/* If the content box is a null pointer return an error code.
+	 */
+	if( !content_box )
+		return -1;
 
-        default:
-                G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-                break;
-        }
+	/* Remove the content box from the parent box, cleaning up its children.
+	 */
+	gtk_box_remove( save_options->parent_box, GTK_WIDGET( content_box ) );
+
+	/* Create a new empty content box 
+	 */
+	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+
+	/* Give the SaveOptions the pointer to the new content box.
+	 */
+	save_options->content_box = content_box;
+
+	/* Return success code
+	 */
+	return 0;
 }
 
-static void
-saveoptions_init( Saveoptions *saveoptions )
+/* Dynamically generate the save options menu based on the current operation
+ * held by the image window.
+ */
+gint
+save_options_show( SaveOptions *save_options )
 {
-	saveoptions->settings = g_settings_new( APPLICATION_ID );
+	GFile *target_file;
+	gchar *path, *filename_suffix, *operation_name;
+	VipsOperation *operation;
 
-        gtk_widget_init_template( GTK_WIDGET( saveoptions ) );
+	if( !save_options_content_box_empty( save_options ) )
+		save_options_reset_content_box( save_options );
+
+	target_file = image_window_get_target_file( save_options->image_window );
+
+	/* Return error code if path is bad.
+	 */
+	if( !(path = g_file_get_path( target_file ))
+		|| !(filename_suffix = strrchr( path, '.' ))
+		|| !(operation_name = g_strdup_printf( "%ssave", ++filename_suffix )) )
+		return -1;
+
+	/* Return error code if failed to created operation.
+	 */
+	if( !(operation = vips_operation_new( operation_name )) )
+		return -2;
+
+	save_options_build_content_area( save_options, operation );
+
+	/* Return EXIT_SUCCESS code.
+	 */
+	return 0;
 }
 
-#define BIND( field ) \
-        gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
-                Saveoptions, field );
-
-static void
-saveoptions_class_init( SaveoptionsClass *class )
+/* Destroy the dynamically generated save options menu.
+ */
+gint
+save_options_hide( SaveOptions *save_options )
 {
-        GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-        GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
+	if( !save_options )
+		return -1;
 
-        G_OBJECT_CLASS( class )->dispose = saveoptions_dispose;
+	if( save_options_reset_content_box( save_options ) )
+		return -2;
 
-        gtk_widget_class_set_layout_manager_type( widget_class, 
-                GTK_TYPE_BIN_LAYOUT );
-        gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
-                APP_PATH "/saveoptions.ui");
-
-        BIND( content_area );
-
-        gobject_class->set_property = saveoptions_set_property;
-        gobject_class->get_property = saveoptions_get_property;
-
-        g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
-                g_param_spec_object( "image-window",
-                        _( "Image window" ),
-                        _( "The image window we display" ),
-                        IMAGE_WINDOW_TYPE,
-                        G_PARAM_READWRITE ) );
-
-        g_object_class_install_property( gobject_class, PROP_VISIBLE,
-                g_param_spec_boolean( "visible",
-                        _( "visible" ),
-                        _( "Show the display control bar" ),
-                        FALSE,
-                        G_PARAM_READWRITE ) );
-
+	return 0;
 }
 
-Saveoptions *
-saveoptions_new( ImageWindow *win ) 
+SaveOptions *
+save_options_new_empty()
 {
-        Saveoptions *saveoptions;
+	SaveOptions *save_options;
 
-        saveoptions = g_object_new( saveoptions_get_type(), 
-                "image-window", win,
-                NULL );
+	save_options = g_malloc( sizeof( SaveOptions ) );
+	save_options->parent_box = NULL;
+	save_options->image_window = NULL;
+	save_options->content_box = NULL;
 
-        return( saveoptions ); 
+	return save_options;
+}
+
+void
+save_options_init( SaveOptions *save_options,
+	GtkBox *parent_box,
+	ImageWindow *image_window )
+{
+	GtkBox *content_box;
+
+	save_options->image_window = image_window;
+
+	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+
+	save_options->content_box = content_box;
+
+	save_options->parent_box = parent_box;
+
+	gtk_box_append( parent_box, GTK_WIDGET( content_box ) );
+}
+
+SaveOptions *
+save_options_new( GtkBox *parent_box, ImageWindow *image_window ) 
+{
+        SaveOptions *save_options;
+		
+	save_options = save_options_new_empty();
+	save_options_init( save_options, parent_box, image_window );
+
+        return( save_options ); 
 }

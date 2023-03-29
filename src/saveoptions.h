@@ -1,17 +1,25 @@
 #ifndef __SAVEOPTIONS_H
 #define __SAVEOPTIONS_H
 
-#define SAVEOPTIONS_TYPE (saveoptions_get_type())
+typedef struct SaveOptions SaveOptions; 
+struct SaveOptions {
+	GtkBox *parent_box;
+        ImageWindow *image_window;
+        GtkBox *content_box;
+};
 
-G_DECLARE_FINAL_TYPE( Saveoptions, saveoptions, VIPSDISP, SAVEOPTIONS, GtkWidget )
-
-#define SAVEOPTIONS( obj ) \
-	(G_TYPE_CHECK_INSTANCE_CAST( (obj), SAVEOPTIONS_TYPE, Saveoptions ))
-
-Saveoptions *saveoptions_new( ImageWindow *win );
-
-void
-saveoptions_build_save_operation( Saveoptions *saveoptions,
-	VipsOperation *operation );
+void save_options_free( SaveOptions * );
+void save_options_image_window_changed( ImageWindow *, SaveOptions * );
+void save_options_set_image_window( SaveOptions *, ImageWindow * );
+ImageWindow * save_options_get_image_window( SaveOptions * );
+void save_options_build_save_operation( SaveOptions *, VipsOperation * );
+gint save_options_show( SaveOptions * );
+gint save_options_hide( SaveOptions * );
+void save_options_build_content_area( SaveOptions *save_options, VipsOperation *operation );
+gboolean save_options_content_box_empty( SaveOptions *save_options );
+gint save_options_show( SaveOptions *save_options );
+gint save_options_hide( SaveOptions *save_options );
+void save_options_init( SaveOptions *save_options, GtkBox *parent_box, ImageWindow *image_window );
+SaveOptions * save_options_new( GtkBox *parent_box, ImageWindow *image_window );
 
 #endif /* __SAVEOPTIONS_H */
