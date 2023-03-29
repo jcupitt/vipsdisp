@@ -318,18 +318,23 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	property_name = g_param_spec_get_nick( pspec );
 
 	/* Create a box that will contain the label and the user input widget
-	 * for this property.
+	 * for this property. Use the property blurb as a tooltip.
 	 */
 	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		DEFAULT_SPACING );
 	gtk_box_set_homogeneous( GTK_BOX( box ), TRUE );
 	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
+	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
+		g_param_spec_get_blurb( pspec ) );
 
-	/* Add the label for this property to the box.
+	/* Add the label for this property to the box. Use the property blurb as
+	 * a tooltip.
 	 */
 	label = gtk_label_new( property_name );
 	gtk_widget_set_halign( label, GTK_ALIGN_START );
 	gtk_box_append( GTK_BOX( box ), label );
+	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
+		g_param_spec_get_blurb( pspec ) );
 
 	/* Add a user input widget for this property to the box. The widget
 	 * chosen depends on the type of the property. Set the initial value of
