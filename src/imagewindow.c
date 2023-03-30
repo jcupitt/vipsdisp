@@ -576,7 +576,7 @@ image_window_replace_action( GSimpleAction *action,
 }
 
 /* Close the window containing the save_options when the window's cancel button
- * is pressed. Do not close the "Save As" dialog.
+ * is pressed. Do not close the "Save As" dialog - remodal it instead.
  */
 static void
 save_window_cancel_cb( GtkWidget *it, gpointer _windows )
@@ -584,6 +584,7 @@ save_window_cancel_cb( GtkWidget *it, gpointer _windows )
 	GtkWindow **windows = (GtkWindow **) _windows;
 	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
 	gtk_window_close( GTK_WINDOW( save_options_window ) );
+	gtk_window_set_modal( GTK_WINDOW( save_options_window ), TRUE );
 	g_free( windows );
 }
 
@@ -653,6 +654,8 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 	 */
 	g_free( windows );
 
+	/* Destroy the saveas dialog.
+	 */
         gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
@@ -675,9 +678,17 @@ image_window_open_save_options( ImageWindow *image_window )
 	gtk_window_set_modal( GTK_WINDOW( image_window->saveas_dialog ),
 		FALSE );
 
-	/* Modal the save options window.
+	/* Make the save options window a transient window attached to the file
+	 * dialog window. This will center the saveoptions window on the file dialog
+	 * and modal the saveoptions window.
 	 */
-	gtk_window_set_modal( GTK_WINDOW( save_options_window ), TRUE );
+	gtk_window_set_transient_for( GTK_WINDOW( save_options_window ),
+		GTK_WINDOW( image_window->saveas_dialog ) );
+
+	gtk_window_present( GTK_WINDOW( save_options_window ) );
+
+	gtk_window_set_modal( GTK_WINDOW( save_options_window ),
+		TRUE );
 
 	/* Create the parent box (SaveOptions::parent_box).
 	 * The content box (SaveOptions::content_box) will be appended to the
