@@ -464,11 +464,12 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
-	/* Align the user input widget.
+	/* Make each user input widget stretch when the window is resized. This
+	 * is particularly helpful to the user for text fields, since they will
+	 * have more room to see what they typed. 
 	 */
-	gtk_widget_set_halign( t, GTK_ALIGN_END );
+	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
 
-	
 	/* Append the user input widget to the box, which currently just contains the
 	 * label.
 	 */
