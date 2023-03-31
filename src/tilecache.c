@@ -46,6 +46,10 @@ tile_cache_free_pyramid( TileCache *tile_cache )
 	}
 
 	VIPS_FREE( tile_cache->levels );
+	VIPS_FREE( tile_cache->tiles );
+	VIPS_FREE( tile_cache->visible );
+	VIPS_FREE( tile_cache->free );
+
 	tile_cache->n_levels = 0;
 }
 
