@@ -344,7 +344,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 */
 	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		DEFAULT_SPACING );
-	gtk_box_set_homogeneous( GTK_BOX( box ), TRUE );
 	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 		g_param_spec_get_blurb( pspec ) );
@@ -353,7 +352,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 * a tooltip.
 	 */
 	label = gtk_label_new( property_name );
-	gtk_widget_set_halign( label, GTK_ALIGN_START );
+	gtk_widget_set_hexpand( label, FALSE );
 	gtk_box_append( GTK_BOX( box ), label );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
@@ -469,6 +468,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 * have more room to see what they typed. 
 	 */
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+
+	gtk_widget_set_hexpand( t, TRUE );
 
 	/* Append the user input widget to the box, which currently just contains the
 	 * label.
