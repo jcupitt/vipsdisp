@@ -56,6 +56,8 @@ save_options_init( SaveOptions *save_options,
 
 	save_options->parent_box = parent_box;
 
+	g_assert( parent_box );
+
 	gtk_box_append( parent_box, GTK_WIDGET( content_box ) );
 }
 
@@ -269,7 +271,8 @@ save_options_build_save_operation( SaveOptions *save_options,
 {
 	gchar *filename;
 	GtkWidget *widget_iterator;
-	GtkBox *content_box;
+	GtkWidget *content_box;
+	GtkWidget *labels_box, *inputs_box;
 
 	g_object_get( G_OBJECT( operation ),
 		"filename", &filename, NULL );
@@ -279,16 +282,20 @@ save_options_build_save_operation( SaveOptions *save_options,
 	/* Get the pointer to the content box widget, held by the SaveOptions
 	 * object.
 	 */
-	content_box = save_options->content_box;
+	content_box = GTK_WIDGET( save_options->content_box );
 
 	g_assert( content_box );
 
-	/* The "widget iterator" is a pointer to the widget that is currently
-	 * being inspected for a value to apply to the save operation. It is
-	 * initialized to the first child of the content_box.
-	 */
+	labels_box = gtk_widget_get_first_child( content_box );
+
+	g_assert( labels_box );
+
+	inputs_box = gtk_widget_get_last_child( content_box );
+
+	g_assert( inputs_box );
+
 	widget_iterator =
-		gtk_widget_get_first_child( GTK_WIDGET( content_box ) );
+		gtk_widget_get_first_child( inputs_box );
 
 	g_assert( widget_iterator );
 
@@ -300,7 +307,7 @@ save_options_build_save_operation( SaveOptions *save_options,
 	 */
 	vips_argument_map( VIPS_OBJECT( operation ),
 		save_options_build_save_operation_argument_map_fn,
-		&widget_iterator,
+		widget_iterator,
 		NULL);
 }
 
@@ -319,7 +326,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	const gchar *property_name;
-	GtkWidget *t, *label, *box;
+	GtkWidget *t, *label, *box, *labels_box, *inputs_box;
 
 	/* Get the name of the property of the save operation currently being
 	 * processed. 
@@ -336,12 +343,17 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
+	labels_box = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
+
+	g_assert( labels_box );
+
+	inputs_box = gtk_widget_get_last_child( GTK_WIDGET( save_options->content_box ) );
+
+	g_assert( inputs_box );
+
 	/* Handle types that are not VipsImage or VipsObject.
 	 */
 
-	/* Create a box that will contain the label and the user input widget
-	 * for this property. Use the property blurb as a tooltip.
-	 */
 	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		DEFAULT_SPACING );
 	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
@@ -353,7 +365,11 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 */
 	label = gtk_label_new( property_name );
 	gtk_widget_set_hexpand( label, FALSE );
-	gtk_box_append( GTK_BOX( box ), label );
+
+	g_assert( labels_box );
+
+	gtk_box_append( GTK_BOX( labels_box ), label );
+
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 
@@ -471,16 +487,13 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	gtk_widget_set_hexpand( t, TRUE );
 
-	/* Append the user input widget to the box, which currently just contains the
-	 * label.
-	 */
+	g_assert( box );
+
 	gtk_box_append( GTK_BOX( box ), t );
 
-	/* Append the box - which now contains both the label and the user input
-	 * widget - to content box (SaveOptions::content_box). 
-	 */
-	gtk_box_append( GTK_BOX( save_options->content_box ),
-		GTK_WIDGET( box ) );
+	g_assert( inputs_box );
+
+	gtk_box_append( GTK_BOX( inputs_box ), box );
 }
 
 /* This is the function used by save_options_build_content_box to process a
@@ -528,54 +541,59 @@ save_options_build_content_box( SaveOptions *save_options,
 		NULL);
 }
 
-/* Returns true if the content box has no children
- */
-gboolean
-save_options_content_box_empty( SaveOptions *save_options )
-{
-	GtkBox *parent_box, *child_box = NULL;
-
-	parent_box = save_options->content_box;
-
-	child_box = GTK_BOX( gtk_widget_get_first_child(
-		GTK_WIDGET( parent_box ) ) );
-
-	return( !child_box );
-}
-
 /* Clean up the content box and all its children, and replace it with a new
  * empty content box.
  */
 static gint
 save_options_reset_content_box( SaveOptions *save_options )
 {
-	GtkBox *content_box;
+	GtkBox *content_box, *labels_box, *inputs_box;
 
 	content_box = save_options->content_box;
 
-	/* If the content box is a null pointer return an error code.
-	 */
-	if( !content_box )
-		return -1;
+	if( content_box )
+		gtk_box_remove( save_options->parent_box, GTK_WIDGET( content_box ) );
 
-	/* Remove the content box from the parent box, cleaning up its children.
+	/* Create a new content box 
 	 */
-	gtk_box_remove( save_options->parent_box, GTK_WIDGET( content_box ) );
-
-	/* Create a new empty content box 
-	 */
-	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		DEFAULT_SPACING ) );
 
 	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
+
 
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = content_box;
 
+	labels_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+
+	gtk_box_append( content_box, GTK_WIDGET( labels_box ) );
+
+	inputs_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+	
+	gtk_box_append( content_box, GTK_WIDGET( inputs_box ) );
+
 	/* Return success code
 	 */
 	return 0;
+}
+
+/* Returns true if the content box has no children
+ */
+gboolean
+save_options_content_box_empty( SaveOptions *save_options )
+{
+	GtkWidget *parent_box, *child_box = NULL;
+
+	parent_box = GTK_WIDGET( save_options->content_box );
+
+	if ( parent_box )
+		child_box = gtk_widget_get_first_child( parent_box );
+
+	return( !child_box );
 }
 
 /* Dynamically generate the save options menu based on the current operation
@@ -588,8 +606,10 @@ save_options_show( SaveOptions *save_options )
 	gchar *path, *filename_suffix, *operation_name;
 	VipsOperation *operation;
 
-	if( !save_options_content_box_empty( save_options ) )
-		save_options_reset_content_box( save_options );
+	//if( !save_options_content_box_empty( save_options ) )
+	//	save_options_reset_content_box( save_options );
+
+	save_options_reset_content_box( save_options );
 
 	target_file = image_window_get_target_file( save_options->image_window );
 
@@ -607,6 +627,9 @@ save_options_show( SaveOptions *save_options )
 
 	save_options_build_content_box( save_options, operation );
 
+	gtk_box_append( GTK_BOX( save_options->parent_box ),
+		GTK_WIDGET( save_options->content_box ) );
+
 	/* Return EXIT_SUCCESS code.
 	 */
 	return 0;
@@ -620,8 +643,7 @@ save_options_hide( SaveOptions *save_options )
 	if( !save_options )
 		return -1;
 
-	if( save_options_reset_content_box( save_options ) )
-		return -2;
+	save_options_free( save_options );
 
 	return 0;
 }
