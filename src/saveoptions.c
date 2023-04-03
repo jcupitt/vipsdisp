@@ -41,20 +41,15 @@ save_options_init( SaveOptions *save_options,
 	save_options->image_window = image_window;
 
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		DEFAULT_SPACING ) );
+		0 ) );
 	
 	gtk_box_set_homogeneous( content_box, TRUE );
-
-	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
-
-	gtk_widget_set_margin_top( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_end( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_bottom( GTK_WIDGET( content_box ), DEFAULT_SPACING );
-	gtk_widget_set_margin_start( GTK_WIDGET( content_box ), DEFAULT_SPACING );
 
 	save_options->content_box = content_box;
 
 	save_options->parent_box = parent_box;
+
+	save_options->row_count = 0;
 
 	g_assert( parent_box );
 
@@ -96,20 +91,16 @@ save_options_get_image_window( SaveOptions *save_options )
  */
 static void
 save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
-	VipsArgumentClass *argument_class, GtkWidget **widget_iterator,
-	VipsObject *operation )
+	VipsArgumentClass *argument_class, guint *row_index,
+	SaveOptions *save_options, VipsObject *operation )
 {
-	if ( !widget_iterator || !*widget_iterator )
+	if ( *row_index == save_options->row_count )
 		return;
 
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-	GtkWidget *t;
+	GtkWidget *t, *grid, *w0, *w1;
 	const gchar *property_name;
-
-	property_name = g_param_spec_get_name( pspec );
-
-	t = gtk_widget_get_last_child( *widget_iterator );
 
 	/* Not handling VipsImage or VipsObject types yet.
 	*/
@@ -120,6 +111,28 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		(oclass = g_type_class_ref( otype )) ) {
 		return;
 	}
+
+	property_name = g_param_spec_get_name( pspec );
+
+	puts( property_name );
+
+	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
+
+	g_assert( grid );
+
+	printf("\n\nrow_index: %u\n\n", *row_index );
+
+	w0 = gtk_grid_get_child_at( GTK_GRID( grid ), 2, *row_index );
+
+	//g_assert( w0 );
+
+	w1 = gtk_widget_get_first_child( w0 );
+
+	//g_assert( w1 );
+
+	t = gtk_widget_get_first_child( w1 );
+
+	//g_assert( t );
 
 	/* Handle types that are not VipsImage or VipsObject.
 	 */
@@ -227,10 +240,11 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		}
 	}
 	else {
+		printf( "Unknown type for \"%s\"", property_name );
 		return;
 	}
 
-	*widget_iterator = gtk_widget_get_next_sibling( *widget_iterator );
+	*row_index = *row_index + 1;
 }
 
 /* This is the function used by save_options_build_save_operation to process
@@ -247,7 +261,8 @@ save_options_build_save_operation_argument_map_fn( VipsObject *operation,
 	void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
-	GtkWidget **widget_iterator = (GtkWidget **)a;
+	guint *row_index = (guint *)a;
+	SaveOptions *save_options = (SaveOptions *)b;
 
 	/* Include arguments listed in the constructor.
 	 *
@@ -257,7 +272,8 @@ save_options_build_save_operation_argument_map_fn( VipsObject *operation,
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
 		save_options_build_save_operation_argument_map_fn_helper( pspec,
-			argument_class, widget_iterator, operation );
+			argument_class, row_index, save_options,
+			operation );
 
 	return NULL;
 }
@@ -270,9 +286,18 @@ save_options_build_save_operation( SaveOptions *save_options,
 	VipsOperation *operation )
 {
 	gchar *filename;
-	GtkWidget *widget_iterator;
-	GtkWidget *content_box;
-	GtkWidget *labels_box, *inputs_box;
+	guint *row_index;
+
+	g_assert( save_options->row_count );
+
+	printf("row count: %u\n", save_options->row_count );
+
+	row_index = g_malloc( sizeof( guint ) );
+
+	*row_index = 0;
+
+	GtkWidget *content_box, *label_box, *input_box,
+		*grid;
 
 	g_object_get( G_OBJECT( operation ),
 		"filename", &filename, NULL );
@@ -286,18 +311,19 @@ save_options_build_save_operation( SaveOptions *save_options,
 
 	g_assert( content_box );
 
-	labels_box = gtk_widget_get_first_child( content_box );
+	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
 
-	g_assert( labels_box );
+	g_assert( grid );
 
-	inputs_box = gtk_widget_get_last_child( content_box );
+	label_box = gtk_grid_get_child_at( GTK_GRID( grid ), 0, 0 );
 
-	g_assert( inputs_box );
+	g_assert( label_box );
 
-	widget_iterator =
-		gtk_widget_get_first_child( inputs_box );
+	input_box = gtk_grid_get_child_at( GTK_GRID( grid ), 2, 0 );
 
-	g_assert( widget_iterator );
+	g_assert( input_box );
+
+	g_assert( label_box != input_box );
 
 	/* Loop over the properties of the save operation, while also advancing
 	 * the widget iterator. Apply the values from each widget to the save
@@ -307,8 +333,7 @@ save_options_build_save_operation( SaveOptions *save_options,
 	 */
 	vips_argument_map( VIPS_OBJECT( operation ),
 		save_options_build_save_operation_argument_map_fn,
-		widget_iterator,
-		NULL);
+		row_index, save_options );
 }
 
 /* This function is used by:
@@ -326,7 +351,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	const gchar *property_name;
-	GtkWidget *t, *label, *box, *labels_box, *inputs_box;
+	GtkWidget *t, *label, *box, *label_box, *input_box, *grid;
 
 	/* Get the name of the property of the save operation currently being
 	 * processed. 
@@ -343,35 +368,18 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
-	labels_box = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
+	puts( property_name );
 
-	g_assert( labels_box );
+	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		0 );
 
-	inputs_box = gtk_widget_get_last_child( GTK_WIDGET( save_options->content_box ) );
+	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
 
-	g_assert( inputs_box );
+	g_assert( grid );
 
-	/* Handle types that are not VipsImage or VipsObject.
-	 */
+	//gtk_grid_insert_row( GTK_GRID( grid ), 0 );
 
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
-		DEFAULT_SPACING );
-	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
-	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
-		g_param_spec_get_blurb( pspec ) );
-
-	/* Add the label for this property to the box. Use the property blurb as
-	 * a tooltip.
-	 */
-	label = gtk_label_new( property_name );
-	gtk_widget_set_hexpand( label, FALSE );
-
-	g_assert( labels_box );
-
-	gtk_box_append( GTK_BOX( labels_box ), label );
-
-	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
-		g_param_spec_get_blurb( pspec ) );
+	// INPUT
 
 	/* Add a user input widget for this property to the box. The widget
 	 * chosen depends on the type of the property. Set the initial value of
@@ -379,6 +387,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 */
 	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+
+		puts("string");
 
 		GtkEntryBuffer* buffer =
 			gtk_entry_buffer_new( pspec_string->default_value, -1 );
@@ -388,6 +398,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
 
+		puts("boolean");
+
 		t = gtk_check_button_new();
 
 		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
@@ -395,6 +407,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
+
+		puts("enum");
 
 		const char **property_nicknames =
 			g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
@@ -414,6 +428,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
+		puts("int64");
+
 		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
 			pspec_int64->maximum, 1 );
 
@@ -422,6 +438,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
+
+		puts("int");
 
 		t = gtk_spin_button_new_with_range( pspec_int->minimum,
 			pspec_int->maximum, 1 );
@@ -432,6 +450,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
 
+		puts("uint64");
+
 		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
 			pspec_uint64->maximum, 1 );
 
@@ -441,6 +461,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
 
+		puts("double");
+
 		t = gtk_spin_button_new_with_range( pspec_double->minimum,
 			pspec_double->maximum, 1 );
 
@@ -448,6 +470,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 			pspec_double->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+		puts("boxed");
+
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 			/* No default values exist for ParamSpecBoxed, so make
 			 * some up for now.
@@ -476,14 +500,18 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		}
 	}
 	else {
+		printf("Unknown type for property \"%s\"\n", property_name);
+		g_object_ref_sink( input_box );
 		return;
 	}
 
-	/* Make each user input widget stretch when the window is resized. This
-	 * is particularly helpful to the user for text fields, since they will
-	 * have more room to see what they typed. 
-	 */
-	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+	//gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+
+	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
+		0 );
+	//gtk_widget_set_halign( box, GTK_ALIGN_FILL );
+	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
+		g_param_spec_get_blurb( pspec ) );
 
 	gtk_widget_set_hexpand( t, TRUE );
 
@@ -491,9 +519,28 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	gtk_box_append( GTK_BOX( box ), t );
 
-	g_assert( inputs_box );
+	g_assert( input_box );
 
-	gtk_box_append( GTK_BOX( inputs_box ), box );
+	gtk_box_append( GTK_BOX( input_box ), box );
+
+	gtk_grid_attach( GTK_GRID( grid ), input_box, 2, save_options->row_count, 1, 1 );
+
+	// LABEL
+
+	label_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		0 );
+	label = gtk_label_new( property_name );
+	gtk_widget_set_hexpand( label, FALSE );
+
+	gtk_box_append( GTK_BOX( label_box ), label );
+
+	gtk_grid_attach( GTK_GRID( grid ), label_box, 0, save_options->row_count, 1, 1 );
+
+	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
+		g_param_spec_get_blurb( pspec ) );
+
+
+	save_options->row_count += 1;
 }
 
 /* This is the function used by save_options_build_content_box to process a
@@ -547,53 +594,41 @@ save_options_build_content_box( SaveOptions *save_options,
 static gint
 save_options_reset_content_box( SaveOptions *save_options )
 {
-	GtkBox *content_box, *labels_box, *inputs_box;
+	GtkWidget *content_box;
 
-	content_box = save_options->content_box;
+	GtkWidget *grid;
+
+	content_box = GTK_WIDGET( save_options->content_box );
 
 	if( content_box )
 		gtk_box_remove( save_options->parent_box, GTK_WIDGET( content_box ) );
 
 	/* Create a new content box 
 	 */
-	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
-		DEFAULT_SPACING ) );
+	content_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
+		0 );
 
-	gtk_widget_set_halign( GTK_WIDGET( content_box ), GTK_ALIGN_FILL );
-
+	//gtk_widget_set_halign( content_box, GTK_ALIGN_FILL );
 
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
-	save_options->content_box = content_box;
+	save_options->content_box = GTK_BOX( content_box );
 
-	labels_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		DEFAULT_SPACING ) );
+	grid = gtk_grid_new();
 
-	gtk_box_append( content_box, GTK_WIDGET( labels_box ) );
+	gtk_grid_set_row_spacing( GTK_GRID( grid ), 20 );
 
-	inputs_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		DEFAULT_SPACING ) );
+	//gtk_box_append( content_box, GTK_WIDGET( label_box ) );
 	
-	gtk_box_append( content_box, GTK_WIDGET( inputs_box ) );
+	//gtk_box_append( content_box, GTK_WIDGET( input_box ) );
+
+	gtk_box_append( GTK_BOX( content_box ), grid );
+
+	save_options->row_count = 0;
 
 	/* Return success code
 	 */
 	return 0;
-}
-
-/* Returns true if the content box has no children
- */
-gboolean
-save_options_content_box_empty( SaveOptions *save_options )
-{
-	GtkWidget *parent_box, *child_box = NULL;
-
-	parent_box = GTK_WIDGET( save_options->content_box );
-
-	if ( parent_box )
-		child_box = gtk_widget_get_first_child( parent_box );
-
-	return( !child_box );
 }
 
 /* Dynamically generate the save options menu based on the current operation

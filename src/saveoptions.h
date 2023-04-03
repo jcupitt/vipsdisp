@@ -6,6 +6,7 @@ struct SaveOptions {
 	GtkBox *parent_box;
         ImageWindow *image_window;
         GtkBox *content_box;
+	guint row_count;
 };
 
 void save_options_free( SaveOptions * );
