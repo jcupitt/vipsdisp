@@ -529,6 +529,9 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	label_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 );
+
+	gtk_widget_set_valign( label_box, GTK_ALIGN_CENTER );
+		
 	label = gtk_label_new( property_name );
 	gtk_widget_set_hexpand( label, FALSE );
 
@@ -617,6 +620,13 @@ save_options_reset_content_box( SaveOptions *save_options )
 	grid = gtk_grid_new();
 
 	gtk_grid_set_row_spacing( GTK_GRID( grid ), 20 );
+
+	gtk_grid_set_column_spacing( GTK_GRID( grid ), 20 );
+
+	gtk_widget_set_margin_top( grid, 10 );
+	gtk_widget_set_margin_end( grid, 10 );
+	gtk_widget_set_margin_bottom( grid, 10 );
+	gtk_widget_set_margin_start( grid, 10 );
 
 	//gtk_box_append( content_box, GTK_WIDGET( label_box ) );
 	
