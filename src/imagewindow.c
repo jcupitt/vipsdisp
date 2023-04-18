@@ -673,6 +673,10 @@ image_window_open_save_options( ImageWindow *image_window )
 	 */
 	save_options_window = gtk_window_new();
 
+	/* Remove title bar and "X" button from the save options window.
+	 */
+	gtk_window_set_decorated( GTK_WINDOW( save_options_window ), FALSE );
+
 	/* Unmodal the saveas dialog, so we can modal the save options window.
 	 */
 	gtk_window_set_modal( GTK_WINDOW( image_window->saveas_dialog ),
@@ -722,20 +726,54 @@ image_window_open_save_options( ImageWindow *image_window )
 	 */
 	cancel = gtk_button_new_with_label("Cancel");
 	save = gtk_button_new_with_label("Save");
+	gtk_widget_set_margin_start( cancel, DEFAULT_SPACING );
 	gtk_widget_set_margin_end( save, DEFAULT_SPACING );
 
 	/* Create a horizonally oriented box to contain the save and cancel
-	 * buttons.
+	 * buttons. We'll call it the button box.
 	 */
 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
-	gtk_widget_set_halign( hbox, GTK_ALIGN_END );
+
+	/* Add some space between the cancel/save buttons and the top edge of
+	 * the window.
+	 */
+	gtk_widget_set_margin_top( hbox, DEFAULT_SPACING );
+
+	/* Make the button box's child boxes the same width. The child boxes
+	 * are used to position the buttons and title.
+	 */
+	gtk_box_set_homogeneous( GTK_BOX( hbox ), TRUE );
+
+	GtkWidget *box1, *box2, *box3;
+
+	box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+	gtk_box_append( GTK_BOX( box1 ), cancel );
+
+	box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+
+	/* Create the save options window label (the title).
+	 */
+	GtkWidget *label;
+	label = gtk_label_new( "Save Options" );
+	gtk_widget_set_vexpand( label, TRUE );
+	gtk_box_append( GTK_BOX( box2 ), label );
+
+	box3 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+	gtk_box_append( GTK_BOX( box3 ), save );
+
+	gtk_widget_set_halign( hbox, GTK_ALIGN_FILL );
+
 	gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
 
 	/* Append the save and cancel buttons to the horizontal box.
 	 */
-	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( cancel ) );
-	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( save ) );
-	gtk_box_append( GTK_BOX( parent_box ), GTK_WIDGET( hbox ) );
+	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box1 ) );
+	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box2 ) );
+	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box3 ) );
+
+	/* Prepend the button box to the parent box.
+	 */
+	gtk_box_prepend( GTK_BOX( parent_box ), GTK_WIDGET( hbox ) );
 
 	/* Create an array containing the two GtkWindows the save and cancel
 	 * button callback functions will need.
