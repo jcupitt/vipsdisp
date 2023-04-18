@@ -37,13 +37,14 @@ save_options_init( SaveOptions *save_options,
 	ImageWindow *image_window )
 {
 	GtkBox *content_box;
+	GtkWidget *scrolled_window;
 
 	save_options->image_window = image_window;
 
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 ) );
 	
-	gtk_box_set_homogeneous( content_box, TRUE );
+	//gtk_box_set_homogeneous( content_box, TRUE );
 
 	save_options->content_box = content_box;
 
@@ -53,7 +54,23 @@ save_options_init( SaveOptions *save_options,
 
 	g_assert( parent_box );
 
-	gtk_box_append( parent_box, GTK_WIDGET( content_box ) );
+	scrolled_window = gtk_scrolled_window_new();
+
+	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
+		GTK_POLICY_NEVER,
+		GTK_POLICY_ALWAYS );
+
+	gtk_scrolled_window_set_min_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		400);
+
+	gtk_scrolled_window_set_max_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		500);
+
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ), GTK_WIDGET( content_box ) );
+
+	gtk_box_append( parent_box, scrolled_window );
 }
 
 /* Create a new, initialized SaveOptions object from a parent GtkBox and an
@@ -370,6 +387,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	puts( property_name );
 
+	printf( "row_count: %u\n", save_options->row_count );
+
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 );
 
@@ -377,7 +396,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	g_assert( grid );
 
-	//gtk_grid_insert_row( GTK_GRID( grid ), 0 );
+	//gtk_grid_insert_row( GTK_GRID( grid ), save_options->row_count );
 
 	// INPUT
 
@@ -542,7 +561,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 
-
 	save_options->row_count += 1;
 }
 
@@ -597,14 +615,16 @@ save_options_build_content_box( SaveOptions *save_options,
 static gint
 save_options_reset_content_box( SaveOptions *save_options )
 {
-	GtkWidget *content_box;
-
-	GtkWidget *grid;
+	GtkWidget *content_box, *grid, *scrolled_window;
 
 	content_box = GTK_WIDGET( save_options->content_box );
 
-	if( content_box )
-		gtk_box_remove( save_options->parent_box, GTK_WIDGET( content_box ) );
+	if( content_box ) {
+		GtkWidget *it = gtk_widget_get_first_child(
+			GTK_WIDGET( save_options->parent_box ) );
+		if ( it )
+			gtk_box_remove( save_options->parent_box, it );
+	}
 
 	/* Create a new content box 
 	 */
@@ -616,6 +636,24 @@ save_options_reset_content_box( SaveOptions *save_options )
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = GTK_BOX( content_box );
+
+	scrolled_window = gtk_scrolled_window_new();
+
+	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
+		GTK_POLICY_NEVER,
+		GTK_POLICY_ALWAYS );
+
+	gtk_scrolled_window_set_min_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		400);
+
+	gtk_scrolled_window_set_max_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		500);
+
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ), GTK_WIDGET( content_box ) );
+
+	gtk_box_append( save_options->parent_box, scrolled_window );
 
 	grid = gtk_grid_new();
 
@@ -671,9 +709,6 @@ save_options_show( SaveOptions *save_options )
 		return -2;
 
 	save_options_build_content_box( save_options, operation );
-
-	gtk_box_append( GTK_BOX( save_options->parent_box ),
-		GTK_WIDGET( save_options->content_box ) );
 
 	/* Return EXIT_SUCCESS code.
 	 */
