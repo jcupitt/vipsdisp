@@ -13,7 +13,7 @@ TileSource *image_window_get_tile_source( ImageWindow *win );
 GFile *image_window_get_target_file( ImageWindow *win );
 void image_window_set_tile_source( ImageWindow *win, TileSource *tile_source );
 void image_window_get_mouse_position( ImageWindow *win, 
-        double *image_x, double *image_y );
+	double *image_x, double *image_y );
 
 #endif /* __IMAGE_WINDOW_H */
 
