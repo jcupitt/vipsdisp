@@ -107,7 +107,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-	GtkWidget *t, *grid, *w0, *w1;
+	GtkWidget *t, *grid, *grid_cell, *grid_cell_first_child;
 	const gchar *property_name;
 
 	/* Not handling VipsImage or VipsObject types yet.
@@ -126,11 +126,21 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 	g_assert( grid );
 
-	w0 = gtk_grid_get_child_at( GTK_GRID( grid ), 2, *row_index );
+	/* Use the current value of the row_index to determine the next row. The
+	 * rows are attached in increasing index order, from top to bottom. Thus
+	 * the order of the widgets matches the order of the properties of the
+	 * VipsOperation, and the order of the widgets is always predictable.
+	 */
+	grid_cell = gtk_grid_get_child_at( GTK_GRID( grid ), 2, *row_index );
 
-	w1 = gtk_widget_get_first_child( w0 );
-
-	t = gtk_widget_get_first_child( w1 );
+	/* Peel off the layers of containing widgets to get to the user input widget
+	 * for the property in the iteration. The variable named
+	 * "grid_cell_first_child" holds a GtkBox widget. That widget contains
+	 * the actual user input widget we are interested in, which is held in
+	 * the variable "t", which stands for "temporary".
+	 */
+	grid_cell_first_child = gtk_widget_get_first_child( grid_cell );
+	t = gtk_widget_get_first_child( grid_cell_first_child );
 
 	/* Handle types that are not VipsImage or VipsObject.
 	 */
@@ -308,19 +318,24 @@ save_options_build_save_operation( SaveOptions *save_options,
 
 	g_assert( grid );
 
+	/* Get the GtkBox widget that contains the GtkLabel widget for the
+	 * current property in the iteration.
+	 */
 	label_box = gtk_grid_get_child_at( GTK_GRID( grid ), 0, 0 );
 
 	g_assert( label_box );
 
+	/* Get the GtkBox widget that contains the user input widget for
+	* the current property in the iteration.
+	 */
 	input_box = gtk_grid_get_child_at( GTK_GRID( grid ), 2, 0 );
 
 	g_assert( input_box );
 
 	g_assert( label_box != input_box );
 
-	/* Loop over the properties of the save operation, while also advancing
-	 * the widget iterator. Apply the values from each widget to the save
-	 * operation.
+	/* Loop over the properties of the save operation. Apply the values from
+	 * each widget to the save operation.
 	 *
 	 * See also "save_options_build_save_operation_argument_map_fn".
 	 */
@@ -361,14 +376,16 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
-	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		0 );
-
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
 
 	g_assert( grid );
 
-	// INPUT
+	/* Create the GtkBox widget containing the user input widget appropriate
+	 * for the current property in the iteration.
+	 */
+
+	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		0 );
 
 	/* Add a user input widget for this property to the box. The widget
 	 * chosen depends on the type of the property. Set the initial value of
@@ -495,7 +512,9 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	gtk_grid_attach( GTK_GRID( grid ), input_box, 2, save_options->row_count, 1, 1 );
 
-	// LABEL
+	/* Create the GtkBox widget containing the GtkLabel widget with the
+	 * user-facing name of the current property in the iteration.
+	 */
 
 	label_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 );
@@ -557,6 +576,8 @@ save_options_build_content_box( SaveOptions *save_options,
 		NULL);
 }
 
+/* Clean up the old content_box widget, and create a new one.
+ */
 static gint
 save_options_reset_content_box( SaveOptions *save_options )
 {
