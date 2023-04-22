@@ -3,8 +3,10 @@
 
 #define DEFAULT_SPACING 10
 
-/* Clean up the memory and widgets held by the SaveOptions object.
+/* See the SaveOptions class interface file "saveoptions.h" for a high-level
+ * description of each SaveOptions class method.
  */
+
 void
 save_options_free( SaveOptions *save_options )
 {
@@ -15,8 +17,6 @@ save_options_free( SaveOptions *save_options )
 	g_free( save_options );
 }
 
-/* Create a new empty SaveOptions object.
- */
 SaveOptions *
 save_options_new_empty()
 {
@@ -31,9 +31,6 @@ save_options_new_empty()
 	return save_options;
 }
 
-/* Initialize a given empty SaveOptions object using a parent GtkBox and
- * ImageWindow.
- */
 void
 save_options_init( SaveOptions *save_options,
 	GtkBox *parent_box,
@@ -74,9 +71,6 @@ save_options_init( SaveOptions *save_options,
 	gtk_box_append( parent_box, scrolled_window );
 }
 
-/* Create a new, initialized SaveOptions object from a parent GtkBox and an
- * ImageWindow.
- */
 SaveOptions *
 save_options_new( GtkBox *parent_box, ImageWindow *image_window )
 {
@@ -88,10 +82,6 @@ save_options_new( GtkBox *parent_box, ImageWindow *image_window )
 	return( save_options );
 }
 
-/* Get the the image window currently held by a SaveOptions object.
- *
- * @returns ImageWindow * (may be NULL)
- */
 ImageWindow *
 save_options_get_image_window( SaveOptions *save_options )
 {
@@ -286,9 +276,6 @@ save_options_build_save_operation_argument_map_fn( VipsObject *operation,
 	return NULL;
 }
 
-/* Finish building the VipsOperation, which should already have it's
- * "filename" property set to the source file path
- */
 void
 save_options_build_save_operation( SaveOptions *save_options,
 	VipsOperation *operation )
@@ -557,9 +544,6 @@ save_options_build_content_box_argument_map_fn( VipsObject *operation,
 	return NULL;
 }
 
-/* Build a widget containing the save_options UI, and attach it to the
- * parent_box
- */
 void
 save_options_build_content_box( SaveOptions *save_options,
 	VipsOperation *operation )
@@ -573,9 +557,6 @@ save_options_build_content_box( SaveOptions *save_options,
 		NULL);
 }
 
-/* Clean up the content box and all its children, and replace it with a new
- * empty content box.
- */
 static gint
 save_options_reset_content_box( SaveOptions *save_options )
 {
@@ -637,9 +618,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	return 0;
 }
 
-/* Dynamically generate the save options menu based on the current operation
- * held by the image window.
- */
 gint
 save_options_show( SaveOptions *save_options )
 {
@@ -670,8 +648,6 @@ save_options_show( SaveOptions *save_options )
 	return 0;
 }
 
-/* Destroy the dynamically generated save options menu.
- */
 gint
 save_options_hide( SaveOptions *save_options )
 {
