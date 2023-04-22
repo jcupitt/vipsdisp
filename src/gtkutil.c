@@ -77,7 +77,7 @@ build_entry( int nchars )
 	GtkWidget *entry;
 
 	entry = gtk_entry_new();
-	// FIXME 
+	// FIXME
 	// gtk_entry_set_width_chars( GTK_ENTRY( entry ), nchars );
 
 	return( entry );
@@ -116,8 +116,8 @@ copy_adj( GtkAdjustment *to, GtkAdjustment *from )
 	double page_increment = gtk_adjustment_get_page_increment( from );
 	double page_size = gtk_adjustment_get_page_size( from );
 
-	gtk_adjustment_configure( to, value, 
-		lower, upper, 
+	gtk_adjustment_configure( to, value,
+		lower, upper,
 		step_increment, page_increment, page_size );
 }
 
@@ -137,7 +137,7 @@ get_state( GtkWidget *widget, const char *name )
 	GAction *action;
 
 	action = g_action_map_lookup_action( G_ACTION_MAP( widget ), name );
-	if( !action ) 
+	if( !action )
 		return( NULL );
 
 	return( g_action_get_state( action ) );

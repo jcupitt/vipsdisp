@@ -3,7 +3,7 @@
 
 #define DISPLAYBAR_TYPE (displaybar_get_type())
 
-G_DECLARE_FINAL_TYPE( Displaybar, displaybar, 
+G_DECLARE_FINAL_TYPE( Displaybar, displaybar,
 	VIPSDISP, DISPLAYBAR, GtkWidget )
 
 #define DISPLAYBAR( obj ) \

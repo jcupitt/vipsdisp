@@ -77,14 +77,14 @@ save_options_init( SaveOptions *save_options,
  * ImageWindow.
  */
 SaveOptions *
-save_options_new( GtkBox *parent_box, ImageWindow *image_window ) 
+save_options_new( GtkBox *parent_box, ImageWindow *image_window )
 {
         SaveOptions *save_options;
 		
 	save_options = save_options_new_empty();
 	save_options_init( save_options, parent_box, image_window );
 
-        return( save_options ); 
+        return( save_options );
 }
 
 /* Get the the image window currently held by a SaveOptions object.
@@ -104,7 +104,7 @@ save_options_get_image_window( SaveOptions *save_options )
  * to process a single property of the save operation.
  *
  * It sets the property to the value held by the user input widget pointed to
- * by the widget iterator. 
+ * by the widget iterator.
  */
 static void
 save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
@@ -346,7 +346,7 @@ save_options_build_save_operation( SaveOptions *save_options,
 	 * the widget iterator. Apply the values from each widget to the save
 	 * operation.
 	 *
-	 * See also "save_options_build_save_operation_argument_map_fn". 
+	 * See also "save_options_build_save_operation_argument_map_fn".
 	 */
 	vips_argument_map( VIPS_OBJECT( operation ),
 		save_options_build_save_operation_argument_map_fn,
@@ -371,7 +371,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	GtkWidget *t, *label, *box, *label_box, *input_box, *grid;
 
 	/* Get the name of the property of the save operation currently being
-	 * processed. 
+	 * processed.
 	 */
 	property_name = g_param_spec_get_nick( pspec );
 
@@ -578,7 +578,7 @@ save_options_build_content_box_argument_map_fn( VipsObject *operation,
 	void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
-	SaveOptions *save_options = (SaveOptions *)a; 
+	SaveOptions *save_options = (SaveOptions *)a;
 
 	/* Include arguments listed in the constructor.
 	 *
@@ -626,7 +626,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 			gtk_box_remove( save_options->parent_box, it );
 	}
 
-	/* Create a new content box 
+	/* Create a new content box
 	 */
 	content_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		0 );
@@ -733,26 +733,26 @@ save_options_hide( SaveOptions *save_options )
  * Not currently used.
  */
 static void
-save_options_tile_source_changed( TileSource *tile_source, SaveOptions *save_options ) 
+save_options_tile_source_changed( TileSource *tile_source, SaveOptions *save_options )
 {
 	/* ... */
 }
 
 /* Imagewindow has a new tile_source.
- * 
+ *
  * Not currently used.
  */
 void
 save_options_image_window_changed( ImageWindow *win, SaveOptions *save_options )
 {
 	TileSource *tile_source = image_window_get_tile_source( win );
-        g_signal_connect_object( tile_source, "changed", 
-                G_CALLBACK( save_options_tile_source_changed ), 
+        g_signal_connect_object( tile_source, "changed",
+                G_CALLBACK( save_options_tile_source_changed ),
                 save_options, 0 );
 }
 
 /* Set a new image_window
- * 
+ *
  * Not currently used.
  */
 void
@@ -760,7 +760,7 @@ save_options_set_image_window( SaveOptions *save_options,
 	ImageWindow *image_window )
 {
         save_options->image_window = image_window;
-        g_signal_connect_object( image_window, "changed", 
-                G_CALLBACK( save_options_image_window_changed ), 
+        g_signal_connect_object( image_window, "changed",
+                G_CALLBACK( save_options_image_window_changed ),
                 save_options, 0 );
 }

@@ -57,7 +57,7 @@ typedef struct _TsliderClass {
 
 GType tslider_get_type();
 void tslider_changed( Tslider * );
-void tslider_set_conversions( Tslider *tslider, 
+void tslider_set_conversions( Tslider *tslider,
 	TsliderFn value_to_slider, TsliderFn slider_to_value );
 Tslider *tslider_new( void );
 double tslider_log_value_to_slider( double from, double to, double value );

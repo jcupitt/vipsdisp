@@ -29,7 +29,7 @@ tslider_dispose( GObject *object )
 	Tslider *tslider = (Tslider *) object;
 
 #ifdef DEBUG
-	printf( "tslider_dispose:\n" ); 
+	printf( "tslider_dispose:\n" );
 #endif /*DEBUG*/
 
 	VIPS_FREEF( gtk_widget_unparent, tslider->box );
@@ -49,7 +49,7 @@ tslider_value_to_slider( Tslider *tslider, double value )
 
 	/* Pass through user fn.
 	 */
-	const double mapped = tslider->value_to_slider( 
+	const double mapped = tslider->value_to_slider(
 		tslider->from, tslider->to, to01 );
 	const double nvalue = mapped / scale + tslider->from;
 
@@ -74,7 +74,7 @@ tslider_slider_to_value( Tslider *tslider, double value )
 
 	/* Pass through user fn.
 	 */
-	const double mapped = tslider->slider_to_value( 
+	const double mapped = tslider->slider_to_value(
 		tslider->from, tslider->to, to01 );
 	const double nvalue = mapped / scale + tslider->from;
 
@@ -96,46 +96,46 @@ tslider_real_changed( Tslider *tslider )
 	GtkWidget *entry = tslider->entry;
 
 #ifdef DEBUG
-	printf( "tslider_real_changed: %p, val = %g\n", 
+	printf( "tslider_real_changed: %p, val = %g\n",
 		tslider, tslider->value );
 #endif /*DEBUG*/
 
-	if( tslider->auto_link ) 
-		tslider->svalue = tslider_value_to_slider( tslider, 
+	if( tslider->auto_link )
+		tslider->svalue = tslider_value_to_slider( tslider,
 			tslider->value );
 
-	g_signal_handlers_block_matched( G_OBJECT( adj ), 
+	g_signal_handlers_block_matched( G_OBJECT( adj ),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider );
-	g_signal_handlers_block_matched( G_OBJECT( entry ), 
+	g_signal_handlers_block_matched( G_OBJECT( entry ),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider );
 
 	/* Some libc's hate out-of-bounds precision, so clip, just in case.
 	 */
-	set_gentry( tslider->entry, "%.*f", 
+	set_gentry( tslider->entry, "%.*f",
 		VIPS_CLIP( 0, tslider->digits, 100 ), tslider->value );
 	gtk_scale_set_digits( GTK_SCALE( tslider->scale ), tslider->digits );
 
-	if( !DEQ( tslider->from, tslider->last_from ) || 
+	if( !DEQ( tslider->from, tslider->last_from ) ||
 		!DEQ( tslider->to, tslider->last_to ) ) {
 		double range = tslider->to - tslider->from;
 
-		gtk_adjustment_set_step_increment( adj, range / 100 ); 
-		gtk_adjustment_set_page_increment( adj, range / 10 ); 
-		gtk_adjustment_set_page_size( adj, range / 10 ); 
-		gtk_adjustment_set_lower( adj, tslider->from ); 
-		gtk_adjustment_set_upper( adj, 
-			tslider->to + gtk_adjustment_get_page_size( adj ) ); 
+		gtk_adjustment_set_step_increment( adj, range / 100 );
+		gtk_adjustment_set_page_increment( adj, range / 10 );
+		gtk_adjustment_set_page_size( adj, range / 10 );
+		gtk_adjustment_set_lower( adj, tslider->from );
+		gtk_adjustment_set_upper( adj,
+			tslider->to + gtk_adjustment_get_page_size( adj ) );
 
 		tslider->last_to = tslider->to;
 		tslider->last_from = tslider->from;
 	}
 
-	if( !DEQ( tslider->svalue, tslider->last_svalue ) ) 
-		gtk_adjustment_set_value( adj, tslider->svalue ); 
+	if( !DEQ( tslider->svalue, tslider->last_svalue ) )
+		gtk_adjustment_set_value( adj, tslider->svalue );
 
-	g_signal_handlers_unblock_matched( G_OBJECT( adj ), 
+	g_signal_handlers_unblock_matched( G_OBJECT( adj ),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider );
-	g_signal_handlers_unblock_matched( G_OBJECT( entry ), 
+	g_signal_handlers_unblock_matched( G_OBJECT( entry ),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider );
 }
 
@@ -148,7 +148,7 @@ tslider_changed( Tslider *tslider )
 	printf( "tslider_changed\n" );
 #endif /*DEBUG*/
 
-	g_signal_emit( G_OBJECT( tslider ), 
+	g_signal_emit( G_OBJECT( tslider ),
 		tslider_signals[CHANGED], 0 );
 }
 
@@ -161,7 +161,7 @@ tslider_activate( Tslider *tslider )
 	printf( "tslider_activate\n" );
 #endif /*DEBUG*/
 
-	g_signal_emit( G_OBJECT( tslider ), 
+	g_signal_emit( G_OBJECT( tslider ),
 		tslider_signals[ACTIVATE], 0 );
 }
 
@@ -174,7 +174,7 @@ tslider_slider_changed( Tslider *tslider )
 	printf( "tslider_slider_changed\n" );
 #endif /*DEBUG*/
 
-	g_signal_emit( G_OBJECT( tslider ), 
+	g_signal_emit( G_OBJECT( tslider ),
 		tslider_signals[SLIDER_CHANGED], 0 );
 }
 
@@ -187,7 +187,7 @@ tslider_text_changed( Tslider *tslider )
 	printf( "tslider_text_changed\n" );
 #endif /*DEBUG*/
 
-	g_signal_emit( G_OBJECT( tslider ), 
+	g_signal_emit( G_OBJECT( tslider ),
 		tslider_signals[TEXT_CHANGED], 0 );
 }
 
@@ -206,7 +206,7 @@ tslider_value_activate_cb( GtkWidget *entry, Tslider *tslider )
 		tslider->value != value ) {
 		tslider->value = value;
 
-		if( tslider->auto_link ) 
+		if( tslider->auto_link )
 			tslider_changed( tslider );
 		else
 			tslider_activate( tslider );
@@ -226,12 +226,12 @@ tslider_value_changed_cb( GtkAdjustment *adj, Tslider *tslider )
 		tslider->svalue = gtk_adjustment_get_value( adj );
 
 		if( tslider->auto_link ) {
-			tslider->value = tslider_slider_to_value( 
-				tslider, tslider->svalue ); 
+			tslider->value = tslider_slider_to_value(
+				tslider, tslider->svalue );
 
 			tslider_changed( tslider );
 		}
-		else 
+		else
 			tslider_slider_changed( tslider );
 	}
 }
@@ -260,7 +260,7 @@ static void
 tslider_init( Tslider *tslider )
 {
 #ifdef DEBUG
-	printf( "tslider_init:\n" ); 
+	printf( "tslider_init:\n" );
 #endif /*DEBUG*/
 
 	/* Any old start values ... overridden later.
@@ -281,7 +281,7 @@ tslider_init( Tslider *tslider )
 	g_signal_connect( tslider->entry, "changed",
 		G_CALLBACK( tslider_text_changed_cb ), tslider );
 
-	g_signal_connect( tslider->adj, "value_changed", 
+	g_signal_connect( tslider->adj, "value_changed",
 		G_CALLBACK( tslider_value_changed_cb ), tslider );
 
 	tslider->auto_link = TRUE;
@@ -302,14 +302,14 @@ tslider_class_init( TsliderClass *class )
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
-	printf( "tslider_class_init:\n" ); 
+	printf( "tslider_class_init:\n" );
 #endif /*DEBUG*/
 
 	G_OBJECT_CLASS( class )->dispose = tslider_dispose;
 
 	class->changed = tslider_real_changed;
 
-	gtk_widget_class_set_layout_manager_type( widget_class, 
+	gtk_widget_class_set_layout_manager_type( widget_class,
 		GTK_TYPE_BOX_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
 		APP_PATH "/tslider.ui");
@@ -350,21 +350,21 @@ tslider_class_init( TsliderClass *class )
 }
 
 Tslider *
-tslider_new( void ) 
+tslider_new( void )
 {
 	Tslider *tslider;
 
 #ifdef DEBUG
-	printf( "tslider_new:\n" ); 
+	printf( "tslider_new:\n" );
 #endif /*DEBUG*/
 
 	tslider = g_object_new( TSLIDER_TYPE, NULL );
 
-	return( tslider ); 
+	return( tslider );
 }
 
 void
-tslider_set_conversions( Tslider *tslider, 
+tslider_set_conversions( Tslider *tslider,
 	TsliderFn value_to_slider, TsliderFn slider_to_value )
 {
 	tslider->value_to_slider = value_to_slider;

@@ -30,11 +30,11 @@ enum {
 };
 
 static void
-displaybar_tile_source_changed( TileSource *tile_source, 
-	Displaybar *displaybar ) 
+displaybar_tile_source_changed( TileSource *tile_source,
+	Displaybar *displaybar )
 {
 #ifdef DEBUG
-	printf( "displaybar_tile_source_changed:\n" ); 
+	printf( "displaybar_tile_source_changed:\n" );
 #endif /*DEBUG*/
 
 	if( TSLIDER( displaybar->scale )->value != tile_source->scale ) {
@@ -47,74 +47,74 @@ displaybar_tile_source_changed( TileSource *tile_source,
 		tslider_changed( TSLIDER( displaybar->offset ) );
 	}
 
-	gtk_spin_button_set_range( 
-		GTK_SPIN_BUTTON( displaybar->page ), 
+	gtk_spin_button_set_range(
+		GTK_SPIN_BUTTON( displaybar->page ),
 		0, tile_source->n_pages - 1 );
-	gtk_widget_set_sensitive( displaybar->page, 
-		tile_source->n_pages > 1 && 
+	gtk_widget_set_sensitive( displaybar->page,
+		tile_source->n_pages > 1 &&
 		tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE );
 }
 
 static void
-displaybar_page_changed( TileSource *tile_source, 
+displaybar_page_changed( TileSource *tile_source,
 	Displaybar *displaybar )
 {
 #ifdef DEBUG
 	printf( "displaybar_page_changed:\n" );
 #endif /*DEBUG*/
 
-	gtk_spin_button_set_value( 
-		GTK_SPIN_BUTTON( displaybar->page ), 
+	gtk_spin_button_set_value(
+		GTK_SPIN_BUTTON( displaybar->page ),
 		tile_source->page );
 }
 
 /* Imagewindow has a new tile_source.
  */
 static void
-displaybar_image_window_changed( ImageWindow *win, 
+displaybar_image_window_changed( ImageWindow *win,
 	Displaybar *displaybar )
 {
 	TileSource *tile_source = image_window_get_tile_source( win );
 
-	g_signal_connect_object( tile_source, "changed", 
-		G_CALLBACK( displaybar_tile_source_changed ), 
+	g_signal_connect_object( tile_source, "changed",
+		G_CALLBACK( displaybar_tile_source_changed ),
 		displaybar, 0 );
-	g_signal_connect_object( tile_source, "tiles-changed", 
-		G_CALLBACK( displaybar_tile_source_changed ), 
+	g_signal_connect_object( tile_source, "tiles-changed",
+		G_CALLBACK( displaybar_tile_source_changed ),
 		displaybar, 0 );
 	g_signal_connect_object( tile_source, "page-changed",
-		G_CALLBACK( displaybar_page_changed ), 
+		G_CALLBACK( displaybar_page_changed ),
 		displaybar, 0 );
 }
 
 static void
-displaybar_set_image_window( Displaybar *displaybar, 
+displaybar_set_image_window( Displaybar *displaybar,
 	ImageWindow *win )
 {
 	/* No need to ref ... win holds a ref to us.
 	 */
 	displaybar->win = win;
 
-	g_signal_connect_object( win, "changed", 
-		G_CALLBACK( displaybar_image_window_changed ), 
+	g_signal_connect_object( win, "changed",
+		G_CALLBACK( displaybar_image_window_changed ),
 		displaybar, 0 );
 }
 
 static void
-displaybar_set_property( GObject *object, 
+displaybar_set_property( GObject *object,
 	guint prop_id, const GValue *value, GParamSpec *pspec )
 {
 	Displaybar *displaybar = (Displaybar *) object;
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		displaybar_set_image_window( displaybar, 
+		displaybar_set_image_window( displaybar,
 			g_value_get_object( value ) );
 		break;
 
 	case PROP_REVEALED:
-		gtk_action_bar_set_revealed( 
-			GTK_ACTION_BAR( displaybar->action_bar ), 
+		gtk_action_bar_set_revealed(
+			GTK_ACTION_BAR( displaybar->action_bar ),
 			g_value_get_boolean( value ) );
 		break;
 
@@ -125,7 +125,7 @@ displaybar_set_property( GObject *object,
 }
 
 static void
-displaybar_get_property( GObject *object, 
+displaybar_get_property( GObject *object,
 	guint prop_id, GValue *value, GParamSpec *pspec )
 {
 	Displaybar *displaybar = (Displaybar *) object;
@@ -136,8 +136,8 @@ displaybar_get_property( GObject *object,
 		break;
 
 	case PROP_REVEALED:
-		g_value_set_boolean( value, gtk_action_bar_get_revealed( 
-			GTK_ACTION_BAR( displaybar->action_bar ) ) ); 
+		g_value_set_boolean( value, gtk_action_bar_get_revealed(
+			GTK_ACTION_BAR( displaybar->action_bar ) ) );
 		break;
 
 	default:
@@ -152,7 +152,7 @@ displaybar_dispose( GObject *object )
 	Displaybar *displaybar = (Displaybar *) object;
 
 #ifdef DEBUG
-	printf( "displaybar_dispose:\n" ); 
+	printf( "displaybar_dispose:\n" );
 #endif /*DEBUG*/
 
 	VIPS_FREEF( gtk_widget_unparent, displaybar->action_bar );
@@ -164,7 +164,7 @@ static void
 displaybar_page_value_changed( GtkSpinButton *spin_button,
 	Displaybar *displaybar )
 {
-	TileSource *tile_source = 
+	TileSource *tile_source =
 		image_window_get_tile_source( displaybar->win );
 	int new_page = gtk_spin_button_get_value_as_int( spin_button );
 
@@ -179,10 +179,10 @@ displaybar_page_value_changed( GtkSpinButton *spin_button,
 }
 
 static void
-displaybar_scale_value_changed( Tslider *slider, 
+displaybar_scale_value_changed( Tslider *slider,
 	Displaybar *displaybar )
 {
-	TileSource *tile_source = 
+	TileSource *tile_source =
 		image_window_get_tile_source( displaybar->win );
 
 	if( tile_source )
@@ -192,10 +192,10 @@ displaybar_scale_value_changed( Tslider *slider,
 }
 
 static void
-displaybar_offset_value_changed( Tslider *slider, 
+displaybar_offset_value_changed( Tslider *slider,
 	Displaybar *displaybar )
 {
-	TileSource *tile_source = 
+	TileSource *tile_source =
 		image_window_get_tile_source( displaybar->win );
 
 	if( tile_source )
@@ -210,7 +210,7 @@ displaybar_init( Displaybar *displaybar )
 	Tslider *tslider;
 
 #ifdef DEBUG
-	printf( "displaybar_init:\n" ); 
+	printf( "displaybar_init:\n" );
 #endif /*DEBUG*/
 
 	gtk_widget_init_template( GTK_WIDGET( displaybar ) );
@@ -238,13 +238,13 @@ displaybar_init( Displaybar *displaybar )
 	set_tooltip( GTK_WIDGET( tslider ), _( "Brightness offset" ) );
 
 	g_signal_connect( displaybar->page, "value-changed",
-		G_CALLBACK( displaybar_page_value_changed ), 
+		G_CALLBACK( displaybar_page_value_changed ),
 		displaybar );
 	g_signal_connect( displaybar->scale, "changed",
-		G_CALLBACK( displaybar_scale_value_changed ), 
+		G_CALLBACK( displaybar_scale_value_changed ),
 		displaybar );
 	g_signal_connect( displaybar->offset, "changed",
-		G_CALLBACK( displaybar_offset_value_changed ), 
+		G_CALLBACK( displaybar_offset_value_changed ),
 		displaybar );
 }
 
@@ -259,12 +259,12 @@ displaybar_class_init( DisplaybarClass *class )
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
-	printf( "displaybar_class_init:\n" ); 
+	printf( "displaybar_class_init:\n" );
 #endif /*DEBUG*/
 
 	G_OBJECT_CLASS( class )->dispose = displaybar_dispose;
 
-	gtk_widget_class_set_layout_manager_type( widget_class, 
+	gtk_widget_class_set_layout_manager_type( widget_class,
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
 		APP_PATH "/displaybar.ui");
@@ -295,18 +295,18 @@ displaybar_class_init( DisplaybarClass *class )
 }
 
 Displaybar *
-displaybar_new( ImageWindow *win ) 
+displaybar_new( ImageWindow *win )
 {
 	Displaybar *displaybar;
 
 #ifdef DEBUG
-	printf( "displaybar_new:\n" ); 
+	printf( "displaybar_new:\n" );
 #endif /*DEBUG*/
 
 	displaybar = g_object_new( displaybar_get_type(),
 		"image-window", win,
 		NULL );
 
-	return( displaybar ); 
+	return( displaybar );
 }
 

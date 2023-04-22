@@ -72,7 +72,7 @@ TileCache *tile_cache_new( TileSource *tile_source );
 
 /* Render the tiles to a snapshot.
  */
-void tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
+void tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 	double scale, double x, double y,
 	VipsRect *paint_rect,
 	gboolean debug );

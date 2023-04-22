@@ -32,7 +32,7 @@ static void
 vipsdisp_app_new_activated( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
-	vipsdisp_app_activate( G_APPLICATION( user_data ) ); 
+	vipsdisp_app_activate( G_APPLICATION( user_data ) );
 }
 
 static ImageWindow *
@@ -42,8 +42,8 @@ vipsdisp_app_win( VipsdispApp *app )
 
 	if( windows )
 		return( VIPSDISP_IMAGE_WINDOW( windows->data ) );
-	else 
-		return( NULL ); 
+	else
+		return( NULL );
 }
 
 static void
@@ -62,7 +62,7 @@ vipsdisp_app_about_activated( GSimpleAction *action,
 	printf( "vipsdisp_app_about_activated:\n" );
 #endif /*DEBUG*/
 
-	gtk_show_about_dialog( win ? GTK_WINDOW( win ) : NULL, 
+	gtk_show_about_dialog( win ? GTK_WINDOW( win ) : NULL,
 		"program-name", PACKAGE,
 		"logo-icon-name", APPLICATION_ID,
 		"title", _( "About vipsdisp" ),
@@ -108,8 +108,8 @@ vipsdisp_app_startup( GApplication *app )
 	/* Image display programs are supposed to default to a dark theme,
 	 * according to the HIG.
 	 */
-	settings = gtk_settings_get_default(); 
-	g_object_set( settings, 
+	settings = gtk_settings_get_default();
+	g_object_set( settings,
 		"gtk-application-prefer-dark-theme", TRUE,
 		NULL );
 
@@ -130,7 +130,7 @@ vipsdisp_app_startup( GApplication *app )
 }
 
 static void
-vipsdisp_app_open( GApplication *app, 
+vipsdisp_app_open( GApplication *app,
 	GFile **files, int n_files, const char *hint )
 {
 	int i;
@@ -146,7 +146,7 @@ vipsdisp_app_open( GApplication *app,
 static void
 vipsdisp_app_shutdown( GApplication *app )
 {
-	ImageWindow *win; 
+	ImageWindow *win;
 
 #ifdef DEBUG
 	printf( "vipsdisp_app_shutdown:\n" );
@@ -155,7 +155,7 @@ vipsdisp_app_shutdown( GApplication *app )
 	/* Force down all our windows ... this will not happen automatically
 	 * on _quit().
 	 */
-	while( (win = vipsdisp_app_win( VIPSDISP_APP( app ) )) ) 
+	while( (win = vipsdisp_app_win( VIPSDISP_APP( app ) )) )
 		gtk_window_destroy( GTK_WINDOW( win ) );
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->shutdown( app );
@@ -173,7 +173,7 @@ vipsdisp_app_class_init( VipsdispAppClass *class )
 VipsdispApp *
 vipsdisp_app_new( void )
 {
-	return( g_object_new( VIPSDISP_APP_TYPE, 
+	return( g_object_new( VIPSDISP_APP_TYPE,
 		"application-id", APPLICATION_ID,
 		"flags", G_APPLICATION_HANDLES_OPEN,
 		"inactivity-timeout", 3000,

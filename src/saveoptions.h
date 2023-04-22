@@ -1,7 +1,7 @@
 #ifndef __SAVEOPTIONS_H
 #define __SAVEOPTIONS_H
 
-typedef struct SaveOptions SaveOptions; 
+typedef struct SaveOptions SaveOptions;
 struct SaveOptions {
 	GtkBox *parent_box;
         ImageWindow *image_window;

@@ -17,7 +17,7 @@ main( int argc, char **argv )
 	printf( "DEBUG on in main.c\n" );
 	vips_leak_set( TRUE );
 
-	g_log_set_always_fatal( 
+	g_log_set_always_fatal(
 		G_LOG_FLAG_RECURSION |
 		G_LOG_FLAG_FATAL |
 		G_LOG_LEVEL_ERROR |

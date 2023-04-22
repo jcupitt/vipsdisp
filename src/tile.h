@@ -23,7 +23,7 @@ typedef struct _Tile {
 	 */
 	guint time;
 
-	/* RGB or RGBA pixels coming in from libvips. A memory region, with 
+	/* RGB or RGBA pixels coming in from libvips. A memory region, with
 	 * data copied in from the end of the pipeline.
 	 */
 	VipsRegion *region;
@@ -42,9 +42,9 @@ typedef struct _Tile {
 	 */
 	gboolean valid;
 
-	/* Pixels going out to the scene graph. 
+	/* Pixels going out to the scene graph.
 	 *
-	 * pixbuf and texture won't make a copy of the data, so we must make a 
+	 * pixbuf and texture won't make a copy of the data, so we must make a
 	 * copy ourselves, in case a later fetch from the same region produces
 	 * invalid data.
 	 */

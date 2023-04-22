@@ -96,7 +96,7 @@ tile_new( VipsImage *level, int left, int top, int z )
 
 	tile_touch( tile );
 
-	return( tile ); 
+	return( tile );
 }
 
 /* NULL means pixels have not arrived from libvips yet.
@@ -105,7 +105,7 @@ GdkTexture *
 tile_get_texture( Tile *tile )
 {
 	/* This mustn't be a completely empty tile -- there must be either
-	 * fresh, valid pixels, or an old texture. 
+	 * fresh, valid pixels, or an old texture.
 	 */
 	g_assert( tile->texture ||
 		tile->valid );
@@ -125,7 +125,7 @@ tile_get_texture( Tile *tile )
 	 */
 	if( !tile->texture ) {
 		VIPS_FREE( tile->data_copy );
-		tile->data_copy = g_memdup2( 
+		tile->data_copy = g_memdup2(
 			VIPS_REGION_ADDR( tile->region,
 				tile->region->valid.left,
 				tile->region->valid.top ),
@@ -133,8 +133,8 @@ tile_get_texture( Tile *tile )
 			tile->region->valid.height );
 
 		VIPS_UNREF( tile->pixbuf );
-		tile->pixbuf = gdk_pixbuf_new_from_data( 
-			tile->data_copy, 
+		tile->pixbuf = gdk_pixbuf_new_from_data(
+			tile->data_copy,
 			GDK_COLORSPACE_RGB,
 			tile->region->im->Bands == 4,
 			8,
