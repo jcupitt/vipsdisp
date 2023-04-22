@@ -1885,9 +1885,9 @@ tile_source_get_file( TileSource *tile_source )
 int
 tile_source_write_to_file( TileSource *tile_source, VipsOperation *operation )
 {
-        int result;
+	int result;
 
-        vips_image_set_progress( tile_source->image, TRUE );
+	vips_image_set_progress( tile_source->image, TRUE );
 
 	g_object_set( VIPS_OBJECT( operation ),
 		"in", tile_source->image,

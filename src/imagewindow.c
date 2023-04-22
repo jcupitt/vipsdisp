@@ -18,7 +18,7 @@ struct _ImageWindow
 	GtkDialog *saveas_dialog;
 	SaveOptions *save_options;
 
-        /* Last known mouse postion, in gtk coordinates. We keep these in gtk
+	/* Last known mouse postion, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
 	 */
 	double last_x_gtk;
@@ -633,13 +633,13 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 		NULL );
 
 	/* Apply values from the SaveOptions widget UI to the operation.
-  	 */
+	*/
 	save_options_build_save_operation( save_options, operation );
 
 	/* Perform the operation on the image held by TileSource.
 	 */
-        if( tile_source_write_to_file( image_window->tile_source, operation ) )
-        	image_window_error( image_window );
+	if( tile_source_write_to_file( image_window->tile_source, operation ) )
+		image_window_error( image_window );
 
 	/* Clean up the save_options dynamically allocated memory and widgets.
 	 */
@@ -656,7 +656,7 @@ save_window_save_cb( GtkWidget *it, gpointer _windows )
 
 	/* Destroy the saveas dialog.
 	 */
-        gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
+	gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 #define DEFAULT_SPACING 10
@@ -803,11 +803,11 @@ image_window_saveas_response( GtkDialog *dialog,
 
 	win->saveas_dialog = dialog;
 
-        /* We need to pop down immediately so we expose the cancel
-         * button.
-         */
-        image_window_error_hide( win );
-        //gtk_window_destroy( GTK_WINDOW( dialog ) );
+	/* We need to pop down immediately so we expose the cancel
+	 * button.
+	 */
+	image_window_error_hide( win );
+	//gtk_window_destroy( GTK_WINDOW( dialog ) );
 
 	switch( response_id ){
 

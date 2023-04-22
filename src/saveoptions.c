@@ -79,12 +79,12 @@ save_options_init( SaveOptions *save_options,
 SaveOptions *
 save_options_new( GtkBox *parent_box, ImageWindow *image_window )
 {
-        SaveOptions *save_options;
+	SaveOptions *save_options;
 		
 	save_options = save_options_new_empty();
 	save_options_init( save_options, parent_box, image_window );
 
-        return( save_options );
+	return( save_options );
 }
 
 /* Get the the image window currently held by a SaveOptions object.
@@ -94,7 +94,7 @@ save_options_new( GtkBox *parent_box, ImageWindow *image_window )
 ImageWindow *
 save_options_get_image_window( SaveOptions *save_options )
 {
-        return save_options->image_window;
+	return save_options->image_window;
 }
 
 /* This is a helper function used by:
@@ -746,9 +746,9 @@ void
 save_options_image_window_changed( ImageWindow *win, SaveOptions *save_options )
 {
 	TileSource *tile_source = image_window_get_tile_source( win );
-        g_signal_connect_object( tile_source, "changed",
-                G_CALLBACK( save_options_tile_source_changed ),
-                save_options, 0 );
+	g_signal_connect_object( tile_source, "changed",
+		G_CALLBACK( save_options_tile_source_changed ),
+		save_options, 0 );
 }
 
 /* Set a new image_window
@@ -759,8 +759,8 @@ void
 save_options_set_image_window( SaveOptions *save_options,
 	ImageWindow *image_window )
 {
-        save_options->image_window = image_window;
-        g_signal_connect_object( image_window, "changed",
-                G_CALLBACK( save_options_image_window_changed ),
-                save_options, 0 );
+	save_options->image_window = image_window;
+	g_signal_connect_object( image_window, "changed",
+		G_CALLBACK( save_options_image_window_changed ),
+		save_options, 0 );
 }
