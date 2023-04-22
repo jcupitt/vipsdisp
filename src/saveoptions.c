@@ -46,8 +46,6 @@ save_options_init( SaveOptions *save_options,
 
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 ) );
-	
-	//gtk_box_set_homogeneous( content_box, TRUE );
 
 	save_options->content_box = content_box;
 
@@ -140,15 +138,9 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 	w0 = gtk_grid_get_child_at( GTK_GRID( grid ), 2, *row_index );
 
-	//g_assert( w0 );
-
 	w1 = gtk_widget_get_first_child( w0 );
 
-	//g_assert( w1 );
-
 	t = gtk_widget_get_first_child( w1 );
-
-	//g_assert( t );
 
 	/* Handle types that are not VipsImage or VipsObject.
 	 */
@@ -389,8 +381,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	g_assert( grid );
 
-	//gtk_grid_insert_row( GTK_GRID( grid ), save_options->row_count );
-
 	// INPUT
 
 	/* Add a user input widget for this property to the box. The widget
@@ -501,11 +491,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
-	//gtk_widget_set_halign( t, GTK_ALIGN_FILL );
-
 	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		0 );
-	//gtk_widget_set_halign( box, GTK_ALIGN_FILL );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 		g_param_spec_get_blurb( pspec ) );
 
@@ -608,8 +595,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	content_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		0 );
 
-	//gtk_widget_set_halign( content_box, GTK_ALIGN_FILL );
-
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = GTK_BOX( content_box );
@@ -642,10 +627,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	gtk_widget_set_margin_end( grid, 10 );
 	gtk_widget_set_margin_bottom( grid, 10 );
 	gtk_widget_set_margin_start( grid, 10 );
-
-	//gtk_box_append( content_box, GTK_WIDGET( label_box ) );
-	
-	//gtk_box_append( content_box, GTK_WIDGET( input_box ) );
 
 	gtk_box_append( GTK_BOX( content_box ), grid );
 
