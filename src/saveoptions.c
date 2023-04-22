@@ -96,7 +96,7 @@ save_options_get_image_window( SaveOptions *save_options )
  */
 static void
 save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
-	VipsArgumentClass *argument_class, guint *row_index,
+	VipsArgumentClass *argument_class, int *row_index,
 	SaveOptions *save_options, VipsObject *operation )
 {
 	if ( *row_index == save_options->row_count )
@@ -162,7 +162,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-		guint value = pspec_enum->enum_class->values[index].value;
+		int value = pspec_enum->enum_class->values[index].value;
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
@@ -253,7 +253,7 @@ save_options_build_save_operation_argument_map_fn( VipsObject *operation,
 	void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
-	guint *row_index = (guint *)a;
+	int *row_index = (int *)a;
 	SaveOptions *save_options = (SaveOptions *)b;
 
 	/* Include arguments listed in the constructor.
@@ -275,9 +275,9 @@ save_options_build_save_operation( SaveOptions *save_options,
 	VipsOperation *operation )
 {
 	gchar *filename;
-	guint *row_index;
+	int *row_index;
 
-	row_index = g_malloc( sizeof( guint ) );
+	row_index = g_malloc( sizeof( int ) );
 
 	*row_index = 0;
 

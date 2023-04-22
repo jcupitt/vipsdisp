@@ -40,7 +40,7 @@ struct SaveOptions {
 	 * calls to gtk_grid_attach, as we iterate over the properties of
 	 * the VipsForeignSave object.
 	 */
-	guint row_count;
+	int row_count;
 };
 
 /* Clean up the SaveOptions object.
