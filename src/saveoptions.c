@@ -292,28 +292,8 @@ save_options_build_save_operation( SaveOptions *save_options,
 
 	*row_index = 0;
 
-	GtkWidget *content_box, *label_box, *input_box,
-		*grid;
-
 	g_object_get( G_OBJECT( operation ),
 		"filename", &filename, NULL );
-
-	/* Get the pointer to the content box widget, held by the SaveOptions
-	 * object.
-	 */
-	content_box = GTK_WIDGET( save_options->content_box );
-
-	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
-
-	/* Get the GtkBox widget that contains the GtkLabel widget for the
-	 * current property in the iteration.
-	 */
-	label_box = gtk_grid_get_child_at( GTK_GRID( grid ), 0, 0 );
-
-	/* Get the GtkBox widget that contains the user input widget for
-	* the current property in the iteration.
-	 */
-	input_box = gtk_grid_get_child_at( GTK_GRID( grid ), 2, 0 );
 
 	/* Loop over the properties of the save operation. Apply the values from
 	 * each widget to the save operation.
