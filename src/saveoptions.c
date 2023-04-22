@@ -50,8 +50,6 @@ save_options_init( SaveOptions *save_options,
 
 	save_options->row_count = 0;
 
-	g_assert( parent_box );
-
 	scrolled_window = gtk_scrolled_window_new();
 
 	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
@@ -123,8 +121,6 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	property_name = g_param_spec_get_name( pspec );
 
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
-
-	g_assert( grid );
 
 	/* Use the current value of the row_index to determine the next row. The
 	 * rows are attached in increasing index order, from top to bottom. Thus
@@ -293,8 +289,6 @@ save_options_build_save_operation( SaveOptions *save_options,
 	gchar *filename;
 	guint *row_index;
 
-	g_assert( save_options->row_count );
-
 	row_index = g_malloc( sizeof( guint ) );
 
 	*row_index = 0;
@@ -305,34 +299,22 @@ save_options_build_save_operation( SaveOptions *save_options,
 	g_object_get( G_OBJECT( operation ),
 		"filename", &filename, NULL );
 
-	g_assert( filename );
-
 	/* Get the pointer to the content box widget, held by the SaveOptions
 	 * object.
 	 */
 	content_box = GTK_WIDGET( save_options->content_box );
 
-	g_assert( content_box );
-
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
-
-	g_assert( grid );
 
 	/* Get the GtkBox widget that contains the GtkLabel widget for the
 	 * current property in the iteration.
 	 */
 	label_box = gtk_grid_get_child_at( GTK_GRID( grid ), 0, 0 );
 
-	g_assert( label_box );
-
 	/* Get the GtkBox widget that contains the user input widget for
 	* the current property in the iteration.
 	 */
 	input_box = gtk_grid_get_child_at( GTK_GRID( grid ), 2, 0 );
-
-	g_assert( input_box );
-
-	g_assert( label_box != input_box );
 
 	/* Loop over the properties of the save operation. Apply the values from
 	 * each widget to the save operation.
@@ -377,8 +359,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
-
-	g_assert( grid );
 
 	/* Create the GtkBox widget containing the user input widget appropriate
 	 * for the current property in the iteration.
@@ -502,11 +482,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	gtk_widget_set_hexpand( t, TRUE );
 
-	g_assert( box );
-
 	gtk_box_append( GTK_BOX( box ), t );
-
-	g_assert( input_box );
 
 	gtk_box_append( GTK_BOX( input_box ), box );
 
@@ -567,9 +543,6 @@ void
 save_options_build_content_box( SaveOptions *save_options,
 	VipsOperation *operation )
 {
-	g_assert( save_options->parent_box );
-	g_assert( operation );
-
 	vips_argument_map( VIPS_OBJECT( operation ),
 		save_options_build_content_box_argument_map_fn,
 		save_options,
