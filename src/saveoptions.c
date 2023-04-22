@@ -26,6 +26,7 @@ save_options_new_empty()
 	save_options->parent_box = NULL;
 	save_options->image_window = NULL;
 	save_options->content_box = NULL;
+	save_options->row_count = 0;
 
 	return save_options;
 }
