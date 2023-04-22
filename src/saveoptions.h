@@ -74,11 +74,11 @@ void save_options_build_save_operation( SaveOptions *, VipsOperation * );
 
 /* Present the save options menu to the user.
  */
-gint save_options_show( SaveOptions * );
+int save_options_show( SaveOptions * );
 
 /* Hide the save options menu from the user.
  */
-gint save_options_hide( SaveOptions * );
+int save_options_hide( SaveOptions * );
 
 /* Iterate over the properties of the VipsOperation to dynamically generate
  * the grid of user input widgets for the save options for the VipsForeginSave

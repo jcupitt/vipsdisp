@@ -161,7 +161,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+		int index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
 		int value = pspec_enum->enum_class->values[index].value;
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
@@ -174,7 +174,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
-		gint64 value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+		gint64 value = (int) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
@@ -193,10 +193,10 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-			gint value;
+			int value;
 			VipsArrayInt *array_int;
 
-			value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+			value = (int) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
@@ -379,7 +379,7 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 			pspec_int->maximum, 1 );
 
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(gint)pspec_int->default_value );
+			(int)pspec_int->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
@@ -503,7 +503,7 @@ save_options_build_content_box( SaveOptions *save_options,
 
 /* Clean up the old content_box widget, and create a new one.
  */
-static gint
+static int
 save_options_reset_content_box( SaveOptions *save_options )
 {
 	GtkWidget *content_box, *grid, *scrolled_window;
@@ -558,7 +558,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 	return 0;
 }
 
-gint
+int
 save_options_show( SaveOptions *save_options )
 {
 	GFile *target_file;
@@ -587,7 +587,7 @@ save_options_show( SaveOptions *save_options )
 	return 0;
 }
 
-gint
+int
 save_options_hide( SaveOptions *save_options )
 {
 	if( !save_options )
