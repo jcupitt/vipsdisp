@@ -9,10 +9,13 @@
 void
 save_options_free( SaveOptions *save_options )
 {
-	GtkWidget *it = gtk_widget_get_first_child(
+	GtkWidget *it;
+
+	it = gtk_widget_get_first_child(
 		GTK_WIDGET( save_options->parent_box ) );
 	if ( it )
 		gtk_box_remove( save_options->parent_box, it );
+
 	g_free( save_options );
 }
 
@@ -39,14 +42,11 @@ save_options_init( SaveOptions *save_options,
 	GtkWidget *scrolled_window;
 
 	save_options->image_window = image_window;
-
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 ) );
 
 	save_options->content_box = content_box;
-
 	save_options->parent_box = parent_box;
-
 	save_options->row_count = 0;
 
 	scrolled_window = gtk_scrolled_window_new();
@@ -118,7 +118,6 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	}
 
 	property_name = g_param_spec_get_name( pspec );
-
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
 
 	/* Use the current value of the row_index to determine the next row. The
@@ -156,46 +155,38 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		gboolean active = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, active,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-
 		gint index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-
 		guint value = pspec_enum->enum_class->values[index].value;
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		gint64 value = (gint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		gint64 value = (gint) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		guint64 value = (guint64) gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-
 		g_object_set( VIPS_OBJECT( operation ),
 			property_name, value,
 			NULL );
@@ -219,14 +210,12 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
 			gdouble value;
 			VipsArrayDouble *array_double;
-
 			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
 			 */
 			array_double = vips_array_double_newv( 1, value );
-
 			g_object_set( VIPS_OBJECT( operation ),
 				property_name, array_double,
 				NULL );
@@ -342,7 +331,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	/* Create the GtkBox widget containing the user input widget appropriate
 	 * for the current property in the iteration.
 	 */
-
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
 		0 );
 
@@ -352,7 +340,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	 */
 	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-
 		GtkEntryBuffer* buffer =
 			gtk_entry_buffer_new( pspec_string->default_value, -1 );
 
@@ -360,15 +347,12 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
-
 		t = gtk_check_button_new();
-
 		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
 			pspec_boolean->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-
 		const char **property_nicknames =
 			g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
 
@@ -376,17 +360,13 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 			property_nicknames[i] =
 				pspec_enum->enum_class->values[i].value_nick;
 		}
-
 		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
-
 		t = gtk_drop_down_new_from_strings( property_nicknames );
-
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
 			pspec_enum->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
-
 		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
 			pspec_int64->maximum, 1 );
 
@@ -395,7 +375,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
-
 		t = gtk_spin_button_new_with_range( pspec_int->minimum,
 			pspec_int->maximum, 1 );
 
@@ -404,7 +383,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
-
 		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
 			pspec_uint64->maximum, 1 );
 
@@ -426,7 +404,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 			 * some up for now.
 			 */
 			t = gtk_spin_button_new_with_range( 0, 1000, 1 );
-
 			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
@@ -434,7 +411,6 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 			 * some up for now.
 			 */
 			t = gtk_spin_button_new_with_range( 0, 1000, .1 );
-
 			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
@@ -456,16 +432,15 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 
 	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		0 );
+
 	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 		g_param_spec_get_blurb( pspec ) );
 
 	gtk_widget_set_hexpand( t, TRUE );
-
 	gtk_box_append( GTK_BOX( box ), t );
-
 	gtk_box_append( GTK_BOX( input_box ), box );
-
-	gtk_grid_attach( GTK_GRID( grid ), input_box, 2, save_options->row_count, 1, 1 );
+	gtk_grid_attach( GTK_GRID( grid ), input_box, 2,
+		save_options->row_count, 1, 1 );
 
 	/* Create the GtkBox widget containing the GtkLabel widget with the
 	 * user-facing name of the current property in the iteration.
@@ -475,13 +450,11 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		0 );
 
 	gtk_widget_set_valign( label_box, GTK_ALIGN_CENTER );
-		
 	label = gtk_label_new( property_name );
 	gtk_widget_set_hexpand( label, FALSE );
-
 	gtk_box_append( GTK_BOX( label_box ), label );
-
-	gtk_grid_attach( GTK_GRID( grid ), label_box, 0, save_options->row_count, 1, 1 );
+	gtk_grid_attach( GTK_GRID( grid ), label_box, 0,
+		save_options->row_count, 1, 1 );
 
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
@@ -536,7 +509,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	GtkWidget *content_box, *grid, *scrolled_window;
 
 	content_box = GTK_WIDGET( save_options->content_box );
-
 	if( content_box ) {
 		GtkWidget *it = gtk_widget_get_first_child(
 			GTK_WIDGET( save_options->parent_box ) );
@@ -552,9 +524,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = GTK_BOX( content_box );
-
 	scrolled_window = gtk_scrolled_window_new();
-
 	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
 		GTK_POLICY_NEVER,
 		GTK_POLICY_ALWAYS );
@@ -567,21 +537,18 @@ save_options_reset_content_box( SaveOptions *save_options )
 		GTK_SCROLLED_WINDOW( scrolled_window ),
 		500);
 
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ), GTK_WIDGET( content_box ) );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ),
+		GTK_WIDGET( content_box ) );
 
 	gtk_box_append( save_options->parent_box, scrolled_window );
 
 	grid = gtk_grid_new();
-
 	gtk_grid_set_row_spacing( GTK_GRID( grid ), 20 );
-
 	gtk_grid_set_column_spacing( GTK_GRID( grid ), 20 );
-
 	gtk_widget_set_margin_top( grid, 10 );
 	gtk_widget_set_margin_end( grid, 10 );
 	gtk_widget_set_margin_bottom( grid, 10 );
 	gtk_widget_set_margin_start( grid, 10 );
-
 	gtk_box_append( GTK_BOX( content_box ), grid );
 
 	save_options->row_count = 0;
@@ -599,7 +566,6 @@ save_options_show( SaveOptions *save_options )
 	VipsOperation *operation;
 
 	save_options_reset_content_box( save_options );
-
 	target_file = image_window_get_target_file( save_options->image_window );
 
 	/* Return error code if path is bad.
