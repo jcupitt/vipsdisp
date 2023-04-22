@@ -1,5 +1,4 @@
 #include "vipsdisp.h"
-#include <assert.h>
 
 #define DEFAULT_SPACING 10
 
