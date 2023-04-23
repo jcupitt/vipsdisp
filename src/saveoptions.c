@@ -39,7 +39,6 @@ save_options_init( SaveOptions *save_options,
 	ImageWindow *image_window )
 {
 	GtkBox *content_box;
-	GtkWidget *scrolled_window;
 
 	save_options->image_window = image_window;
 	content_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
@@ -48,24 +47,6 @@ save_options_init( SaveOptions *save_options,
 	save_options->content_box = content_box;
 	save_options->parent_box = parent_box;
 	save_options->row_count = 0;
-
-	scrolled_window = gtk_scrolled_window_new();
-
-	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
-		GTK_POLICY_NEVER,
-		GTK_POLICY_ALWAYS );
-
-	gtk_scrolled_window_set_min_content_height(
-		GTK_SCROLLED_WINDOW( scrolled_window ),
-		400);
-
-	gtk_scrolled_window_set_max_content_height(
-		GTK_SCROLLED_WINDOW( scrolled_window ),
-		500);
-
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ), GTK_WIDGET( content_box ) );
-
-	gtk_box_append( parent_box, scrolled_window );
 }
 
 SaveOptions *
@@ -506,7 +487,7 @@ save_options_build_content_box( SaveOptions *save_options,
 static int
 save_options_reset_content_box( SaveOptions *save_options )
 {
-	GtkWidget *content_box, *grid, *scrolled_window;
+	GtkWidget *content_box, *grid;
 
 	content_box = GTK_WIDGET( save_options->content_box );
 	if( content_box ) {
@@ -524,23 +505,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	/* Give the SaveOptions the pointer to the new content box.
 	 */
 	save_options->content_box = GTK_BOX( content_box );
-	scrolled_window = gtk_scrolled_window_new();
-	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
-		GTK_POLICY_NEVER,
-		GTK_POLICY_ALWAYS );
-
-	gtk_scrolled_window_set_min_content_height(
-		GTK_SCROLLED_WINDOW( scrolled_window ),
-		400);
-
-	gtk_scrolled_window_set_max_content_height(
-		GTK_SCROLLED_WINDOW( scrolled_window ),
-		500);
-
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ),
-		GTK_WIDGET( content_box ) );
-
-	gtk_box_append( save_options->parent_box, scrolled_window );
 
 	grid = gtk_grid_new();
 	gtk_grid_set_row_spacing( GTK_GRID( grid ), 20 );
@@ -564,6 +528,7 @@ save_options_show( SaveOptions *save_options )
 	GFile *target_file;
 	gchar *path, *filename_suffix, *operation_name;
 	VipsOperation *operation;
+	GtkWidget *scrolled_window;
 
 	save_options_reset_content_box( save_options );
 	target_file = image_window_get_target_file( save_options->image_window );
@@ -573,13 +538,54 @@ save_options_show( SaveOptions *save_options )
 	if( !(path = g_file_get_path( target_file ))
 		|| !(filename_suffix = strrchr( path, '.' ))
 		|| !(operation_name = g_strdup_printf( "%ssave", ++filename_suffix )) )
-		return -1;
+	{
+		vips_error( "vipsdisp", "Bad file path." );
+		return SAVE_OPTIONS_ERROR_PATH;
+	}
 
 	/* Return error code if failed to created operation.
 	 */
-	if( !(operation = vips_operation_new( operation_name )) )
-		return -2;
+	if( !(operation = vips_operation_new( operation_name )) ) {
+		//vips_error( "vipsdisp", "Invalid image type." );
+		return SAVE_OPTIONS_ERROR_IMAGE_TYPE;
+	}
+	
+	/* Create the scrolled window that will contain the content box.
+	 */
+	scrolled_window = gtk_scrolled_window_new();
 
+	/* Set the scrolled window's policy so that a vertical scrollbar always
+	 * appears.
+	 */
+	gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled_window ),
+		GTK_POLICY_NEVER,
+		GTK_POLICY_ALWAYS );
+
+	/* Set the minimum height of the scrolled window.
+	*/
+	gtk_scrolled_window_set_min_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		400);
+
+	/* Set the maximum height of the scrolled window.
+	*/
+	gtk_scrolled_window_set_max_content_height(
+		GTK_SCROLLED_WINDOW( scrolled_window ),
+		500);
+
+	/* Make the content_box the ( only ) child of the scrolled window.
+	*/
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ),
+		GTK_WIDGET( save_options->content_box ) );
+
+	/* Append the scrolled window to the parent box.
+	 */
+	gtk_box_append( save_options->parent_box, scrolled_window );
+
+	/* Dynamically fill the content box with labels and user input widgets,
+	 * based on the properties of the desired image file type for the save
+	 * operation.
+	 */
 	save_options_build_content_box( save_options, operation );
 
 	/* Return EXIT_SUCCESS code.

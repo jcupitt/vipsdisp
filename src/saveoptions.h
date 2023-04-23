@@ -1,7 +1,6 @@
 #ifndef __SAVEOPTIONS_H
 #define __SAVEOPTIONS_H
 
-////////////////////////////////////////////////////////////////////////////////
 /* The SaveOptions class holds
  *
  * 	- widgets that manage and display the VIPS save options for a particular
@@ -42,6 +41,15 @@ struct SaveOptions {
 	 */
 	int row_count;
 };
+
+/* Result codes used by SaveOptions methods ( currently, just
+ * save_options_show ).
+ */
+typedef enum {
+	SAVE_OPTIONS_SUCCESS = 0,
+	SAVE_OPTIONS_ERROR_PATH = -1,
+	SAVE_OPTIONS_ERROR_IMAGE_TYPE = -2,
+} SAVE_OPTIONS_RESULT;
 
 /* Clean up the SaveOptions object.
  */

@@ -668,6 +668,8 @@ image_window_open_save_options( ImageWindow *image_window )
 	GtkWidget *save_options_window, *cancel, *save, *hbox;
 	GtkBox *parent_box;
 	gpointer **windows;
+	SAVE_OPTIONS_RESULT save_options_result;
+	char* label_text;
 
 	/* Create a new window for the save options
 	 */
@@ -720,79 +722,165 @@ image_window_open_save_options( ImageWindow *image_window )
 
 	/* Show the SaveOptions content_box
 	 */
-	save_options_show( save_options );
+	save_options_result = save_options_show( save_options );
 
-	/* Create and position the cancel and save buttons.
-	 */
-	cancel = gtk_button_new_with_label("Cancel");
-	save = gtk_button_new_with_label("Save");
-	gtk_widget_set_margin_start( cancel, DEFAULT_SPACING );
-	gtk_widget_set_margin_end( save, DEFAULT_SPACING );
+	switch( save_options_result ) {
+	case SAVE_OPTIONS_SUCCESS:
 
-	/* Create a horizonally oriented box to contain the save and cancel
-	 * buttons. We'll call it the button box.
-	 */
-	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
+		/* Create and position the cancel and save buttons.
+		 */
+		cancel = gtk_button_new_with_label("Cancel");
+		save = gtk_button_new_with_label("Save");
+		gtk_widget_set_margin_start( cancel, DEFAULT_SPACING );
+		gtk_widget_set_margin_end( save, DEFAULT_SPACING );
 
-	/* Add some space between the cancel/save buttons and the top edge of
-	 * the window.
-	 */
-	gtk_widget_set_margin_top( hbox, DEFAULT_SPACING );
+		/* Create a horizonally oriented box to contain the save and
+		 * cancel buttons. We'll call it the button box.
+		 */
+		hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
 
-	/* Make the button box's child boxes the same width. The child boxes
-	 * are used to position the buttons and title.
-	 */
-	gtk_box_set_homogeneous( GTK_BOX( hbox ), TRUE );
+		/* Add some space between the cancel/save buttons and the top
+		 * edge of the window.
+		 */
+		gtk_widget_set_margin_top( hbox, DEFAULT_SPACING );
 
-	GtkWidget *box1, *box2, *box3;
+		/* Make the button box's child boxes the same width. The child
+		 * boxes  are used to position the buttons and title.
+		 */
+		gtk_box_set_homogeneous( GTK_BOX( hbox ), TRUE );
 
-	box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
-	gtk_box_append( GTK_BOX( box1 ), cancel );
+		GtkWidget *box1, *box2, *box3;
 
-	box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		gtk_box_append( GTK_BOX( box1 ), cancel );
 
-	/* Create the save options window label (the title).
-	 */
-	GtkWidget *label;
-	label = gtk_label_new( "Save Options" );
-	gtk_widget_set_vexpand( label, TRUE );
-	gtk_box_append( GTK_BOX( box2 ), label );
+		box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
 
-	box3 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
-	gtk_box_append( GTK_BOX( box3 ), save );
+		/* Create the save options window label (the title).
+		 */
+		GtkWidget *label;
+		label = gtk_label_new( "Save Options" );
+		gtk_widget_set_vexpand( label, TRUE );
+		gtk_box_append( GTK_BOX( box2 ), label );
 
-	gtk_widget_set_halign( hbox, GTK_ALIGN_FILL );
+		box3 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		gtk_box_append( GTK_BOX( box3 ), save );
 
-	gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
+		gtk_widget_set_halign( hbox, GTK_ALIGN_FILL );
 
-	/* Append the save and cancel buttons to the horizontal box.
-	 */
-	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box1 ) );
-	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box2 ) );
-	gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box3 ) );
+		gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
 
-	/* Prepend the button box to the parent box.
-	 */
-	gtk_box_prepend( GTK_BOX( parent_box ), GTK_WIDGET( hbox ) );
+		/* Append the save and cancel buttons to the horizontal box.
+		 */
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box1 ) );
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box2 ) );
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box3 ) );
 
-	/* Create an array containing the two GtkWindows the save and cancel
-	 * button callback functions will need.
-	 */
-	windows = g_malloc( 2 * sizeof( GtkWindow* ) );
-	windows[0] = (gpointer) image_window;
-	windows[1] = (gpointer) save_options_window;
+		/* Prepend the button box to the parent box.
+		 */
+		gtk_box_prepend( GTK_BOX( parent_box ), GTK_WIDGET( hbox ) );
 
-	/* Connect the callback functions to the "clicked" signal for the
-	 * save and cancel buttons.
-	 */
-	g_signal_connect( cancel, "clicked", G_CALLBACK( save_window_cancel_cb ), windows );
-	g_signal_connect( save, "clicked", G_CALLBACK( save_window_save_cb ), windows );
+		/* Create an array containing the two GtkWindows the save and
+		 * cancel button callback functions will need.
+		 */
+		windows = g_malloc( 2 * sizeof( GtkWindow* ) );
+		windows[0] = (gpointer) image_window;
+		windows[1] = (gpointer) save_options_window;
 
-	/* Show the save options window, which contains the parent box, which
-	 * contains the content box, which contains the dynamically generated
-	 * widgets.
-	 */
-	gtk_widget_show( GTK_WIDGET( save_options_window ) );
+		/* Connect the callback functions to the "clicked" signal for
+		 * the save and cancel buttons.
+		 */
+		g_signal_connect( cancel, "clicked",
+			G_CALLBACK( save_window_cancel_cb ), windows );
+
+		g_signal_connect( save, "clicked",
+			G_CALLBACK( save_window_save_cb ), windows );
+
+		/* Show the save options window, which contains the parent box,
+		 * which contains the content box, which contains the
+		 * dynamically generated widgets.
+		 */
+		gtk_widget_show( GTK_WIDGET( save_options_window ) );
+
+		break;
+	case SAVE_OPTIONS_ERROR_PATH:
+	case SAVE_OPTIONS_ERROR_IMAGE_TYPE:
+		/* Get a copy of the VIPS error buffer ( the error message from
+		 * save_options_show ), and clear the VIPS error buffer.
+		 */
+		label_text = vips_error_buffer_copy();
+
+		/* Create a label containing the error message.
+		 */
+		label = gtk_label_new( label_text );
+
+		/* Append the label containing the error message to the parent
+		 * box.
+		 */
+		gtk_box_append( GTK_BOX( parent_box ), GTK_WIDGET( label ) );
+
+		/* Create a horizonally oriented box to contain the button.
+		 */
+		hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
+
+		/* The button should be centered. */
+		gtk_widget_set_halign( hbox, GTK_ALIGN_CENTER );
+
+		/* Create the cancel button, which will just be labelled
+		 * "Close", since this is an error dialog in a window that sits
+		 * atop the file chooser.
+		 */
+		cancel = gtk_button_new_with_label( "Close" );
+
+		/* Create an array containing the two GtkWindows cancel button
+		 * callback function will need.
+		 */
+		windows = g_malloc( 2 * sizeof( GtkWindow* ) );
+		windows[0] = (gpointer) image_window;
+		windows[1] = (gpointer) save_options_window;
+
+
+		/* Connect the callback function to the "clicked" signal for
+		 * the cancel button ( i.e., the "Closed" button ).
+		 */
+		g_signal_connect( cancel, "clicked",
+			G_CALLBACK( save_window_cancel_cb ), windows );
+
+
+		/* Append the "Close" button ( the cancel button of the error
+		 * dialog ) to the hbox.
+		 */
+		gtk_box_append( GTK_BOX( hbox ), cancel );
+
+		/* Append the box containing the buttons to the parent box.
+		 */
+		gtk_box_append( GTK_BOX( parent_box ), hbox );
+
+		/* Center children of the parent box vertically.
+		 */
+		gtk_widget_set_valign( GTK_WIDGET( parent_box ), GTK_ALIGN_CENTER );
+
+		/* Add margin to the sides of the parent box.
+		 */
+		gtk_widget_set_margin_start( GTK_WIDGET( parent_box ), DEFAULT_SPACING );
+		gtk_widget_set_margin_end( GTK_WIDGET( parent_box ), DEFAULT_SPACING );
+
+		/* Show the save options window, which contains the parent box,
+		 * which contains the label containing the error message, and
+		 * the "Close" button. 
+		 */
+		gtk_widget_show( GTK_WIDGET( save_options_window ) );
+
+		/* Show the error message bar at the top of the image window. */
+		image_window_error( image_window );
+
+		free( label_text );
+
+		break;
+	default:
+		vips_error( "vipsdisp", "An error occured." );
+		break;
+	};
 }
 
 static void
