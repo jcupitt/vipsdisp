@@ -805,81 +805,20 @@ image_window_open_save_options( ImageWindow *image_window )
 		break;
 	case SAVE_OPTIONS_ERROR_PATH:
 	case SAVE_OPTIONS_ERROR_IMAGE_TYPE:
+	default:
 		/* Get a copy of the VIPS error buffer ( the error message from
 		 * save_options_show ), and clear the VIPS error buffer.
 		 */
 		label_text = vips_error_buffer_copy();
 
-		/* Create a label containing the error message.
+		/* Pass the error message to the function responsible for
+		 * displaying it in the file chooser dialog.
 		 */
-		label = gtk_label_new( label_text );
+		save_options_error_message_set( save_options, label_text );
 
-		/* Append the label containing the error message to the parent
-		 * box.
+		/* Clean up the buffer copy we created.
 		 */
-		gtk_box_append( GTK_BOX( parent_box ), GTK_WIDGET( label ) );
-
-		/* Create a horizonally oriented box to contain the button.
-		 */
-		hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
-
-		/* The button should be centered. */
-		gtk_widget_set_halign( hbox, GTK_ALIGN_CENTER );
-
-		/* Create the cancel button, which will just be labelled
-		 * "Close", since this is an error dialog in a window that sits
-		 * atop the file chooser.
-		 */
-		cancel = gtk_button_new_with_label( "Close" );
-
-		/* Create an array containing the two GtkWindows cancel button
-		 * callback function will need.
-		 */
-		windows = g_malloc( 2 * sizeof( GtkWindow* ) );
-		windows[0] = (gpointer) image_window;
-		windows[1] = (gpointer) save_options_window;
-
-
-		/* Connect the callback function to the "clicked" signal for
-		 * the cancel button ( i.e., the "Closed" button ).
-		 */
-		g_signal_connect( cancel, "clicked",
-			G_CALLBACK( save_window_cancel_cb ), windows );
-
-
-		/* Append the "Close" button ( the cancel button of the error
-		 * dialog ) to the hbox.
-		 */
-		gtk_box_append( GTK_BOX( hbox ), cancel );
-
-		/* Append the box containing the buttons to the parent box.
-		 */
-		gtk_box_append( GTK_BOX( parent_box ), hbox );
-
-		/* Center children of the parent box vertically.
-		 */
-		gtk_widget_set_valign( GTK_WIDGET( parent_box ), GTK_ALIGN_CENTER );
-
-		/* Add margin to the sides of the parent box.
-		 */
-		gtk_widget_set_margin_start( GTK_WIDGET( parent_box ), DEFAULT_SPACING );
-		gtk_widget_set_margin_end( GTK_WIDGET( parent_box ), DEFAULT_SPACING );
-
-		/* Show the save options window, which contains the parent box,
-		 * which contains the label containing the error message, and
-		 * the "Close" button. 
-		 */
-		gtk_widget_show( GTK_WIDGET( save_options_window ) );
-
-		/* Show the error message bar at the top of the image window. */
-		image_window_error( image_window );
-
 		free( label_text );
-
-		break;
-	default:
-		vips_error( "vipsdisp", "An error occured." );
-		break;
 	};
 }
 

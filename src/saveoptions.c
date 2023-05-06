@@ -522,6 +522,65 @@ save_options_reset_content_box( SaveOptions *save_options )
 	return 0;
 }
 
+/* Add a GtkInfoBar, containing an error message and a close button, at the
+ * top of the GtkFileChooser widget.
+ */
+void
+save_options_error_message_set( SaveOptions* save_options, char* err_msg )
+{
+	GtkWidget *saveoptions_win, *content_area;
+	GtkWindow *file_chooser_dialog;
+
+	/* The GtkFileChooser widget is the transient parent of the SaveOptions
+	 * window, which is the parent of the parent_box. Thus can get at the 
+	 * GtkFileChooser widget like so.
+	 */
+	saveoptions_win = gtk_widget_get_parent(
+		GTK_WIDGET( save_options->parent_box ) );
+	file_chooser_dialog =
+		gtk_window_get_transient_for( GTK_WINDOW( saveoptions_win ) );
+	
+	/* The content_area of the GtkFileChooser is the GtkBox to which custom
+	 * widgets can be added. We will prepend the GtkInfoBar, containing the
+	 * error message, to the content_area of the GtkFileChooser.
+	 */
+	content_area = gtk_dialog_get_content_area(
+		GTK_DIALOG( file_chooser_dialog ) );
+
+	/* For now, I'll use a simple label instead of an infobar, to make sure
+	 * things are working.
+	 */
+	gtk_box_prepend( GTK_BOX( content_area ), gtk_label_new( err_msg ) );
+}
+
+/* Remove the GtkInfoBar from the GtkFileChooser, and clean it up. 
+ */
+void
+save_options_error_message_unset( SaveOptions* save_options )
+{
+
+	GtkWidget *saveoptions_win, *content_area, *error_bar;
+	GtkWindow *file_chooser_dialog;
+
+	saveoptions_win = gtk_widget_get_parent(
+		GTK_WIDGET( save_options->parent_box ) );
+	file_chooser_dialog =
+		gtk_window_get_transient_for( GTK_WINDOW( saveoptions_win ) );
+
+	content_area = gtk_dialog_get_content_area(
+		GTK_DIALOG( file_chooser_dialog ) );
+
+	/* To clean up the "error bar" widget, it is first retrieved from the
+	 * content area like this...
+	 */
+	error_bar = gtk_widget_get_first_child(
+		GTK_WIDGET( content_area ) );
+	
+	/* ... and then cleaned up.
+	 */
+	gtk_widget_unparent( error_bar );
+}
+
 int
 save_options_show( SaveOptions *save_options )
 {
