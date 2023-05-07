@@ -522,6 +522,13 @@ save_options_reset_content_box( SaveOptions *save_options )
 	return 0;
 }
 
+void
+save_options_error_message_destroy_cb( GtkWidget* info_bar )
+{
+	if( info_bar )
+		gtk_widget_unparent( info_bar );
+}
+
 /* Add a GtkInfoBar, containing an error message and a close button, at the
  * top of the GtkFileChooser widget.
  */
@@ -564,6 +571,7 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	g_free( markup );
 	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), label );
 	gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ), TRUE );
+	g_signal_connect( info_bar, "response", G_CALLBACK( save_options_error_message_destroy_cb ), NULL );
 	gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ), GTK_MESSAGE_ERROR );
 	gtk_box_prepend( GTK_BOX( content_area ), GTK_WIDGET( info_bar ) );
 
