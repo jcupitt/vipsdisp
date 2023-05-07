@@ -547,6 +547,12 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	 */
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
+	
+	/* Remove the old GtkInfoBar if there is one.
+	 */
+	if ( (info_bar = gtk_widget_get_first_child( content_area ) )
+		&& GTK_IS_INFO_BAR( info_bar ) )
+		gtk_widget_unparent( info_bar );
 
 	/* Prepend a GtkInfoBar widget containing the error message (in bold) to
 	 * the content_area GtkBox.
