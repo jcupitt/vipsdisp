@@ -528,7 +528,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 void
 save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 {
-	GtkWidget *saveoptions_win, *content_area;
+	GtkWidget *saveoptions_win, *content_area, *info_bar;
 	GtkWindow *file_chooser_dialog;
 
 	/* The GtkFileChooser widget is the transient parent of the SaveOptions
@@ -547,10 +547,15 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
 
-	/* For now, I'll use a simple label instead of an infobar, to make sure
-	 * things are working.
+	/* Prepend a GtkInfoBar widget containing the error message to the
+	 * content_area GtkBox.
 	 */
-	gtk_box_prepend( GTK_BOX( content_area ), gtk_label_new( err_msg ) );
+	info_bar = gtk_info_bar_new();
+	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), gtk_label_new( err_msg ) );
+	gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ), TRUE );
+	gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ), GTK_MESSAGE_ERROR );
+	gtk_box_prepend( GTK_BOX( content_area ), GTK_WIDGET( info_bar ) );
+
 }
 
 /* Remove the GtkInfoBar from the GtkFileChooser, and clean it up. 
