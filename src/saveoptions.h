@@ -94,4 +94,8 @@ int save_options_hide( SaveOptions * );
  */
 void save_options_build_content_area( SaveOptions *save_options, VipsOperation *operation );
 
+void save_options_error_message_set( SaveOptions *, char * );
+
+void save_options_error_message_unset( SaveOptions * );
+
 #endif /* __SAVEOPTIONS_H */

@@ -691,11 +691,6 @@ image_window_open_save_options( ImageWindow *image_window )
 	gtk_window_set_transient_for( GTK_WINDOW( save_options_window ),
 		GTK_WINDOW( image_window->saveas_dialog ) );
 
-	gtk_window_present( GTK_WINDOW( save_options_window ) );
-
-	gtk_window_set_modal( GTK_WINDOW( save_options_window ),
-		TRUE );
-
 	/* Create the parent box (SaveOptions::parent_box).
 	 * The content box (SaveOptions::content_box) will be appended to the
 	 * parent box. The content box contains the input widgets for the
@@ -726,6 +721,11 @@ image_window_open_save_options( ImageWindow *image_window )
 
 	switch( save_options_result ) {
 	case SAVE_OPTIONS_SUCCESS:
+
+		gtk_window_present( GTK_WINDOW( save_options_window ) );
+
+		gtk_window_set_modal( GTK_WINDOW( save_options_window ),
+			TRUE );
 
 		/* Create and position the cancel and save buttons.
 		 */
