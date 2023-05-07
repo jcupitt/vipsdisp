@@ -528,8 +528,9 @@ save_options_reset_content_box( SaveOptions *save_options )
 void
 save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 {
-	GtkWidget *saveoptions_win, *content_area, *info_bar;
+	GtkWidget *saveoptions_win, *content_area, *info_bar, *label;
 	GtkWindow *file_chooser_dialog;
+	char* markup;
 
 	/* The GtkFileChooser widget is the transient parent of the SaveOptions
 	 * window, which is the parent of the parent_box. Thus can get at the 
@@ -547,11 +548,15 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
 
-	/* Prepend a GtkInfoBar widget containing the error message to the
-	 * content_area GtkBox.
+	/* Prepend a GtkInfoBar widget containing the error message (in bold) to
+	 * the content_area GtkBox.
 	 */
 	info_bar = gtk_info_bar_new();
-	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), gtk_label_new( err_msg ) );
+	markup = g_markup_printf_escaped( "<b>%s</b>", err_msg );
+	label = gtk_label_new( "" );
+	gtk_label_set_markup( GTK_LABEL( label ), markup );
+	g_free( markup );
+	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), label );
 	gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ), TRUE );
 	gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ), GTK_MESSAGE_ERROR );
 	gtk_box_prepend( GTK_BOX( content_area ), GTK_WIDGET( info_bar ) );
