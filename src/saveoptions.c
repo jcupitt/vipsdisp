@@ -553,26 +553,43 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	 */
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
-	
-	/* Remove the old GtkInfoBar if there is one.
-	 */
-	if ( (info_bar = gtk_widget_get_first_child( content_area ) )
-		&& GTK_IS_INFO_BAR( info_bar ) )
-		gtk_widget_unparent( info_bar );
 
-	/* Prepend a GtkInfoBar widget containing the error message (in bold) to
-	 * the content_area GtkBox.
+	/* If there is no GtkInfoBar, create one.
 	 */
-	info_bar = gtk_info_bar_new();
+	if ( !((info_bar = gtk_widget_get_first_child( content_area ))
+		&& GTK_IS_INFO_BAR( info_bar )) ) {
+		info_bar = gtk_info_bar_new();
+		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
+			TRUE );
+
+		gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ),
+			GTK_MESSAGE_ERROR );
+
+		g_signal_connect( info_bar, "response",
+			G_CALLBACK( save_options_error_message_destroy_cb ),
+			NULL );
+
+		gtk_box_prepend( GTK_BOX( content_area ),
+			GTK_WIDGET( info_bar ) );
+	}	
+
+	/* If there is an old label from the previous error message, remove it.
+	 */
+	if ( (label = gtk_widget_get_first_child( info_bar ))
+		&& GTK_IS_LABEL( label ) )
+		gtk_info_bar_remove_child( GTK_INFO_BAR( info_bar ),  label );
+
+	/* Add a label containing the error message in bold text.
+	 */
 	markup = g_markup_printf_escaped( "<b>%s</b>", err_msg );
 	label = gtk_label_new( "" );
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 	g_free( markup );
 	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), label );
-	gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ), TRUE );
-	g_signal_connect( info_bar, "response", G_CALLBACK( save_options_error_message_destroy_cb ), NULL );
-	gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ), GTK_MESSAGE_ERROR );
-	gtk_box_prepend( GTK_BOX( content_area ), GTK_WIDGET( info_bar ) );
+
+	/* Reveal the GtkInfoBar.
+	 */
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), TRUE );
 
 }
 
