@@ -661,11 +661,14 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 	/* Clean up the array of two GtkWindows used to pass the ImageWindow and
 	 * save options window to the save and cancel button callback functions.
 	 */
-	//g_free( windows );
+	g_free( windows );
 
-	/* Destroy the saveas dialog.
+	/* Clean up the saveas dialog, which is annoyingly both a GtkWindow and
+	 * a GtkDialog. Both lines are necessary to avoid issues that valgrind
+	 * will find with memcheck.
 	 */
-	//gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
+	gtk_widget_unparent( GTK_WIDGET( image_window->saveas_dialog ) );
+	gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 #define DEFAULT_SPACING 10
@@ -919,7 +922,6 @@ image_window_saveas_action( GSimpleAction *action,
 		info_bar = gtk_info_bar_new();
 		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ),
 			GTK_WIDGET( win->error_message_label ) );
-			//win->error_message_label );
 
 		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
