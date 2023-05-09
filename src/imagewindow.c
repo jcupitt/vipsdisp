@@ -817,6 +817,10 @@ image_window_open_save_options( ImageWindow *image_window )
 		 */
 		gtk_widget_show( GTK_WIDGET( save_options_window ) );
 
+		/* Focus the save button.
+		 */
+		gtk_widget_grab_focus( save );
+
 		break;
 	case SAVE_OPTIONS_ERROR_PATH:
 	case SAVE_OPTIONS_ERROR_IMAGE_TYPE:
