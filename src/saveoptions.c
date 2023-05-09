@@ -522,12 +522,6 @@ save_options_reset_content_box( SaveOptions *save_options )
 	return 0;
 }
 
-void
-save_options_error_message_destroy_cb( GtkWidget* info_bar )
-{
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
-}
-
 /* Add a GtkInfoBar, containing an error message and a close button, at the
  * top of the GtkFileChooser widget.
  */
@@ -544,34 +538,18 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	 */
 	saveoptions_win = gtk_widget_get_parent(
 		GTK_WIDGET( save_options->parent_box ) );
+
 	file_chooser_dialog =
 		gtk_window_get_transient_for( GTK_WINDOW( saveoptions_win ) );
 	
 	/* The content_area of the GtkFileChooser is the GtkBox to which custom
-	 * widgets can be added. We will prepend the GtkInfoBar, containing the
-	 * error message, to the content_area of the GtkFileChooser.
+	 * widgets can be added. It contains the GtkInfoBar.
 	 */
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
 
-	/* If there is no GtkInfoBar, create one.
-	 */
-	if ( !((info_bar = gtk_widget_get_first_child( content_area ))
-		&& GTK_IS_INFO_BAR( info_bar )) ) {
-		info_bar = gtk_info_bar_new();
-		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
-			TRUE );
-
-		gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ),
-			GTK_MESSAGE_ERROR );
-
-		g_signal_connect( info_bar, "response",
-			G_CALLBACK( save_options_error_message_destroy_cb ),
-			NULL );
-
-		gtk_box_prepend( GTK_BOX( content_area ),
-			GTK_WIDGET( info_bar ) );
-	}	
+	info_bar = gtk_widget_get_first_child( content_area );
+	g_assert( GTK_IS_INFO_BAR( info_bar ) );
 
 	/* If there is an old label from the previous error message, remove it.
 	 */

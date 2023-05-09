@@ -852,10 +852,17 @@ image_window_saveas_response( GtkDialog *dialog,
 }
 
 static void
+save_options_error_message_destroy_cb( GtkWidget* info_bar )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
+}
+
+static void
 image_window_saveas_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkWidget *content_area, *info_bar;
 
 	if( win->tile_source ) {
 		GtkWidget *dialog;
@@ -877,6 +884,28 @@ image_window_saveas_action( GSimpleAction *action,
 
 		g_signal_connect( dialog, "response",
 			G_CALLBACK( image_window_saveas_response ), win );
+
+		/* The content_area of the GtkFileChooser is the GtkBox to which custom
+		 * widgets can be added. We will prepend a GtkInfoBar containing the
+		 * error message to the content_area of the GtkFileChooser.
+		 */
+		content_area = gtk_dialog_get_content_area(
+			GTK_DIALOG( dialog ) );
+
+		info_bar = gtk_info_bar_new();
+		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
+		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
+			TRUE );
+
+		gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ),
+			GTK_MESSAGE_ERROR );
+
+		g_signal_connect( info_bar, "response",
+			G_CALLBACK( save_options_error_message_destroy_cb ),
+			NULL );
+
+		gtk_box_prepend( GTK_BOX( content_area ),
+			GTK_WIDGET( info_bar ) );
 
 		gtk_widget_show( dialog );
 	}
