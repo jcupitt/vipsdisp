@@ -582,7 +582,7 @@ image_window_replace_action( GSimpleAction *action,
 static void
 save_options_window_cancel( GtkWidget *it, gpointer _windows )
 {
-	GtkWindow **windows = (GtkWindow **) _windows;
+	gpointer *windows = (gpointer *) _windows;
 	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
 	gtk_window_close( GTK_WINDOW( save_options_window ) );
 	gtk_window_set_modal( GTK_WINDOW( save_options_window ), TRUE );
@@ -603,7 +603,7 @@ save_options_window_cancel( GtkWidget *it, gpointer _windows )
 static void
 save_options_window_save( GtkWidget *it, gpointer _windows )
 {
-	GtkWindow **windows;
+	gpointer *windows;
 	VipsOperation *operation;
 	ImageWindow *image_window;
 	GtkWindow *save_options_window;
@@ -613,7 +613,7 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 
 	/* Unpack the _windows array { image_window, save_options_window }
 	 */
-	windows = (GtkWindow **) _windows;
+	windows = (gpointer *) _windows;
 	image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
 	save_options_window = GTK_WINDOW( windows[1] );
 
@@ -661,11 +661,11 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 	/* Clean up the array of two GtkWindows used to pass the ImageWindow and
 	 * save options window to the save and cancel button callback functions.
 	 */
-	g_free( windows );
+	//g_free( windows );
 
 	/* Destroy the saveas dialog.
 	 */
-	gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
+	//gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
 }
 
 #define DEFAULT_SPACING 10
@@ -676,7 +676,7 @@ image_window_open_save_options( ImageWindow *image_window )
 	SaveOptions *save_options;
 	GtkWidget *save_options_window, *cancel, *save, *hbox;
 	GtkBox *parent_box;
-	gpointer **windows;
+	gpointer *windows;
 	SAVE_OPTIONS_RESULT save_options_result;
 	char* label_text;
 
@@ -795,7 +795,7 @@ image_window_open_save_options( ImageWindow *image_window )
 		/* Create an array containing the two GtkWindows the save and
 		 * cancel button callback functions will need.
 		 */
-		windows = g_malloc( 2 * sizeof( GtkWindow* ) );
+		windows = g_malloc( 2 * sizeof( gpointer ) );
 		windows[0] = (gpointer) image_window;
 		windows[1] = (gpointer) save_options_window;
 
@@ -803,10 +803,10 @@ image_window_open_save_options( ImageWindow *image_window )
 		 * the save and cancel buttons.
 		 */
 		g_signal_connect( cancel, "clicked",
-			G_CALLBACK( save_options_window_cancel ), windows );
+			G_CALLBACK( save_options_window_cancel ), (gpointer) windows );
 
 		g_signal_connect( save, "clicked",
-			G_CALLBACK( save_options_window_save ), windows );
+			G_CALLBACK( save_options_window_save ), (gpointer) windows );
 
 		/* Show the save options window, which contains the parent box,
 		 * which contains the content box, which contains the
@@ -918,7 +918,8 @@ image_window_saveas_action( GSimpleAction *action,
 
 		info_bar = gtk_info_bar_new();
 		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ),
-			win->error_message_label );
+			GTK_WIDGET( win->error_message_label ) );
+			//win->error_message_label );
 
 		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
