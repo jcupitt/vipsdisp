@@ -1,5 +1,11 @@
 ## master
 
+## 3.0.0, ??/??/??
+
+- new menu of save options for the desired output image format
+- removed some whitespace
+- modified some line breaks
+
 ## 2.4.1, 21/8/22
 
 - remove stray printfs
