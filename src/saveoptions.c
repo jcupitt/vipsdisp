@@ -565,8 +565,7 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	/* Update the label markup with the new error message in bold text.
 	 */	
 	markup = g_markup_printf_escaped( "<b>%s</b>", err_msg );
-	gtk_label_set_markup( GTK_LABEL( save_options->error_message_label ),
-		markup );
+	gtk_label_set_markup( save_options->error_message_label, markup );
 
 	g_free( markup );
 

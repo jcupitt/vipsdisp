@@ -44,7 +44,7 @@ struct SaveOptions {
 	/* The label containing the most recent VIPS error message related to
 	 * the save options.
 	 */
-	GtkWidget *error_message_label;
+	GtkLabel *error_message_label;
 };
 
 /* Result codes used by SaveOptions methods ( currently, just

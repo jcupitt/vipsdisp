@@ -17,7 +17,7 @@ struct _ImageWindow
 
 	GtkDialog *saveas_dialog;
 	SaveOptions *save_options;
-	GtkWidget *error_message_label;
+	GtkLabel *error_message_label;
 
 	/* Last known mouse postion, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
@@ -865,8 +865,8 @@ image_window_saveas_response( GtkDialog *dialog,
 		break;
 
 	case GTK_RESPONSE_CANCEL:
-		gtk_widget_unparent( win->error_message_label );
-		win->error_message_label = gtk_label_new( NULL );
+		gtk_widget_unparent( GTK_WIDGET( win->error_message_label ) );
+		win->error_message_label = GTK_LABEL( gtk_label_new( NULL ) );
 		gtk_window_destroy( GTK_WINDOW( win->saveas_dialog ) );
 		break;
 
@@ -1599,7 +1599,7 @@ image_window_init( ImageWindow *win )
 	 * a GtkInfoBar - you can't get a reference to it's content area to
 	 * get at its child widgets.
 	 */
-	win->error_message_label = gtk_label_new( NULL );
+	win->error_message_label = GTK_LABEL( gtk_label_new( NULL ) );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1829,7 +1829,7 @@ image_window_get_target_file( ImageWindow *image_window )
 	return( file );
 }
 
-GtkWidget *
+GtkLabel *
 image_window_get_error_message_label( ImageWindow *win )
 {
 	return( win->error_message_label );
