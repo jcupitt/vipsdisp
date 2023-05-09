@@ -28,7 +28,11 @@ This program is on flathub, see:
 
 https://flathub.org/apps/search/org.libvips.vipsdisp
 
-Just click "install".
+Just click "install", or enter:
+
+```shell
+flatpak install flathub org.libvips.vipsdisp
+```
 
 ## Features
 
@@ -69,21 +73,6 @@ Just click "install".
   be fast.
 
 ## Build from source
-
-You need gtk4. On Ubuntu 22.04, build with:
-
-```
-$ cd gtk
-$ meson build . \
-  --prefix=/home/john/vips \
-  --libdir=/home/john/vips/lib 
-  -Dintrospection=disabled \
-$ cd build
-$ ninja
-$ ninja install
-```
-
-Then for vipsdisp:
 
 ```
 $ cd vipsdisp
@@ -140,6 +129,9 @@ $ vipsdisp ~/pics/k2.jpg
 * The UI layout is in the `gtk/*.ui` xml.
 
 ## TODO
+
+- gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
+  for the main window
 
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander, and save should have "save options"
