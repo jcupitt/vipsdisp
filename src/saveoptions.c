@@ -525,8 +525,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 void
 save_options_error_message_destroy_cb( GtkWidget* info_bar )
 {
-	if( info_bar )
-		gtk_widget_unparent( info_bar );
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 }
 
 /* Add a GtkInfoBar, containing an error message and a close button, at the
