@@ -741,15 +741,15 @@ image_window_open_save_options( ImageWindow *image_window )
 
 		/* Create and position the cancel and save buttons.
 		 */
-		cancel = gtk_button_new_with_label("Cancel");
-		save = gtk_button_new_with_label("Save");
+		cancel = gtk_button_new_with_label( "Cancel" );
+		save = gtk_button_new_with_label( "Save" );
 		gtk_widget_set_margin_start( cancel, DEFAULT_SPACING );
 		gtk_widget_set_margin_end( save, DEFAULT_SPACING );
 
 		/* Create a horizonally oriented box to contain the save and
 		 * cancel buttons. We'll call it the button box.
 		 */
-		hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING);
+		hbox = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
 
 		/* Add some space between the cancel/save buttons and the top
 		 * edge of the window.
@@ -763,25 +763,25 @@ image_window_open_save_options( ImageWindow *image_window )
 
 		GtkWidget *box1, *box2, *box3;
 
+		/* Create the box for the cancel button.
+		 */
 		box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
 		gtk_box_append( GTK_BOX( box1 ), cancel );
 
-		/* Create an empty box.
+		/* Create an box for the GtkLabel containing the title of the
+		 * save options window.
 		 */
 		box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
-
-		/* Create the save options window label (the title).
-		 */
 		GtkWidget *label;
 		label = gtk_label_new( "Save Options" );
 		gtk_widget_set_vexpand( label, TRUE );
 		gtk_box_append( GTK_BOX( box2 ), label );
 
+		/* Create a box for the save button.
+		 */
 		box3 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
 		gtk_box_append( GTK_BOX( box3 ), save );
-
 		gtk_widget_set_halign( hbox, GTK_ALIGN_FILL );
-
 		gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
 
 		/* Append the save and cancel buttons to the horizontal box, with the empty
