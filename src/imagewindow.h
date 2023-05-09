@@ -11,6 +11,7 @@ void image_window_open( ImageWindow *win, GFile *file );
 double image_window_get_scale( ImageWindow *win );
 TileSource *image_window_get_tile_source( ImageWindow *win );
 GFile *image_window_get_target_file( ImageWindow *win );
+GtkWidget *image_window_get_error_message_label( ImageWindow *win );
 void image_window_set_tile_source( ImageWindow *win, TileSource *tile_source );
 void image_window_get_mouse_position( ImageWindow *win,
 	double *image_x, double *image_y );

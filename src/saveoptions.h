@@ -40,6 +40,11 @@ struct SaveOptions {
 	 * the VipsForeignSave object.
 	 */
 	int row_count;
+
+	/* The label containing the most recent VIPS error message related to
+	 * the save options.
+	 */
+	GtkWidget *error_message_label;
 };
 
 /* Result codes used by SaveOptions methods ( currently, just

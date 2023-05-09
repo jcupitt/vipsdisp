@@ -29,6 +29,7 @@ save_options_new_empty()
 	save_options->image_window = NULL;
 	save_options->content_box = NULL;
 	save_options->row_count = 0;
+	save_options->error_message_label = NULL;
 
 	return save_options;
 }
@@ -47,6 +48,8 @@ save_options_init( SaveOptions *save_options,
 	save_options->content_box = content_box;
 	save_options->parent_box = parent_box;
 	save_options->row_count = 0;
+	save_options->error_message_label =
+		image_window_get_error_message_label( image_window );
 }
 
 SaveOptions *
@@ -528,7 +531,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 void
 save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 {
-	GtkWidget *saveoptions_win, *content_area, *info_bar, *label;
+	GtkWidget *saveoptions_win, *content_area, *info_bar;
 	GtkWindow *file_chooser_dialog;
 	char* markup;
 
@@ -551,19 +554,11 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 	info_bar = gtk_widget_get_first_child( content_area );
 	g_assert( GTK_IS_INFO_BAR( info_bar ) );
 
-	/* If there is an old label from the previous error message, remove it.
-	 */
-	if ( (label = gtk_widget_get_first_child( info_bar ))
-		&& GTK_IS_LABEL( label ) )
-		gtk_info_bar_remove_child( GTK_INFO_BAR( info_bar ),  label );
-
-	/* Add a label containing the error message in bold text.
+	/* Update the label markup with the new error message.
 	 */
 	markup = g_markup_printf_escaped( "<b>%s</b>", err_msg );
-	label = gtk_label_new( "" );
-	gtk_label_set_markup( GTK_LABEL( label ), markup );
+	gtk_label_set_markup( GTK_LABEL( save_options->error_message_label ), markup );
 	g_free( markup );
-	gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), label );
 
 	/* Reveal the GtkInfoBar.
 	 */

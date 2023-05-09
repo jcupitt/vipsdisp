@@ -17,6 +17,7 @@ struct _ImageWindow
 
 	GtkDialog *saveas_dialog;
 	SaveOptions *save_options;
+	GtkWidget *error_message_label;
 
 	/* Last known mouse postion, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
@@ -843,6 +844,8 @@ image_window_saveas_response( GtkDialog *dialog,
 		break;
 
 	case GTK_RESPONSE_CANCEL:
+		gtk_widget_unparent( win->error_message_label );
+		win->error_message_label = gtk_label_new( NULL );
 		gtk_window_destroy( GTK_WINDOW( win->saveas_dialog ) );
 		break;
 
@@ -893,6 +896,7 @@ image_window_saveas_action( GSimpleAction *action,
 			GTK_DIALOG( dialog ) );
 
 		info_bar = gtk_info_bar_new();
+		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), win->error_message_label );
 		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
 			TRUE );
@@ -1561,6 +1565,16 @@ image_window_init( ImageWindow *win )
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
 
+	/* Hold a reference to the error message label used by the saveas
+	 * dialog to show VIPS error messages to the user, inside the
+	 * GtkInfoBar at the top of the saveas dialog's content area. Initially,
+	 * the label is empty. Without this convenient reference on ImageWindow,
+	 * there is no way to access that label. You can only add children to
+	 * a GtkInfoBar - you can't get a reference to it's content area to
+	 * get at its child widgets.
+	 */
+	win->error_message_label = gtk_label_new( NULL );
+
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
 	g_object_set( win->display_bar,
@@ -1787,6 +1801,12 @@ image_window_get_target_file( ImageWindow *image_window )
 		GTK_FILE_CHOOSER( image_window->saveas_dialog ) );
 
 	return( file );
+}
+
+GtkWidget *
+image_window_get_error_message_label( ImageWindow *win )
+{
+	return( win->error_message_label );
 }
 
 void
