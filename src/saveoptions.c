@@ -36,8 +36,7 @@ save_options_new_empty()
 
 void
 save_options_init( SaveOptions *save_options,
-	GtkBox *parent_box,
-	ImageWindow *image_window )
+	GtkBox *parent_box, ImageWindow *image_window )
 {
 	GtkBox *content_box;
 
@@ -47,7 +46,6 @@ save_options_init( SaveOptions *save_options,
 
 	save_options->content_box = content_box;
 	save_options->parent_box = parent_box;
-	save_options->row_count = 0;
 	save_options->error_message_label =
 		image_window_get_error_message_label( image_window );
 }
@@ -83,26 +81,27 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 	VipsArgumentClass *argument_class, int *row_index,
 	SaveOptions *save_options, VipsObject *operation )
 {
-	if ( *row_index == save_options->row_count )
-		return;
-
 	VipsObjectClass *oclass;
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 	GtkWidget *t, *grid, *grid_cell, *grid_cell_first_child;
 	const gchar *property_name;
 
-	/* Not handling VipsImage or VipsObject types yet.
+	/* Skip the sentinel, if there is one. See vips_rr
+	 */
+	if ( *row_index == save_options->row_count )
+		return;
+
+	/* For now, skip VipsImage and VipsObject types.
 	*/
-	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
+	if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
 		return;
-	}
 	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
-		(oclass = g_type_class_ref( otype )) ) {
+		(oclass = g_type_class_ref( otype )) )
 		return;
-	}
 
 	property_name = g_param_spec_get_name( pspec );
-	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
+	grid = gtk_widget_get_first_child(
+		GTK_WIDGET( save_options->content_box ) );
 
 	/* Use the current value of the row_index to determine the next row. The
 	 * rows are attached in increasing index order, from top to bottom. Thus
@@ -184,6 +183,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
+			 * TODO handle arrays with two or more elements
 			 */
 			array_int = vips_array_int_newv( 1, value );
 
@@ -198,6 +198,7 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
+			 * TODO handle arrays with two or more elements
 			 */
 			array_double = vips_array_double_newv( 1, value );
 			g_object_set( VIPS_OBJECT( operation ),
@@ -230,26 +231,21 @@ save_options_build_save_operation_argument_map_fn_helper( GParamSpec *pspec,
  */
 static void *
 save_options_build_save_operation_argument_map_fn( VipsObject *operation,
-	GParamSpec *pspec,
-	VipsArgumentClass *argument_class,
-	VipsArgumentInstance *argument_instance,
-	void *a,
-	void *b )
+	GParamSpec *pspec, VipsArgumentClass *argument_class,
+	VipsArgumentInstance *argument_instance, void *a, void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
 	int *row_index = (int *)a;
 	SaveOptions *save_options = (SaveOptions *)b;
 
 	/* Include arguments listed in the constructor.
-	 *
 	 * Exclude required or deprecated arguments.
 	 */
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
 		save_options_build_save_operation_argument_map_fn_helper( pspec,
-			argument_class, row_index, save_options,
-			operation );
+			argument_class, row_index, save_options, operation );
 
 	return NULL;
 }
@@ -271,11 +267,13 @@ save_options_build_save_operation( SaveOptions *save_options,
 	/* Loop over the properties of the save operation. Apply the values from
 	 * each widget to the save operation.
 	 *
-	 * See also "save_options_build_save_operation_argument_map_fn".
+	 * See also save_options_build_save_operation_argument_map_fn.
 	 */
 	vips_argument_map( VIPS_OBJECT( operation ),
 		save_options_build_save_operation_argument_map_fn,
 		row_index, save_options );
+	
+	g_free( row_index );
 }
 
 /* This function is used by:
@@ -295,28 +293,30 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	const gchar *property_name;
 	GtkWidget *t, *label, *box, *label_box, *input_box, *grid;
 
-	/* Get the name of the property of the save operation currently being
-	 * processed.
+	/* Get the nickname of the property of the save operation currently
+	 * being processed. For VIPS, this is the user-facing name of the
+	 * property.
 	 */
 	property_name = g_param_spec_get_nick( pspec );
 
-	/* Not handling VipsImage or VipsObject.
+	/* For now, skip properties of type VipsImage or VipsObject.
 	*/
-	if( g_type_is_a( otype, VIPS_TYPE_IMAGE )) {
+	if( g_type_is_a( otype, VIPS_TYPE_IMAGE ))
 		return;
-	}
 	else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
-		(oclass = g_type_class_ref( otype )) ) {
+		(oclass = g_type_class_ref( otype )) )
 		return;
-	}
 
+	/* The GtkGrid widget is the first child of the save_options
+	 * content_box GtkBox.
+	 */
 	grid = gtk_widget_get_first_child( GTK_WIDGET( save_options->content_box ) );
 
 	/* Create the GtkBox widget containing the user input widget appropriate
-	 * for the current property in the iteration.
+	 * for the current property. This box will contain another box, which
+	 * will in turn contain the user input widget.
 	 */
-	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		0 );
+	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 
 	/* Add a user input widget for this property to the box. The widget
 	 * chosen depends on the type of the property. Set the initial value of
@@ -414,25 +414,30 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 		return;
 	}
 
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
-		0 );
-
+	/* Create a box to contain the user input widget "t", and add a tooltip
+	 * to the box. The tooltip contains the "blurb" for the property.
+	 * Make the user input widget "t" fill the box horizontally.
+	 * Append that container box to the "input_box".
+	 */
+	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 		g_param_spec_get_blurb( pspec ) );
 
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_box_append( GTK_BOX( box ), t );
 	gtk_box_append( GTK_BOX( input_box ), box );
+
+	/* Attach the GtkBox "input_box" to the GtkGrid in the save_options
+	 * content_area. 
+	 */
 	gtk_grid_attach( GTK_GRID( grid ), input_box, 2,
 		save_options->row_count, 1, 1 );
 
 	/* Create the GtkBox widget containing the GtkLabel widget with the
 	 * user-facing name of the current property in the iteration.
+	 * Add a tooltip to the label. The tooltip is the same as before.
 	 */
-
-	label_box = gtk_box_new( GTK_ORIENTATION_VERTICAL,
-		0 );
-
+	label_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_widget_set_valign( label_box, GTK_ALIGN_CENTER );
 	label = gtk_label_new( property_name );
 	gtk_widget_set_hexpand( label, FALSE );
@@ -443,6 +448,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 
+	/* Increment the row_count.
+	 */
 	save_options->row_count += 1;
 }
 
@@ -453,11 +460,8 @@ save_options_build_content_box_argument_map_fn_helper( GParamSpec *pspec,
  */
 static void *
 save_options_build_content_box_argument_map_fn( VipsObject *operation,
-	GParamSpec *pspec,
-	VipsArgumentClass *argument_class,
-	VipsArgumentInstance *argument_instance,
-	void *a,
-	void *b )
+	GParamSpec *pspec, VipsArgumentClass *argument_class,
+	VipsArgumentInstance *argument_instance, void *a, void *b )
 {
 	VipsArgumentFlags flags = argument_class->flags;
 	SaveOptions *save_options = (SaveOptions *)a;
@@ -493,7 +497,7 @@ save_options_reset_content_box( SaveOptions *save_options )
 	GtkWidget *content_box, *grid;
 
 	content_box = GTK_WIDGET( save_options->content_box );
-	if( content_box ) {
+	if ( content_box ) {
 		GtkWidget *it = gtk_widget_get_first_child(
 			GTK_WIDGET( save_options->parent_box ) );
 		if ( it )
@@ -505,10 +509,13 @@ save_options_reset_content_box( SaveOptions *save_options )
 	content_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL,
 		0 );
 
-	/* Give the SaveOptions the pointer to the new content box.
+	/* Give the save_options the pointer to the new content box.
 	 */
 	save_options->content_box = GTK_BOX( content_box );
 
+	/* Create a GtkGrid widget and append it to the save_options
+	 * content_box.
+	 */
 	grid = gtk_grid_new();
 	gtk_grid_set_row_spacing( GTK_GRID( grid ), 20 );
 	gtk_grid_set_column_spacing( GTK_GRID( grid ), 20 );
@@ -518,6 +525,8 @@ save_options_reset_content_box( SaveOptions *save_options )
 	gtk_widget_set_margin_start( grid, 10 );
 	gtk_box_append( GTK_BOX( content_box ), grid );
 
+	/* Initialize the save_options row_count to zero.
+	 */
 	save_options->row_count = 0;
 
 	/* Return success code
@@ -546,52 +555,25 @@ save_options_error_message_set( SaveOptions* save_options, char* err_msg )
 		gtk_window_get_transient_for( GTK_WINDOW( saveoptions_win ) );
 	
 	/* The content_area of the GtkFileChooser is the GtkBox to which custom
-	 * widgets can be added. It contains the GtkInfoBar.
+	 * widgets can be added. It contains the GtkInfoBar as the first child.
 	 */
 	content_area = gtk_dialog_get_content_area(
 		GTK_DIALOG( file_chooser_dialog ) );
 
 	info_bar = gtk_widget_get_first_child( content_area );
-	g_assert( GTK_IS_INFO_BAR( info_bar ) );
 
-	/* Update the label markup with the new error message.
-	 */
+	/* Update the label markup with the new error message in bold text.
+	 */	
 	markup = g_markup_printf_escaped( "<b>%s</b>", err_msg );
-	gtk_label_set_markup( GTK_LABEL( save_options->error_message_label ), markup );
+	gtk_label_set_markup( GTK_LABEL( save_options->error_message_label ),
+		markup );
+
 	g_free( markup );
 
 	/* Reveal the GtkInfoBar.
 	 */
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), TRUE );
 
-}
-
-/* Remove the GtkInfoBar from the GtkFileChooser, and clean it up. 
- */
-void
-save_options_error_message_unset( SaveOptions* save_options )
-{
-
-	GtkWidget *saveoptions_win, *content_area, *error_bar;
-	GtkWindow *file_chooser_dialog;
-
-	saveoptions_win = gtk_widget_get_parent(
-		GTK_WIDGET( save_options->parent_box ) );
-	file_chooser_dialog =
-		gtk_window_get_transient_for( GTK_WINDOW( saveoptions_win ) );
-
-	content_area = gtk_dialog_get_content_area(
-		GTK_DIALOG( file_chooser_dialog ) );
-
-	/* To clean up the "error bar" widget, it is first retrieved from the
-	 * content area like this...
-	 */
-	error_bar = gtk_widget_get_first_child(
-		GTK_WIDGET( content_area ) );
-	
-	/* ... and then cleaned up.
-	 */
-	gtk_widget_unparent( error_bar );
 }
 
 int
@@ -602,25 +584,37 @@ save_options_show( SaveOptions *save_options )
 	VipsOperation *operation;
 	GtkWidget *scrolled_window;
 
+	/* Destroy the old save_options content_box, and create a new one.
+	 */
 	save_options_reset_content_box( save_options );
-	target_file = image_window_get_target_file( save_options->image_window );
 
-	/* Return error code if path is bad.
+	/* Grab the GFile to which we want to save the image loaded in the
+	 * image_window. The image_window holds a pointer to the GFile.
+	 */
+	target_file =
+		image_window_get_target_file( save_options->image_window );
+
+	/* Return an error code if the file path is incorrectly formatted.
+	 * Set the VIPS error buffer with a custom message. This is the
+	 * error you get when you don't include a file extension in the
+	 * file path.
 	 */
 	if( !(path = g_file_get_path( target_file ))
 		|| !(filename_suffix = strrchr( path, '.' ))
-		|| !(operation_name = g_strdup_printf( "%ssave", ++filename_suffix )) )
+		|| !(operation_name =
+			g_strdup_printf( "%ssave", ++filename_suffix )) )
 	{
-		vips_error( "vipsdisp", "Bad file path." );
+		vips_error( "vipsdisp", "File path is incorrectly formatted." );
 		return SAVE_OPTIONS_ERROR_PATH;
 	}
 
-	/* Return error code if failed to created operation.
+	/* Return an error code if VIPS failed to create a save operation.
+	 * The VIPS error buffer will already hold the VIPS error message.
+	 * This error is the one you get when you use an invalid file
+	 * extension in the file path.
 	 */
-	if( !(operation = vips_operation_new( operation_name )) ) {
-		//vips_error( "vipsdisp", "Invalid image type." );
+	if( !(operation = vips_operation_new( operation_name )) )
 		return SAVE_OPTIONS_ERROR_IMAGE_TYPE;
-	}
 	
 	/* Create the scrolled window that will contain the content box.
 	 */
@@ -645,7 +639,7 @@ save_options_show( SaveOptions *save_options )
 		GTK_SCROLLED_WINDOW( scrolled_window ),
 		500);
 
-	/* Make the content_box the ( only ) child of the scrolled window.
+	/* Make the save_options content_box the child of the scrolled window.
 	*/
 	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( scrolled_window ),
 		GTK_WIDGET( save_options->content_box ) );
@@ -662,16 +656,5 @@ save_options_show( SaveOptions *save_options )
 
 	/* Return EXIT_SUCCESS code.
 	 */
-	return 0;
-}
-
-int
-save_options_hide( SaveOptions *save_options )
-{
-	if( !save_options )
-		return -1;
-
-	save_options_free( save_options );
-
 	return 0;
 }

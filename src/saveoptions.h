@@ -89,18 +89,15 @@ void save_options_build_save_operation( SaveOptions *, VipsOperation * );
  */
 int save_options_show( SaveOptions * );
 
-/* Hide the save options menu from the user.
- */
-int save_options_hide( SaveOptions * );
-
 /* Iterate over the properties of the VipsOperation to dynamically generate
  * the grid of user input widgets for the save options for the VipsForeginSave
  * associated with the desired image format.
  */
 void save_options_build_content_area( SaveOptions *save_options, VipsOperation *operation );
 
+/* Update the error message for the save options menu, and reveal it in the
+ * saveas dialog.
+ */
 void save_options_error_message_set( SaveOptions *, char * );
-
-void save_options_error_message_unset( SaveOptions * );
 
 #endif /* __SAVEOPTIONS_H */

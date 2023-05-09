@@ -580,7 +580,7 @@ image_window_replace_action( GSimpleAction *action,
  * is pressed. Do not close the "Save As" dialog - remodal it instead.
  */
 static void
-save_window_cancel_cb( GtkWidget *it, gpointer _windows )
+save_options_window_cancel( GtkWidget *it, gpointer _windows )
 {
 	GtkWindow **windows = (GtkWindow **) _windows;
 	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
@@ -591,9 +591,17 @@ save_window_cancel_cb( GtkWidget *it, gpointer _windows )
 
 /* Save the image, and close the window containing the save_options when
  * the window's save button is pressed. Close the "Save As" dialog.
+ *
+ * The "it" argument is unused, but needs to be there, since this is a callback
+ * function attached to a widget.
+ *
+ * The "_windows" argument contains the image_window and save_options_window,
+ * in this order:
+ *
+ *	{ image_window, save_options_window }
  */
 static void
-save_window_save_cb( GtkWidget *it, gpointer _windows )
+save_options_window_save( GtkWidget *it, gpointer _windows )
 {
 	GtkWindow **windows;
 	VipsOperation *operation;
@@ -755,6 +763,8 @@ image_window_open_save_options( ImageWindow *image_window )
 		box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
 		gtk_box_append( GTK_BOX( box1 ), cancel );
 
+		/* Create an empty box.
+		 */
 		box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
 
 		/* Create the save options window label (the title).
@@ -771,7 +781,8 @@ image_window_open_save_options( ImageWindow *image_window )
 
 		gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
 
-		/* Append the save and cancel buttons to the horizontal box.
+		/* Append the save and cancel buttons to the horizontal box, with the empty
+		 * box in between the two.
 		 */
 		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box1 ) );
 		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box2 ) );
@@ -792,10 +803,10 @@ image_window_open_save_options( ImageWindow *image_window )
 		 * the save and cancel buttons.
 		 */
 		g_signal_connect( cancel, "clicked",
-			G_CALLBACK( save_window_cancel_cb ), windows );
+			G_CALLBACK( save_options_window_cancel ), windows );
 
 		g_signal_connect( save, "clicked",
-			G_CALLBACK( save_window_save_cb ), windows );
+			G_CALLBACK( save_options_window_save ), windows );
 
 		/* Show the save options window, which contains the parent box,
 		 * which contains the content box, which contains the
@@ -823,6 +834,13 @@ image_window_open_save_options( ImageWindow *image_window )
 	};
 }
 
+/* Handle the response from the saveas dialog, e.g., when the save or cancel
+ * buttons are clicked.
+ * 
+ * The "response_id" argument determines what this function should do.
+ *
+ * The "user_data" argument, a gpointer, is really an image_window pointer.
+ */
 static void
 image_window_saveas_response( GtkDialog *dialog,
 	gint response_id, gpointer user_data )
@@ -854,8 +872,10 @@ image_window_saveas_response( GtkDialog *dialog,
 	}
 }
 
+/* Hide the save_options error message in the saveas dialog.
+ */
 static void
-save_options_error_message_destroy_cb( GtkWidget* info_bar )
+image_window_save_options_error_message_hide( GtkWidget* info_bar )
 {
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 }
@@ -888,15 +908,18 @@ image_window_saveas_action( GSimpleAction *action,
 		g_signal_connect( dialog, "response",
 			G_CALLBACK( image_window_saveas_response ), win );
 
-		/* The content_area of the GtkFileChooser is the GtkBox to which custom
-		 * widgets can be added. We will prepend a GtkInfoBar containing the
-		 * error message to the content_area of the GtkFileChooser.
+		/* The content_area of the GtkFileChooser is the GtkBox to which
+		 * custom widgets can be added. We will prepend a GtkInfoBar
+		 * containing the error message to the content_area of the
+		 * GtkFileChooser.
 		 */
 		content_area = gtk_dialog_get_content_area(
 			GTK_DIALOG( dialog ) );
 
 		info_bar = gtk_info_bar_new();
-		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ), win->error_message_label );
+		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ),
+			win->error_message_label );
+
 		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
 			TRUE );
@@ -905,7 +928,7 @@ image_window_saveas_action( GSimpleAction *action,
 			GTK_MESSAGE_ERROR );
 
 		g_signal_connect( info_bar, "response",
-			G_CALLBACK( save_options_error_message_destroy_cb ),
+			G_CALLBACK( image_window_save_options_error_message_hide ),
 			NULL );
 
 		gtk_box_prepend( GTK_BOX( content_area ),
