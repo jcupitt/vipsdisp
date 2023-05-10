@@ -1306,7 +1306,6 @@ image_window_init( ImageWindow *win )
 	/* Panning windows should use scroll to zoom, according to the HIG.
 	 */
 	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_scroll_new( 
-		GTK_EVENT_CONTROLLER_SCROLL_DISCRETE |
 		GTK_EVENT_CONTROLLER_SCROLL_VERTICAL ) );
 	g_signal_connect( controller, "scroll", 
 		G_CALLBACK( image_window_scroll ), win );
