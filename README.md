@@ -133,6 +133,10 @@ $ vipsdisp ~/pics/k2.jpg
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window
 
+- fix deprecation warnings
+
+    at least hide them!
+
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander, and save should have "save options"
 
