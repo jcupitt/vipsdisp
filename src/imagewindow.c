@@ -658,10 +658,16 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 	 */
 	gtk_window_destroy( GTK_WINDOW( save_options_window ) );
 
-	/* Clean up the array of two GtkWindows used to pass the ImageWindow and
-	 * save options window to the save and cancel button callback functions.
+	/* Destroy and recreate the error_message_label. The
+	 * image_window and save_options object should each have a
+	 * pointer to the new label.
 	 */
-	g_free( windows );
+	gtk_widget_unparent(
+		GTK_WIDGET( image_window->error_message_label ) );
+
+	image_window->error_message_label =
+		save_options->error_message_label =
+			GTK_LABEL( gtk_label_new( NULL ) );
 
 	/* Clean up the saveas dialog, which is annoyingly both a GtkWindow and
 	 * a GtkDialog. Both lines are necessary to avoid issues that valgrind
@@ -669,6 +675,11 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 	 */
 	gtk_widget_unparent( GTK_WIDGET( image_window->saveas_dialog ) );
 	gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
+
+	/* Clean up the array of two GtkWindows used to pass the ImageWindow and
+	 * save options window to the save and cancel button callback functions.
+	 */
+	g_free( windows );
 }
 
 #define DEFAULT_SPACING 10
