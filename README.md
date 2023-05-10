@@ -133,6 +133,16 @@ $ vipsdisp ~/pics/k2.jpg
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window
 
+- looks like we need our own scrolledwindow
+
+    https://discourse.gnome.org/t/scrolledwindow-and-image-view-apps/15101
+
+  copy-paste the gtk one and remove the mousewheel scroll code
+
+- fix deprecation warnings
+
+    at least hide them!
+
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander, and save should have "save options"
 
