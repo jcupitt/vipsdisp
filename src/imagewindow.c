@@ -616,7 +616,8 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 	VipsOperation *operation;
 	ImageWindow *image_window;
 	GtkWindow *save_options_window;
-	gchar *path, *filename_suffix, *operation_name;
+	gchar *path;
+	const char *operation_name, *class_name;
 	SaveOptions *save_options;
 	GFile *file;
 
@@ -632,13 +633,19 @@ save_options_window_save( GtkWidget *it, gpointer _windows )
 
 	file = image_window_get_target_file( image_window );
 
-	if( !(path = g_file_get_path( file ))
-		|| !(filename_suffix = strrchr( path, '.' )) )
-		return;
+	path = g_file_get_path( file );
 
-	/* Form the name of the operation, like "pngsave".
+	/* Find name of the class, like VipsForeignPngSave.
+	 * This is the second time we look this up, so this will always succeed here
+	 * if code execution reaches this point. Otherwise, the first lookup would
+	 * have triggered an error.
 	 */
-	operation_name = g_strdup_printf( "%ssave", ++filename_suffix );
+	class_name = vips_foreign_find_save( path );
+
+	/* Find name of the operation, like "pngsave".
+	 */
+	operation_name = vips_nickname_find(
+		g_type_from_name( class_name ) );
 
 	/* Create a new VipsOperation - the save operation.
 	 */
@@ -842,7 +849,6 @@ image_window_open_save_options( ImageWindow *image_window )
 		gtk_widget_grab_focus( save );
 
 		break;
-	case SAVE_OPTIONS_ERROR_PATH:
 	case SAVE_OPTIONS_ERROR_IMAGE_TYPE:
 	default:
 		/* Get a copy of the VIPS error buffer ( the error message from

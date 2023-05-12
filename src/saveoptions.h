@@ -52,8 +52,7 @@ struct SaveOptions {
  */
 typedef enum {
 	SAVE_OPTIONS_SUCCESS = 0,
-	SAVE_OPTIONS_ERROR_PATH = -1,
-	SAVE_OPTIONS_ERROR_IMAGE_TYPE = -2,
+	SAVE_OPTIONS_ERROR_IMAGE_TYPE = -1,
 } SAVE_OPTIONS_RESULT;
 
 /* Clean up the SaveOptions object.

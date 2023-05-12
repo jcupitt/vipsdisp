@@ -579,7 +579,7 @@ int
 save_options_show( SaveOptions *save_options )
 {
 	GFile *target_file;
-	gchar *path, *filename_suffix, *operation_name;
+	const char *operation_name, *class_name;
 	VipsOperation *operation;
 	GtkWidget *scrolled_window;
 
@@ -593,24 +593,19 @@ save_options_show( SaveOptions *save_options )
 	target_file =
 		image_window_get_target_file( save_options->image_window );
 
-	/* Return an error code if the file path is incorrectly formatted.
-	 * Set the VIPS error buffer with a custom message. This is the
-	 * error you get when you don't include a file extension in the
-	 * file path.
+	/* Find the name of the class, like VipsForeignPngSave.
+	 * Return an error code if VIPS fails to find a class.
 	 */
-	if( !(path = g_file_get_path( target_file ))
-		|| !(filename_suffix = strrchr( path, '.' ))
-		|| !(operation_name =
-			g_strdup_printf( "%ssave", ++filename_suffix )) )
-	{
-		vips_error( "vipsdisp", "File path is incorrectly formatted." );
-		return SAVE_OPTIONS_ERROR_PATH;
-	}
+	if( !(class_name = vips_foreign_find_save(
+		g_file_get_path( target_file ) ) ) )
+		return SAVE_OPTIONS_ERROR_IMAGE_TYPE;
+
+	/* Find name of the operation, like "pngsave".
+	 */
+	operation_name = vips_nickname_find(
+		g_type_from_name( class_name ) );
 
 	/* Return an error code if VIPS failed to create a save operation.
-	 * The VIPS error buffer will already hold the VIPS error message.
-	 * This error is the one you get when you use an invalid file
-	 * extension in the file path.
 	 */
 	if( !(operation = vips_operation_new( operation_name )) )
 		return SAVE_OPTIONS_ERROR_IMAGE_TYPE;
