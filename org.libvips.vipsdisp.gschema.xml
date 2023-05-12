@@ -23,6 +23,14 @@
       </description>
     </key>
 
+    <key type="b" name="metadata">
+      <default>false</default>
+      <summary>Show metadata popover</summary>
+      <description>
+        If set, show the metadata popover.
+      </description>
+    </key>
+
     <key type="d" name="scale">
       <default>1.0</default>
       <summary>Scale</summary>

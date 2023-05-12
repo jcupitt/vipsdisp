@@ -50,6 +50,7 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
+	GtkWidget *metadata;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -505,6 +506,7 @@ image_window_duplicate_action( GSimpleAction *action,
 
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "metadata" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
 	/* We want to init the scroll position, but we can't do that until the
@@ -1008,6 +1010,26 @@ image_window_info( GSimpleAction *action,
 }
 
 static void
+image_window_metadata( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	int width, height;
+
+	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+
+	if ( g_variant_get_boolean( state ) ) {
+		gtk_widget_set_size_request( win->metadata,
+			width * .3, height * .9 );
+		gtk_popover_popup( GTK_POPOVER( win->metadata ) );
+	}
+	else
+		gtk_popover_popdown( GTK_POPOVER( win->metadata ) );
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
 image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -1248,6 +1270,8 @@ static GActionEntry image_window_entries[] = {
 		image_window_control },
 	{ "info", image_window_toggle, NULL, "false", 
 		image_window_info },
+	{ "metadata", image_window_toggle, NULL, "false",
+		image_window_metadata },
 
 	{ "next", image_window_next },
 	{ "prev", image_window_prev },
@@ -1337,12 +1361,22 @@ image_window_init( ImageWindow *win )
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
+	g_settings_bind( win->settings, "metadata",
+		G_OBJECT( win->metadata ),
+		"visible", 
+		G_SETTINGS_BIND_DEFAULT );
+
 	/* Initial menu state from settings.
 	 */
 	change_state( GTK_WIDGET( win ), "control", 
 		g_settings_get_value( win->settings, "control" ) );
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
+	change_state( GTK_WIDGET( win ), "metadata", 
+		g_settings_get_value( win->settings, "metadata" ) );
+
+	if ( g_settings_get_value( win->settings, "metadata" ) )
+		gtk_popover_popup( GTK_POPOVER( win->metadata ) );
 
 }
 
@@ -1385,6 +1419,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( imagedisplay );
 	BIND( display_bar );
 	BIND( info_bar );
+	BIND( metadata );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
 		image_window_pressed_cb );
