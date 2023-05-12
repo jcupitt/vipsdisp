@@ -18,6 +18,7 @@ executable('vipsdisp', [
   'imagedisplay.c',
   'imagewindow.c',
   'infobar.c',
+  'saveoptions.c',
   'main.c',
   'tile.c',
   'tilecache.c',

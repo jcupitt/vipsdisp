@@ -15,6 +15,10 @@ struct _ImageWindow
 	TileSource *tile_source;
 	TileCache *tile_cache;
 
+	GtkDialog *saveas_dialog;
+	SaveOptions *save_options;
+	GtkLabel *error_message_label;
+
 	/* Last known mouse postion, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
 	 */
@@ -543,7 +547,7 @@ image_window_replace_response( GtkDialog *dialog,
 }
 
 static void
-image_window_replace_action( GSimpleAction *action, 
+image_window_replace_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -573,39 +577,349 @@ image_window_replace_action( GSimpleAction *action,
 }
 
 static void
+image_window_close_action( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gtk_window_destroy( GTK_WINDOW( win ) );
+}
+
+/* Close the window containing the save_options when the window's cancel button
+ * is pressed. Do not close the "Save As" dialog - remodal it instead.
+ */
+static void
+save_options_window_cancel( GtkWidget *it, gpointer _windows )
+{
+	gpointer *windows = (gpointer *) _windows;
+	GtkWindow *save_options_window = GTK_WINDOW( windows[1] );
+	gtk_window_close( GTK_WINDOW( save_options_window ) );
+	gtk_window_set_modal( GTK_WINDOW( save_options_window ), TRUE );
+	g_free( windows );
+}
+
+/* Save the image, and close the window containing the save_options when
+ * the window's save button is pressed. Close the "Save As" dialog.
+ *
+ * The "it" argument is unused, but needs to be there, since this is a callback
+ * function attached to a widget.
+ *
+ * The "_windows" argument contains the image_window and save_options_window,
+ * in this order:
+ *
+ *	{ image_window, save_options_window }
+ */
+static void
+save_options_window_save( GtkWidget *it, gpointer _windows )
+{
+	gpointer *windows;
+	VipsOperation *operation;
+	ImageWindow *image_window;
+	GtkWindow *save_options_window;
+	gchar *path, *filename_suffix, *operation_name;
+	SaveOptions *save_options;
+	GFile *file;
+
+	/* Unpack the _windows array { image_window, save_options_window }
+	 */
+	windows = (gpointer *) _windows;
+	image_window = VIPSDISP_IMAGE_WINDOW( windows[0] );
+	save_options_window = GTK_WINDOW( windows[1] );
+
+	/* Get the pointer to the SaveOptions object, held by the ImageWindow.
+	 */
+	save_options = image_window->save_options;
+
+	file = image_window_get_target_file( image_window );
+
+	if( !(path = g_file_get_path( file ))
+		|| !(filename_suffix = strrchr( path, '.' )) )
+		return;
+
+	/* Form the name of the operation, like "pngsave".
+	 */
+	operation_name = g_strdup_printf( "%ssave", ++filename_suffix );
+
+	/* Create a new VipsOperation - the save operation.
+	 */
+	operation = vips_operation_new( operation_name );
+
+	/* Set the output image file path for the operation.
+	 */
+	g_object_set( VIPS_OBJECT( operation ),
+		"filename", path,
+		NULL );
+
+	/* Apply values from the SaveOptions widget UI to the operation.
+	*/
+	save_options_build_save_operation( save_options, operation );
+
+	/* Perform the operation on the image held by TileSource.
+	 */
+	if( tile_source_write_to_file( image_window->tile_source, operation ) )
+		image_window_error( image_window );
+
+	/* Clean up the save_options dynamically allocated memory and widgets.
+	 */
+	save_options_free( save_options );
+
+	/* Destroy the save_options_window
+	 */
+	gtk_window_destroy( GTK_WINDOW( save_options_window ) );
+
+	/* Destroy and recreate the error_message_label. The
+	 * image_window and save_options object should each have a
+	 * pointer to the new label.
+	 */
+	gtk_widget_unparent(
+		GTK_WIDGET( image_window->error_message_label ) );
+
+	image_window->error_message_label =
+		save_options->error_message_label =
+			GTK_LABEL( gtk_label_new( NULL ) );
+
+	/* Clean up the saveas dialog, which is annoyingly both a GtkWindow and
+	 * a GtkDialog. Both lines are necessary to avoid issues that valgrind
+	 * will find with memcheck.
+	 */
+	gtk_widget_unparent( GTK_WIDGET( image_window->saveas_dialog ) );
+	gtk_window_destroy( GTK_WINDOW( image_window->saveas_dialog ) );
+
+	/* Clean up the array of two GtkWindows used to pass the ImageWindow and
+	 * save options window to the save and cancel button callback functions.
+	 */
+	g_free( windows );
+}
+
+#define DEFAULT_SPACING 10
+
+static void
+image_window_open_save_options( ImageWindow *image_window )
+{
+	SaveOptions *save_options;
+	GtkWidget *save_options_window, *cancel, *save, *hbox;
+	GtkBox *parent_box;
+	gpointer *windows;
+	SAVE_OPTIONS_RESULT save_options_result;
+	char* label_text;
+
+	/* Create a new window for the save options
+	 */
+	save_options_window = gtk_window_new();
+
+	/* Remove title bar and "X" button from the save options window.
+	 */
+	gtk_window_set_decorated( GTK_WINDOW( save_options_window ), FALSE );
+
+	/* Unmodal the saveas dialog, so we can modal the save options window.
+	 */
+	gtk_window_set_modal( GTK_WINDOW( image_window->saveas_dialog ),
+		FALSE );
+
+	/* Make the save options window a transient window attached to the file
+	 * dialog window. This will center the saveoptions window on the file dialog
+	 * and modal the saveoptions window.
+	 */
+	gtk_window_set_transient_for( GTK_WINDOW( save_options_window ),
+		GTK_WINDOW( image_window->saveas_dialog ) );
+
+	/* Create the parent box (SaveOptions::parent_box).
+	 * The content box (SaveOptions::content_box) will be appended to the
+	 * parent box. The content box contains the input widgets for the
+	 * save options. The parent box and content box are both vertically
+	 * oriented.
+	 */
+	parent_box = GTK_BOX( gtk_box_new( GTK_ORIENTATION_VERTICAL,
+		DEFAULT_SPACING ) );
+
+	gtk_widget_set_halign( GTK_WIDGET( parent_box ), GTK_ALIGN_FILL );
+
+	/* Make the parent box the (only) child of the save options window.
+	 */
+	gtk_window_set_child( GTK_WINDOW( save_options_window ),
+		GTK_WIDGET( parent_box ) );
+
+	/* Create the SaveOptions object
+	 */
+	save_options = save_options_new( parent_box, image_window );
+
+	/* Let ImageWindow hold the SaveOptions object.
+	 */
+	image_window->save_options = save_options;
+
+	/* Show the SaveOptions content_box
+	 */
+	save_options_result = save_options_show( save_options );
+
+	switch( save_options_result ) {
+	case SAVE_OPTIONS_SUCCESS:
+
+		gtk_window_present( GTK_WINDOW( save_options_window ) );
+
+		gtk_window_set_modal( GTK_WINDOW( save_options_window ),
+			TRUE );
+
+		/* Create and position the cancel and save buttons.
+		 */
+		cancel = gtk_button_new_with_label( "Cancel" );
+		save = gtk_button_new_with_label( "Save" );
+		gtk_widget_set_margin_start( cancel, DEFAULT_SPACING );
+		gtk_widget_set_margin_end( save, DEFAULT_SPACING );
+
+		/* Create a horizonally oriented box to contain the save and
+		 * cancel buttons. We'll call it the button box.
+		 */
+		hbox = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, DEFAULT_SPACING );
+
+		/* Add some space between the cancel/save buttons and the top
+		 * edge of the window.
+		 */
+		gtk_widget_set_margin_top( hbox, DEFAULT_SPACING );
+
+		/* Make the button box's child boxes the same width. The child
+		 * boxes  are used to position the buttons and title.
+		 */
+		gtk_box_set_homogeneous( GTK_BOX( hbox ), TRUE );
+
+		GtkWidget *box1, *box2, *box3;
+
+		/* Create the box for the cancel button.
+		 */
+		box1 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		gtk_box_append( GTK_BOX( box1 ), cancel );
+
+		/* Create an box for the GtkLabel containing the title of the
+		 * save options window.
+		 */
+		box2 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		GtkWidget *label;
+		label = gtk_label_new( "Save Options" );
+		gtk_widget_set_vexpand( label, TRUE );
+		gtk_box_append( GTK_BOX( box2 ), label );
+
+		/* Create a box for the save button.
+		 */
+		box3 = gtk_box_new( GTK_ORIENTATION_VERTICAL, DEFAULT_SPACING );
+		gtk_box_append( GTK_BOX( box3 ), save );
+		gtk_widget_set_halign( hbox, GTK_ALIGN_FILL );
+		gtk_widget_set_margin_bottom( hbox, DEFAULT_SPACING );
+
+		/* Append the save and cancel buttons to the horizontal box, with the empty
+		 * box in between the two.
+		 */
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box1 ) );
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box2 ) );
+		gtk_box_append(GTK_BOX( hbox ), GTK_WIDGET( box3 ) );
+
+		/* Prepend the button box to the parent box.
+		 */
+		gtk_box_prepend( GTK_BOX( parent_box ), GTK_WIDGET( hbox ) );
+
+		/* Create an array containing the two GtkWindows the save and
+		 * cancel button callback functions will need.
+		 */
+		windows = g_malloc( 2 * sizeof( gpointer ) );
+		windows[0] = (gpointer) image_window;
+		windows[1] = (gpointer) save_options_window;
+
+		/* Connect the callback functions to the "clicked" signal for
+		 * the save and cancel buttons.
+		 */
+		g_signal_connect( cancel, "clicked",
+			G_CALLBACK( save_options_window_cancel ), (gpointer) windows );
+
+		g_signal_connect( save, "clicked",
+			G_CALLBACK( save_options_window_save ), (gpointer) windows );
+
+		/* Show the save options window, which contains the parent box,
+		 * which contains the content box, which contains the
+		 * dynamically generated widgets.
+		 */
+		gtk_widget_show( GTK_WIDGET( save_options_window ) );
+
+		/* Focus the save button.
+		 */
+		gtk_widget_grab_focus( save );
+
+		break;
+	case SAVE_OPTIONS_ERROR_PATH:
+	case SAVE_OPTIONS_ERROR_IMAGE_TYPE:
+	default:
+		/* Get a copy of the VIPS error buffer ( the error message from
+		 * save_options_show ), and clear the VIPS error buffer.
+		 */
+		label_text = vips_error_buffer_copy();
+
+		/* Pass the error message to the function responsible for
+		 * displaying it in the file chooser dialog.
+		 */
+		save_options_error_message_set( save_options, label_text );
+
+		/* Clean up the buffer copy we created.
+		 */
+		free( label_text );
+	};
+}
+
+/* Handle the response from the saveas dialog, e.g., when the save or cancel
+ * buttons are clicked.
+ *
+ * The "response_id" argument determines what this function should do.
+ *
+ * The "user_data" argument, a gpointer, is really an image_window pointer.
+ */
+static void
 image_window_saveas_response( GtkDialog *dialog, 
 	gint response_id, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	GFile *file;
+	win->saveas_dialog = dialog;
 
 	/* We need to pop down immediately so we expose the cancel
 	 * button.
 	 */
-	file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-	image_window_error_hide( win ); 
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
+	image_window_error_hide( win );
+	//gtk_window_destroy( GTK_WINDOW( dialog ) );
 
-	if( response_id == GTK_RESPONSE_ACCEPT &&
-		tile_source_write_to_file( win->tile_source, file ) ) 
-		image_window_error( win );
+	switch( response_id ){
 
-	VIPS_UNREF( file ); 
+	case GTK_RESPONSE_ACCEPT:
+		image_window_open_save_options( win );
+		break;
+
+	case GTK_RESPONSE_CANCEL:
+		gtk_widget_unparent( GTK_WIDGET( win->error_message_label ) );
+		win->error_message_label = GTK_LABEL( gtk_label_new( NULL ) );
+		gtk_window_destroy( GTK_WINDOW( win->saveas_dialog ) );
+		break;
+
+	default:
+		/* pass */
+	}
+}
+
+/* Hide the save_options error message in the saveas dialog.
+ */
+static void
+image_window_save_options_error_message_hide( GtkWidget* info_bar )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
 }
 
 static void
-image_window_saveas_action( GSimpleAction *action, 
+image_window_saveas_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkWidget *content_area, *info_bar;
 
 	if( win->tile_source ) {
 		GtkWidget *dialog;
 		GFile *file;
 
 		dialog = gtk_file_chooser_dialog_new( "Save file",
-			GTK_WINDOW( win ) , 
+			GTK_WINDOW( win ) ,
 			GTK_FILE_CHOOSER_ACTION_SAVE,
 			"_Cancel", GTK_RESPONSE_CANCEL,
 			"_Save", GTK_RESPONSE_ACCEPT,
@@ -613,25 +927,42 @@ image_window_saveas_action( GSimpleAction *action,
 		gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
 
 		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ),
 				file, NULL );
 			VIPS_UNREF( file );
 		}
 
-		g_signal_connect( dialog, "response", 
+		g_signal_connect( dialog, "response",
 			G_CALLBACK( image_window_saveas_response ), win );
+
+		/* The content_area of the GtkFileChooser is the GtkBox to which
+		 * custom widgets can be added. We will prepend a GtkInfoBar
+		 * containing the error message to the content_area of the
+		 * GtkFileChooser.
+		 */
+		content_area = gtk_dialog_get_content_area(
+			GTK_DIALOG( dialog ) );
+
+		info_bar = gtk_info_bar_new();
+		gtk_info_bar_add_child( GTK_INFO_BAR( info_bar ),
+			GTK_WIDGET( win->error_message_label ) );
+
+		gtk_info_bar_set_revealed( GTK_INFO_BAR( info_bar ), FALSE );
+		gtk_info_bar_set_show_close_button( GTK_INFO_BAR( info_bar ),
+			TRUE );
+
+		gtk_info_bar_set_message_type( GTK_INFO_BAR( info_bar ),
+			GTK_MESSAGE_ERROR );
+
+		g_signal_connect( info_bar, "response",
+			G_CALLBACK( image_window_save_options_error_message_hide ),
+			NULL );
+
+		gtk_box_prepend( GTK_BOX( content_area ),
+			GTK_WIDGET( info_bar ) );
 
 		gtk_widget_show( dialog );
 	}
-}
-
-static void
-image_window_close_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
 static gboolean
@@ -1272,6 +1603,16 @@ image_window_init( ImageWindow *win )
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
 
+	/* Hold a reference to the error message label used by the saveas
+	 * dialog to show VIPS error messages to the user, inside the
+	 * GtkInfoBar at the top of the saveas dialog's content area. Initially,
+	 * the label is empty. Without this convenient reference on ImageWindow,
+	 * there is no way to access that label. You can only add children to
+	 * a GtkInfoBar - you can't get a reference to it's content area to
+	 * get at its child widgets.
+	 */
+	win->error_message_label = GTK_LABEL( gtk_label_new( NULL ) );
+
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
 	g_object_set( win->display_bar,
@@ -1486,6 +1827,23 @@ TileSource *
 image_window_get_tile_source( ImageWindow *win )
 {
 	return( win->tile_source );
+}
+
+GFile *
+image_window_get_target_file( ImageWindow *image_window )
+{
+	GFile *file;
+
+	file = gtk_file_chooser_get_file(
+		GTK_FILE_CHOOSER( image_window->saveas_dialog ) );
+
+	return( file );
+}
+
+GtkLabel *
+image_window_get_error_message_label( ImageWindow *win )
+{
+	return( win->error_message_label );
 }
 
 void
