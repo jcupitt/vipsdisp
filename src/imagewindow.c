@@ -1009,24 +1009,67 @@ image_window_info( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+static void *
+insert_field_fn( VipsImage *image, const char *field, GValue *value, void *a )
+{
+	char str[256];
+
+	VipsBuf buf = VIPS_BUF_STATIC( str );
+
+	GtkTextBuffer *text_buffer = GTK_TEXT_BUFFER( a );
+
+	gtk_text_buffer_insert_at_cursor( text_buffer,
+		field, strlen( field ) );
+
+	gtk_text_buffer_insert_at_cursor( text_buffer, ":", 1 );
+
+	vips_buf_appendgv( &buf, value );
+
+	gtk_text_buffer_insert_at_cursor( text_buffer,
+		vips_buf_all( &buf ), vips_buf_len( &buf) );
+
+	gtk_text_buffer_insert_at_cursor( text_buffer, "\n", 1 );
+
+	return( NULL );
+}
+
 static void
 image_window_metadata( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
+	GtkWidget *text_view;
+	GtkTextBuffer *text_buffer;
+	VipsImage *image;
 
-	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+	if ( win->tile_source && win->tile_source->image ) {
+		image = win->tile_source->image;
+		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 
-	if ( g_variant_get_boolean( state ) ) {
-		gtk_widget_set_size_request( win->metadata,
-			width * .3, height * .9 );
-		gtk_popover_popup( GTK_POPOVER( win->metadata ) );
+		text_view = gtk_popover_get_child(
+			GTK_POPOVER( win->metadata ) );
+
+		g_assert( text_view );
+
+		text_buffer = gtk_text_view_get_buffer(
+			GTK_TEXT_VIEW( text_view ) );
+
+		g_assert( text_buffer );
+
+		if ( g_variant_get_boolean( state ) ) {
+			gtk_widget_set_size_request( win->metadata,
+				width * .75, height * .9 );
+			( void ) vips_image_map( image, insert_field_fn, text_buffer );
+			gtk_popover_popup( GTK_POPOVER( win->metadata ) );
+		}
+		else {
+			gtk_popover_popdown( GTK_POPOVER( win->metadata ) );
+			gtk_text_buffer_set_text( text_buffer, "", 0 );
+		}
+
+		g_simple_action_set_state( action, state );
 	}
-	else
-		gtk_popover_popdown( GTK_POPOVER( win->metadata ) );
-
-	g_simple_action_set_state( action, state );
 }
 
 static void
