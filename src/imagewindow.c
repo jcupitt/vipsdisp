@@ -1009,29 +1009,68 @@ image_window_info( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
-static void *
-insert_field_fn( VipsImage *image, const char *field, GValue *value, void *a )
+/* We could play the same game with the setup function, to produce a custom
+ * widget type for the items in each column, but for now we'll just use a
+ * GtkLabel for all items in the view.
+ */
+static void
+factory_setup( GtkListItemFactory *factory, GtkListItem *list_item )
 {
-	char str[256];
+	GtkWidget *label = gtk_label_new( "" );
+	gtk_widget_set_halign( label, GTK_ALIGN_START );
+	gtk_list_item_set_child( list_item, label );
+}
 
+/* The bind function for the field name factory, corresponding to the first
+ * column. In this case, the field name is the metadata field name.
+ */
+static void
+field_name_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item )
+{
+	GtkWidget *label;
+	GtkStringObject *string_object;
+	const char *field_name;
+
+	label = gtk_list_item_get_child( list_item );
+	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
+	field_name = gtk_string_object_get_string( string_object );
+
+	gtk_label_set_label( GTK_LABEL( label ), field_name );
+}
+
+/* The bind function for the other factories, corresponding to columns after
+ * the field name column.
+ */
+static void
+value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointer user_data )
+{
+	GtkWidget *label;
+	GtkStringObject *string_object;
+	const char *field_name;
+	VipsImage *image; 
+	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
 
-	GtkTextBuffer *text_buffer = GTK_TEXT_BUFFER( a );
+	image = VIPS_IMAGE( user_data );
 
-	gtk_text_buffer_insert_at_cursor( text_buffer,
-		field, strlen( field ) );
+	/* It is crucial to zero the GValue whose address we pass to
+	 * vips_image_get. Otherwise, we will get runtime errors.
+	 */
+	GValue value = { 0 };
 
-	gtk_text_buffer_insert_at_cursor( text_buffer, ":", 1 );
+	label = gtk_list_item_get_child( list_item );
+	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
+	field_name = gtk_string_object_get_string( string_object );
 
-	vips_buf_appendgv( &buf, value );
+	/* Get the value of the given metadata field from the (global) test
+	 * image.
+	 */
+	vips_image_get( image, field_name, &value );
+	vips_buf_appendgv( &buf, &value );
 
-	gtk_text_buffer_insert_at_cursor( text_buffer,
-		vips_buf_all( &buf ), vips_buf_len( &buf) );
-
-	gtk_text_buffer_insert_at_cursor( text_buffer, "\n", 1 );
-
-	return( NULL );
+	gtk_label_set_label( GTK_LABEL( label ), vips_buf_all( &buf ) );
 }
+
 
 static void
 image_window_metadata( GSimpleAction *action, 
@@ -1039,33 +1078,133 @@ image_window_metadata( GSimpleAction *action,
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *text_view;
-	GtkTextBuffer *text_buffer;
+	GtkWidget *view, *scrolled_window, *box, *label;
+	GtkColumnViewColumn *column;
 	VipsImage *image;
 
 	if ( win->tile_source && win->tile_source->image ) {
 		image = win->tile_source->image;
 		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 
-		text_view = gtk_popover_get_child(
-			GTK_POPOVER( win->metadata ) );
-
-		g_assert( text_view );
-
-		text_buffer = gtk_text_view_get_buffer(
-			GTK_TEXT_VIEW( text_view ) );
-
-		g_assert( text_buffer );
-
 		if ( g_variant_get_boolean( state ) ) {
 			gtk_widget_set_size_request( win->metadata,
-				width * .75, height * .9 );
-			( void ) vips_image_map( image, insert_field_fn, text_buffer );
+				width * .75, height * .75 );
+
+			char *column_names[] = { "Field", "Value" };
+			const int column_names_length = 2;
+
+			/* Define the list items of the first column. For this
+			 * example, these are exactly the names of the fields on
+			 * the (global) test image.
+			 */
+			char** field_names = vips_image_get_fields( image );
+
+			/* Define the list model our selection model will use.
+			 */
+			GtkStringList *list_model =
+				gtk_string_list_new(
+					(const char* const*) field_names );
+
+			/* Create simple selection model, which does not have
+			 * any selection logic. Curiously, you can still see
+			 * the mouseover highlight effect and onclick  highlight
+			 * effect even for GtkNoSelection, perhaps for
+			 * accessibility reasons.
+			 */
+			GtkNoSelection *selection_model =
+				gtk_no_selection_new(
+					G_LIST_MODEL( list_model ) );
+
+			/* Initialize the array of GtkListItemFactory - one for
+			 * each column.
+			 */
+			GtkListItemFactory *factories[column_names_length];
+			for ( int i = 0; i < column_names_length; i++ )
+				factories[i] =
+					gtk_signal_list_item_factory_new();
+
+			/* Connect handlers to the field name factory.
+			 */
+			g_signal_connect( factories[0], "setup",
+				G_CALLBACK( factory_setup ), NULL );
+
+			g_signal_connect( factories[0], "bind",
+				G_CALLBACK( field_name_factory_bind ),
+				column_names[0] );
+
+			/* Connect handlers to the other factories.
+			 */
+			for ( int i = 1; i < column_names_length; i++ ) {
+				g_signal_connect( factories[i], "setup",
+					G_CALLBACK( factory_setup ), NULL );
+
+				g_signal_connect( factories[i], "bind",
+					G_CALLBACK( value_factory_bind ),
+					(gpointer) image );
+			}
+
+			/* Create a box for the title and scrolled window.
+			 */
+			box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+			gtk_popover_set_child( GTK_POPOVER( win->metadata ),
+				box );
+
+			gtk_widget_set_size_request( box,
+				width * .75, height * .75 );
+
+			/* Create the title label.
+			 */
+			label = gtk_label_new( NULL );
+			gtk_label_set_markup( GTK_LABEL( label ),
+				"<b>Metadata</b>");
+			gtk_widget_set_margin_bottom( label, 10 );
+			gtk_box_append( GTK_BOX( box ), label );
+
+			/* Create the scrolled window.
+			 */
+			scrolled_window = gtk_scrolled_window_new();
+			gtk_box_append( GTK_BOX( box ), scrolled_window );
+
+			gtk_widget_set_size_request( scrolled_window,
+				width * .75, height * .75 );
+
+			gtk_scrolled_window_set_max_content_height(
+				GTK_SCROLLED_WINDOW( scrolled_window ),
+				height * .75);
+
+			gtk_scrolled_window_set_max_content_width(
+				GTK_SCROLLED_WINDOW( scrolled_window ),
+				width * .75);
+
+			/* Create the column view.
+			 */
+			view = gtk_column_view_new(
+				GTK_SELECTION_MODEL( selection_model ) );
+
+			gtk_scrolled_window_set_child(
+				GTK_SCROLLED_WINDOW( scrolled_window), view );
+
+			/* Create the columns.
+			 */
+			for ( int i = 0; i < column_names_length; i++ ) {
+				column = gtk_column_view_column_new(
+					column_names[i], factories[i] );
+
+				gtk_column_view_column_set_expand( column,
+					TRUE );
+
+				gtk_column_view_append_column(
+					GTK_COLUMN_VIEW( view ), column );
+			}
+
+			/* Show the popover.
+			 */
 			gtk_popover_popup( GTK_POPOVER( win->metadata ) );
 		}
 		else {
 			gtk_popover_popdown( GTK_POPOVER( win->metadata ) );
-			gtk_text_buffer_set_text( text_buffer, "", 0 );
+			gtk_popover_set_child( GTK_POPOVER( win->metadata ),
+				NULL );
 		}
 
 		g_simple_action_set_state( action, state );

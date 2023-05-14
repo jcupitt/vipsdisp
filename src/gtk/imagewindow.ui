@@ -241,12 +241,6 @@
             <property name="has-arrow">false</property>
             <property name="autohide">false</property>
             <property name="position">1</property>
-	    <child>
-	      <object class="GtkTextView" id="text_view">
-                <property name="editable">false</property>
-		<property name="cursor-visible">false</property>
-	      </object>
-	    </child>
 	  </object>
 	</child>
 
