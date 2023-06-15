@@ -52,6 +52,8 @@ struct _ImageWindow
 	GtkWidget *info_bar;
 	GtkWidget *metadata;
 
+	GtkStringList *list_model;
+
 	/* Throttle progress bar updates to a few per second with this.
 	 */
 	GTimer *progress_timer;
@@ -1009,6 +1011,218 @@ image_window_info( GSimpleAction *action,
 	g_simple_action_set_state( action, state );
 }
 
+/* Size of alphabet index array. This number should be twice the size
+ * of the alphabet, which is 128 in this case for ASCII (not extended).
+ * The purpose of this extra space is explained later.
+ */
+#define ALPHABET_SIZE 256
+
+/* The Match object will hold the index @i of the first character of the match
+ * and the number of mismatched characters @k within that match. The Match
+ * objects are also linked list nodes.
+ */
+typedef struct Match Match;
+struct Match {
+	int i;
+	int k;
+	gchar *text;
+	gchar *pattern;
+	int pattern_length;
+};
+
+Match *
+Match_new( int i, int k, gchar *text, gchar *pattern )
+{
+	Match *t;
+	t = g_malloc( sizeof( Match ) );
+	t->i = i;
+	t->k = k;
+	g_assert( text );
+	t->text = g_strdup( text );
+	t->pattern = pattern;
+	t->pattern_length = strlen( pattern );
+	return t;
+}
+
+void
+Match_free( gpointer match_, gpointer user_data )
+{
+	Match *match = (Match *) match_;
+	if ( match ) {
+		g_free( match->text );
+		g_free( match );
+	}		
+}
+
+void
+Match_print( gpointer match_, gpointer user_data )
+{
+	Match *match = (Match *) match_;
+	printf( "position: %d, errors: %d, text: \"%s\", pattern: \"%s\", pattern_length: %d\n",
+		match->i, match->k, match->text, match->pattern,
+		match->pattern_length );
+}
+
+/* An array of lists. There are 128 linked lists in total - one for each
+ * character in our 128-character alphabet. The last 128 lists characters are
+ * added to the linked lists as needed. Using a power of lets us quickly access
+ * the array in a cyclic manner by modding using the bitwise & operator. 
+ *
+ * Each list will contain the offsets for each occurence of that character, or a
+ * single placeholder offset of -1 if no occurences are found.
+ *
+ * The offset is the distance of the character to the left of the end of
+ * pattern, (i.e., measured by counting to the left from the end of pattern),
+ * for a given character and a given instance of pattern.
+ */
+GList *alpha[ALPHABET_SIZE];
+
+/* This function initializes the @alpha and @count arrays to look like this:
+ *
+ *     alpha = [ [ -1 ] ] * ALPHABET_SIZE 	where the inner brackets are a GList.
+ *
+ *     count = [m] * m
+ *
+ * @alpha will be an array of linked lists. Characters in the pattern
+ * that do not occur or that occur exactly once in the text will have
+ * corresponding linked lists with length one. Characters in the pattern that
+ * occur in the text more than once will have corresponding linked lists with
+ * length greater than one.
+ *
+ * The first m - 1  elements of @count will be skipped on the first iteration of
+ * the cyclic array (since no match can be shorter than the @pattern). Note that
+ * the values in @count are reset to m once they are no longer needed, until the
+ * next loop around @count.
+ *
+ * @p - pattern string
+ * @m - pattern length
+ * @alpha - array of GList. See above.
+ * @count - circular buffer for counts of matches
+ */
+void
+preprocess( char *p, int m, GList *alpha[], int count[], int max_pattern_size )
+{
+	int i, j;
+
+	for ( i = 0; i < ALPHABET_SIZE; i++ ) {
+		alpha[i] = NULL;
+		alpha[i] = g_list_append( alpha[i], GINT_TO_POINTER( -1 ) );
+	}
+
+	for ( i = 0, j = 128; i < m; i++, p++ ) {
+		if ( GPOINTER_TO_INT( alpha[*p]->data ) == -1 )
+			alpha[*p]->data = GINT_TO_POINTER( m - i - 1 );
+		else
+			alpha[*p] = g_list_append( alpha[*p],
+				GINT_TO_POINTER( m - i - 1 ) );
+	}
+
+	for ( i = 0; i < max_pattern_size; i++ )
+		count[i] = m;
+}
+
+void
+increment_offset( gpointer off_, gpointer args_ )
+{
+	gpointer *args = (gpointer *) args_;
+	int i = GPOINTER_TO_INT( args[0] );
+	int max_pattern_size = GPOINTER_TO_INT( args[1] );
+	int *count = (int *) args[2];
+	gint off = GPOINTER_TO_INT( off_ ) ;
+	count[(i + off) % max_pattern_size]--;
+}
+
+gint
+match_compare( gconstpointer a_, gconstpointer b_ )
+{
+	Match *a = (Match *) a_;
+	Match *b = (Match *) b_;
+
+	if ( a->k == b->k )
+		return 0;
+	else if (a->k < b->k )
+		return -1;
+	else return 1;
+}
+
+/* Find the position of the first character and number of mismatches of every
+ * fuzzy match in a string @t with @k or fewer mismatches. Uses the array of
+ * GList @alpha and the array of counts @count prepared by the preprocess
+ * function.
+ * @t - text string
+ * @n - length of text string
+ * @m - length of the pattern used to create @alpha and @count
+ * @k - maximum number of allowed mismatches
+ * @alpha - array of GList. See above.
+ * @count - circular buffer for counts of matches
+ */
+GList *
+search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern, int max_pattern_size )
+{
+	int i, off, j;
+	Match *match;
+	GList *l0 = NULL, *l1 = NULL;
+	char *text = t;
+
+	/* Walk the text @t, which has length @n.
+	 */
+	for ( i = 0; i < n; i++ ) {
+		/* If the current character in @t is in pattern, its
+		 * corresponding list in @alpha will have a non-negative offset,
+		 * thanks to the workdone by the preprocess function. If so, we
+		 * need to decrement the counts in the circular buffer @count
+		 * corresponding to the index of the character in the text and
+		 * the offsets the lists corresponding to those characters,
+		 * which the preprocess function prepared.
+		 * 
+		 * Note that we will only ever need m counts at a time, and
+		 * we reset them to @m when we are done with them, in case
+		 * they are needed when the text wraps 256 characters.
+		 */
+		l0 = alpha[*t++];
+		off = GPOINTER_TO_INT( l0->data );
+		if ( off >= 0 ) {
+			gpointer t[3] = {
+				GINT_TO_POINTER( i ),
+				GINT_TO_POINTER( max_pattern_size ),
+				(gpointer) count,
+			};
+			g_list_foreach( l0, increment_offset, t );
+
+		}
+
+		/* If the count in @count corresponding to the current index in
+		 * the text is no greater than @k, the number of mismatches we
+		 * allow, then the pattern instance is reported as a fuzzy
+		 * match. The position of the first letter in the match is
+		 * calculated using the pattern length and the index of the last
+		 * character in the match The number of mismatches is calculated
+		 * from the number of matches.
+		 */
+		if ( i >= m - 1 && count[i % max_pattern_size] <= k ) {
+			// DBG
+			//printf( "i: %d, m: %d\n", i, m );
+			g_assert( i - m + 1 >= 0 );
+			g_assert( text );
+			match = Match_new( i - m + 1, count[i % max_pattern_size], text, pattern );
+			l1 = g_list_append( l1, match );
+		}
+
+		/* The count in @count corresponding to the current index in
+		 * text is no longer needed, so we reset it to @m until we
+		 * need it on the next wraparound.
+		 */
+		count[i % max_pattern_size] = m;
+	}
+
+	/* Sort by increasing k.
+	 */
+	l1 = g_list_sort( l1, match_compare );
+
+	return l1;
+}
+
+
 /* We could play the same game with the setup function, to produce a custom
  * widget type for the items in each column, but for now we'll just use a
  * GtkLabel for all items in the view.
@@ -1071,6 +1285,167 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	gtk_label_set_label( GTK_LABEL( label ), vips_buf_all( &buf ) );
 }
 
+void
+append_field_name( gpointer data, gpointer user_data )
+{
+	ImageWindow *win;
+	const gchar *markup;
+	gchar *str;
+	GList *match_list;
+	Match *match;
+
+	match_list = (GList *) data;
+	match = (Match *) match_list->data;
+	win = VIPSDISP_IMAGE_WINDOW( user_data );
+	gtk_string_list_append( win->list_model, match->text );
+}
+
+gint
+match_list_compare( gconstpointer a_, gconstpointer b_ )
+{
+	GList *a = (GList *) a_;
+	GList *b = (GList *) b_;
+
+	Match *match_a = (Match *) a->data;
+	Match *match_b = (Match *) b->data;
+
+	return match_compare( match_a, match_b );
+}
+
+/* Maximum number of mismatches we allow.
+ */
+#define MAX_MISMATCHES 3 
+
+void
+append_if_match( gpointer data, gpointer user_data )
+{
+	GList *first, *match;
+	gchar *haystack, *needle;
+	GList **list_ptr;
+	int n, m, k;
+
+	list_ptr = (GList **) user_data;
+
+	haystack = (gchar *) data;
+
+	first = g_list_first( *list_ptr );
+	needle = (gchar *) first->data;
+
+	gssize haystack_len = -1;
+
+	n = strlen( haystack );
+	int count[n];
+	m = strlen( needle );
+	k = MAX_MISMATCHES;
+
+	preprocess( needle, m, alpha, count, n );
+
+	match = search( haystack, n, m, k, alpha, count, needle, n );
+
+	if ( g_list_length( match ) )
+		*list_ptr = g_list_append( *list_ptr, match );
+}
+
+GList *
+find_strings_with_substring( GList *haystacks, gchar *needle )
+{
+	GList *found = NULL;
+
+	found = g_list_append( found, needle );
+
+	g_list_foreach( haystacks, append_if_match, &found );
+
+	found = g_list_remove( found, (gconstpointer) needle );
+
+	return found;
+}
+
+/* This is the callback function called whenever the GtkSearchEntry is modified
+ * by the user.
+ */
+static void
+search_changed( GtkWidget *search_entry, gpointer user_data )
+{
+	ImageWindow *win;
+	GtkStringList *list_model;
+	char **field_names;
+	GList *field_names_list = NULL;
+	char *text;
+
+	/* Initialize GList pointers to NULL.
+	 */
+	GList *found, *found0, *found1, *s0, *s1, *t;
+	found = found0 = found1 = s0 = s1 = t = NULL;
+
+	win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	while ( gtk_string_list_get_string( win->list_model, 0 ) )
+		gtk_string_list_remove( win->list_model, 0 );
+
+	found = NULL;
+	field_names = vips_image_get_fields( win->tile_source->image );
+	char **p;
+	p = field_names;
+	while ( *p ) {
+		field_names_list = g_list_append( field_names_list, *p );
+		p++;
+	}
+		
+	text = gtk_editable_get_text( GTK_EDITABLE( search_entry) );
+	found = find_strings_with_substring( field_names_list, (gchar *) text );
+
+	if ( ! g_list_length( found ) )
+		return;
+
+	/* Sort by increasing k.
+	 */
+	found = g_list_sort( found, match_list_compare );
+
+	/* DBG: Print all matches.
+	 */
+	//GList *t = found, *s;
+	//g_assert( t->data );
+	//while ( t ) {
+	//	s = (GList *) t->data; 
+	//	g_list_foreach( s, Match_print, NULL );
+	//	t = t->next;
+	//	puts("");
+	//}
+
+	/* Get two GLists of GLists - one with the k=0 matches, and another with
+	 * the k>0 matches.
+	 */
+	while ( found ) {
+		t = (GList *) found->data;
+		s0 = s1 = NULL;
+
+		while ( t ) {
+			Match *match = (Match *) t->data;
+			if ( match ) {
+				if ( match->k )
+					s1 = g_list_append( s1, match );
+				else
+					s0 = g_list_append( s0, match );
+				t = t->next;
+			}
+		}
+
+		if ( s0 )
+			found0 = g_list_append( found0, s0 );
+
+		if ( s1 )
+			found1 = g_list_append( found1, s1 );
+
+		found = found->next;
+	}
+
+
+	/* Add the exact (k=0) matches, if any.
+	 */
+	if ( g_list_length( found0 ) ) {
+		g_list_foreach( found0, append_field_name, win );
+	}
+}
 
 static void
 image_window_metadata( GSimpleAction *action, 
@@ -1078,7 +1453,8 @@ image_window_metadata( GSimpleAction *action,
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *view, *scrolled_window, *box, *label;
+	GtkWidget *view, *scrolled_window, *box, *label, *search_bar,
+		*search_bar_box, *search_entry;
 	GtkColumnViewColumn *column;
 	VipsImage *image;
 
@@ -1104,6 +1480,8 @@ image_window_metadata( GSimpleAction *action,
 			GtkStringList *list_model =
 				gtk_string_list_new(
 					(const char* const*) field_names );
+			
+			win->list_model = list_model;
 
 			/* Create simple selection model, which does not have
 			 * any selection logic. Curiously, you can still see
@@ -1143,7 +1521,8 @@ image_window_metadata( GSimpleAction *action,
 					(gpointer) image );
 			}
 
-			/* Create a box for the title and scrolled window.
+			/* Create a box for the title, search bar, and scrolled
+			 * window.
 			 */
 			box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 			gtk_popover_set_child( GTK_POPOVER( win->metadata ),
@@ -1159,6 +1538,24 @@ image_window_metadata( GSimpleAction *action,
 				"<b>Metadata</b>");
 			gtk_widget_set_margin_bottom( label, 10 );
 			gtk_box_append( GTK_BOX( box ), label );
+
+			/* Create the search bar.
+			 */
+			search_bar = gtk_search_bar_new();
+			gtk_box_append( GTK_BOX( box ), search_bar );
+			gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( search_bar ), TRUE );
+
+			search_bar_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 10 );
+			gtk_search_bar_set_child( GTK_SEARCH_BAR( search_bar ),
+				search_bar_box );
+
+			search_entry = gtk_search_entry_new();
+			gtk_box_append( GTK_BOX( search_bar_box ), search_entry );
+			gtk_search_bar_connect_entry( GTK_SEARCH_BAR( search_bar),
+				GTK_EDITABLE( search_entry ) );
+
+			g_signal_connect( search_entry, "search-changed",
+				G_CALLBACK( search_changed ), win );
 
 			/* Create the scrolled window.
 			 */
