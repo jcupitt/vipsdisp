@@ -1445,6 +1445,12 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	if ( g_list_length( found0 ) ) {
 		g_list_foreach( found0, append_field_name, win );
 	}
+
+	/* Add the fuzzy (k>0) matches, if any.
+	 */
+	if ( !g_list_length( found0 ) && g_list_length( found1 ) ) {
+		g_list_foreach( found1, append_field_name, win );
+	}
 }
 
 static void
