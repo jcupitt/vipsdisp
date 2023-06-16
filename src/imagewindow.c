@@ -1243,13 +1243,14 @@ field_name_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item )
 {
 	GtkWidget *label;
 	GtkStringObject *string_object;
-	const char *field_name;
+	const char *markup;
 
 	label = gtk_list_item_get_child( list_item );
 	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
-	field_name = gtk_string_object_get_string( string_object );
 
-	gtk_label_set_label( GTK_LABEL( label ), field_name );
+	markup = gtk_string_object_get_string( string_object );
+
+	gtk_label_set_markup( GTK_LABEL( label ), markup );
 }
 
 /* The bind function for the other factories, corresponding to columns after
@@ -1260,7 +1261,8 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 {
 	GtkWidget *label;
 	GtkStringObject *string_object;
-	const char *field_name;
+	char *field_name;
+	GString *field_name_string;
 	VipsImage *image; 
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
@@ -1275,6 +1277,10 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	label = gtk_list_item_get_child( list_item );
 	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
 	field_name = gtk_string_object_get_string( string_object );
+	field_name_string = g_string_new( field_name );
+	g_string_replace( field_name_string, "<b>", "", 0 );
+	g_string_replace( field_name_string, "</b>", "", 0 );
+	field_name = field_name_string->str;
 
 	/* Get the value of the given metadata field from the (global) test
 	 * image.
@@ -1283,6 +1289,43 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	vips_buf_appendgv( &buf, &value );
 
 	gtk_label_set_label( GTK_LABEL( label ), vips_buf_all( &buf ) );
+}
+
+void
+markup_in_string_by_match( gpointer match_, gpointer markup_ )
+{
+	Match *match;
+	GString *markup;
+	gchar *raw_str;
+	GRegex *regex;
+	gchar *replacement;
+
+	match = (Match *) match_;
+	markup = (GString *) markup_;
+
+	if ( match->pattern && match->pattern[0] && !match->k ) {
+		replacement = g_strdup_printf( "<>%s</>", match->pattern );
+		g_string_replace( markup, match->pattern, replacement, 0 );
+		g_free( replacement );
+	}
+}
+
+gchar *
+get_markup_from_match( GList *match )
+{
+	const gchar *raw_str;
+	GString *markup;
+	gchar *str;
+	Match *first = (Match *) match->data;
+
+	markup = g_string_new( g_strdup( first->text ) );
+
+	g_list_foreach( match, markup_in_string_by_match, markup );
+
+	g_string_replace( markup, "<>", "<b>", 0 );
+	g_string_replace( markup, "</>", "</b>", 0 );
+
+	return markup->str;
 }
 
 void
@@ -1300,6 +1343,21 @@ append_field_name( gpointer data, gpointer user_data )
 	gtk_string_list_append( win->list_model, match->text );
 }
 
+void
+append_markup_field_name( gpointer data, gpointer user_data )
+{
+	ImageWindow *win;
+	gchar *str, *markup;
+	GList *match_list;
+	Match *match;
+
+	match_list = (GList *) data;
+	win = VIPSDISP_IMAGE_WINDOW( user_data );
+	markup = get_markup_from_match( match_list );
+	g_assert( win->list_model );
+	gtk_string_list_append( win->list_model, markup );
+}
+
 gint
 match_list_compare( gconstpointer a_, gconstpointer b_ )
 {
@@ -1311,10 +1369,6 @@ match_list_compare( gconstpointer a_, gconstpointer b_ )
 
 	return match_compare( match_a, match_b );
 }
-
-/* Maximum number of mismatches we allow.
- */
-#define MAX_MISMATCHES 3 
 
 void
 append_if_match( gpointer data, gpointer user_data )
@@ -1336,7 +1390,7 @@ append_if_match( gpointer data, gpointer user_data )
 	n = strlen( haystack );
 	int count[n];
 	m = strlen( needle );
-	k = MAX_MISMATCHES;
+	k = n;
 
 	preprocess( needle, m, alpha, count, n );
 
@@ -1443,7 +1497,7 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	/* Add the exact (k=0) matches, if any.
 	 */
 	if ( g_list_length( found0 ) ) {
-		g_list_foreach( found0, append_field_name, win );
+		g_list_foreach( found0, append_markup_field_name, win );
 	}
 
 	/* Add the fuzzy (k>0) matches, if any.
