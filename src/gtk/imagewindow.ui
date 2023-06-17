@@ -92,8 +92,8 @@
         <attribute name="action">win.info</attribute>
       </item>
       <item>
-      	<attribute name="label" translatable="yes">Metadata</attribute>
-      	<attribute name="action">win.metadata</attribute>
+        <attribute name="label" translatable="yes">Metadata</attribute>
+        <attribute name="action">win.metadata</attribute>
       </item>
     </section>
 
@@ -163,89 +163,114 @@
     </child>
 
     <child>
-      <object class="GtkBox">
+      <object class="GtkBox" id="main_box">
         <property name="orientation">vertical</property>
-
         <child>
-          <object class="GtkActionBar" id="progress_bar">
-            <property name="revealed">false</property>
-
-            <child type="center">
-              <object class="GtkProgressBar" id="progress">
-                <property name="hexpand">true</property>
-                <property name="show-text">true</property>
-              </object>
-            </child>
-
-            <child type="end">
-              <object class="GtkButton" id="progress_cancel">
-                <property name="label">Cancel</property>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <child>
-          <object class="GtkInfoBar" id="error_bar">
-            <property name="message-type">error</property>
-            <property name="show-close-button">true</property>
-            <property name="revealed">false</property>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkLabel" id="error_label">
-                <attributes>
-                  <attribute name="weight" value="bold"/>
-                </attributes>
-              </object>
-            </child>
-          </object>
-        </child>
+              <object class="GtkActionBar" id="progress_bar">
+                <property name="revealed">false</property>
 
-        <child>
-          <object class="GtkScrolledWindow" id="scrolled_window">
-            <property name="hexpand">true</property>
-            <property name="vexpand">true</property>
-            <child>
-              <object class="Imagedisplay" id="imagedisplay">
-
-                <child>
-                  <object class="GtkPopoverMenu" id="right_click_menu">
-                    <property name="has-arrow">0</property>
-                    <property name="menu-model">imagewindow-menu</property>
-                  </object> 
-                </child>
-
-                <child> 
-                  <object class="GtkGestureClick">
-                    <property name="button">3</property>
-                    <signal name="pressed" handler="image_window_pressed_cb"/>
+                <child type="center">
+                  <object class="GtkProgressBar" id="progress">
+                    <property name="hexpand">true</property>
+                    <property name="show-text">true</property>
                   </object>
                 </child>
 
+                <child type="end">
+                  <object class="GtkButton" id="progress_cancel">
+                    <property name="label">Cancel</property>
+                  </object>
+                </child>
               </object>
             </child>
+
+            <child>
+              <object class="GtkInfoBar" id="error_bar">
+                <property name="message-type">error</property>
+                <property name="show-close-button">true</property>
+                <property name="revealed">false</property>
+                <child>
+                  <object class="GtkLabel" id="error_label">
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkScrolledWindow" id="scrolled_window">
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
+                <child>
+                  <object class="Imagedisplay" id="imagedisplay">  
+                    <child>
+                      <object class="GtkPopoverMenu" id="right_click_menu">
+                        <property name="has-arrow">0</property>
+                        <property name="menu-model">imagewindow-menu</property>
+                      </object> 
+                    </child>
+                    <child> 
+                      <object class="GtkGestureClick">
+                        <property name="button">3</property>
+                        <signal name="pressed" handler="image_window_pressed_cb"/>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="Displaybar" id="display_bar">
+              </object>
+            </child>
+
+            <child>
+              <object class="Infobar" id="info_bar">
+              </object>
+            </child>
+
           </object>
         </child>
 
         <child>
-          <object class="Displaybar" id="display_bar">
+          <object class="GtkSearchBar" id="metadata">
+            <property name="child">
+              <object class="GtkBox">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkHeaderBar">
+                    <property name="decoration-layout">:</property>
+                    <property name="title-widget">
+                      <object class="GtkLabel" id="metadata_label">
+                        <property name="use-markup">true</property>
+                        <property name="label">Metadata</property>
+                      </object>
+                    </property>
+                    <child>
+                      <object class="GtkButton" id="metadata_close_button">
+                        <property name="label">Close</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkSearchEntry" id="metadata_search_entry"></object>
+                </child>
+                <child>
+                  <object class="GtkScrolledWindow" id="metadata_window"></object>
+                </child>
+              </object>
+            </property>
           </object>
         </child>
-
-        <child>
-          <object class="Infobar" id="info_bar">
-          </object>
-        </child>
-
-	<child>
-	  <object class="GtkPopover" id="metadata">
-            <property name="has-arrow">false</property>
-            <property name="autohide">false</property>
-            <property name="position">1</property>
-	  </object>
-	</child>
 
       </object>
     </child>
-
   </template>
 </interface>

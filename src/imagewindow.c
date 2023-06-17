@@ -26,6 +26,9 @@ struct _ImageWindow
 	int drag_start_x;
 	int drag_start_y;
 
+	int og_width;
+	int og_height;
+
 	/* For pinch zoom, zoom position that we started.
 	 */
 	double last_scale;
@@ -50,7 +53,12 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
+	GtkWidget *main_box;
 	GtkWidget *metadata;
+	GtkWidget *metadata_label;
+	GtkWidget *metadata_close_button;
+	GtkWidget *metadata_window;
+	GtkWidget *metadata_search_entry;
 
 	GtkStringList *list_model;
 
@@ -1507,24 +1515,52 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	}
 }
 
+gboolean
+shrink_window( gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	if ( !gtk_widget_get_visible( win->metadata ) )
+		return;
+	gtk_widget_set_size_request( win->metadata, 0, 0 );
+	gtk_widget_hide( win->metadata );
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
+	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
+
+	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
+
+	change_state( GTK_WIDGET( win ), "metadata", 
+		g_settings_get_value( win->settings, "metadata" ) );
+
+	return TRUE;
+}
+
+
 static void
 image_window_metadata( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *view, *scrolled_window, *box, *label, *search_bar,
-		*search_bar_box, *search_entry;
+	GtkWidget *view, *scrolled_window, *box, *label,
+		*search_bar_box, *search_entry, *header_bar;
 	GtkColumnViewColumn *column;
 	VipsImage *image;
 
 	if ( win->tile_source && win->tile_source->image ) {
 		image = win->tile_source->image;
 		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+		if ( !win->og_width || !win->og_height) {
+			win->og_width = width;
+			win->og_height = height;
+		}
 
 		if ( g_variant_get_boolean( state ) ) {
-			gtk_widget_set_size_request( win->metadata,
-				width * .75, height * .75 );
+			gtk_window_set_default_size( GTK_WINDOW( win ), 1.9*width, height );
+			gtk_widget_show( win->metadata );
+
+			gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_HORIZONTAL );
+
+			gtk_widget_set_size_request( win->metadata, width * .75, height * .75 );
 
 			char *column_names[] = { "Field", "Value" };
 			const int column_names_length = 2;
@@ -1581,56 +1617,43 @@ image_window_metadata( GSimpleAction *action,
 					(gpointer) image );
 			}
 
-			/* Create a box for the title, search bar, and scrolled
-			 * window.
-			 */
-			box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-			gtk_popover_set_child( GTK_POPOVER( win->metadata ),
-				box );
+			gtk_search_bar_set_search_mode(
+				GTK_SEARCH_BAR( win->metadata ), TRUE );
 
-			gtk_widget_set_size_request( box,
+			//gtk_search_bar_set_key_capture_widget(
+			//	GTK_SEARCH_BAR( win->metadata ),
+			//	win );
+
+			GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
+			gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
+				GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT );
+
+			search_bar_box = gtk_search_bar_get_child(
+				GTK_SEARCH_BAR( win->metadata ) );
+
+			gtk_widget_set_size_request( search_bar_box,
 				width * .75, height * .75 );
 
-			/* Create the title label.
+			/* Create the search entry.
 			 */
-			label = gtk_label_new( NULL );
-			gtk_label_set_markup( GTK_LABEL( label ),
-				"<b>Metadata</b>");
-			gtk_widget_set_margin_bottom( label, 10 );
-			gtk_box_append( GTK_BOX( box ), label );
+			gtk_search_bar_connect_entry( GTK_SEARCH_BAR( win->metadata ),
+				GTK_EDITABLE( win->metadata_search_entry ) );
 
-			/* Create the search bar.
-			 */
-			search_bar = gtk_search_bar_new();
-			gtk_box_append( GTK_BOX( box ), search_bar );
-			gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( search_bar ), TRUE );
-
-			search_bar_box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 10 );
-			gtk_search_bar_set_child( GTK_SEARCH_BAR( search_bar ),
-				search_bar_box );
-
-			search_entry = gtk_search_entry_new();
-			gtk_box_append( GTK_BOX( search_bar_box ), search_entry );
-			gtk_search_bar_connect_entry( GTK_SEARCH_BAR( search_bar),
-				GTK_EDITABLE( search_entry ) );
-
-			g_signal_connect( search_entry, "search-changed",
+			g_signal_connect( win->metadata_search_entry,
+				"search-changed",
 				G_CALLBACK( search_changed ), win );
 
 			/* Create the scrolled window.
 			 */
-			scrolled_window = gtk_scrolled_window_new();
-			gtk_box_append( GTK_BOX( box ), scrolled_window );
-
-			gtk_widget_set_size_request( scrolled_window,
+			gtk_widget_set_size_request( win->metadata_window,
 				width * .75, height * .75 );
 
 			gtk_scrolled_window_set_max_content_height(
-				GTK_SCROLLED_WINDOW( scrolled_window ),
+				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				height * .75);
 
 			gtk_scrolled_window_set_max_content_width(
-				GTK_SCROLLED_WINDOW( scrolled_window ),
+				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				width * .75);
 
 			/* Create the column view.
@@ -1639,7 +1662,7 @@ image_window_metadata( GSimpleAction *action,
 				GTK_SELECTION_MODEL( selection_model ) );
 
 			gtk_scrolled_window_set_child(
-				GTK_SCROLLED_WINDOW( scrolled_window), view );
+				GTK_SCROLLED_WINDOW( win->metadata_window), view );
 
 			/* Create the columns.
 			 */
@@ -1654,14 +1677,16 @@ image_window_metadata( GSimpleAction *action,
 					GTK_COLUMN_VIEW( view ), column );
 			}
 
-			/* Show the popover.
-			 */
-			gtk_popover_popup( GTK_POPOVER( win->metadata ) );
+			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
+				TRUE );
+
+			gtk_widget_grab_focus( GTK_WIDGET( win->imagedisplay ) );
 		}
-		else {
-			gtk_popover_popdown( GTK_POPOVER( win->metadata ) );
-			gtk_popover_set_child( GTK_POPOVER( win->metadata ),
-				NULL );
+		else if ( gtk_widget_get_visible( win->metadata ) ) {
+			GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
+			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
+				FALSE );
+			g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
 		}
 
 		g_simple_action_set_state( action, state );
@@ -1926,10 +1951,20 @@ static GActionEntry image_window_entries[] = {
 };
 
 static void
+metadata_close_button_cb( GtkWidget *widget, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
+	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
+	g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
+}
+
+static void
 image_window_init( ImageWindow *win )
 {
 	GtkEventController *controller;
 
+	win->og_width = win->og_height = 0;
 	win->progress_timer = g_timer_new();
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
@@ -2014,9 +2049,8 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
 
-	if ( g_settings_get_value( win->settings, "metadata" ) )
-		gtk_popover_popup( GTK_POPOVER( win->metadata ) );
-
+	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
+	g_signal_connect( win->metadata_close_button, "clicked", G_CALLBACK( metadata_close_button_cb ), win );
 }
 
 static void
@@ -2058,7 +2092,12 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( imagedisplay );
 	BIND( display_bar );
 	BIND( info_bar );
+	BIND( main_box );
 	BIND( metadata );
+	BIND( metadata_label );
+	BIND( metadata_close_button );
+	BIND( metadata_window );
+	BIND( metadata_search_entry );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
 		image_window_pressed_cb );
