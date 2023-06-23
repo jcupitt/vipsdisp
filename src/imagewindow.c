@@ -1231,20 +1231,30 @@ search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern
 }
 
 
-/* We could play the same game with the setup function, to produce a custom
- * widget type for the items in each column, but for now we'll just use a
- * GtkLabel for all items in the view.
+/* TODO: 
+ * Produce a custom widget for cells in the second column (there are only two
+ * columns).
+ *
+ * The type of widget used will depend on the GType of the GValue corresponding
+ * to the field.
+ *
+ * For now, complicated data types can be ignored.
+ *
+ * A GtkBox should be used as the generic container.
  */
 static void
 factory_setup( GtkListItemFactory *factory, GtkListItem *list_item )
 {
-	GtkWidget *label = gtk_label_new( "" );
-	gtk_widget_set_halign( label, GTK_ALIGN_START );
-	gtk_list_item_set_child( list_item, label );
+	GtkWidget *box;
+
+	box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_widget_set_halign( box, GTK_ALIGN_START );
+	gtk_list_item_set_child( list_item, box );
 }
 
 /* The bind function for the field name factory, corresponding to the first
  * column. In this case, the field name is the metadata field name.
+ * This column not editable - it is a column of labels.
  */
 static void
 field_name_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item )
@@ -1263,17 +1273,26 @@ field_name_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item )
 
 /* The bind function for the other factories, corresponding to columns after
  * the field name column.
+ *
+ * TODO: 
+ * Produce a custom widget for cells in the second column (there are only two
+ * columns).
+ *
+ * The type of widget used will depend on the GType of the GValue corresponding
+ * to the field.
+ *
+ * For now, complicated data types can be ignored.
  */
+
 static void
 value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointer user_data )
 {
-	GtkWidget *label;
+	GtkWidget *box;
 	GtkStringObject *string_object;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
 	char str[256];
-	VipsBuf buf = VIPS_BUF_STATIC( str );
 
 	image = VIPS_IMAGE( user_data );
 
@@ -1282,7 +1301,7 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	 */
 	GValue value = { 0 };
 
-	label = gtk_list_item_get_child( list_item );
+	box = gtk_list_item_get_child( list_item );
 	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
 	field_name = gtk_string_object_get_string( string_object );
 	field_name_string = g_string_new( field_name );
@@ -1290,14 +1309,21 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	g_string_replace( field_name_string, "</b>", "", 0 );
 	field_name = field_name_string->str;
 
-	/* Get the value of the given metadata field from the (global) test
-	 * image.
+	/* Get the value of the given field from the image.
 	 */
 	vips_image_get( image, field_name, &value );
-	vips_buf_appendgv( &buf, &value );
 
-	gtk_label_set_label( GTK_LABEL( label ), vips_buf_all( &buf ) );
+	/* Check the GType of @value, and select the appropriate user input
+         * widget. Initialize the widget with @value.
+	 * TODO
+ 	 */
 }
+
+/* TODO
+ * To save, loop over the list items and get their values, and use them update
+ * the VipsImage. This will happen when a button is clicked. There will also be
+ * a cancel button. This will look a lot like the save options UI.
+ */
 
 void
 markup_in_string_by_match( gpointer match_, gpointer markup_ )
