@@ -57,10 +57,9 @@ struct _ImageWindow
 	GtkWidget *metadata;
 	GtkWidget *metadata_label;
 	GtkWidget *metadata_close_button;
+	GtkWidget *metadata_save_button;
 	GtkWidget *metadata_window;
 	GtkWidget *metadata_search_entry;
-
-	GtkStringList *list_model;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -1364,32 +1363,32 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 				t = gtk_text_new_with_buffer( buffer );
 			
 			} else if ( type == G_TYPE_ENUM ) {
-				//puts("enum");
+				puts("enum");
 			} else if ( type == G_TYPE_INT ) {
-				//puts("int");
+				puts("int");
 				t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
 				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 					g_value_get_int( &value ) );
 			} else if ( type == G_TYPE_UINT ) {
-				//puts("uint");
+				puts("uint");
 			} else if ( type == G_TYPE_INT64 ) {
-				//puts("int64");
+				puts("int64");
 			} else if ( type == G_TYPE_UINT64 ) {
-				//puts("int64");
+				puts("int64");
 			} else if ( type == G_TYPE_LONG ) {
-				//puts("long");
+				puts("long");
 			} else if ( type == G_TYPE_ULONG ) {
-				//puts("ulong");
+				puts("ulong");
 			} else if ( type == G_TYPE_BOOLEAN ) {
-				//puts("boolean");
+				puts("boolean");
 			} else if ( type == G_TYPE_FLOAT ) {
-				//puts("float");
+				puts("float");
 			} else if ( type == G_TYPE_DOUBLE ) {
-				//puts("double");
+				puts("double");
 			} else if ( type == G_TYPE_FLAGS ) {
-				//puts("flags");
+				puts("flags");
 			} else if ( type == G_TYPE_BOXED ) {
-				//puts("boxed");
+				puts("boxed");
 			} else if ( type = VIPS_TYPE_REF_STRING ) {
 				VipsArea *area;
 				area = g_value_get_boxed( &value );
@@ -1502,6 +1501,232 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	gtk_box_append( GTK_BOX( box ), t );
 	gtk_box_append( GTK_BOX( input_box ), box );
 
+}
+
+void
+on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
+{
+	GtkWidget *input_box, *t, *box, *grid;
+	GtkStringObject *string_object;
+	char *field_name;
+	GString *field_name_string;
+	VipsImage *image; 
+	char str[256];
+	VipsObjectClass *oclass;
+	GType otype;
+	GParamSpec *pspec;
+	VipsArgumentClass *argument_class;
+	VipsArgumentInstance *argument_instance;
+	ImageWindow *win;
+	GtkListModel *list_model;
+	gpointer list_item;
+	int list_index = 0;
+
+        win = VIPSDISP_IMAGE_WINDOW( user_data );
+	image = win->tile_source->image;
+
+	grid = gtk_scrolled_window_get_child( gtk_scrolled_window( win->metadata_window ) );
+
+	while ( list_item = gtk_grid_get_child_at( GTK_GRID( grid ), list_index, 0 ) ) {
+		t = gtk_grid_get_child_at( GTK_GRID( grid ), list_index++, 1 );
+
+
+		/* It is crucial to zero the GValue whose address we pass to
+		 * vips_image_get. Otherwise, we will get runtime errors.
+		 */
+		GValue value = { 0 };
+		string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
+
+		field_name = gtk_string_object_get_string( string_object );
+		field_name_string = g_string_new( field_name );
+		g_string_replace( field_name_string, "<b>", "", 0 );
+		g_string_replace( field_name_string, "</b>", "", 0 );
+		field_name = field_name_string->str;
+
+		/* Get the value of the given field from the image.
+		 * Check the GType of @value, and select the appropriate user input
+		 * widget. Initialize the widget with @value.
+		 * TODO
+		 */
+		gboolean use_string = FALSE; 
+		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
+			&pspec, &argument_class, &argument_instance ) ) {
+			//g_warning( "%s", vips_error_buffer() );
+			vips_error_clear();
+			//return;
+			vips_image_get( image, field_name, &value );
+			use_string = TRUE;
+		} else {
+			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
+
+			/* For now, skip VipsImage and VipsObject types.
+			*/
+			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
+				return;
+			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
+				(oclass = g_type_class_ref( otype )) )
+				return;
+		}
+
+		/* Add a user input widget for this property to the list_item. The widget
+		 * chosen depends on the type of the property. Set the initial value of
+		 * the user input widget to the default value for the property.
+		 */
+		if( use_string || G_IS_PARAM_SPEC_STRING( pspec ) ) {
+			if ( !use_string ) {
+				GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+					gtk_entry_buffer_new( pspec_string->default_value, -1 );
+
+				t = gtk_text_new_with_buffer( buffer );
+			} else {
+				GType type = G_VALUE_TYPE( &value );
+				if ( type == G_TYPE_STRING ) {
+					const string_value = g_value_get_string( &value );
+					GtkEntryBuffer* buffer =
+						gtk_entry_buffer_new( string_value, -1 );
+
+					t = gtk_text_new_with_buffer( buffer );
+				
+				} else if ( type == G_TYPE_ENUM ) {
+					puts("enum");
+				} else if ( type == G_TYPE_INT ) {
+					puts("int");
+					t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+					gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+						g_value_get_int( &value ) );
+				} else if ( type == G_TYPE_UINT ) {
+					puts("uint");
+				} else if ( type == G_TYPE_INT64 ) {
+					puts("int64");
+				} else if ( type == G_TYPE_UINT64 ) {
+					puts("int64");
+				} else if ( type == G_TYPE_LONG ) {
+					puts("long");
+				} else if ( type == G_TYPE_ULONG ) {
+					puts("ulong");
+				} else if ( type == G_TYPE_BOOLEAN ) {
+					puts("boolean");
+				} else if ( type == G_TYPE_FLOAT ) {
+					puts("float");
+				} else if ( type == G_TYPE_DOUBLE ) {
+					puts("double");
+				} else if ( type == G_TYPE_FLAGS ) {
+					puts("flags");
+				} else if ( type == G_TYPE_BOXED ) {
+					puts("boxed");
+				} else if ( type = VIPS_TYPE_REF_STRING ) {
+					VipsArea *area;
+					area = g_value_get_boxed( &value );
+					char *string_value = g_strdup( vips_ref_string_get( area, NULL ) );
+					GtkEntryBuffer* buffer =
+						gtk_entry_buffer_new( string_value, -1 );
+					t = gtk_text_new();
+					gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+				} else {
+					puts("unknown type");
+				}
+			}
+		}
+		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
+			GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
+			t = gtk_check_button_new();
+			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
+				pspec_boolean->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+			GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
+			const char **property_nicknames =
+				g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
+
+			for( int i = 0; i < pspec_enum->enum_class->n_values; ++i ) {
+				property_nicknames[i] =
+					pspec_enum->enum_class->values[i].value_nick;
+			}
+			property_nicknames[pspec_enum->enum_class->n_values] = NULL;
+			t = gtk_drop_down_new_from_strings( property_nicknames );
+			gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
+				pspec_enum->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
+			GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
+			t = gtk_spin_button_new_with_range( pspec_int64->minimum,
+				pspec_int64->maximum, 1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				(gint64)pspec_int64->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_INT( pspec )) {
+			GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
+			t = gtk_spin_button_new_with_range( pspec_int->minimum,
+				pspec_int->maximum, 1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				(int)pspec_int->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
+			GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
+			t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
+				pspec_uint64->maximum, 1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				(guint64)pspec_uint64->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
+			GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
+
+			t = gtk_spin_button_new_with_range( pspec_double->minimum,
+				pspec_double->maximum, 1 );
+
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				pspec_double->default_value );
+		}
+		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+				/* No default values exist for ParamSpecBoxed, so make
+				 * some up for now.
+				 */
+				t = gtk_spin_button_new_with_range( 0, 1000, 1 );
+				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+				/* No default values exist for ParamSpecBoxed, so make
+				 * some up for now.
+				 */
+				t = gtk_spin_button_new_with_range( 0, 1000, .1 );
+				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+				/* Ignore VipsImage-type parameters for now.
+				 */
+				return;
+			}
+			else {
+				/* Ignore parameters of unrecognized type for now.
+				 */
+				return;
+			}
+		}
+		else {
+			printf("Unknown type for property \"%s\"\n", field_name);
+			g_object_ref_sink( list_item );
+			return;
+		}
+
+		/* Create a box to contain the user input widget "t", and add a tooltip
+		 * to the box. The tooltip contains the "blurb" for the property.
+		 * Make the user input widget "t" fill the box horizontally.
+		 * Append that container box to the "list_item".
+		 */
+		box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
+		if ( !use_string )
+			gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
+				g_param_spec_get_blurb( pspec ) );
+
+		gtk_widget_set_hexpand( t, TRUE );
+		gtk_box_append( GTK_BOX( box ), t );
+		gtk_box_append( GTK_BOX( list_item ), box );
+	}
 }
 
 /* TODO
@@ -1745,6 +1970,23 @@ shrink_window( gpointer user_data )
 	return TRUE;
 }
 
+GtkWidget *
+create_input_grid( VipsImage *image )
+{
+	GtkWidget *grid, *input, *label;
+	char **field_names;
+	char *field_name;
+	int i;
+	
+	field_names = vips_image_get_fields( image );
+	grid = gtk_grid_new();
+
+	while ( (field_name = field_names[i]) ) {
+		label = gtk_label_new();	
+	}
+
+	return grid;
+}
 
 static void
 image_window_metadata( GSimpleAction *action, 
@@ -1775,70 +2017,6 @@ image_window_metadata( GSimpleAction *action,
 
 			char *column_names[] = { "Field", "Value" };
 			const int column_names_length = 2;
-
-			/* Define the list items of the first column. For this
-			 * example, these are exactly the names of the fields on
-			 * the (global) test image.
-			 */
-			char** field_names;
-			field_names = vips_image_get_fields( image );
-
-			/* Define the list model our selection model will use.
-			 */
-			GtkStringList *list_model;
-			list_model = gtk_string_list_new( NULL );
-			char **p;
-			p = field_names;
-
-			VipsArgumentClass *argument_class;
-			VipsArgumentInstance *argument_instance;
-			VipsArgumentFlags flags; 
-			GParamSpec *pspec;
-
-			while ( *p ) {
-				gtk_string_list_append( list_model, *p );
-				p++;
-			}
-		
-			win->list_model = list_model;
-
-			/* Create simple selection model, which does not have
-			 * any selection logic. Curiously, you can still see
-			 * the mouseover highlight effect and onclick  highlight
-			 * effect even for GtkNoSelection, perhaps for
-			 * accessibility reasons.
-			 */
-			GtkNoSelection *selection_model =
-				gtk_no_selection_new(
-					G_LIST_MODEL( list_model ) );
-
-			/* Initialize the array of GtkListItemFactory - one for
-			 * each column.
-			 */
-			GtkListItemFactory *factories[column_names_length];
-			for ( int i = 0; i < column_names_length; i++ )
-				factories[i] =
-					gtk_signal_list_item_factory_new();
-
-			/* Connect handlers to the field name factory.
-			 */
-			g_signal_connect( factories[0], "setup",
-				G_CALLBACK( factory_setup ), NULL );
-
-			g_signal_connect( factories[0], "bind",
-				G_CALLBACK( field_name_factory_bind ),
-				column_names[0] );
-
-			/* Connect handlers to the other factories.
-			 */
-			for ( int i = 1; i < column_names_length; i++ ) {
-				g_signal_connect( factories[i], "setup",
-					G_CALLBACK( factory_setup ), NULL );
-
-				g_signal_connect( factories[i], "bind",
-					G_CALLBACK( value_factory_bind ),
-					(gpointer) image );
-			}
 
 			gtk_search_bar_set_search_mode(
 				GTK_SEARCH_BAR( win->metadata ), TRUE );
@@ -1879,26 +2057,10 @@ image_window_metadata( GSimpleAction *action,
 				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				width * .75);
 
-			/* Create the column view.
-			 */
-			view = gtk_column_view_new(
-				GTK_SELECTION_MODEL( selection_model ) );
+			grid = create_input_grid( image );
 
 			gtk_scrolled_window_set_child(
-				GTK_SCROLLED_WINDOW( win->metadata_window), view );
-
-			/* Create the columns.
-			 */
-			for ( int i = 0; i < column_names_length; i++ ) {
-				column = gtk_column_view_column_new(
-					column_names[i], factories[i] );
-
-				gtk_column_view_column_set_expand( column,
-					TRUE );
-
-				gtk_column_view_append_column(
-					GTK_COLUMN_VIEW( view ), column );
-			}
+				GTK_SCROLLED_WINDOW( win->metadata_window), grid );
 
 			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
 				TRUE );
@@ -2273,7 +2435,12 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "metadata" ) );
 
 	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
-	g_signal_connect( win->metadata_close_button, "clicked", G_CALLBACK( metadata_close_button_cb ), win );
+
+	g_signal_connect( win->metadata_close_button, "clicked",
+		G_CALLBACK( metadata_close_button_cb ), win );
+
+	g_signal_connect( win->metadata_save_button, "clicked",
+		G_CALLBACK( on_metadata_save_button_pressed ), win );
 }
 
 static void
@@ -2319,6 +2486,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( metadata );
 	BIND( metadata_label );
 	BIND( metadata_close_button );
+	BIND( metadata_save_button );
 	BIND( metadata_window );
 	BIND( metadata_search_entry );
 

@@ -257,6 +257,11 @@
                         <property name="label">Close</property>
                       </object>
                     </child>
+                    <child>
+                      <object class="GtkButton" id="metadata_save_button">
+                        <property name="label">Save</property>
+                      </object>
+                    </child>
                   </object>
                 </child>
                 <child>
