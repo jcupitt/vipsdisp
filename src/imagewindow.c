@@ -61,6 +61,7 @@ struct _ImageWindow
 	GtkWidget *metadata_window;
 	GtkWidget *metadata_search_entry;
 	
+	GtkGrid *metadata_grid;
 	GList *field_list;
 	int field_list_length;
 
@@ -1242,7 +1243,7 @@ free_ref_string( void *a, void *b )
 void
 on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 {
-	GtkWidget *t, *grid;
+	GtkWidget *t;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
@@ -1257,10 +1258,10 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
         win = VIPSDISP_IMAGE_WINDOW( user_data );
 	image = win->tile_source->image;
 
-	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
+	win->metadata_grid = GTK_GRID( gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) ) );
 
-	while ( (t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index, 0 )) ) {
-		t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index++, 1 );
+	while ( (t = gtk_grid_get_child_at( win->metadata_grid, row_index, 0 )) ) {
+		t = gtk_grid_get_child_at( win->metadata_grid, row_index++, 1 );
 		t = gtk_widget_get_first_child( t );
 		t = gtk_widget_get_first_child( t );
 
@@ -1434,6 +1435,8 @@ create_input( VipsImage *image, char* field_name )
 	GValue value = { 0 };
 
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+
+	gtk_widget_set_margin_start( input_box, 20 );
 
 	/* Get the value of the given field from the image.
 	 * Check the GType of @value, and select the appropriate user input
@@ -1627,7 +1630,7 @@ append_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
 	GList *match_list;
-	GtkWidget *grid, *label, *input;
+	GtkWidget *label, *input;
 	Match *first_match;
 
 	match_list = (GList *) data;
@@ -1636,13 +1639,11 @@ append_field_name( gpointer data, gpointer user_data )
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 	win->field_list = g_list_append( win->field_list, first_match->text );
 
-	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
-
 	label = gtk_label_new( first_match->text );	
-	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+	gtk_grid_attach( win->metadata_grid, label, 0, win->field_list_length, 1, 1 );
 
 	input = create_input( win->tile_source->image, first_match->text );
-	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
+	gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
 
 	win->field_list_length++;
 }
@@ -1652,22 +1653,26 @@ append_markup_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
 	gchar *markup;
+	GString *field_name;
 	GList *match_list;
-	GtkWidget *grid, *label, *input;
+	GtkWidget *label, *input;
 
 	match_list = (GList *) data;
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 	markup = get_markup_from_match( match_list );
-	g_assert( win->field_list );
 	win->field_list = g_list_append( win->field_list, markup );
 
-	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
+	label = gtk_label_new( NULL );	
+	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
-	label = gtk_label_new( markup );	
-	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+	gtk_grid_attach( win->metadata_grid, label, 0, win->field_list_length, 1, 1 );
 
-	input = create_input( win->tile_source->image, markup );
-	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
+	field_name = g_string_new( markup );
+	g_string_replace( field_name, "<b>", "", 0 );
+	g_string_replace( field_name, "</b>", "", 0 );
+
+	input = create_input( win->tile_source->image, field_name->str );
+	gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
 
 	win->field_list_length++;
 }
@@ -1734,7 +1739,6 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 {
 	ImageWindow *win;
 	char *text, *field_name;
-	GtkWidget *grid;
 	char** field_names;
 	int i = 0;
 	GList *all_field_list = NULL;
@@ -1751,10 +1755,9 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	win->field_list = NULL;
 	win->field_list_length = 0;
 
-	grid = gtk_grid_new();
-
-	// TODO: must I explicitly free the old scrolledwindow child here?
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), grid );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), NULL );
+	win->metadata_grid = GTK_GRID( gtk_grid_new() );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), GTK_WIDGET( win->metadata_grid ) );
 
 	found = NULL;
 	field_names = vips_image_get_fields( win->tile_source->image );
@@ -1832,10 +1835,11 @@ shrink_window( gpointer user_data )
 	return TRUE;
 }
 
-GtkWidget *
+GtkGrid *
 create_input_grid( ImageWindow *win )
 {
-	GtkWidget *grid, *label, *input;
+	GtkWidget *label, *input;
+	GtkGrid *grid;
 	char *field_name;
 	char **field_names;
 	int i = 0;
@@ -1847,15 +1851,15 @@ create_input_grid( ImageWindow *win )
 
 	win->field_list_length = g_list_length( win->field_list );
 
-	grid = gtk_grid_new();
+	grid = GTK_GRID( gtk_grid_new() );
 
 	i = 0;
 
 	while ( (field_name = g_list_nth_data( win->field_list, i )) ) {
 		label = gtk_label_new( field_name );	
-		gtk_grid_attach( GTK_GRID( grid ), label, 0, i, 1, 1 );
+		gtk_grid_attach( grid, label, 0, i, 1, 1 );
 		input = create_input( win->tile_source->image, field_name );
-		gtk_grid_attach( GTK_GRID( grid ), input, 1, i, 1, 1 );
+		gtk_grid_attach( grid, input, 1, i, 1, 1 );
 		i++;
 	}
 
@@ -1868,7 +1872,7 @@ image_window_metadata( GSimpleAction *action,
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *search_bar_box, *grid;
+	GtkWidget *search_bar_box;
 
 	win->field_list = NULL; // TODO should free field_list here too probably
 	win->field_list_length = 0;
@@ -1927,10 +1931,10 @@ image_window_metadata( GSimpleAction *action,
 				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				width * .75);
 
-			grid = create_input_grid( win );
+			win->metadata_grid = create_input_grid( win );
 
 			gtk_scrolled_window_set_child(
-				GTK_SCROLLED_WINDOW( win->metadata_window), grid );
+				GTK_SCROLLED_WINDOW( win->metadata_window), GTK_WIDGET( win->metadata_grid ) );
 
 			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
 				TRUE );
