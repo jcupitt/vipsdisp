@@ -62,7 +62,7 @@ struct _ImageWindow
 	GtkWidget *metadata_search_entry;
 	
 	GList *field_list;
-	int field_list_len;
+	int field_list_length;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -1112,18 +1112,18 @@ GList *alpha[ALPHABET_SIZE];
 void
 preprocess( char *p, int m, GList *alpha[], int count[], int max_pattern_size )
 {
-	int i, j;
+	int i;
 
 	for ( i = 0; i < ALPHABET_SIZE; i++ ) {
 		alpha[i] = NULL;
 		alpha[i] = g_list_append( alpha[i], GINT_TO_POINTER( -1 ) );
 	}
 
-	for ( i = 0, j = 128; i < m; i++, p++ ) {
-		if ( GPOINTER_TO_INT( alpha[*p]->data ) == -1 )
-			alpha[*p]->data = GINT_TO_POINTER( m - i - 1 );
+	for ( i = 0; i < m; i++, p++ ) {
+		if ( GPOINTER_TO_INT( alpha[(int)*p]->data ) == -1 )
+			alpha[(int)*p]->data = GINT_TO_POINTER( m - i - 1 );
 		else
-			alpha[*p] = g_list_append( alpha[*p],
+			alpha[(int)*p] = g_list_append( alpha[(int)*p],
 				GINT_TO_POINTER( m - i - 1 ) );
 	}
 
@@ -1169,7 +1169,7 @@ match_compare( gconstpointer a_, gconstpointer b_ )
 GList *
 search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern, int max_pattern_size )
 {
-	int i, off, j;
+	int i, off;
 	Match *match;
 	GList *l0 = NULL, *l1 = NULL;
 	char *text = t;
@@ -1189,7 +1189,7 @@ search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern
 		 * we reset them to @m when we are done with them, in case
 		 * they are needed when the text wraps 256 characters.
 		 */
-		l0 = alpha[*t++];
+		l0 = alpha[(int)*t++];
 		off = GPOINTER_TO_INT( l0->data );
 		if ( off >= 0 ) {
 			gpointer t[3] = {
@@ -1232,10 +1232,17 @@ search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern
 	return l1;
 }
 
+static int
+free_ref_string( void *a, void *b )
+{
+	g_free( a );
+	return 0;
+}
+
 void
 on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 {
-	GtkWidget *input_box, *t, *box, *grid;
+	GtkWidget *t, *grid;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
@@ -1252,17 +1259,18 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 
 	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
 
-	while ( t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index, 0 ) ) {
+	while ( (t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index, 0 )) ) {
 		t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index++, 1 );
 		t = gtk_widget_get_first_child( t );
 		t = gtk_widget_get_first_child( t );
 
 		GValue value = { 0 }, v = { 0 };
 
-		field_name = gtk_label_get_text( GTK_LABEL( t ) );
+		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( t ) ) );
 		field_name_string = g_string_new( field_name );
 		g_string_replace( field_name_string, "<b>", "", 0 );
 		g_string_replace( field_name_string, "</b>", "", 0 );
+		g_free( field_name );
 		field_name = field_name_string->str;
 
 		gboolean use_string = FALSE; 
@@ -1283,8 +1291,8 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 			GType type = G_VALUE_TYPE( &value );
 			if ( type == G_TYPE_STRING ) {
 				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				char *text = gtk_entry_buffer_get_text( buffer );
-				vips_image_set_string( image, field_name, g_strdup( text ) );
+				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+				vips_image_set_string( image, field_name, text );
 			} else if ( type == G_TYPE_ENUM ) {
 				puts("enum");
 			} else if ( type == G_TYPE_INT ) {
@@ -1310,19 +1318,19 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 				puts("flags");
 			} else if ( type == G_TYPE_BOXED ) {
 				puts("boxed");
-			} else if ( type = VIPS_TYPE_REF_STRING ) {
+			} else if ( (type = VIPS_TYPE_REF_STRING) ) {
 				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				char *text = gtk_entry_buffer_get_text( buffer );
-				VipsArea *area = vips_area_new( g_strdup( text ) );
-				vips_image_set_area( image, area );
+				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+				VipsRefString *ref_string = vips_ref_string_new( text );
+				vips_image_set_area( image, field_name, free_ref_string, VIPS_AREA( ref_string ) );
 			} else {
 				puts("unknown type");
 			}
 		}
 		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-			char *text = gtk_entry_buffer_get_text( buffer );
-			vips_image_set_string( image, field_name, g_strdup( text ) );
+			char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+			vips_image_set_string( image, field_name, text );
 		}
 		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
@@ -1382,8 +1390,6 @@ markup_in_string_by_match( gpointer match_, gpointer markup_ )
 {
 	Match *match;
 	GString *markup;
-	gchar *raw_str;
-	GRegex *regex;
 	gchar *replacement;
 
 	match = (Match *) match_;
@@ -1399,9 +1405,7 @@ markup_in_string_by_match( gpointer match_, gpointer markup_ )
 gchar *
 get_markup_from_match( GList *match )
 {
-	const gchar *raw_str;
 	GString *markup;
-	gchar *str;
 	Match *first = (Match *) match->data;
 
 	markup = g_string_new( g_strdup( first->text ) );
@@ -1470,7 +1474,7 @@ create_input( VipsImage *image, char* field_name )
 		} else {
 			GType type = G_VALUE_TYPE( &value );
 			if ( type == G_TYPE_STRING ) {
-				const string_value = g_value_get_string( &value );
+				char* string_value = g_strdup( g_value_get_string( &value ) );
 				GtkEntryBuffer* buffer =
 					gtk_entry_buffer_new( string_value, -1 );
 
@@ -1503,10 +1507,10 @@ create_input( VipsImage *image, char* field_name )
 				puts("flags");
 			} else if ( type == G_TYPE_BOXED ) {
 				puts("boxed");
-			} else if ( type = VIPS_TYPE_REF_STRING ) {
-				VipsArea *area;
-				area = g_value_get_boxed( &value );
-				char *string_value = g_strdup( vips_ref_string_get( area, NULL ) );
+			} else if ( (type = VIPS_TYPE_REF_STRING) ) {
+				VipsRefString *ref_string;
+				ref_string = g_value_get_boxed( &value );
+				char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
 				GtkEntryBuffer* buffer =
 					gtk_entry_buffer_new( string_value, -1 );
 				t = gtk_text_new();
@@ -1622,23 +1626,22 @@ void
 append_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
-	const gchar *markup;
 	GList *match_list;
-	Match *match;
 	GtkWidget *grid, *label, *input;
+	Match *first_match;
 
 	match_list = (GList *) data;
-	match = (Match *) match_list->data;
+	first_match = (Match *) match_list->data;
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	win->field_list = g_list_append( win->field_list, match->text );
+	win->field_list = g_list_append( win->field_list, first_match->text );
 
 	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
 
-	label = gtk_label_new( match->text );	
+	label = gtk_label_new( first_match->text );	
 	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
 
-	input = create_input( image, match->text );
+	input = create_input( win->tile_source->image, first_match->text );
 	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
 
 	win->field_list_length++;
@@ -1650,7 +1653,6 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	ImageWindow *win;
 	gchar *markup;
 	GList *match_list;
-	Match *match;
 	GtkWidget *grid, *label, *input;
 
 	match_list = (GList *) data;
@@ -1664,7 +1666,7 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	label = gtk_label_new( markup );	
 	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
 
-	input = create_input( image, markup );
+	input = create_input( win->tile_source->image, markup );
 	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
 
 	win->field_list_length++;
@@ -1696,8 +1698,6 @@ append_if_match( gpointer data, gpointer user_data )
 
 	first = g_list_first( *list_ptr );
 	needle = (gchar *) first->data;
-
-	gssize haystack_len = -1;
 
 	n = strlen( haystack );
 	int count[n];
@@ -1733,8 +1733,11 @@ static void
 search_changed( GtkWidget *search_entry, gpointer user_data )
 {
 	ImageWindow *win;
-	char *text;
+	char *text, *field_name;
 	GtkWidget *grid;
+	char** field_names;
+	int i = 0;
+	GList *all_field_list = NULL;
 
 	/* Initialize GList pointers to NULL.
 	 */
@@ -1744,7 +1747,7 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
 	g_assert( win->field_list );
-	g_list_free_full( win->field_list );
+	g_list_free( win->field_list );
 	win->field_list = NULL;
 	win->field_list_length = 0;
 
@@ -1754,10 +1757,14 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), grid );
 
 	found = NULL;
-	win->field_list = vips_image_get_fields( win->tile_source->image );
+	field_names = vips_image_get_fields( win->tile_source->image );
+
+	while ( (field_name = field_names[i++]) )
+		all_field_list = g_list_append( all_field_list, field_name );
 		
-	text = gtk_editable_get_text( GTK_EDITABLE( search_entry) );
-	found = find_strings_with_substring( win->field_list, (gchar *) text );
+	text = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
+
+	found = find_strings_with_substring( all_field_list, (gchar *) text );
 
 	if ( ! g_list_length( found ) )
 		return;
@@ -1811,7 +1818,7 @@ shrink_window( gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	if ( !gtk_widget_get_visible( win->metadata ) )
-		return;
+		return FALSE;
 	gtk_widget_set_size_request( win->metadata, 0, 0 );
 	gtk_widget_hide( win->metadata );
 	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
@@ -1841,11 +1848,15 @@ create_input_grid( ImageWindow *win )
 	win->field_list_length = g_list_length( win->field_list );
 
 	grid = gtk_grid_new();
-	while ( (field_name = win->field_list[win->field_list_length]) ) {
+
+	i = 0;
+
+	while ( (field_name = g_list_nth_data( win->field_list, i )) ) {
 		label = gtk_label_new( field_name );	
-		gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+		gtk_grid_attach( GTK_GRID( grid ), label, 0, i, 1, 1 );
 		input = create_input( win->tile_source->image, field_name );
-		gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
+		gtk_grid_attach( GTK_GRID( grid ), input, 1, i, 1, 1 );
+		i++;
 	}
 
 	return grid;
@@ -1857,16 +1868,12 @@ image_window_metadata( GSimpleAction *action,
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *view, *scrolled_window, *box, *label,
-		*search_bar_box, *search_entry, *header_bar;
-	GtkColumnViewColumn *column;
-	VipsImage *image;
+	GtkWidget *search_bar_box, *grid;
 
 	win->field_list = NULL; // TODO should free field_list here too probably
 	win->field_list_length = 0;
 
 	if ( win->tile_source && win->tile_source->image ) {
-		image = win->tile_source->image;
 		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 		if ( !win->og_width || !win->og_height) {
 			win->og_width = width;
@@ -1880,9 +1887,6 @@ image_window_metadata( GSimpleAction *action,
 			gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_HORIZONTAL );
 
 			gtk_widget_set_size_request( win->metadata, width * .75, height * .75 );
-
-			char *column_names[] = { "Field", "Value" };
-			const int column_names_length = 2;
 
 			gtk_search_bar_set_search_mode(
 				GTK_SEARCH_BAR( win->metadata ), TRUE );
