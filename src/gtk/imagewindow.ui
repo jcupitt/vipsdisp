@@ -252,12 +252,12 @@
                         <property name="label">Metadata</property>
                       </object>
                     </property>
-                    <child>
+                    <child type="start">
                       <object class="GtkButton" id="metadata_close_button">
                         <property name="label">Close</property>
                       </object>
                     </child>
-                    <child>
+                    <child type="end">
                       <object class="GtkButton" id="metadata_save_button">
                         <property name="label">Save</property>
                       </object>
