@@ -60,6 +60,9 @@ struct _ImageWindow
 	GtkWidget *metadata_save_button;
 	GtkWidget *metadata_window;
 	GtkWidget *metadata_search_entry;
+	
+	GList *field_list;
+	int field_list_len;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -1229,93 +1232,204 @@ search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern
 	return l1;
 }
 
-
-/* TODO: 
- * Produce a custom widget for cells in the second column (there are only two
- * columns).
- *
- * The type of widget used will depend on the GType of the GValue corresponding
- * to the field.
- *
- * For now, complicated data types can be ignored.
- *
- * A GtkBox should be used as the generic container.
- */
-static void
-factory_setup( GtkListItemFactory *factory, GtkListItem *list_item )
+void
+on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 {
-	GtkWidget *box;
-
-	box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-	gtk_widget_set_halign( box, GTK_ALIGN_START );
-	gtk_list_item_set_child( list_item, box );
-}
-
-/* The bind function for the field name factory, corresponding to the first
- * column. In this case, the field name is the metadata field name.
- * This column not editable - it is a column of labels.
- */
-static void
-field_name_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item )
-{
-	GtkWidget *box, *label;
-	GtkStringObject *string_object;
-	const char *markup;
-
-	box  = gtk_list_item_get_child( list_item );
-	label = gtk_label_new( NULL );
-	gtk_box_append( GTK_BOX( box ), label );
-
-	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
-
-	markup = gtk_string_object_get_string( string_object );
-
-	gtk_label_set_markup( GTK_LABEL( label ), markup );
-}
-
-/* The bind function for the other factories, corresponding to columns after
- * the field name column.
- *
- * TODO: 
- * Produce a custom widget for cells in the second column (there are only two
- * columns).
- *
- * The type of widget used will depend on the GType of the GValue corresponding
- * to the field.
- *
- * For now, complicated data types can be ignored.
- */
-
-static void
-value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointer user_data )
-{
-	GtkWidget *input_box, *t, *box;
-	GtkStringObject *string_object;
+	GtkWidget *input_box, *t, *box, *grid;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
-	char str[256];
+	VipsObjectClass *oclass;
+	GType otype;
+	GParamSpec *pspec;
+	VipsArgumentClass *argument_class;
+	VipsArgumentInstance *argument_instance;
+	ImageWindow *win;
+	int row_index = 0;
+
+        win = VIPSDISP_IMAGE_WINDOW( user_data );
+	image = win->tile_source->image;
+
+	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
+
+	while ( t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index, 0 ) ) {
+		t = gtk_grid_get_child_at( GTK_GRID( grid ), row_index++, 1 );
+		t = gtk_widget_get_first_child( t );
+		t = gtk_widget_get_first_child( t );
+
+		GValue value = { 0 }, v = { 0 };
+
+		field_name = gtk_label_get_text( GTK_LABEL( t ) );
+		field_name_string = g_string_new( field_name );
+		g_string_replace( field_name_string, "<b>", "", 0 );
+		g_string_replace( field_name_string, "</b>", "", 0 );
+		field_name = field_name_string->str;
+
+		gboolean use_string = FALSE; 
+		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
+			&pspec, &argument_class, &argument_instance ) ) {
+			vips_error_clear();
+			use_string = TRUE;
+		} else {
+			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
+			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
+				return;
+			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
+				(oclass = g_type_class_ref( otype )) )
+				return;
+		}
+
+		if( use_string ) {
+			GType type = G_VALUE_TYPE( &value );
+			if ( type == G_TYPE_STRING ) {
+				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+				char *text = gtk_entry_buffer_get_text( buffer );
+				vips_image_set_string( image, field_name, g_strdup( text ) );
+			} else if ( type == G_TYPE_ENUM ) {
+				puts("enum");
+			} else if ( type == G_TYPE_INT ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_UINT ) {
+				puts("uint");
+			} else if ( type == G_TYPE_INT64 ) {
+				puts("int64");
+			} else if ( type == G_TYPE_UINT64 ) {
+				puts("int64");
+			} else if ( type == G_TYPE_LONG ) {
+				puts("long");
+			} else if ( type == G_TYPE_ULONG ) {
+				puts("ulong");
+			} else if ( type == G_TYPE_BOOLEAN ) {
+				puts("boolean");
+			} else if ( type == G_TYPE_FLOAT ) {
+				puts("float");
+			} else if ( type == G_TYPE_DOUBLE ) {
+				puts("double");
+			} else if ( type == G_TYPE_FLAGS ) {
+				puts("flags");
+			} else if ( type == G_TYPE_BOXED ) {
+				puts("boxed");
+			} else if ( type = VIPS_TYPE_REF_STRING ) {
+				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+				char *text = gtk_entry_buffer_get_text( buffer );
+				VipsArea *area = vips_area_new( g_strdup( text ) );
+				vips_image_set_area( image, area );
+			} else {
+				puts("unknown type");
+			}
+		}
+		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+			char *text = gtk_entry_buffer_get_text( buffer );
+			vips_image_set_string( image, field_name, g_strdup( text ) );
+		}
+		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
+			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+			g_value_init( &value, G_TYPE_BOOLEAN );
+			g_value_set_boolean( &v, b );
+			vips_image_set( image, field_name, &v );
+			g_value_unset( &v );
+		}
+		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+			int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+			g_value_init( &value, G_TYPE_ENUM );
+			g_value_set_enum( &v, d );
+			vips_image_set( image, field_name, &v );
+			g_value_unset( &v );
+		
+		}
+		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_INT( pspec )) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
+			int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_double( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+				return;
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+				return;
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+				return;
+			}
+			else {
+				return;
+			}
+		}
+		else {
+			printf("Unknown type for property \"%s\"\n", field_name);
+			g_object_ref_sink( t );
+			return;
+		}
+	}
+}
+
+void
+markup_in_string_by_match( gpointer match_, gpointer markup_ )
+{
+	Match *match;
+	GString *markup;
+	gchar *raw_str;
+	GRegex *regex;
+	gchar *replacement;
+
+	match = (Match *) match_;
+	markup = (GString *) markup_;
+
+	if ( match->pattern && match->pattern[0] && !match->k ) {
+		replacement = g_strdup_printf( "<>%s</>", match->pattern );
+		g_string_replace( markup, match->pattern, replacement, 0 );
+		g_free( replacement );
+	}
+}
+
+gchar *
+get_markup_from_match( GList *match )
+{
+	const gchar *raw_str;
+	GString *markup;
+	gchar *str;
+	Match *first = (Match *) match->data;
+
+	markup = g_string_new( g_strdup( first->text ) );
+
+	g_list_foreach( match, markup_in_string_by_match, markup );
+
+	g_string_replace( markup, "<>", "<b>", 0 );
+	g_string_replace( markup, "</>", "</b>", 0 );
+
+	return markup->str;
+}
+
+GtkWidget *
+create_input( VipsImage *image, char* field_name )
+{
+	GtkWidget *input_box, *t, *box;
 	VipsObjectClass *oclass;
 	GType otype;
 	GParamSpec *pspec;
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
 
-
-	image = VIPS_IMAGE( user_data );
-
 	/* It is crucial to zero the GValue whose address we pass to
 	 * vips_image_get. Otherwise, we will get runtime errors.
 	 */
 	GValue value = { 0 };
 
-	input_box = gtk_list_item_get_child( list_item );
-	string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
-	field_name = gtk_string_object_get_string( string_object );
-	field_name_string = g_string_new( field_name );
-	g_string_replace( field_name_string, "<b>", "", 0 );
-	g_string_replace( field_name_string, "</b>", "", 0 );
-	field_name = field_name_string->str;
+	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 
 	/* Get the value of the given field from the image.
 	 * Check the GType of @value, and select the appropriate user input
@@ -1336,10 +1450,10 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 		/* For now, skip VipsImage and VipsObject types.
 		*/
 		if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
-			return;
+			return NULL;
 		else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
 			(oclass = g_type_class_ref( otype )) )
-			return;
+			return NULL;
 	}
 
 	/* Add a user input widget for this property to the input_box. The widget
@@ -1473,18 +1587,18 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
 			/* Ignore VipsImage-type parameters for now.
 			 */
-			return;
+			return NULL;
 		}
 		else {
 			/* Ignore parameters of unrecognized type for now.
 			 */
-			return;
+			return NULL;
 		}
 	}
 	else {
 		printf("Unknown type for property \"%s\"\n", field_name);
 		g_object_ref_sink( input_box );
-		return;
+		return NULL;
 	}
 
 	/* Create a box to contain the user input widget "t", and add a tooltip
@@ -1501,275 +1615,7 @@ value_factory_bind( GtkListItemFactory *factory, GtkListItem *list_item, gpointe
 	gtk_box_append( GTK_BOX( box ), t );
 	gtk_box_append( GTK_BOX( input_box ), box );
 
-}
-
-void
-on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
-{
-	GtkWidget *input_box, *t, *box, *grid;
-	GtkStringObject *string_object;
-	char *field_name;
-	GString *field_name_string;
-	VipsImage *image; 
-	char str[256];
-	VipsObjectClass *oclass;
-	GType otype;
-	GParamSpec *pspec;
-	VipsArgumentClass *argument_class;
-	VipsArgumentInstance *argument_instance;
-	ImageWindow *win;
-	GtkListModel *list_model;
-	gpointer list_item;
-	int list_index = 0;
-
-        win = VIPSDISP_IMAGE_WINDOW( user_data );
-	image = win->tile_source->image;
-
-	grid = gtk_scrolled_window_get_child( gtk_scrolled_window( win->metadata_window ) );
-
-	while ( list_item = gtk_grid_get_child_at( GTK_GRID( grid ), list_index, 0 ) ) {
-		t = gtk_grid_get_child_at( GTK_GRID( grid ), list_index++, 1 );
-
-
-		/* It is crucial to zero the GValue whose address we pass to
-		 * vips_image_get. Otherwise, we will get runtime errors.
-		 */
-		GValue value = { 0 };
-		string_object = GTK_STRING_OBJECT( gtk_list_item_get_item( list_item ) );
-
-		field_name = gtk_string_object_get_string( string_object );
-		field_name_string = g_string_new( field_name );
-		g_string_replace( field_name_string, "<b>", "", 0 );
-		g_string_replace( field_name_string, "</b>", "", 0 );
-		field_name = field_name_string->str;
-
-		/* Get the value of the given field from the image.
-		 * Check the GType of @value, and select the appropriate user input
-		 * widget. Initialize the widget with @value.
-		 * TODO
-		 */
-		gboolean use_string = FALSE; 
-		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
-			&pspec, &argument_class, &argument_instance ) ) {
-			//g_warning( "%s", vips_error_buffer() );
-			vips_error_clear();
-			//return;
-			vips_image_get( image, field_name, &value );
-			use_string = TRUE;
-		} else {
-			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-
-			/* For now, skip VipsImage and VipsObject types.
-			*/
-			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
-				return;
-			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
-				(oclass = g_type_class_ref( otype )) )
-				return;
-		}
-
-		/* Add a user input widget for this property to the list_item. The widget
-		 * chosen depends on the type of the property. Set the initial value of
-		 * the user input widget to the default value for the property.
-		 */
-		if( use_string || G_IS_PARAM_SPEC_STRING( pspec ) ) {
-			if ( !use_string ) {
-				GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-					gtk_entry_buffer_new( pspec_string->default_value, -1 );
-
-				t = gtk_text_new_with_buffer( buffer );
-			} else {
-				GType type = G_VALUE_TYPE( &value );
-				if ( type == G_TYPE_STRING ) {
-					const string_value = g_value_get_string( &value );
-					GtkEntryBuffer* buffer =
-						gtk_entry_buffer_new( string_value, -1 );
-
-					t = gtk_text_new_with_buffer( buffer );
-				
-				} else if ( type == G_TYPE_ENUM ) {
-					puts("enum");
-				} else if ( type == G_TYPE_INT ) {
-					puts("int");
-					t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-					gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-						g_value_get_int( &value ) );
-				} else if ( type == G_TYPE_UINT ) {
-					puts("uint");
-				} else if ( type == G_TYPE_INT64 ) {
-					puts("int64");
-				} else if ( type == G_TYPE_UINT64 ) {
-					puts("int64");
-				} else if ( type == G_TYPE_LONG ) {
-					puts("long");
-				} else if ( type == G_TYPE_ULONG ) {
-					puts("ulong");
-				} else if ( type == G_TYPE_BOOLEAN ) {
-					puts("boolean");
-				} else if ( type == G_TYPE_FLOAT ) {
-					puts("float");
-				} else if ( type == G_TYPE_DOUBLE ) {
-					puts("double");
-				} else if ( type == G_TYPE_FLAGS ) {
-					puts("flags");
-				} else if ( type == G_TYPE_BOXED ) {
-					puts("boxed");
-				} else if ( type = VIPS_TYPE_REF_STRING ) {
-					VipsArea *area;
-					area = g_value_get_boxed( &value );
-					char *string_value = g_strdup( vips_ref_string_get( area, NULL ) );
-					GtkEntryBuffer* buffer =
-						gtk_entry_buffer_new( string_value, -1 );
-					t = gtk_text_new();
-					gtk_text_set_buffer( GTK_TEXT( t ), buffer );
-				} else {
-					puts("unknown type");
-				}
-			}
-		}
-		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-			GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
-			t = gtk_check_button_new();
-			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
-				pspec_boolean->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-			GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-			const char **property_nicknames =
-				g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
-
-			for( int i = 0; i < pspec_enum->enum_class->n_values; ++i ) {
-				property_nicknames[i] =
-					pspec_enum->enum_class->values[i].value_nick;
-			}
-			property_nicknames[pspec_enum->enum_class->n_values] = NULL;
-			t = gtk_drop_down_new_from_strings( property_nicknames );
-			gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
-				pspec_enum->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
-			GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
-			t = gtk_spin_button_new_with_range( pspec_int64->minimum,
-				pspec_int64->maximum, 1 );
-
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				(gint64)pspec_int64->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_INT( pspec )) {
-			GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
-			t = gtk_spin_button_new_with_range( pspec_int->minimum,
-				pspec_int->maximum, 1 );
-
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				(int)pspec_int->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-			GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
-			t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
-				pspec_uint64->maximum, 1 );
-
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				(guint64)pspec_uint64->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-			GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
-
-			t = gtk_spin_button_new_with_range( pspec_double->minimum,
-				pspec_double->maximum, 1 );
-
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				pspec_double->default_value );
-		}
-		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
-			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-				/* No default values exist for ParamSpecBoxed, so make
-				 * some up for now.
-				 */
-				t = gtk_spin_button_new_with_range( 0, 1000, 1 );
-				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-				/* No default values exist for ParamSpecBoxed, so make
-				 * some up for now.
-				 */
-				t = gtk_spin_button_new_with_range( 0, 1000, .1 );
-				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-				/* Ignore VipsImage-type parameters for now.
-				 */
-				return;
-			}
-			else {
-				/* Ignore parameters of unrecognized type for now.
-				 */
-				return;
-			}
-		}
-		else {
-			printf("Unknown type for property \"%s\"\n", field_name);
-			g_object_ref_sink( list_item );
-			return;
-		}
-
-		/* Create a box to contain the user input widget "t", and add a tooltip
-		 * to the box. The tooltip contains the "blurb" for the property.
-		 * Make the user input widget "t" fill the box horizontally.
-		 * Append that container box to the "list_item".
-		 */
-		box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
-		if ( !use_string )
-			gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
-				g_param_spec_get_blurb( pspec ) );
-
-		gtk_widget_set_hexpand( t, TRUE );
-		gtk_box_append( GTK_BOX( box ), t );
-		gtk_box_append( GTK_BOX( list_item ), box );
-	}
-}
-
-/* TODO
- * To save, loop over the list items and get their values, and use them update
- * the VipsImage. This will happen when a button is clicked. There will also be
- * a cancel button. This will look a lot like the save options UI.
- */
-
-void
-markup_in_string_by_match( gpointer match_, gpointer markup_ )
-{
-	Match *match;
-	GString *markup;
-	gchar *raw_str;
-	GRegex *regex;
-	gchar *replacement;
-
-	match = (Match *) match_;
-	markup = (GString *) markup_;
-
-	if ( match->pattern && match->pattern[0] && !match->k ) {
-		replacement = g_strdup_printf( "<>%s</>", match->pattern );
-		g_string_replace( markup, match->pattern, replacement, 0 );
-		g_free( replacement );
-	}
-}
-
-gchar *
-get_markup_from_match( GList *match )
-{
-	const gchar *raw_str;
-	GString *markup;
-	gchar *str;
-	Match *first = (Match *) match->data;
-
-	markup = g_string_new( g_strdup( first->text ) );
-
-	g_list_foreach( match, markup_in_string_by_match, markup );
-
-	g_string_replace( markup, "<>", "<b>", 0 );
-	g_string_replace( markup, "</>", "</b>", 0 );
-
-	return markup->str;
+	return input_box;
 }
 
 void
@@ -1777,29 +1623,51 @@ append_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
 	const gchar *markup;
-	gchar *str;
 	GList *match_list;
 	Match *match;
+	GtkWidget *grid, *label, *input;
 
 	match_list = (GList *) data;
 	match = (Match *) match_list->data;
+
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	gtk_string_list_append( win->list_model, match->text );
+	win->field_list = g_list_append( win->field_list, match->text );
+
+	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
+
+	label = gtk_label_new( match->text );	
+	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+
+	input = create_input( image, match->text );
+	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
+
+	win->field_list_length++;
 }
 
 void
 append_markup_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
-	gchar *str, *markup;
+	gchar *markup;
 	GList *match_list;
 	Match *match;
+	GtkWidget *grid, *label, *input;
 
 	match_list = (GList *) data;
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 	markup = get_markup_from_match( match_list );
-	g_assert( win->list_model );
-	gtk_string_list_append( win->list_model, markup );
+	g_assert( win->field_list );
+	win->field_list = g_list_append( win->field_list, markup );
+
+	grid = gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) );
+
+	label = gtk_label_new( markup );	
+	gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+
+	input = create_input( image, markup );
+	gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
+
+	win->field_list_length++;
 }
 
 gint
@@ -1865,10 +1733,8 @@ static void
 search_changed( GtkWidget *search_entry, gpointer user_data )
 {
 	ImageWindow *win;
-	GtkStringList *list_model;
-	char **field_names;
-	GList *field_names_list = NULL;
 	char *text;
+	GtkWidget *grid;
 
 	/* Initialize GList pointers to NULL.
 	 */
@@ -1877,38 +1743,28 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	while ( gtk_string_list_get_string( win->list_model, 0 ) )
-		gtk_string_list_remove( win->list_model, 0 );
+	g_assert( win->field_list );
+	g_list_free_full( win->field_list );
+	win->field_list = NULL;
+	win->field_list_length = 0;
+
+	grid = gtk_grid_new();
+
+	// TODO: must I explicitly free the old scrolledwindow child here?
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), grid );
 
 	found = NULL;
-	field_names = vips_image_get_fields( win->tile_source->image );
-	char **p;
-	p = field_names;
-	while ( *p ) {
-		field_names_list = g_list_append( field_names_list, *p );
-		p++;
-	}
+	win->field_list = vips_image_get_fields( win->tile_source->image );
 		
 	text = gtk_editable_get_text( GTK_EDITABLE( search_entry) );
-	found = find_strings_with_substring( field_names_list, (gchar *) text );
+	found = find_strings_with_substring( win->field_list, (gchar *) text );
 
 	if ( ! g_list_length( found ) )
 		return;
 
-	/* Sort by increasing k.
+	/* Sort by increasing k, the number of errors.
 	 */
 	found = g_list_sort( found, match_list_compare );
-
-	/* DBG: Print all matches.
-	 */
-	//GList *t = found, *s;
-	//g_assert( t->data );
-	//while ( t ) {
-	//	s = (GList *) t->data; 
-	//	g_list_foreach( s, Match_print, NULL );
-	//	t = t->next;
-	//	puts("");
-	//}
 
 	/* Get two GLists of GLists - one with the k=0 matches, and another with
 	 * the k>0 matches.
@@ -1938,17 +1794,16 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	}
 
 
-	/* Add the exact (k=0) matches, if any.
+	/* Add the exact (k=0) matches, if any. These will have markup.
 	 */
-	if ( g_list_length( found0 ) ) {
+	if ( g_list_length( found0 ) )
 		g_list_foreach( found0, append_markup_field_name, win );
-	}
 
-	/* Add the fuzzy (k>0) matches, if any.
+	/* If there are no exact matches, then add the fuzzy (k>0) matches, if
+	 * any. These will not have markup.
 	 */
-	if ( !g_list_length( found0 ) && g_list_length( found1 ) ) {
+	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
 		g_list_foreach( found1, append_field_name, win );
-	}
 }
 
 gboolean
@@ -1971,18 +1826,26 @@ shrink_window( gpointer user_data )
 }
 
 GtkWidget *
-create_input_grid( VipsImage *image )
+create_input_grid( ImageWindow *win )
 {
-	GtkWidget *grid, *input, *label;
-	char **field_names;
+	GtkWidget *grid, *label, *input;
 	char *field_name;
-	int i;
-	
-	field_names = vips_image_get_fields( image );
-	grid = gtk_grid_new();
+	char **field_names;
+	int i = 0;
 
-	while ( (field_name = field_names[i]) ) {
-		label = gtk_label_new();	
+	field_names = vips_image_get_fields( win->tile_source->image );
+
+	while ( (field_name = field_names[i++]) )
+		win->field_list = g_list_append( win->field_list, field_name );
+
+	win->field_list_length = g_list_length( win->field_list );
+
+	grid = gtk_grid_new();
+	while ( (field_name = win->field_list[win->field_list_length]) ) {
+		label = gtk_label_new( field_name );	
+		gtk_grid_attach( GTK_GRID( grid ), label, 0, win->field_list_length, 1, 1 );
+		input = create_input( win->tile_source->image, field_name );
+		gtk_grid_attach( GTK_GRID( grid ), input, 1, win->field_list_length, 1, 1 );
 	}
 
 	return grid;
@@ -1998,6 +1861,9 @@ image_window_metadata( GSimpleAction *action,
 		*search_bar_box, *search_entry, *header_bar;
 	GtkColumnViewColumn *column;
 	VipsImage *image;
+
+	win->field_list = NULL; // TODO should free field_list here too probably
+	win->field_list_length = 0;
 
 	if ( win->tile_source && win->tile_source->image ) {
 		image = win->tile_source->image;
@@ -2057,7 +1923,7 @@ image_window_metadata( GSimpleAction *action,
 				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				width * .75);
 
-			grid = create_input_grid( image );
+			grid = create_input_grid( win );
 
 			gtk_scrolled_window_set_child(
 				GTK_SCROLLED_WINDOW( win->metadata_window), grid );
