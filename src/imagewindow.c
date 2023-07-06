@@ -1243,7 +1243,7 @@ free_ref_string( void *a, void *b )
 void
 on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 {
-	GtkWidget *t;
+	GtkWidget *t, *label;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
@@ -1258,26 +1258,29 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
         win = VIPSDISP_IMAGE_WINDOW( user_data );
 	image = win->tile_source->image;
 
-	win->metadata_grid = GTK_GRID( gtk_scrolled_window_get_child( GTK_SCROLLED_WINDOW( win->metadata_window ) ) );
-
-	while ( (t = gtk_grid_get_child_at( win->metadata_grid, row_index, 0 )) ) {
-		t = gtk_grid_get_child_at( win->metadata_grid, row_index++, 1 );
+	while ( (label = gtk_grid_get_child_at( win->metadata_grid, 0, row_index )) ) {
+		t = gtk_grid_get_child_at( win->metadata_grid, 1, row_index++ );
+		g_assert( t );
 		t = gtk_widget_get_first_child( t );
+		g_assert( t );
 		t = gtk_widget_get_first_child( t );
+		g_assert( t );
 
 		GValue value = { 0 }, v = { 0 };
 
-		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( t ) ) );
+		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
 		field_name_string = g_string_new( field_name );
 		g_string_replace( field_name_string, "<b>", "", 0 );
 		g_string_replace( field_name_string, "</b>", "", 0 );
 		g_free( field_name );
 		field_name = field_name_string->str;
+		puts( field_name );
 
 		gboolean use_string = FALSE; 
 		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
 			&pspec, &argument_class, &argument_instance ) ) {
 			vips_error_clear();
+			vips_image_get( image, field_name, &value );
 			use_string = TRUE;
 		} else {
 			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
@@ -1335,14 +1338,14 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 		}
 		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-			g_value_init( &value, G_TYPE_BOOLEAN );
+			g_value_init( &v, G_TYPE_BOOLEAN );
 			g_value_set_boolean( &v, b );
 			vips_image_set( image, field_name, &v );
 			g_value_unset( &v );
 		}
 		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 			int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-			g_value_init( &value, G_TYPE_ENUM );
+			g_value_init( &v, G_TYPE_ENUM );
 			g_value_set_enum( &v, d );
 			vips_image_set( image, field_name, &v );
 			g_value_unset( &v );
@@ -1419,7 +1422,7 @@ get_markup_from_match( GList *match )
 	return markup->str;
 }
 
-GtkWidget *
+GtkWidget  *
 create_input( VipsImage *image, char* field_name )
 {
 	GtkWidget *input_box, *t, *box;
@@ -1467,61 +1470,60 @@ create_input( VipsImage *image, char* field_name )
 	 * chosen depends on the type of the property. Set the initial value of
 	 * the user input widget to the default value for the property.
 	 */
-	if( use_string || G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		if ( !use_string ) {
-			GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+	if( use_string ) {
+		GType type = G_VALUE_TYPE( &value );
+		if ( type == G_TYPE_STRING ) {
+			char* string_value = g_strdup( g_value_get_string( &value ) );
 			GtkEntryBuffer* buffer =
-				gtk_entry_buffer_new( pspec_string->default_value, -1 );
+				gtk_entry_buffer_new( string_value, -1 );
 
 			t = gtk_text_new_with_buffer( buffer );
+		
+		} else if ( type == G_TYPE_ENUM ) {
+			puts("enum");
+		} else if ( type == G_TYPE_INT ) {
+			puts("int");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
+		} else if ( type == G_TYPE_UINT ) {
+			puts("uint");
+		} else if ( type == G_TYPE_INT64 ) {
+			puts("int64");
+		} else if ( type == G_TYPE_UINT64 ) {
+			puts("int64");
+		} else if ( type == G_TYPE_LONG ) {
+			puts("long");
+		} else if ( type == G_TYPE_ULONG ) {
+			puts("ulong");
+		} else if ( type == G_TYPE_BOOLEAN ) {
+			puts("boolean");
+		} else if ( type == G_TYPE_FLOAT ) {
+			puts("float");
+		} else if ( type == G_TYPE_DOUBLE ) {
+			puts("double");
+		} else if ( type == G_TYPE_FLAGS ) {
+			puts("flags");
+		} else if ( type == G_TYPE_BOXED ) {
+			puts("boxed");
+		} else if ( (type = VIPS_TYPE_REF_STRING) ) {
+			VipsRefString *ref_string;
+			ref_string = g_value_get_boxed( &value );
+			char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
+			GtkEntryBuffer* buffer =
+				gtk_entry_buffer_new( string_value, -1 );
+			t = gtk_text_new();
+			gtk_text_set_buffer( GTK_TEXT( t ), buffer );
 		} else {
-			GType type = G_VALUE_TYPE( &value );
-			if ( type == G_TYPE_STRING ) {
-				char* string_value = g_strdup( g_value_get_string( &value ) );
-				GtkEntryBuffer* buffer =
-					gtk_entry_buffer_new( string_value, -1 );
-
-				t = gtk_text_new_with_buffer( buffer );
-			
-			} else if ( type == G_TYPE_ENUM ) {
-				puts("enum");
-			} else if ( type == G_TYPE_INT ) {
-				puts("int");
-				t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-					g_value_get_int( &value ) );
-			} else if ( type == G_TYPE_UINT ) {
-				puts("uint");
-			} else if ( type == G_TYPE_INT64 ) {
-				puts("int64");
-			} else if ( type == G_TYPE_UINT64 ) {
-				puts("int64");
-			} else if ( type == G_TYPE_LONG ) {
-				puts("long");
-			} else if ( type == G_TYPE_ULONG ) {
-				puts("ulong");
-			} else if ( type == G_TYPE_BOOLEAN ) {
-				puts("boolean");
-			} else if ( type == G_TYPE_FLOAT ) {
-				puts("float");
-			} else if ( type == G_TYPE_DOUBLE ) {
-				puts("double");
-			} else if ( type == G_TYPE_FLAGS ) {
-				puts("flags");
-			} else if ( type == G_TYPE_BOXED ) {
-				puts("boxed");
-			} else if ( (type = VIPS_TYPE_REF_STRING) ) {
-				VipsRefString *ref_string;
-				ref_string = g_value_get_boxed( &value );
-				char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
-				GtkEntryBuffer* buffer =
-					gtk_entry_buffer_new( string_value, -1 );
-				t = gtk_text_new();
-				gtk_text_set_buffer( GTK_TEXT( t ), buffer );
-			} else {
-				puts("unknown type");
-			}
+			puts("unknown type");
 		}
+	}
+	else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+		GtkEntryBuffer* buffer =
+			gtk_entry_buffer_new( pspec_string->default_value, -1 );
+
+		t = gtk_text_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
@@ -1642,10 +1644,10 @@ append_field_name( gpointer data, gpointer user_data )
 	label = gtk_label_new( first_match->text );	
 	gtk_grid_attach( win->metadata_grid, label, 0, win->field_list_length, 1, 1 );
 
-	input = create_input( win->tile_source->image, first_match->text );
-	gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
-
-	win->field_list_length++;
+	if ( (input = create_input( win->tile_source->image, first_match->text )) ) {
+		gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
+		win->field_list_length++;
+	}
 }
 
 void
@@ -1671,10 +1673,10 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	g_string_replace( field_name, "<b>", "", 0 );
 	g_string_replace( field_name, "</b>", "", 0 );
 
-	input = create_input( win->tile_source->image, field_name->str );
-	gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
-
-	win->field_list_length++;
+	if ( (input = create_input( win->tile_source->image, field_name->str )) ) {
+		gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
+		win->field_list_length++;
+	}
 }
 
 gint
