@@ -1293,7 +1293,6 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 		g_string_replace( field_name_string, "</b>", "", 0 );
 		g_free( field_name );
 		field_name = field_name_string->str;
-		puts( field_name );
 
 		gboolean use_string = FALSE; 
 		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
@@ -1317,30 +1316,40 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
 				vips_image_set_string( image, field_name, text );
 			} else if ( type == G_TYPE_ENUM ) {
-				puts("enum");
 			} else if ( type == G_TYPE_INT ) {
 				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
 				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_UINT ) {
-				puts("uint");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_INT64 ) {
-				puts("int64");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_UINT64 ) {
-				puts("int64");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_LONG ) {
-				puts("long");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_ULONG ) {
-				puts("ulong");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_BOOLEAN ) {
-				puts("boolean");
+				gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+				g_value_init( &v, G_TYPE_BOOLEAN );
+				g_value_set_boolean( &v, b );
+				vips_image_set( image, field_name, &v );
+				g_value_unset( &v );
 			} else if ( type == G_TYPE_FLOAT ) {
-				puts("float");
+				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_double( image, field_name, d );
 			} else if ( type == G_TYPE_DOUBLE ) {
-				puts("double");
+				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_double( image, field_name, d );
 			} else if ( type == G_TYPE_FLAGS ) {
-				puts("flags");
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_BOXED ) {
-				puts("boxed");
 			} else if ( (type = VIPS_TYPE_REF_STRING) ) {
 				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
 				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
@@ -1501,34 +1510,95 @@ create_input( VipsImage *image, char* field_name )
 				gtk_entry_buffer_new( string_value, -1 );
 
 			t = gtk_text_new_with_buffer( buffer );
-		
 		} else if ( type == G_TYPE_ENUM ) {
-			puts("enum");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_INT ) {
-			puts("int");
 			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
 			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_UINT ) {
-			puts("uint");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_INT64 ) {
-			puts("int64");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_UINT64 ) {
-			puts("int64");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_LONG ) {
-			puts("long");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_ULONG ) {
-			puts("ulong");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_BOOLEAN ) {
-			puts("boolean");
+			t = gtk_check_button_new();
+			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
+				g_value_get_boolean( &value ) );
 		} else if ( type == G_TYPE_FLOAT ) {
-			puts("float");
+			t = gtk_spin_button_new_with_range( -G_MAXFLOAT + 1, G_MAXFLOAT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_DOUBLE ) {
-			puts("double");
+			t = gtk_spin_button_new_with_range( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_FLAGS ) {
-			puts("flags");
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
+		} else if ( type == G_TYPE_LONG ) {
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
+		} else if ( type == G_TYPE_ULONG ) {
+			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
+		} else if ( type == G_TYPE_BOOLEAN ) {
+			t = gtk_check_button_new();
+			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
+				g_value_get_boolean( &value ) );
+		} else if ( type == G_TYPE_FLOAT ) {
+			t = gtk_spin_button_new_with_range( -G_MAXFLOAT + 1, G_MAXFLOAT, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
+		} else if ( type == G_TYPE_DOUBLE ) {
+			t = gtk_spin_button_new_with_range( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1 );
+			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
+				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_BOXED ) {
-			puts("boxed");
+			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+				/* No default values exist for ParamSpecBoxed, so make
+				 * some up for now.
+				 */
+				t = gtk_spin_button_new_with_range( 0, 1000, 1 );
+				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+				/* No default values exist for ParamSpecBoxed, so make
+				 * some up for now.
+				 */
+				t = gtk_spin_button_new_with_range( 0, 1000, .1 );
+				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+				/* Ignore VipsImage-type parameters for now.
+				 */
+				return NULL;
+			}
+			else {
+				/* Ignore parameters of unrecognized type for now.
+				 */
+				return NULL;
+			}
 		} else if ( (type = VIPS_TYPE_REF_STRING) ) {
 			VipsRefString *ref_string;
 			ref_string = g_value_get_boxed( &value );
