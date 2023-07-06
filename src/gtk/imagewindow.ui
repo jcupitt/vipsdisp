@@ -258,8 +258,8 @@
                       </object>
                     </child>
                     <child type="end">
-                      <object class="GtkButton" id="metadata_save_button">
-                        <property name="label">Save</property>
+                      <object class="GtkButton" id="metadata_apply_button">
+                        <property name="label">Apply</property>
                       </object>
                     </child>
                   </object>

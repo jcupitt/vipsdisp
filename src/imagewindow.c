@@ -57,7 +57,7 @@ struct _ImageWindow
 	GtkWidget *metadata;
 	GtkWidget *metadata_label;
 	GtkWidget *metadata_close_button;
-	GtkWidget *metadata_save_button;
+	GtkWidget *metadata_apply_button;
 	GtkWidget *metadata_window;
 	GtkWidget *metadata_search_entry;
 	
@@ -1240,10 +1240,29 @@ free_ref_string( void *a, void *b )
 	return 0;
 }
 
-void
-on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
+gboolean
+shrink_window( gpointer user_data )
 {
-	GtkWidget *t, *label;
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	if ( !gtk_widget_get_visible( win->metadata ) )
+		return FALSE;
+	gtk_widget_set_size_request( win->metadata, 0, 0 );
+	gtk_widget_hide( win->metadata );
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
+	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
+
+	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
+
+	change_state( GTK_WIDGET( win ), "metadata", 
+		g_settings_get_value( win->settings, "metadata" ) );
+
+	return TRUE;
+}
+
+void
+on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
+{
+	GtkWidget *t, *label, *revealer;
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image; 
@@ -1387,6 +1406,10 @@ on_metadata_save_button_pressed( GtkWidget *_button, gpointer user_data )
 			return;
 		}
 	}
+
+	revealer = gtk_widget_get_first_child( win->metadata );
+	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
+	g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
 }
 
 void
@@ -1816,25 +1839,6 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	 */
 	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
 		g_list_foreach( found1, append_field_name, win );
-}
-
-gboolean
-shrink_window( gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	if ( !gtk_widget_get_visible( win->metadata ) )
-		return FALSE;
-	gtk_widget_set_size_request( win->metadata, 0, 0 );
-	gtk_widget_hide( win->metadata );
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
-	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
-
-	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
-
-	change_state( GTK_WIDGET( win ), "metadata", 
-		g_settings_get_value( win->settings, "metadata" ) );
-
-	return TRUE;
 }
 
 GtkGrid *
@@ -2315,8 +2319,8 @@ image_window_init( ImageWindow *win )
 	g_signal_connect( win->metadata_close_button, "clicked",
 		G_CALLBACK( metadata_close_button_cb ), win );
 
-	g_signal_connect( win->metadata_save_button, "clicked",
-		G_CALLBACK( on_metadata_save_button_pressed ), win );
+	g_signal_connect( win->metadata_apply_button, "clicked",
+		G_CALLBACK( on_metadata_apply_button_pressed ), win );
 }
 
 static void
@@ -2362,7 +2366,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( metadata );
 	BIND( metadata_label );
 	BIND( metadata_close_button );
-	BIND( metadata_save_button );
+	BIND( metadata_apply_button );
 	BIND( metadata_window );
 	BIND( metadata_search_entry );
 
