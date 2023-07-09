@@ -1233,13 +1233,6 @@ search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern
 	return l1;
 }
 
-static int
-free_ref_string( void *a, void *b )
-{
-	g_free( a );
-	return 0;
-}
-
 gboolean
 shrink_window( gpointer user_data )
 {
@@ -1350,13 +1343,19 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
 				vips_image_set_int( image, field_name, d );
 			} else if ( type == G_TYPE_BOXED ) {
-			} else if ( (type = VIPS_TYPE_REF_STRING) ) {
+			} else if ( (type == VIPS_TYPE_REF_STRING) ) {
 				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-				VipsRefString *ref_string = vips_ref_string_new( text );
-				vips_image_set_area( image, field_name, free_ref_string, VIPS_AREA( ref_string ) );
+				const char *text = gtk_entry_buffer_get_text( buffer );
+				vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
 			} else {
-				puts("unknown type");
+				// Must be a VipsBlob then
+
+				// Ignore metadata field names that contain the substring "thumbnail"
+				if ( !strstr( field_name, "thumbnail" ) ) {
+					GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+					const char *text = gtk_entry_buffer_get_text( buffer );
+					vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
+				}
 			}
 		}
 		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
@@ -1600,15 +1599,31 @@ create_input( VipsImage *image, char* field_name )
 				return NULL;
 			}
 		} else if ( (type = VIPS_TYPE_REF_STRING) ) {
-			VipsRefString *ref_string;
-			ref_string = g_value_get_boxed( &value );
-			char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
-			GtkEntryBuffer* buffer =
-				gtk_entry_buffer_new( string_value, -1 );
-			t = gtk_text_new();
-			gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+			if ( !strstr( field_name, "thumbnail" ) ) {
+				VipsRefString *ref_string;
+				ref_string = g_value_get_boxed( &value );
+				char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
+				GtkEntryBuffer* buffer =
+					gtk_entry_buffer_new( string_value, -1 );
+				t = gtk_text_new();
+				gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+			} else {
+				// Then just make @t an empty label.
+				t = gtk_label_new( NULL );
+			}
 		} else {
-			puts("unknown type");
+			// Must be a VipsBlob then
+
+			// Ignore metadata field names that contain the substring "thumbnail"
+			if ( !strstr( field_name, "thumbnail" ) ) {
+				VipsRefString *ref_string;
+				ref_string = g_value_get_boxed( &value );
+				char *string_value = g_strdup( vips_ref_string_get( ref_string, NULL ) );
+				GtkEntryBuffer* buffer =
+					gtk_entry_buffer_new( string_value, -1 );
+				t = gtk_text_new();
+				gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+			}
 		}
 	}
 	else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
