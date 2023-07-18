@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+
+  <template class="SaveOptions" parent="GtkDialog">
+
+    <property name="title" translatable="yes">Save options</property>
+    <property name="can-focus">True</property>
+    <property name="modal">True</property>
+    <property name="default-width">600</property>
+    <property name="default-height">600</property>
+
+    <style>
+      <class name="saveoptions"/>
+    </style>
+
+    <child internal-child="content_area">
+      <object class="GtkBox" id="options_box">
+        <child>
+          <object class="GtkLabel">
+            <property name="label">Test widget in content area</property>
+          </object>
+        </child>
+      </object>
+    </child>
+
+    <child type="action">
+      <object class="GtkButton" id="cancel_button">
+        <property name="use-underline">1</property>
+        <property name="label" translatable="yes">_Cancel</property>
+      </object>
+    </child>
+
+    <child type="action">
+      <object class="GtkButton" id="ok_button">
+        <property name="use-underline">1</property>
+        <property name="label" translatable="yes">_Save</property>
+      </object>
+    </child>
+
+    <action-widgets>
+      <action-widget response="cancel">cancel_button</action-widget>
+      <action-widget response="ok" default="true">ok_button</action-widget>
+    </action-widgets>
+  
+  </template>
+
+</interface>
+
