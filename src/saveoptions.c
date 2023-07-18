@@ -270,10 +270,7 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
 {
 	SaveOptions *options = VIPSDISP_SAVE_OPTIONS( dialog );
 
-	printf( "save_options_response: %d\n", response );
-
 	if( response == GTK_RESPONSE_OK ) {
-		printf( "save_options_response: setting values ...\n" );
 		vips_argument_map( VIPS_OBJECT( options->save_operation ),
 			save_options_response_map_fn,
 			options, NULL );
@@ -281,19 +278,13 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
 		// this will trigger the save and loop while we write ... the
 		// UI will stay live thanks to event processing in the eval
 		// handler
-		printf( "save_options_response: saving ...\n" );
-		if( vips_cache_operation_buildp( &options->save_operation ) ) {
-			printf( "save_options_response: save failed!\n" );
+		if( vips_cache_operation_buildp( &options->save_operation ) ) 
 			save_options_error( options );
-		}
-		else {
-			printf( "save_options_response: success\n" );
-
+		else 
 			// everything worked, we can post success back to
 			// our caller
 			gtk_dialog_response( GTK_DIALOG( dialog ), 
-				SAVE_OPTIONS_RESPONSE_ACCEPT );
-		}
+				GTK_RESPONSE_ACCEPT );
 	}
 }
 

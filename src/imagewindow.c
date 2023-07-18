@@ -577,13 +577,9 @@ image_window_saveas_options_response( GtkDialog *dialog,
 {
 	GtkWidget *file_chooser = GTK_WIDGET( user_data );
 
-	printf( "image_window_saveas_options_response: %d\n", response );
-
 	// final save and everything worked OK, we can all pop down
-	if( response == SAVE_OPTIONS_RESPONSE_ACCEPT ) {
+	if( response == GTK_RESPONSE_ACCEPT ) {
 		gtk_window_destroy( GTK_WINDOW( dialog ) );
-		printf( "image_window_saveas_options_response: "
-			"destroying filechooser\n" );
 		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
 	}
 
@@ -600,8 +596,6 @@ image_window_saveas_response( GtkDialog *dialog,
 	gint response, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	printf( "image_window_saveas_response: %d\n", response );
 
 	if( response == GTK_RESPONSE_ACCEPT ) {
 		GFile *file;
@@ -622,18 +616,15 @@ image_window_saveas_response( GtkDialog *dialog,
 			return;
 		}
 
-		g_signal_connect( options, "response", 
+		g_signal_connect_object( options, "response", 
 			G_CALLBACK( image_window_saveas_options_response ), 
-			dialog );
+			dialog, 0 );
 
 		gtk_window_present( GTK_WINDOW( options ) );
 	}
 
-	if( response == GTK_RESPONSE_CANCEL ) {
-		printf( "image_window_saveas_response: "
-			"destroying filechooser\n" );
+	if( response == GTK_RESPONSE_CANCEL )
 		gtk_window_destroy( GTK_WINDOW( dialog ) );
-	}
 }
 
 static void
@@ -652,6 +643,7 @@ image_window_saveas_action( GSimpleAction *action,
 			"_Cancel", GTK_RESPONSE_CANCEL,
 			"_Save", GTK_RESPONSE_ACCEPT,
 			NULL );
+
 		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
 
 		if( (file = tile_source_get_file( win->tile_source )) ) {
