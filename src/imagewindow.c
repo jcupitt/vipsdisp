@@ -420,7 +420,7 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 static void
 image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 {
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
+	image_window_error_hide( win );
 }
 
 static void
@@ -580,11 +580,20 @@ image_window_saveas_options_response( GtkDialog *dialog,
 
 	printf( "image_window_saveas_options_response: %d\n", response );
 
-	if( response == GTK_RESPONSE_ACCEPT ||
-		response == GTK_RESPONSE_OK )
+	// final save and everything worked OK, we can all pop down
+	if( response == SAVE_OPTIONS_RESPONSE_ACCEPT ) {
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+		printf( "image_window_saveas_options_response: "
+			"destroying filechooser\n" );
 		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
+	}
 
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
+	// save options was cancelled, just pop that down
+	if( response == GTK_RESPONSE_CANCEL ) 
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+	// other return codes are intermediate stages of processing and we
+	// should do nothing
 }
 
 static void
@@ -605,7 +614,6 @@ image_window_saveas_response( GtkDialog *dialog,
 		VIPS_UNREF( file ); 
 
 		options = save_options_new( GTK_WINDOW( dialog ),
-			_( "Save options" ),
 			win->tile_source->image, filename );
 
 		g_free( filename ); 
@@ -621,8 +629,12 @@ image_window_saveas_response( GtkDialog *dialog,
 
 		gtk_window_present( GTK_WINDOW( options ) );
 	}
-	else
+
+	if( response == GTK_RESPONSE_CANCEL ) {
+		printf( "image_window_saveas_response: "
+			"destroying filechooser\n" );
 		gtk_window_destroy( GTK_WINDOW( dialog ) );
+	}
 }
 
 static void

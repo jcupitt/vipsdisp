@@ -8,14 +8,27 @@ struct _SaveOptions
 {
 	GtkDialog parent_instance;
 
+	VipsImage *image;
 	VipsOperation *save_operation;
 
 	// a box we can fill with widgets for the save options
 	GtkWidget *options_grid;
 
+	// the progress and error indicators we show
+	GtkWidget *progress_bar;
+	GtkWidget *progress;
+	GtkWidget *progress_cancel;
+	GtkWidget *error_bar;
+	GtkWidget *error_label;
+
 	// hash property names to the widghet for that property ... we fetch 
 	// values from here when we make the saver
 	GHashTable *value_widgets;
+
+	/* Throttle progress bar updates to a few per second with this.
+	 */
+	GTimer *progress_timer;
+	double last_progress_time;
 };
 
 struct _SaveOptionsClass
@@ -32,10 +45,162 @@ save_options_dispose( GObject *object )
 
 	printf( "save_options_dispose:\n" ); 
 
+	VIPS_UNREF( options->image );
 	VIPS_UNREF( options->save_operation );
+	VIPS_FREEF( g_timer_destroy, options->progress_timer );
 	VIPS_FREEF( g_hash_table_destroy, options->value_widgets );
 
 	G_OBJECT_CLASS( save_options_parent_class )->dispose( object );
+}
+
+static void
+save_options_error( SaveOptions *options )
+{
+	char *err;
+	int i;
+
+	/* Remove any trailing \n.
+	 */
+	err = vips_error_buffer_copy();
+	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
+		err[i - 1] = '\0';
+	gtk_label_set_text( GTK_LABEL( options->error_label ), err );
+	g_free( err );
+
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), TRUE );
+}
+
+static void
+save_options_error_hide( SaveOptions *options )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), FALSE );
+}
+
+static void
+save_options_error_response( GtkWidget *button, int response, 
+	SaveOptions *options )
+{
+	save_options_error_hide( options );
+}
+
+static void
+save_options_preeval( VipsImage *image, 
+	VipsProgress *progress, SaveOptions *options )
+{
+	printf( "save_options_preeval:\n" );
+
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
+		TRUE );
+}
+
+typedef struct _EvalUpdate {
+	SaveOptions *options;
+	int eta;
+	int percent;
+} EvalUpdate;
+
+/* A 'safe' way to run a few events.
+ */
+static void
+process_events( void )
+{
+        /* Max events we process before signalling a timeout. Without this we
+         * can get stuck in event loops in some circumstances.
+         */
+        static const int max_events = 100;
+
+        /* Block too much recursion. 0 is from the top-level, 1 is from a
+         * callback, we don't want any more than that.
+         */
+        if( g_main_depth() < 2 ) {
+                int n;
+
+                printf( "progress_update: starting event dispatch\n" );
+
+                for( n = 0; n < max_events &&
+                        g_main_context_iteration( NULL, FALSE ); n++ )
+                        ;
+
+                printf( "progress_update: ... processed %d events\n", n );
+        }
+}
+
+static gboolean
+save_options_eval_idle( void *user_data )
+{
+	EvalUpdate *update = (EvalUpdate *) user_data;
+	SaveOptions *options = update->options;
+
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
+
+	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
+		update->percent, update->eta );
+	gtk_progress_bar_set_text( GTK_PROGRESS_BAR( options->progress ),
+		vips_buf_all( &buf ) );
+
+	gtk_progress_bar_set_fraction( GTK_PROGRESS_BAR( options->progress ),
+		update->percent / 100.0 );
+
+	g_object_unref( options );
+
+	g_free( update );
+	
+	return( FALSE );
+}
+
+static void
+save_options_eval( VipsImage *image, 
+	VipsProgress *progress, SaveOptions *options )
+{
+	double time_now;
+	EvalUpdate *update;
+
+	/* We can be ^Q'd during load. This is NULLed in _dispose.
+	 */
+	if( !options->progress_timer )
+		return;
+
+	time_now = g_timer_elapsed( options->progress_timer, NULL );
+
+	/* Throttle to 10Hz.
+	 */
+	if( time_now - options->last_progress_time < 0.1 )
+		return;
+	options->last_progress_time = time_now;
+
+	printf( "save_options_eval: %d%%\n", progress->percent );
+
+	/* You'd think we could just update the progress bar now, but it
+	 * seems to trigger a lot of races. Instead, set an idle handler and 
+	 * do the update there. 
+	 */
+
+	update = g_new( EvalUpdate, 1 );
+
+	update->options = options;
+	update->percent = progress->percent;
+	update->eta = progress->eta;
+
+	/* We don't want win to vanish before we process this update. The
+	 * matching unref is in the handler above.
+	 */
+	g_object_ref( options );
+
+	g_idle_add( save_options_eval_idle, update );
+
+	// run the main loop for a while
+	process_events();
+}
+
+static void
+save_options_posteval( VipsImage *image, 
+	VipsProgress *progress, SaveOptions *options )
+{
+	printf( "save_options_posteval:\n" );
+
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
+		FALSE );
 }
 
 static void
@@ -200,12 +365,29 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
 			save_options_response_map_fn,
 			options, NULL );
 
-		// then this will trigger the save
+		// this will trigger the save and loop while we write ... the
+		// UI will stay live thanks to event processing in the eval
+		// handler
 		printf( "save_options_response: saving ...\n" );
-		if( vips_object_build( VIPS_OBJECT( options->save_operation ) ) ) {
-			printf( "save failed: %s\n", vips_error_buffer() );
+		if( vips_cache_operation_buildp( &options->save_operation ) ) {
+			printf( "save_options_response: save failed!\n" );
+			save_options_error( options );
+		}
+		else {
+			printf( "save_options_response: success\n" );
+
+			// everything worked, we can post success back to
+			// our caller
+			gtk_dialog_response( GTK_DIALOG( dialog ), 
+				SAVE_OPTIONS_RESPONSE_ACCEPT );
 		}
 	}
+}
+
+static void
+save_options_cancel_clicked( GtkWidget *button, SaveOptions *options )
+{
+	vips_image_set_kill( options->image, TRUE );
 }
 
 static void
@@ -215,7 +397,15 @@ save_options_init( SaveOptions *options )
 
 	gtk_widget_init_template( GTK_WIDGET( options ) );
 
+	g_signal_connect_object( options->progress_cancel, "clicked", 
+		G_CALLBACK( save_options_cancel_clicked ), options, 0 );
+
+	g_signal_connect_object( options->error_bar, "response", 
+		G_CALLBACK( save_options_error_response ), options, 0 );
+
 	options->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
+
+	options->progress_timer = g_timer_new();
 
 	g_signal_connect_object( options, "response", 
 		G_CALLBACK( save_options_response ), options, 0 );
@@ -236,7 +426,13 @@ save_options_class_init( SaveOptionsClass *class )
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/saveoptions.ui");
 
+	BIND( progress_bar );
+	BIND( progress );
+	BIND( progress_cancel );
+	BIND( error_bar );
+	BIND( error_label );
 	BIND( options_grid );
+
 }
 
 /* This function is used by:
@@ -406,40 +602,51 @@ save_options_add_options_fn( VipsObject *operation,
 }
 
 SaveOptions *
-save_options_new( GtkWindow *parent_window, const char *title,
+save_options_new( GtkWindow *parent_window, 
 	VipsImage *image, const char *filename )
 {
 	const char *saver;
 	SaveOptions *options;
-	int row;
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
 
-	if( !(saver = vips_foreign_find_save( filename )) ) {
-		// this will display the error back in the main window, which
-		// is a bit odd
-		//
-		// maybe display the save options, but put the error
-		// message in the dialog?
-		//
-		// could put progress in the dialog too
-		return( NULL );
-	}
-
+	vips_buf_appendf( &buf, "Save to \"%s\"", filename );
 	options = g_object_new( SAVE_OPTIONS_TYPE, 
 		// we have to set this here, not in the ui file, for some reason
 		"use-header-bar", true, 
 		"transient-for", parent_window, 
-		"title", title,
+		"title", vips_buf_all( &buf ),
 		NULL );
 
-	options->save_operation = vips_operation_new( saver );
-	g_object_set( options->save_operation,
-		"in", image,
-		"filename", filename,
-		NULL );
+	options->image = image;
+	g_object_ref( image );
 
-	row = 0;
-	vips_argument_map( VIPS_OBJECT( options->save_operation ),
-		save_options_add_options_fn, options, &row );
+	if( options->image ) { 
+		vips_image_set_progress( options->image, TRUE ); 
+		g_signal_connect_object( options->image, "preeval", 
+			G_CALLBACK( save_options_preeval ), options, 0 );
+		g_signal_connect_object( options->image, "eval", 
+			G_CALLBACK( save_options_eval ), options, 0 );
+		g_signal_connect_object( options->image, "posteval", 
+			G_CALLBACK( save_options_posteval ), options, 0 );
+	}
+
+	if( !(saver = vips_foreign_find_save( filename )) ) 
+		save_options_error( options );
+
+	if( saver && options->image ) {
+		int row;
+
+		options->save_operation = vips_operation_new( saver );
+		g_object_set( options->save_operation,
+			"in", options->image,
+			"filename", filename,
+			NULL );
+
+		row = 0;
+		vips_argument_map( VIPS_OBJECT( options->save_operation ),
+			save_options_add_options_fn, options, &row );
+	}
 
 	return( options );
 }
