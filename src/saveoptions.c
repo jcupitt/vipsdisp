@@ -43,8 +43,6 @@ save_options_dispose( GObject *object )
 {
 	SaveOptions *options = VIPSDISP_SAVE_OPTIONS( object );
 
-	printf( "save_options_dispose:\n" ); 
-
 	VIPS_UNREF( options->image );
 	VIPS_UNREF( options->save_operation );
 	VIPS_FREEF( g_timer_destroy, options->progress_timer );
@@ -87,66 +85,8 @@ static void
 save_options_preeval( VipsImage *image, 
 	VipsProgress *progress, SaveOptions *options )
 {
-	printf( "save_options_preeval:\n" );
-
 	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
 		TRUE );
-}
-
-typedef struct _EvalUpdate {
-	SaveOptions *options;
-	int eta;
-	int percent;
-} EvalUpdate;
-
-/* A 'safe' way to run a few events.
- */
-static void
-process_events( void )
-{
-        /* Max events we process before signalling a timeout. Without this we
-         * can get stuck in event loops in some circumstances.
-         */
-        static const int max_events = 100;
-
-        /* Block too much recursion. 0 is from the top-level, 1 is from a
-         * callback, we don't want any more than that.
-         */
-        if( g_main_depth() < 2 ) {
-                int n;
-
-                printf( "progress_update: starting event dispatch\n" );
-
-                for( n = 0; n < max_events &&
-                        g_main_context_iteration( NULL, FALSE ); n++ )
-                        ;
-
-                printf( "progress_update: ... processed %d events\n", n );
-        }
-}
-
-static gboolean
-save_options_eval_idle( void *user_data )
-{
-	EvalUpdate *update = (EvalUpdate *) user_data;
-	SaveOptions *options = update->options;
-
-	char str[256];
-	VipsBuf buf = VIPS_BUF_STATIC( str );
-
-	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
-		update->percent, update->eta );
-	gtk_progress_bar_set_text( GTK_PROGRESS_BAR( options->progress ),
-		vips_buf_all( &buf ) );
-
-	gtk_progress_bar_set_fraction( GTK_PROGRESS_BAR( options->progress ),
-		update->percent / 100.0 );
-
-	g_object_unref( options );
-
-	g_free( update );
-	
-	return( FALSE );
 }
 
 static void
@@ -154,7 +94,8 @@ save_options_eval( VipsImage *image,
 	VipsProgress *progress, SaveOptions *options )
 {
 	double time_now;
-	EvalUpdate *update;
+	char str[256];
+	VipsBuf buf = VIPS_BUF_STATIC( str );
 
 	/* We can be ^Q'd during load. This is NULLed in _dispose.
 	 */
@@ -169,25 +110,13 @@ save_options_eval( VipsImage *image,
 		return;
 	options->last_progress_time = time_now;
 
-	printf( "save_options_eval: %d%%\n", progress->percent );
+	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
+		progress->percent, progress->eta );
+	gtk_progress_bar_set_text( GTK_PROGRESS_BAR( options->progress ),
+		vips_buf_all( &buf ) );
 
-	/* You'd think we could just update the progress bar now, but it
-	 * seems to trigger a lot of races. Instead, set an idle handler and 
-	 * do the update there. 
-	 */
-
-	update = g_new( EvalUpdate, 1 );
-
-	update->options = options;
-	update->percent = progress->percent;
-	update->eta = progress->eta;
-
-	/* We don't want win to vanish before we process this update. The
-	 * matching unref is in the handler above.
-	 */
-	g_object_ref( options );
-
-	g_idle_add( save_options_eval_idle, update );
+	gtk_progress_bar_set_fraction( GTK_PROGRESS_BAR( options->progress ),
+		progress->percent / 100.0 );
 
 	// run the main loop for a while
 	process_events();
@@ -197,8 +126,6 @@ static void
 save_options_posteval( VipsImage *image, 
 	VipsProgress *progress, SaveOptions *options )
 {
-	printf( "save_options_posteval:\n" );
-
 	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
 		FALSE );
 }
@@ -227,7 +154,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 			strcmp( value, "" ) != 0) ||
 		    (pspec_string->default_value &&
 			strcmp( value, pspec_string->default_value ) != 0) ) {
-			printf( "\t%s = %s\n", name, value );
 
 			g_object_set( options->save_operation,
 				name, value,
@@ -238,8 +164,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		gboolean value = 
 			gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
 
-		printf( "\t%s = %d\n", name, value );
-
 		g_object_set( options->save_operation, 
 			name, value,
 			NULL );
@@ -249,8 +173,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		int index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
 		int value = pspec_enum->enum_class->values[index].value;
 
-		printf( "\t%s = %d\n", name, value );
-
 		g_object_set( options->save_operation,
 			name, value,
 			NULL );
@@ -259,16 +181,12 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		gint64 value = 
 			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
-		printf( "\t%s = %ld\n", name, value );
-
 		g_object_set( options->save_operation,
 			name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		int value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-
-		printf( "\t%s = %d\n", name, value );
 
 		g_object_set( options->save_operation,
 			name, value,
@@ -278,8 +196,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		guint64 value = 
 			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
-		printf( "\t%s = %lu\n", name, value );
-
 		g_object_set( options->save_operation,
 			name, value,
 			NULL );
@@ -288,8 +204,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		gdouble value = 
 			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
-		printf( "\t%s = %g\n", name, value );
-
 		g_object_set( options->save_operation,
 			name, value,
 			NULL );
@@ -297,37 +211,36 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 			int value;
-			VipsArrayInt *array_int;
-
+			VipsArrayInt *array;
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
 			 * TODO handle arrays with two or more elements
 			 */
 			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-			array_int = vips_array_int_newv( 1, value );
+			array = vips_array_int_newv( 1, value );
 
 			g_object_set( options->save_operation,
-				name, array_int,
+				name, array,
 				NULL );
 
-			// FIXME unref the array
+			vips_area_unref( VIPS_AREA( array ) );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
 			gdouble value;
-			VipsArrayDouble *array_double;
+			VipsArrayDouble *array;
 			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
 			 * TODO handle arrays with two or more elements
 			 */
-			array_double = vips_array_double_newv( 1, value );
+			array = vips_array_double_newv( 1, value );
 			g_object_set( options->save_operation,
-				name, array_double,
+				name, array,
 				NULL );
 
-			// FIXME unref the array
+			vips_area_unref( VIPS_AREA( array ) );
 		}
 	}
 }
@@ -393,8 +306,6 @@ save_options_cancel_clicked( GtkWidget *button, SaveOptions *options )
 static void
 save_options_init( SaveOptions *options )
 {
-	printf( "save_options_init:\n" );
-
 	gtk_widget_init_template( GTK_WIDGET( options ) );
 
 	g_signal_connect_object( options->progress_cancel, "clicked", 
@@ -468,7 +379,9 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		t = gtk_entry_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
+		GParamSpecBoolean *pspec_boolean = 
+			G_PARAM_SPEC_BOOLEAN( pspec );
+
 		t = gtk_check_button_new();
 		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
 			pspec_boolean->default_value );
@@ -476,40 +389,41 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int n_values = pspec_enum->enum_class->n_values - 1;
-		const char **property_nicknames =
-			g_malloc( (n_values + 1) * sizeof( char * ) );
+		const char **nicknames = 
+			VIPS_ARRAY( NULL, n_values + 1, const char * );
 
 		for( int i = 0; i < n_values; ++i )
-			property_nicknames[i] =
+			nicknames[i] =
 				pspec_enum->enum_class->values[i].value_nick;
-		property_nicknames[n_values] = NULL;
+		nicknames[n_values] = NULL;
 
-		t = gtk_drop_down_new_from_strings( property_nicknames );
+		t = gtk_drop_down_new_from_strings( nicknames );
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
 			pspec_enum->default_value );
-		// FIXME ... free property_nicknames
+		
+		g_free( nicknames );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
+
 		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
 			pspec_int64->maximum, 1 );
-
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(gint64)pspec_int64->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
+
 		t = gtk_spin_button_new_with_range( pspec_int->minimum,
 			pspec_int->maximum, 1 );
-
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(int)pspec_int->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
+
 		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
 			pspec_uint64->maximum, 1 );
-
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			(guint64)pspec_uint64->default_value );
 	}
@@ -518,7 +432,6 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 
 		t = gtk_spin_button_new_with_range( pspec_double->minimum,
 			pspec_double->maximum, 1 );
-
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
 			pspec_double->default_value );
 	}
@@ -552,8 +465,6 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		printf( "Unknown type for property \"%s\"\n", name );
 		return;
 	}
-
-	printf( "save_options_add_option: adding widget for %s\n", name );
 
 	/* Label for setting, with a tooltip. The nick is the i18n name.
 	 */
@@ -607,16 +518,17 @@ save_options_new( GtkWindow *parent_window,
 {
 	const char *saver;
 	SaveOptions *options;
-	char str[256];
-	VipsBuf buf = VIPS_BUF_STATIC( str );
 
-	vips_buf_appendf( &buf, "Save to \"%s\"", filename );
+	char *base = g_path_get_basename( filename );
+	char *title = g_strdup_printf( "Save image to \"%s\"", base );
 	options = g_object_new( SAVE_OPTIONS_TYPE, 
 		// we have to set this here, not in the ui file, for some reason
 		"use-header-bar", true, 
 		"transient-for", parent_window, 
-		"title", vips_buf_all( &buf ),
+		"title", title,
 		NULL );
+	g_free( title );
+	g_free( base );
 
 	options->image = image;
 	g_object_ref( image );

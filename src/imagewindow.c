@@ -324,9 +324,8 @@ image_window_eval( VipsImage *image,
 	printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-	/* You'd think we could just update the progress bar now, but it
-	 * seems to trigger a lot of races. Instead, set an idle handler and 
-	 * do the update there. 
+	/* This can come from the backgroud load thread, so we can't update the
+	 * UI directly.
 	 */
 
 	update = g_new( EvalUpdate, 1 );
@@ -1388,7 +1387,6 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "control" ) );
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
-
 }
 
 static void
@@ -1538,6 +1536,10 @@ image_window_open( ImageWindow *win, GFile *file )
 {
 	TileSource *tile_source;
 
+	// show the progress bar ... if we don't, it can take so many events
+	// to show that we never see it
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
+		TRUE );
 	if( !(tile_source = tile_source_new_from_file( file )) ) {
 		image_window_error( win ); 
 		return;

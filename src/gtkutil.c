@@ -153,3 +153,25 @@ copy_state( GtkWidget *to, GtkWidget *from, const char *name )
 		g_variant_unref( state );
 	}
 }
+
+/* A 'safe' way to run a few events.
+ */
+void
+process_events( void )
+{
+        /* Max events we process before signalling a timeout. Without this we
+         * can get stuck in event loops in some circumstances.
+         */
+        static const int max_events = 100;
+
+        /* Block too much recursion. 0 is from the top-level, 1 is from a
+         * callback, we don't want any more than that.
+         */
+        if( g_main_depth() < 2 ) {
+                int n;
+
+                for( n = 0; n < max_events &&
+                        g_main_context_iteration( NULL, FALSE ); n++ )
+                        ;
+        }
+}
