@@ -1882,22 +1882,6 @@ tile_source_get_file( TileSource *tile_source )
 	return( NULL );
 }
 
-int
-tile_source_write_to_file( TileSource *tile_source, VipsOperation *operation )
-{
-	int result;
-
-	vips_image_set_progress( tile_source->image, TRUE );
-
-	g_object_set( VIPS_OBJECT( operation ),
-		"in", tile_source->image,
-		NULL );
-
-	result = vips_cache_operation_buildp( &operation );
-
-	return( result );
-}
-
 /* The image as used to generate the display, so including page extraction and
  * composition.
  */

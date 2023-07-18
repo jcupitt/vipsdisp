@@ -324,8 +324,8 @@ image_window_eval( VipsImage *image,
 	printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-	/* This can come from the backgroud load thread, so we can't update the
-	 * UI directly.
+	/* This can come from the background load thread, so we can't update 
+	 * the UI directly.
 	 */
 
 	update = g_new( EvalUpdate, 1 );
