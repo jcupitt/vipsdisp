@@ -1,5 +1,9 @@
 ## master
 
+## 3.0.0, ??/??/??
+
+- save options menu
+
 ## 2.4.1, 21/8/22
 
 - remove stray printfs
