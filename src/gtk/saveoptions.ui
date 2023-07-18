@@ -25,6 +25,7 @@
           <object class="GtkScrolledWindow">
             <property name="hexpand">1</property>
             <property name="vexpand">1</property>
+            <property name="min-content-height">600</property>
 
             <child>
               <object class="GtkGrid" id="options_grid">

@@ -39,24 +39,204 @@ save_options_dispose( GObject *object )
 }
 
 static void
+save_options_fetch_option( SaveOptions *options, GParamSpec *pspec ) 
+{
+	const gchar *name = g_param_spec_get_name( pspec );
+	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
+
+	GtkWidget *t;
+
+	if( !(t = g_hash_table_lookup( options->value_widgets, name )) )
+		return;
+
+	/* Fetch the value from the widget.
+	 */
+	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+		GtkEntryBuffer *buffer = gtk_entry_get_buffer( GTK_ENTRY( t ) );
+		const char *value = gtk_entry_buffer_get_text( buffer );
+
+		/* Only if the value has changed.
+		 */
+		if( (!pspec_string->default_value &&
+			strcmp( value, "" ) != 0) ||
+		    (pspec_string->default_value &&
+			strcmp( value, pspec_string->default_value ) != 0) ) {
+			printf( "\t%s = %s\n", name, value );
+
+			g_object_set( options->save_operation,
+				name, value,
+				NULL );
+		}
+	}
+	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
+		gboolean value = 
+			gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+
+		printf( "\t%s = %d\n", name, value );
+
+		g_object_set( options->save_operation, 
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
+		int index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+		int value = pspec_enum->enum_class->values[index].value;
+
+		printf( "\t%s = %d\n", name, value );
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
+		gint64 value = 
+			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+		printf( "\t%s = %ld\n", name, value );
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_INT( pspec )) {
+		int value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+		printf( "\t%s = %d\n", name, value );
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
+		guint64 value = 
+			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+		printf( "\t%s = %lu\n", name, value );
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
+		gdouble value = 
+			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+		printf( "\t%s = %g\n", name, value );
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
+		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+			int value;
+			VipsArrayInt *array_int;
+
+
+			/* For now just pretend every array-type parameter has
+			 * one element.
+			 * TODO handle arrays with two or more elements
+			 */
+			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+			array_int = vips_array_int_newv( 1, value );
+
+			g_object_set( options->save_operation,
+				name, array_int,
+				NULL );
+
+			// FIXME unref the array
+		}
+		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+			gdouble value;
+			VipsArrayDouble *array_double;
+			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
+			/* For now just pretend every array-type parameter has
+			 * one element.
+			 * TODO handle arrays with two or more elements
+			 */
+			array_double = vips_array_double_newv( 1, value );
+			g_object_set( options->save_operation,
+				name, array_double,
+				NULL );
+
+			// FIXME unref the array
+		}
+	}
+}
+
+static void *
+save_options_response_map_fn( VipsObject *operation,
+	GParamSpec *pspec, VipsArgumentClass *argument_class,
+	VipsArgumentInstance *argument_instance, void *a, void *b )
+{
+	VipsArgumentFlags flags = argument_class->flags;
+	SaveOptions *options = (SaveOptions *) a;
+
+	/* Include arguments listed in the constructor.
+	 *
+	 * Exclude required (we've set these already) or deprecated arguments.
+	 */
+	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
+		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
+		!(flags & VIPS_ARGUMENT_REQUIRED) )
+		save_options_fetch_option( options, pspec );
+
+	return NULL;
+}
+
+static void
 save_options_response( GtkWidget *dialog, int response, void *user_data )
 {
 	SaveOptions *options = VIPSDISP_SAVE_OPTIONS( dialog );
 
 	printf( "save_options_response: %d\n", response );
 
-	if( response == GTK_RESPONSE_OK ) { 
-		// walk save_operation, fetch matching widget state, set
-		// options 
+	if( response == GTK_RESPONSE_OK ) {
+		printf( "save_options_response: setting values ...\n" );
+		vips_argument_map( VIPS_OBJECT( options->save_operation ),
+			save_options_response_map_fn,
+			options, NULL );
 
 		// then this will trigger the save
 		printf( "save_options_response: saving ...\n" );
 		if( vips_object_build( VIPS_OBJECT( options->save_operation ) ) ) {
-			// maybe display an error popup? I'm not sure
-			// we could also use gtk_dialog_response() to send an
-			// error response code back to our caller
+			printf( "save failed: %s\n", vips_error_buffer() );
 		}
 	}
+}
+
+static void
+save_options_init( SaveOptions *options )
+{
+	printf( "save_options_init:\n" );
+
+	gtk_widget_init_template( GTK_WIDGET( options ) );
+
+	options->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
+
+	g_signal_connect_object( options, "response", 
+		G_CALLBACK( save_options_response ), options, 0 );
+}
+
+#define BIND( field ) \
+	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
+		SaveOptions, field );
+
+static void
+save_options_class_init( SaveOptionsClass *class )
+{
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
+
+	gobject_class->dispose = save_options_dispose;
+
+	gtk_widget_class_set_template_from_resource( widget_class,
+		APP_PATH "/saveoptions.ui");
+
+	BIND( options_grid );
 }
 
 /* This function is used by:
@@ -67,15 +247,9 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
  * are used to create a labelled user input element for that property.
  */
 static void
-save_options_add_option( SaveOptions *options,
-	GParamSpec *pspec, VipsArgumentClass *argument_class, int *row )
+save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 {
-	/* Get the nickname of the property of the save operation currently
-	 * being processed. For VIPS, this is the user-facing name of the
-	 * property.
-	 */
-	const gchar *name = g_param_spec_get_nick( pspec );
-
+	const gchar *name = g_param_spec_get_name( pspec );
 	GType otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 
 	GtkWidget *t, *label;
@@ -92,10 +266,10 @@ save_options_add_option( SaveOptions *options,
 	 */
 	if( G_IS_PARAM_SPEC_STRING( pspec ) ) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
-		GtkEntryBuffer* buffer =
+		GtkEntryBuffer *buffer =
 			gtk_entry_buffer_new( pspec_string->default_value, -1 );
 
-		t = gtk_text_new_with_buffer( buffer );
+		t = gtk_entry_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
@@ -185,9 +359,9 @@ save_options_add_option( SaveOptions *options,
 
 	printf( "save_options_add_option: adding widget for %s\n", name );
 
-	/* Label for setting, with a tooltip.
+	/* Label for setting, with a tooltip. The nick is the i18n name.
 	 */
-	label = gtk_label_new( name );
+	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
 	gtk_widget_set_halign( label, GTK_ALIGN_START );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
@@ -211,7 +385,7 @@ save_options_add_option( SaveOptions *options,
  * See also save_options_build_content_box_argument_map_fn_helper.
  */
 static void *
-save_options_build_content_box_argument_map_fn( VipsObject *operation,
+save_options_add_options_fn( VipsObject *operation,
 	GParamSpec *pspec, VipsArgumentClass *argument_class,
 	VipsArgumentInstance *argument_instance, void *a, void *b )
 {
@@ -226,40 +400,9 @@ save_options_build_content_box_argument_map_fn( VipsObject *operation,
 	if ( !(flags & VIPS_ARGUMENT_DEPRECATED) &&
 		(flags & VIPS_ARGUMENT_CONSTRUCT) &&
 		!(flags & VIPS_ARGUMENT_REQUIRED) )
-		save_options_add_option( options, pspec, argument_class, row );
+		save_options_add_option( options, pspec, row );
 
 	return NULL;
-}
-
-static void
-save_options_init( SaveOptions *options )
-{
-	printf( "save_options_init:\n" );
-
-	gtk_widget_init_template( GTK_WIDGET( options ) );
-
-	options->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
-
-	g_signal_connect_object( options, "response", 
-		G_CALLBACK( save_options_response ), options, 0 );
-}
-
-#define BIND( field ) \
-	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
-		SaveOptions, field );
-
-static void
-save_options_class_init( SaveOptionsClass *class )
-{
-	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
-
-	gobject_class->dispose = save_options_dispose;
-
-	gtk_widget_class_set_template_from_resource( widget_class,
-		APP_PATH "/saveoptions.ui");
-
-	BIND( options_grid );
 }
 
 SaveOptions *
@@ -296,11 +439,7 @@ save_options_new( GtkWindow *parent_window, const char *title,
 
 	row = 0;
 	vips_argument_map( VIPS_OBJECT( options->save_operation ),
-		save_options_build_content_box_argument_map_fn,
-		options, &row );
-
-        //<property name="max-content-height">500</property>
-        //<property name="min-content-height">600</property>
+		save_options_add_options_fn, options, &row );
 
 	return( options );
 }
