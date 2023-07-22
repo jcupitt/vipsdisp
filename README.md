@@ -3,8 +3,8 @@
 This program displays an image with libvips and gtk+4. This is supposed
 to be a slightly useful image viewer. It can display huge (many, many GB)
 images quickly and without using much memory. It supports many scientific
-and technical image formats, including TIFF, WEBP, JP2K, JXL, PNG, JPEG,
-SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
+and technical image formats, including TIFF, WEBP, JP2K, JXL, AVIF, HEIC, PNG,
+JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
 supports pixel types from 1 bit mono to 128-bit double precision complex.
 
 All of the UI can make finding the details of image display in the sourcecode
@@ -22,6 +22,8 @@ It all works, though see the TODO list below.
 
 [![Screenshot](images/shot3.png)](images/shot3.png)
 
+[![Screenshot](images/save-as.png)](images/save-as.png)
+
 ## Install
 
 This program is on flathub, see:
@@ -37,12 +39,9 @@ flatpak install flathub org.libvips.vipsdisp
 ## Features
 
 * It supports many scientific and technical image formats, including TIFF,
-  WEBP, JP2K, JXL, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS,
-  Matlab, NIfTI, Analyze, etc. It supports many numeric pixel types, any
-  number of image bands, many colour spaces.
-
-* It has Save as, so you can use it for image format conversion. Though
-  there's currently no GUI for save options, sadly.
+  WEBP, JP2K, JXL, HEIC, AVIF, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG,
+  FITS, Matlab, NIfTI, Analyze, etc. It supports many numeric pixel types,
+  any number of image bands, many colour spaces.
 
 * It doesn't need to keep the whole image in memory. It will only read parts 
   that it needs for display, and it understands most pyramidal image formats.
@@ -52,6 +51,13 @@ flatpak install flathub org.libvips.vipsdisp
   computed in the background by a pool of workers and tiles are rendered to
   the screen as they are finished. The interface stays live even under very
   heavy load.
+
+* It keeps a sparse pyramid of tiles as textures on the GPU. For each frame,
+  it computes the set of visible tiles, and then the GPU scales, positions and
+  composites just those tiles to the screen. CPU load should be low (except
+  for the background workers heh). Hold down i (for "in") or + to do a smooth
+  zoom on the cursor. If you press "d" it toggles a debug display mode which
+  shows the tiles being computed.
 
 * Select *Display control bar* from the top-right menu and a useful
   set of visualization options appear. It supports four main display modes:
@@ -67,6 +73,10 @@ flatpak install flathub org.libvips.vipsdisp
 * You can select falsecolour and log-scale filters, useful for many scientific
   images. Scale and offset sliders let you adjust image brightness to see into
   darker areas (useful for HDR and many scientific images).
+
+* Select Save as to write an image. It can write most common formats, and lets
+  you set file save options. It can write things like DeepZoom pyramids, PFM,
+  OpenEXR, and so on.
 
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
   and nicely animated. The image is rendered with the GPU, so display ought to
@@ -124,11 +134,119 @@ $ vipsdisp ~/pics/k2.jpg
   adds a lot of navigation stuff. It uses the scolled
   window `GtkAdjustment` to slide `Imagedisplay` around.
 
+* `SaveOptions` is the save-as dialog, and uses libvips introspection to
+  display the optional parameters of the selected saver.
+
 * `disp` is the `main()`, `VipsdispApp` is a `GtkApplication` subclass
 
 * The UI layout is in the `gtk/*.ui` xml.
 
+## Version bump checklist
+
+Version needs updating in the following places:
+
+- **`org.libvips.vipsdisp.appdata.xml`** and some release notes and a date as
+  well.
+
+- **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
+
+## flatpak
+
+Add the `flathub` repo:
+
+```
+flatpak remote-add --if-not-exists \
+  flathub https://flathub.org/repo/flathub.flatpakrepo
+```
+
+Install the gtk4 SDK and runtime:
+
+```
+flatpak install org.gnome.Sdk//44
+flatpak install org.gnome.Platform//44
+```
+
+Allow file. Recent security changes to git will cause submodule checkout
+to fail inside flatpak. If you get errors like `fatal: transport 'file'
+not allowed`, reenable file transport with:
+
+```
+git config --global protocol.file.allow always
+```
+
+Build and try running it:
+
+```
+flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.json
+flatpak run org.libvips.vipsdisp ~/pics/k2.jpg
+```
+
+Force a complete redownload and rebuild (should only rarely be necessary) with:
+
+```
+rm -rf .flatpak-builder
+```
+
+Check the files that are in the flatpak you built with:
+
+```
+ls build-dir/files
+```
+
+Uninstall with:
+
+```
+flatpak uninstall vipsdisp
+```
+
+## Notes on flatpak build process
+
+- niftiio is annoying to build, skip it.
+
+- we skip imagemagick as well, too huge
+
+## Packaging for flathub
+
+Install the appdata checker:
+
+```
+flatpak install flathub org.freedesktop.appstream-glib
+flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
+```
+
+Also:
+
+```
+desktop-file-validate org.libvips.vipsdisp.desktop 
+```
+
+## Uploading to flathub
+
+Push to master on:
+
+        https://github.com/flathub/org.libvips.vipsdisp 
+
+then check the build status here:
+
+        https://flathub.org/builds/#/apps/org.libvips.vipsdisp
+
 ## TODO
+
+- load progress bar often left up after "replace image"
+
+- add HEIC (hvec) to flatpak build?
+
+- save-as can set nickname and description twice?
+
+    - save-as to xxx.heic, set compression to hvec
+
+    - press save, get "unsupported codec"
+
+    - press save again, get
+
+(vipsdisp:2): VIPS-WARNING **: 11:37:48.922: ../libvips/iofuncs/object.c:1234: VipsForeignSaveHeifFile can only assign 'nickname' once
+
+(vipsdisp:2): VIPS-WARNING **: 11:37:48.922: ../libvips/iofuncs/object.c:1234: VipsForeignSaveHeifFile can only assign 'description' once
 
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window
@@ -217,100 +335,7 @@ $ vipsdisp ~/pics/k2.jpg
 
 - auto reload on file change, or support F5 for reload?
 
-- load image with long progress bar, ^D during load, progress bar stops
-  updating
-
-- no progress bar for replace? it works for initial load though
-
 - progress bar occasionally never shows even on a long load
 
 - header display
 
-## Version bump checklist
-
-Version needs updating in the following places:
-
-- **`org.libvips.vipsdisp.appdata.xml`** and some release notes and a date as
-  well.
-
-- **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
-
-## flatpak
-
-Add the `flathub` repo:
-
-```
-flatpak remote-add --if-not-exists \
-  flathub https://flathub.org/repo/flathub.flatpakrepo
-```
-
-Install the gtk4 SDK and runtime:
-
-```
-flatpak install org.gnome.Sdk//43
-flatpak install org.gnome.Platform//43
-```
-
-Allow file. Recent security changes to git will cause submodule checkout
-to fail inside flatpak. If you get errors like `fatal: transport 'file'
-not allowed`, reenable file transport with:
-
-```
-git config --global protocol.file.allow always
-```
-
-Build and try running it:
-
-```
-flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.json
-flatpak run org.libvips.vipsdisp ~/pics/k2.jpg
-```
-
-Force a complete redownload and rebuild (should only rarely be necessary) with:
-
-```
-rm -rf .flatpak-builder
-```
-
-Check the files that are in the flatpak you built with:
-
-```
-ls build-dir/files
-```
-
-Uninstall with:
-
-```
-flatpak uninstall vipsdisp
-```
-
-## Notes on flatpak build process
-
-- niftiio is annoying to build, skip it.
-
-- we skip imagemagick as well, too huge
-
-## Packaging for flathub
-
-Install the appdata checker:
-
-```
-flatpak install flathub org.freedesktop.appstream-glib
-flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
-```
-
-Also:
-
-```
-desktop-file-validate org.libvips.vipsdisp.desktop 
-```
-
-## Uploading to flathub
-
-Push to master on:
-
-        https://github.com/flathub/org.libvips.vipsdisp 
-
-then check the build status here:
-
-        https://flathub.org/builds/#/apps/org.libvips.vipsdisp
