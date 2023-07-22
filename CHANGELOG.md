@@ -1,5 +1,7 @@
 ## master
 
+- save options [angstyloop]
+
 ## 2.4.1, 21/8/22
 
 - remove stray printfs

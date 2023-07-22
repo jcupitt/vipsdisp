@@ -1882,22 +1882,6 @@ tile_source_get_file( TileSource *tile_source )
 	return( NULL );
 }
 
-int
-tile_source_write_to_file( TileSource *tile_source, GFile *file )
-{
-	char *path;
-	int result;
-
-	if( !(path = g_file_get_path( file )) )
-		return( -1 );
-
-	vips_image_set_progress( tile_source->image, TRUE ); 
-	result = vips_image_write_to_file( tile_source->image, path, NULL );
-	g_free( path );
-
-	return( result );
-}
-
 /* The image as used to generate the display, so including page extraction and
  * composition.
  */

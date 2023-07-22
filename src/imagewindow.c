@@ -324,9 +324,8 @@ image_window_eval( VipsImage *image,
 	printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-	/* You'd think we could just update the progress bar now, but it
-	 * seems to trigger a lot of races. Instead, set an idle handler and 
-	 * do the update there. 
+	/* This can come from the background load thread, so we can't update 
+	 * the UI directly.
 	 */
 
 	update = g_new( EvalUpdate, 1 );
@@ -420,7 +419,7 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 static void
 image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 {
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
+	image_window_error_hide( win );
 }
 
 static void
@@ -573,25 +572,59 @@ image_window_replace_action( GSimpleAction *action,
 }
 
 static void
-image_window_saveas_response( GtkDialog *dialog, 
-	gint response_id, gpointer user_data )
+image_window_saveas_options_response( GtkDialog *dialog, 
+	gint response, gpointer user_data )
+{
+	GtkWidget *file_chooser = GTK_WIDGET( user_data );
+
+	// final save and everything worked OK, we can all pop down
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
+	}
+
+	// save options was cancelled, just pop that down
+	if( response == GTK_RESPONSE_CANCEL ) 
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+	// other return codes are intermediate stages of processing and we
+	// should do nothing
+}
+
+static void
+image_window_saveas_response( GtkDialog *dialog,
+	gint response, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	GFile *file;
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		GFile *file;
+		char *filename;
+		SaveOptions *options;
 
-	/* We need to pop down immediately so we expose the cancel
-	 * button.
-	 */
-	file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-	image_window_error_hide( win ); 
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
+		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+		filename = g_file_get_path( file );
+		VIPS_UNREF( file ); 
 
-	if( response_id == GTK_RESPONSE_ACCEPT &&
-		tile_source_write_to_file( win->tile_source, file ) ) 
-		image_window_error( win );
+		options = save_options_new( GTK_WINDOW( dialog ),
+			win->tile_source->image, filename );
 
-	VIPS_UNREF( file ); 
+		g_free( filename ); 
+
+		if( !options ) {
+			image_window_error( win );
+			return;
+		}
+
+		g_signal_connect_object( options, "response", 
+			G_CALLBACK( image_window_saveas_options_response ), 
+			dialog, 0 );
+
+		gtk_window_present( GTK_WINDOW( options ) );
+	}
+
+	if( response == GTK_RESPONSE_CANCEL )
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
 }
 
 static void
@@ -601,27 +634,29 @@ image_window_saveas_action( GSimpleAction *action,
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
 	if( win->tile_source ) {
-		GtkWidget *dialog;
+		GtkWidget *file_chooser;
 		GFile *file;
 
-		dialog = gtk_file_chooser_dialog_new( "Save file",
+		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
 			GTK_FILE_CHOOSER_ACTION_SAVE,
 			"_Cancel", GTK_RESPONSE_CANCEL,
 			"_Save", GTK_RESPONSE_ACCEPT,
 			NULL );
-		gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+
+		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
 
 		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			gtk_file_chooser_set_file( 
+				GTK_FILE_CHOOSER( file_chooser ), 
 				file, NULL );
 			VIPS_UNREF( file );
 		}
 
-		g_signal_connect( dialog, "response", 
+		g_signal_connect( file_chooser, "response", 
 			G_CALLBACK( image_window_saveas_response ), win );
 
-		gtk_widget_show( dialog );
+		gtk_widget_show( file_chooser );
 	}
 }
 
@@ -909,6 +944,7 @@ image_window_scale_begin( GtkGesture* self,
 	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
 		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
 }
+
 static void
 image_window_scale_changed( GtkGestureZoom *self, 
 	gdouble scale, gpointer user_data )
@@ -1343,7 +1379,6 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "control" ) );
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
-
 }
 
 static void
@@ -1493,6 +1528,10 @@ image_window_open( ImageWindow *win, GFile *file )
 {
 	TileSource *tile_source;
 
+	// show the progress bar ... if we don't, it can take so many events
+	// to show that we never see it
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
+		TRUE );
 	if( !(tile_source = tile_source_new_from_file( file )) ) {
 		image_window_error( win ); 
 		return;

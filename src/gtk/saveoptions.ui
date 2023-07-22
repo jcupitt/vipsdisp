@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+
+  <template class="SaveOptions" parent="GtkDialog">
+    <property name="title" translatable="yes">Save options</property>
+    <property name="can-focus">True</property>
+    <property name="modal">True</property>
+    <property name="default-width">400</property>
+    <property name="default-height">500</property>
+
+    <style>
+      <class name="saveoptions"/>
+    </style>
+
+    <child internal-child="content_area">
+      <object class="GtkBox">
+        <property name="orientation">1</property>
+        <property name="spacing">2</property>
+        <property name="margin-start">5</property>
+        <property name="margin-end">5</property>
+        <property name="margin-top">5</property>
+        <property name="margin-bottom">5</property>
+
+        <child>
+          <object class="GtkActionBar" id="progress_bar">
+            <property name="revealed">false</property>
+
+            <child type="center">
+              <object class="GtkProgressBar" id="progress">
+                <property name="hexpand">true</property>
+                <property name="show-text">true</property>
+              </object>
+            </child>
+
+            <child type="end">
+              <object class="GtkButton" id="progress_cancel">
+                <property name="label">Cancel</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkInfoBar" id="error_bar">
+            <property name="message-type">error</property>
+            <property name="show-close-button">true</property>
+            <property name="revealed">false</property>
+            <child>
+              <object class="GtkLabel" id="error_label">
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkScrolledWindow">
+            <property name="hexpand">1</property>
+            <property name="vexpand">1</property>
+            <property name="min-content-height">600</property>
+
+            <child>
+              <object class="GtkGrid" id="options_grid">
+                <property name="row-homogeneous">1</property>
+                <property name="column-spacing">5</property>
+                <property name="row-spacing">3</property>
+              </object>
+            </child>
+
+          </object>
+        </child>
+
+      </object>
+    </child>
+
+    <child type="action">
+      <object class="GtkButton" id="cancel_button">
+        <property name="use-underline">1</property>
+        <property name="label" translatable="yes">_Cancel</property>
+      </object>
+    </child>
+
+    <child type="action">
+      <object class="GtkButton" id="ok_button">
+        <property name="use-underline">1</property>
+        <property name="label" translatable="yes">_Save</property>
+      </object>
+    </child>
+
+    <action-widgets>
+      <action-widget response="cancel">cancel_button</action-widget>
+      <action-widget response="ok" default="true">ok_button</action-widget>
+    </action-widgets>
+  
+  </template>
+
+</interface>
+
