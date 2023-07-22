@@ -203,6 +203,8 @@ flatpak uninstall vipsdisp
 
 - niftiio is annoying to build, skip it.
 
+- x265 is annoying to build, skip it
+
 - we skip imagemagick as well, too huge
 
 ## Packaging for flathub
@@ -231,22 +233,6 @@ then check the build status here:
         https://flathub.org/builds/#/apps/org.libvips.vipsdisp
 
 ## TODO
-
-- load progress bar often left up after "replace image"
-
-- add HEIC (hvec) to flatpak build?
-
-- save-as can set nickname and description twice?
-
-    - save-as to xxx.heic, set compression to hvec
-
-    - press save, get "unsupported codec"
-
-    - press save again, get
-
-(vipsdisp:2): VIPS-WARNING **: 11:37:48.922: ../libvips/iofuncs/object.c:1234: VipsForeignSaveHeifFile can only assign 'nickname' once
-
-(vipsdisp:2): VIPS-WARNING **: 11:37:48.922: ../libvips/iofuncs/object.c:1234: VipsForeignSaveHeifFile can only assign 'description' once
 
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window

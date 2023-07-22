@@ -1528,10 +1528,6 @@ image_window_open( ImageWindow *win, GFile *file )
 {
 	TileSource *tile_source;
 
-	// show the progress bar ... if we don't, it can take so many events
-	// to show that we never see it
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
-		TRUE );
 	if( !(tile_source = tile_source_new_from_file( file )) ) {
 		image_window_error( win ); 
 		return;
