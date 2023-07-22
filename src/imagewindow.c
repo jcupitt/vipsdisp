@@ -262,14 +262,6 @@ image_window_bestfit( ImageWindow *win )
 	}
 }
 
-static void
-image_window_preeval( VipsImage *image, 
-	VipsProgress *progress, ImageWindow *win )
-{
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
-		TRUE );
-}
-
 typedef struct _EvalUpdate {
 	ImageWindow *win;
 	int eta;
@@ -284,6 +276,11 @@ image_window_eval_idle( void *user_data )
 
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
+
+	// you'd think we could do this in preeval, but it doesn't always seem to
+	// fire for some reason
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( win->progress_bar ), 
+		TRUE );
 
 	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
 		update->percent, update->eta );
@@ -1465,8 +1462,6 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 		"tile-cache", win->tile_cache,
 		NULL );
 
-	g_signal_connect_object( win->tile_source, "preeval", 
-		G_CALLBACK( image_window_preeval ), win, 0 );
 	g_signal_connect_object( win->tile_source, "eval", 
 		G_CALLBACK( image_window_eval ), win, 0 );
 	g_signal_connect_object( win->tile_source, "posteval", 

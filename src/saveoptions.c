@@ -82,14 +82,6 @@ save_options_error_response( GtkWidget *button, int response,
 }
 
 static void
-save_options_preeval( VipsImage *image, 
-	VipsProgress *progress, SaveOptions *options )
-{
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
-		TRUE );
-}
-
-static void
 save_options_eval( VipsImage *image, 
 	VipsProgress *progress, SaveOptions *options )
 {
@@ -109,6 +101,11 @@ save_options_eval( VipsImage *image,
 	if( time_now - options->last_progress_time < 0.1 )
 		return;
 	options->last_progress_time = time_now;
+
+	// you'd think we could do this in preeval, but it doesn't always seem to
+	// fire for some reason
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
+		TRUE );
 
 	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
 		progress->percent, progress->eta );
@@ -526,8 +523,6 @@ save_options_new( GtkWindow *parent_window,
 
 	if( options->image ) { 
 		vips_image_set_progress( options->image, TRUE ); 
-		g_signal_connect_object( options->image, "preeval", 
-			G_CALLBACK( save_options_preeval ), options, 0 );
 		g_signal_connect_object( options->image, "eval", 
 			G_CALLBACK( save_options_eval ), options, 0 );
 		g_signal_connect_object( options->image, "posteval", 
