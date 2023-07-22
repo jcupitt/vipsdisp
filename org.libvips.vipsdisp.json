@@ -360,7 +360,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "commit" : "076871c31f24a12585335d5476b6e5054570db03"
+                    "commit" : "be552c4fdf6e5a568e00ea52b54590c2cb7567ed"
                 }
             ]
         }
