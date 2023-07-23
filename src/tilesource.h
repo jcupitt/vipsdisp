@@ -220,6 +220,8 @@ GType tile_source_get_type( void );
 TileSource *tile_source_new_from_source( VipsSource *source );
 TileSource *tile_source_new_from_file( GFile *file );
 
+void tile_source_background_load( TileSource *tile_source );
+
 int tile_source_fill_tile( TileSource *tile_source, Tile *tile );
 
 const char *tile_source_get_path( TileSource *tile_source );

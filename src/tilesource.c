@@ -1037,12 +1037,12 @@ tile_source_background_load_done_idle( void *user_data )
 /* This runs for the background load threadpool.
  */
 static void 
-tile_source_background_load( void *data, void *user_data )
+tile_source_background_load_worker( void *data, void *user_data )
 {
 	TileSource *tile_source = (TileSource *) data;
 
 #ifdef DEBUG
-	printf( "tile_source_background_load: starting ..\n" );
+	printf( "tile_source_background_load_worker: starting ..\n" );
 #endif /*DEBUG*/
 
 	g_assert( tile_source->image_region ); 
@@ -1052,7 +1052,7 @@ tile_source_background_load( void *data, void *user_data )
 	g_idle_add( tile_source_background_load_done_idle, tile_source );
 
 #ifdef DEBUG
-	printf( "tile_source_background_load: .. done\n" );
+	printf( "tile_source_background_load_worker: .. done\n" );
 #endif /*DEBUG*/
 }
 
@@ -1185,7 +1185,7 @@ tile_source_class_init( TileSourceClass *class )
 
 	g_assert( !tile_source_background_load_pool );
 	tile_source_background_load_pool = g_thread_pool_new(
-		tile_source_background_load,
+		tile_source_background_load_worker,
 		NULL, -1, FALSE, NULL );
 
 }
@@ -1746,9 +1746,6 @@ tile_source_new_from_source( VipsSource *source )
 
 	tile_source_attach_progress( tile_source ); 
 
-	g_thread_pool_push( tile_source_background_load_pool, 
-		tile_source, NULL );
-
 	return( tile_source );
 }
 
@@ -1809,6 +1806,17 @@ tile_source_new_from_file( GFile *file )
 	VIPS_UNREF( source );
 
 	return( tile_source );
+}
+
+/* Call this some time after tile_source_new_from_file() or
+ * tile_source_new_from_source(), and once all callbacks have been 
+ * attached, to trigger a bg load.
+ */
+void
+tile_source_background_load( TileSource *tile_source )
+{
+	g_thread_pool_push( tile_source_background_load_pool, 
+		tile_source, NULL );
 }
 
 int
