@@ -58,6 +58,12 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.5.1" date="2023-07-23">
+      <description>
+        Fix the progress bar (again).
+      </description>
+    </release>
+
     <release version="2.5" date="2023-07-22">
       <description>
         Save-as dialog. Improvements to mouse scrollwheel handling.

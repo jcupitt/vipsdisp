@@ -1,5 +1,11 @@
 ## master
 
+## 2.5.1, 23/7/23
+
+- fix progress bar (again)
+
+## 2.5.0, 22/7/23
+
 - save options [angstyloop]
 
 ## 2.4.1, 21/8/22
