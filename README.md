@@ -47,12 +47,11 @@ flatpak install flathub org.libvips.vipsdisp
   that it needs for display, and it understands most pyramidal image formats.
   This means you can open and view huge images quickly.
 
-* It has threaded, asynchronous image repaint, so display pixels are
-  computed in the background by a pool of workers and tiles are rendered to
-  the screen as they are finished. The interface stays live even under very
-  heavy load.
+* It has threaded, asynchronous display repaint, so pixels are
+  computed in the background by a pool of workers. The interface stays live
+  even under very heavy load.
 
-* It keeps a sparse pyramid of tiles as textures on the GPU. For each frame,
+* It keeps a sparse pyramid of computed tiles as textures on the GPU. Each frame,
   it computes the set of visible tiles, and then the GPU scales, positions and
   composites just those tiles to the screen. CPU load should be low (except
   for the background workers heh). Hold down i (for "in") or + to do a smooth
