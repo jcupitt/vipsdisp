@@ -1,6 +1,6 @@
 # vipsdisp
 
-This program displays an image with libvips and gtk+4. This is supposed
+This program displays an image with libvips and gtk4. This is supposed
 to be a slightly useful image viewer. It can display huge (many, many GB)
 images quickly and without using much memory. It supports many scientific
 and technical image formats, including TIFF, WEBP, JP2K, JXL, AVIF, HEIC, PNG,
