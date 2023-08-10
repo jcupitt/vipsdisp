@@ -466,8 +466,7 @@ tile_source_image_log( VipsImage *image )
 	if( vips_pow_const1( image, &t[0], power, NULL ) ||
 		vips_linear1( t[0], &t[1], 1.0, 1.0, NULL ) ||
 		vips_log10( t[1], &t[2], NULL ) ||
-		/* Add 0.5 to get round to nearest.
-		 */
+		// add 0.5 to get round to nearest
 		vips_linear1( t[2], &x, scale, 0.5, NULL ) ) {
 		g_object_unref( context );
 		return( NULL ); 
@@ -478,6 +477,39 @@ tile_source_image_log( VipsImage *image )
 	return( image );
 }
 
+static int
+tile_source_n_colour(VipsImage *image)
+{
+    switch (image->Type) {
+    case VIPS_INTERPRETATION_B_W:
+    case VIPS_INTERPRETATION_GREY16:
+        return 1;
+
+    case VIPS_INTERPRETATION_RGB:
+    case VIPS_INTERPRETATION_CMC:
+    case VIPS_INTERPRETATION_LCH:
+    case VIPS_INTERPRETATION_LABS:
+    case VIPS_INTERPRETATION_sRGB:
+    case VIPS_INTERPRETATION_YXY:
+    case VIPS_INTERPRETATION_XYZ:
+    case VIPS_INTERPRETATION_LAB:
+    case VIPS_INTERPRETATION_RGB16:
+    case VIPS_INTERPRETATION_scRGB:
+    case VIPS_INTERPRETATION_HSV:
+        return 3;
+
+    case VIPS_INTERPRETATION_CMYK:
+        return 4;
+
+    default:
+        /* We can't really infer anything about alpha from things like
+         * HISTOGRAM or FOURIER.
+         */
+        return image->Bands;
+    }
+}
+
+
 /* Build the second half of the image pipeline. The image can be sRGB or a
  * high-precision scRGB image.
  */
@@ -485,7 +517,6 @@ static VipsImage *
 tile_source_rgb_image( TileSource *tile_source, VipsImage *in ) 
 {
 	VipsImage *image;
-	VipsInterpretation interpretation;
 	VipsImage *x;
 	int n_bands;
 	VipsImage *alpha;
@@ -493,60 +524,36 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 	image = in;
 	g_object_ref( image ); 
 
-	/* To an RGB-like space.
-	 *
-	 * 8 bit images are fine as 8 bit for scale/offset etc., other types
-	 * need more precision.
+	/* We don't want vis controls to touch alpha ... remove and reattach at 
+	 * the end.
 	 */
-	interpretation = vips_band_format_is8bit( image->BandFmt ) ?
-		VIPS_INTERPRETATION_sRGB :
-		VIPS_INTERPRETATION_scRGB;
-
-	if( vips_colourspace( image, &x, interpretation, NULL ) ) {
-		VIPS_UNREF( image );
-		return( NULL ); 
-	}
-	VIPS_UNREF( image );
-	image = x;
-
-	/* Remove any extra bands to leave just RGB or RGBA.
-	 */
-	n_bands = vips_image_hasalpha( image ) ? 4 : 3;
+	alpha = NULL;
+	n_bands = tile_source_n_colour( image );
 	if( image->Bands > n_bands ) {
 		if( vips_extract_band( image, &x, 0, "n", n_bands, NULL ) ) {
 			VIPS_UNREF( image );
 			return( NULL ); 
 		}
+
+		// just use the first alpha
+		if( vips_extract_band( image, &alpha, n_bands, "n", 1, NULL ) ) {
+			VIPS_UNREF( image );
+			return( NULL ); 
+		}
+
 		VIPS_UNREF( image );
 		image = x;
 	}
 
-	/* We don't want vis controls to touch alpha ... if we're doing vis,
-	 * remove and reattach at the end.
+	/* Visualisation controls ... the scale and offset values must be applied
+	 * in terms of the original image values, so we can't go to RGB first.
 	 */
-	alpha = NULL;
-
 	if( tile_source->active &&
 		(tile_source->scale != 1.0 ||
 		 tile_source->offset != 0.0 ||
 		 tile_source->falsecolour ||
 		 tile_source->log ||
 		 image->Type == VIPS_INTERPRETATION_FOURIER) ) {
-		if( vips_image_hasalpha( image ) ) { 
-			if( vips_extract_band( image, &alpha, 3, NULL ) ) {
-				VIPS_UNREF( image );
-				return( NULL ); 
-			}
-			if( vips_extract_band( image, &x, 0, 
-				"n", 3, NULL ) ) {
-				VIPS_UNREF( image );
-				VIPS_UNREF( alpha );
-				return( NULL ); 
-			}
-			VIPS_UNREF( image );
-			image = x;
-		}
-
 		if( tile_source->log ||
 			image->Type == VIPS_INTERPRETATION_FOURIER ) { 
 			if( !(x = tile_source_image_log( image )) ) {
@@ -560,15 +567,8 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 		if( tile_source->scale != 1.0 ||
 			tile_source->offset != 0.0 ) {
-			/* Scale offset down for scrgb images.
-			 */
-			double offset = 
-				image->Type == VIPS_INTERPRETATION_sRGB ?
-				tile_source->offset :
-				tile_source->offset / 255.0;
-
 			if( vips_linear1( image, &x, 
-				tile_source->scale, offset, 
+				tile_source->scale, tile_source->offset, 
 				NULL ) ) {
 				VIPS_UNREF( image );
 				VIPS_UNREF( alpha );
@@ -579,7 +579,7 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 		}
 	}
 
-	/* It might be scRGB. This must come after scale/offset.
+	/* Force to uint8 sRGB.
 	 */
 	if( image->Type != VIPS_INTERPRETATION_sRGB ) {
 		if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, 
@@ -615,9 +615,8 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 		image = x;
 	}
 
+	// reattach alpha
 	if( alpha ) {
-		/* Alpha might be eg. float.
-		 */
 		if( vips_cast( alpha, &x, image->BandFmt, NULL ) ) {
 			VIPS_UNREF( image );
 			VIPS_UNREF( alpha );
