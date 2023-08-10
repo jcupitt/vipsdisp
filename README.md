@@ -237,15 +237,6 @@ then check the build status here:
 
 ## TODO
 
-- cursor key nav is broken
-
-    all this is related to handling of zoom events, maybe revert the pinch 
-    to zoom patch and redo it properly
-
-- getting random
-
-    VIPS:ERROR:../libvips/iofuncs/region.c:410:vips__region_check_ownership: assertion failed: (region->thread == g_thread_self())
-
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window
 
@@ -290,12 +281,9 @@ then check the build status here:
 
         same for audi r8 pdf page flip I guess?
 
-- colour:
+- colour management
 
-    - with eg. SVS, we won't get the ICC profile from openslide
-
-        - maybe fetch the profile ourselves with a tiffopen? we'll need a
-          special path for this
+    option to enable view through ICC profile
 
 - info bar:
 
@@ -327,11 +315,6 @@ then check the build status here:
 
 - flatpak build needs git master libvips
 
-- add imagemagick to get dicom loader?
-
 - auto reload on file change, or support F5 for reload?
 
-- progress bar occasionally never shows even on a long load
-
 - header display
-

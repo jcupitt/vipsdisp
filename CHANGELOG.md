@@ -1,5 +1,11 @@
 ## master
 
+- limit bands in pages-as-bands to prevent 3000 page images causing 
+  performance issues
+- switch to file based image load (not source) to fix caching
+- better conversion to RGB
+- animate keypress zoom
+
 ## 2.5.1, 23/7/23
 
 - fix progress bar (again)
