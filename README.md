@@ -237,9 +237,8 @@ then check the build status here:
 
 ## TODO
 
-- new_from_source is never cached, so we get repeated reloads
-
-    use new_from_file instead
+- flts should display as multipage, even though they don't have page and n
+  params
 
 - cursor key nav is broken
 

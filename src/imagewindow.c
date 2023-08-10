@@ -1567,16 +1567,21 @@ image_window_get_tile_source( ImageWindow *win )
 void
 image_window_open( ImageWindow *win, GFile *file )
 {
+	char *path;
 	TileSource *tile_source;
 
-	if( !(tile_source = tile_source_new_from_file( file )) ) {
+	path = g_file_get_path( file );
+
+	if( !(tile_source = tile_source_new_from_file( path )) ) {
 		image_window_error( win ); 
+		g_free( path );
 		return;
 	}
 
 	image_window_set_tile_source( win, tile_source );
 
 	VIPS_UNREF( tile_source );
+	g_free( path );
 }
 
 void

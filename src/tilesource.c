@@ -49,7 +49,7 @@ tile_source_dispose( GObject *object )
 
 	VIPS_FREEF( g_source_remove, tile_source->page_flip_id );
 
-	VIPS_UNREF( tile_source->source );
+	VIPS_FREE( tile_source->filename );
 	VIPS_UNREF( tile_source->base );
 	VIPS_UNREF( tile_source->image );
 	VIPS_UNREF( tile_source->image_region );
@@ -113,15 +113,14 @@ tile_source_open( TileSource *tile_source, int level )
 
 	VipsImage *image;
 
-	/* Only for tiles_sources which have something you can open.
+	/* Only for tiles_source which have something you can reopen.
 	 */
-	g_assert( tile_source->source );
+	g_assert( tile_source->filename );
 
 	if( vips_isprefix( "openslide", tile_source->loader ) ) {
 		/* These only have a "level" dimension.
 		 */
-		image = vips_image_new_from_source( tile_source->source, 
-			"", 
+		image = vips_image_new_from_file( tile_source->filename, 
 			"level", level,
 			NULL );
 	}
@@ -133,8 +132,7 @@ tile_source_open( TileSource *tile_source, int level )
 			/* subifd == -1 means the main image. subifd 0 picks
 			 * the first subifd.
 			 */
-			image = vips_image_new_from_source( tile_source->source,
-				"", 
+			image = vips_image_new_from_file( tile_source->filename,
 				"page", page,
 				"subifd", level - 1,
 				"n", n,
@@ -142,15 +140,13 @@ tile_source_open( TileSource *tile_source, int level )
 		else if( tile_source->page_pyramid )
 			/* No "n" here since pages are mag levels.
 			 */
-			image = vips_image_new_from_source( tile_source->source,
-				"", 
+			image = vips_image_new_from_file( tile_source->filename,
 				"page", level,
 				NULL );
 		else
 			/* Pages are regular pages.
 			 */
-			image = vips_image_new_from_source( tile_source->source,
-				"", 
+			image = vips_image_new_from_file( tile_source->filename,
 				"page", page,
 				"n", n,
 				NULL );
@@ -158,8 +154,7 @@ tile_source_open( TileSource *tile_source, int level )
 	else if( vips_isprefix( "jp2k", tile_source->loader ) ) {
 		/* These only have a "page" param.
 		 */
-		image = vips_image_new_from_source( tile_source->source,
-			"", 
+		image = vips_image_new_from_file( tile_source->filename,
 			"page", level,
 			NULL );
 	}
@@ -168,24 +163,20 @@ tile_source_open( TileSource *tile_source, int level )
 		vips_isprefix( "gif", tile_source->loader ) ) {
 		/* Support page and n.
 		 */
-		image = vips_image_new_from_source( tile_source->source,
-			"", 
+		image = vips_image_new_from_file( tile_source->filename,
 			"page", level,
 			"n", n,
 			NULL );
 	}
 	else if( vips_isprefix( "svg", tile_source->loader ) ) {
-		image = vips_image_new_from_source( tile_source->source,
-			"", 
+		image = vips_image_new_from_file( tile_source->filename,
 			"scale", tile_source->zoom / (1 << level),
 			NULL );
 	}
 	else 
-		/* Don't support any page spec.
+		/* No page spec support.
 		 */
-		image = vips_image_new_from_source( tile_source->source, 
-			"", 
-			NULL );
+		image = vips_image_new_from_file( tile_source->filename, NULL );
 
 	return( image );
 }
@@ -1499,7 +1490,7 @@ get_int( VipsImage *image, const char *field, int default_value )
 }
 
 TileSource *
-tile_source_new_from_source( VipsSource *source )
+tile_source_new_from_file( const char *filename )
 {
 	TileSource *tile_source = g_object_new( TILE_SOURCE_TYPE, NULL );
 
@@ -1509,27 +1500,25 @@ tile_source_new_from_source( VipsSource *source )
 	TileSourceMode mode;
 
 #ifdef DEBUG
-	printf( "tile_source_new_from_source: starting ..\n" );
+	printf( "tile_source_new_from_file: %s\n", filename );
 #endif /*DEBUG*/
 
-	tile_source->source = source; 
-	g_object_ref( source );
+	tile_source->filename = g_strdup( filename ); 
 
-	if( !(loader = vips_foreign_find_load_source( source )) ) {
+	if( !(loader = vips_foreign_find_load( filename )) ) {
 		VIPS_UNREF( tile_source );
 		return( NULL );
 	}
 
-	/* vips_foreign_find_load_source() gives us eg.
-	 * "VipsForeignLoadNsgifFile", but we need "gifload_source", the
+	/* vips_foreign_find_load() gives us eg.
+	 * "VipsForeignLoadNsgifFile", but we need "gifload", the
 	 * generic name.
 	 */
 	tile_source->loader = vips_nickname_find( g_type_from_name( loader ) );
 
 	/* A very basic open to fetch metadata. 
 	 */
-	if( !(image = vips_image_new_from_source( source, "", 
-		NULL )) ) {
+	if( !(image = vips_image_new_from_file( filename, NULL )) ) {
 		VIPS_UNREF( tile_source );
 		return( NULL );
 	}
@@ -1582,8 +1571,7 @@ tile_source_new_from_source( VipsSource *source )
 
 		/* Apply the zoom and build the pyramid.
 		 */
-		x = vips_image_new_from_source( tile_source->source,
-			"", 
+		x = vips_image_new_from_file( filename,
 			"scale", tile_source->zoom,
 			NULL );
 		tile_source->width = x->Xsize;
@@ -1616,7 +1604,7 @@ tile_source_new_from_source( VipsSource *source )
 	printf( "tile_source_new_from_source: test toilet-roll mode\n" );
 #endif /*DEBUG*/
 
-	/* Block error messages from eg. page-pyramidal TIFFs, where pages
+	/* Block error messages from eg. page-pyramidal TIFFs where pages
 	 * are not all the same size.
 	 */
 	tile_source->type = TILE_SOURCE_TYPE_TOILET_ROLL;
@@ -1748,65 +1736,6 @@ tile_source_new_from_source( VipsSource *source )
 	return( tile_source );
 }
 
-TileSource *
-tile_source_new_from_file( GFile *file )
-{
-	GError *error = NULL;
-
-	VipsSource *source;
-	char *path;
-	TileSource *tile_source;
-
-	if( (path = g_file_get_path( file )) ) {
-		/* If this GFile is a path to a file on disc, we can
-		 * make a source directly from it. This will allow
-		 * things like mmap and openslide to work.
-		 */
-
-#ifdef DEBUG
-		printf( "tile_source_set_file: connecting via path\n" );
-#endif /*DEBUG*/
-
-		if( !(source = vips_source_new_from_file( path )) ) {
-			g_free( path );
-			return( NULL );
-		}
-		g_free( path );
-	}
-	else {
-		/* Otherwise, this is perhaps a pipe or an area of
-		 * memory. We can connect via g_input_stream.
-		 */
-		GInputStream *stream;
-
-#ifdef DEBUG
-		printf( "tile_source_set_file: connecting via "
-			"ginputstream\n" );
-#endif /*DEBUG*/
-
-		if( !(stream = G_INPUT_STREAM( 
-			g_file_read( file, NULL, &error ) )) ) {
-			vips_error_g( &error );
-			return( NULL );
-		}
-
-		if( !(source = VIPS_SOURCE( 
-			vips_source_g_input_stream_new( stream ) )) ) {
-			VIPS_UNREF( stream );
-			return( NULL );
-		}
-		VIPS_UNREF( stream );
-	}
-
-	if( !(tile_source = tile_source_new_from_source( source )) ) {
-		VIPS_UNREF( source );
-		return( NULL );
-	}
-	VIPS_UNREF( source );
-
-	return( tile_source );
-}
-
 /* Call this some time after tile_source_new_from_file() or
  * tile_source_new_from_source(), and once all callbacks have been 
  * attached, to trigger a bg load.
@@ -1871,11 +1800,7 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
 const char *
 tile_source_get_path( TileSource *tile_source )
 {
-	if( tile_source->source )
-		return( vips_connection_filename( 
-			VIPS_CONNECTION( tile_source->source ) ) );
-
-	return( NULL );
+	return( tile_source->filename );
 }
 
 GFile *
@@ -1940,7 +1865,6 @@ tile_source_get_pixel( TileSource *tile_source,
 TileSource *
 tile_source_duplicate( TileSource *tile_source )
 {
-	GFile *file;
 	TileSource *new_tile_source;
 	int mode;
 	double scale;
@@ -1950,13 +1874,9 @@ tile_source_duplicate( TileSource *tile_source )
 	gboolean log;
 	gboolean active;
 
-	if( !(file = tile_source_get_file( tile_source )) )
+	if( !(new_tile_source = 
+		tile_source_new_from_file( tile_source->filename )) ) 
 		return( NULL );
-
-	if( !(new_tile_source = tile_source_new_from_file( file )) ) {
-		VIPS_UNREF( file );
-		return( NULL );
-	}
 
 	g_object_get( tile_source, 
 		"mode", &mode,

@@ -88,11 +88,17 @@ typedef enum _TileSourceMode {
 typedef struct _TileSource {
 	GObject parent_instance;
 
-	/* The loader and the source we have loaded. We may need to reload on
-	 * a zoom or page change, so we need to keep the source.
+	/* The loader and the file we have loaded from. We may need to reload 
+	 * on a zoom or page change.
+	 *
+	 * We can't use a VipsSource since they are not cached and we'd get
+	 * repeated decode on page change.
+	 *
+	 * We can also display a VipsImage, but we can't reload those, of
+	 * course.
 	 */
 	const char *loader;
-	VipsSource *source;
+	char *filename;
 	VipsImage *base;
 
 	/* The image we are displaying, and something to fetch pixels from it
@@ -217,8 +223,7 @@ typedef struct _TileSourceClass {
 
 GType tile_source_get_type( void );
 
-TileSource *tile_source_new_from_source( VipsSource *source );
-TileSource *tile_source_new_from_file( GFile *file );
+TileSource *tile_source_new_from_file( const char *filename );
 
 void tile_source_background_load( TileSource *tile_source );
 
