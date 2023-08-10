@@ -237,9 +237,6 @@ then check the build status here:
 
 ## TODO
 
-- flts should display as multipage, even though they don't have page and n
-  params
-
 - cursor key nav is broken
 
     all this is related to handling of zoom events, maybe revert the pinch 
@@ -251,8 +248,6 @@ then check the build status here:
 
 - gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
   for the main window
-
-- animate kep press zooms, eg, "1" then "0"
 
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 

@@ -308,16 +308,18 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
 		tile_source->mode == TILE_SOURCE_MODE_PAGES_AS_BANDS ) {
 		int page_width = image->Xsize;
 		int page_height = vips_image_get_page_height( image );
+		// not too many pages or we can have terrible performance problems
+		// more than 3 for the info bar
+		int n_pages = VIPS_MIN( 10, tile_source->n_pages );
 
 		VipsObject *context = VIPS_OBJECT( vips_image_new() );
 		VipsImage **t = (VipsImage **) 
-			vips_object_local_array( context, 
-				tile_source->n_pages );
+			vips_object_local_array( context, n_pages );
 
 		int page;
 		VipsImage *x;
 
-		for( page = 0; page < tile_source->n_pages; page++ ) 
+		for( page = 0; page < n_pages; page++ ) 
 			if( vips_crop( image, &t[page], 
 				0, page * page_height, 
 				page_width, page_height, 
@@ -326,7 +328,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
 				VIPS_UNREF( image );
 				return( NULL );
 			}
-		if( vips_bandjoin( t, &x, tile_source->n_pages, NULL ) ) {
+		if( vips_bandjoin( t, &x, n_pages, NULL ) ) {
 			VIPS_UNREF( context );
 			VIPS_UNREF( image );
 			return( NULL );
