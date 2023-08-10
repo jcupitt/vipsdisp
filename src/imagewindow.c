@@ -36,6 +36,7 @@ struct _ImageWindow
 	 */
 	guint tick_handler;
 	double scale_rate;
+	double scale_target;
 
 	GtkWidget *right_click_menu;
 	GtkWidget *title;
@@ -679,9 +680,11 @@ image_window_tick( GtkWidget *widget,
 		(double) (frame_time - win->last_frame_time) / 
 			G_TIME_SPAN_SECOND : 
 		1.0 / G_TIME_SPAN_SECOND;
+	double scale = image_window_get_scale( win );
 
 	double x_image;
 	double y_image;
+	double new_scale;
 
 #ifdef DEBUG
 	printf( "image_window_tick: dt = %g\n", dt );
@@ -689,13 +692,21 @@ image_window_tick( GtkWidget *widget,
 
 	image_window_get_mouse_position( win, &x_image, &y_image );
 
-	if( win->scale_rate != 1.0 ) {
-		double scale = image_window_get_scale( win );
-		double new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
+	if( win->scale_rate != 1.0 )
+		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
 
-		image_window_set_scale_position( win, 
-			new_scale, x_image, y_image );
+	if( win->scale_target != 0 ) {
+		if( (win->scale_rate > 1.0 && 
+				new_scale >= win->scale_target) ||
+			(win->scale_rate < 1.0 && 
+			 new_scale <= win->scale_target) ) {
+			win->scale_rate = 1.0;
+			new_scale = win->scale_target;
+			win->scale_target = 0.0;
+		}
 	}
+
+	image_window_set_scale_position( win, new_scale, x_image, y_image );
 
 	win->last_frame_time = frame_time;
 
@@ -729,6 +740,32 @@ image_window_stop_animation( ImageWindow *win )
 			win->tick_handler );
 		win->tick_handler = 0;
 	}
+}
+
+static void
+image_window_animate_scale_to( ImageWindow *win, double scale_target )
+{
+	// use a bigger number for faster zoom
+	static const double animation_speed = 0.5;
+
+	double scale = image_window_get_scale( win );
+
+	win->scale_rate = log( scale_target / scale ) / animation_speed;
+	win->scale_target = scale_target;
+}
+
+static void
+image_window_animate_bestfit( ImageWindow *win )
+{
+	int widget_width = gtk_widget_get_width( win->imagedisplay );
+	int widget_height = gtk_widget_get_height( win->imagedisplay );
+	double hscale = (double) widget_width / 
+		win->tile_source->display_width;
+	double vscale = (double) widget_height / 
+		win->tile_source->display_height;
+	double scale = VIPS_MIN( hscale, vscale );
+
+	image_window_animate_scale_to( win, scale * win->tile_source->zoom );
 }
 
 static struct {
@@ -830,7 +867,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
 		break;
 
 	case GDK_KEY_0:
-		image_window_bestfit( win );
+		image_window_animate_bestfit( win );
 		handled = TRUE;
 		break;
 
@@ -853,7 +890,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
 				if( state & GDK_CONTROL_MASK )
 					scale = 1.0 / scale;
 
-				image_window_set_scale_centre( win, scale );
+				image_window_animate_scale_to( win, scale );
 
 				handled = TRUE;
 				break;
