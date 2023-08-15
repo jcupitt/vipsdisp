@@ -1913,6 +1913,7 @@ tile_source_duplicate( TileSource *tile_source )
 	int page;
 	gboolean falsecolour;
 	gboolean log;
+	gboolean icc;
 	gboolean active;
 
 	if( !(new_tile_source = 
@@ -1926,6 +1927,7 @@ tile_source_duplicate( TileSource *tile_source )
 		"page", &page,
 		"falsecolour", &falsecolour,
 		"log", &log,
+		"icc", &icc,
 		"active", &active,
 		NULL );
 
@@ -1936,6 +1938,7 @@ tile_source_duplicate( TileSource *tile_source )
 		"page", page,
 		"falsecolour", falsecolour,
 		"log", log,
+		"icc", icc,
 		"active", active,
 		NULL );
 

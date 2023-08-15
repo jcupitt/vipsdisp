@@ -400,6 +400,9 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 	state = g_variant_new_boolean( tile_source->log );
 	change_state( GTK_WIDGET( win ), "log", state );
 
+	state = g_variant_new_boolean( tile_source->icc );
+	change_state( GTK_WIDGET( win ), "icc", state );
+
 	if( tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL )
 		str_mode = "toilet-roll";
 	else if( tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE )
@@ -691,6 +694,8 @@ image_window_tick( GtkWidget *widget,
 #endif /*DEBUG*/
 
 	image_window_get_mouse_position( win, &x_image, &y_image );
+
+	new_scale = scale;
 
 	if( win->scale_rate != 1.0 )
 		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
@@ -1307,6 +1312,7 @@ image_window_reset( GSimpleAction *action,
 		g_object_set( win->tile_source,
 			"falsecolour", FALSE,
 			"log", FALSE,
+			"icc", FALSE,
 			"scale", 1.0,
 			"offset", 0.0,
 			NULL );
