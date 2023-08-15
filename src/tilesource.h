@@ -156,6 +156,7 @@ typedef struct _TileSource {
 	double offset;
 	gboolean falsecolour;
 	gboolean log;
+	gboolean icc;
 
 	/* The size of the image with this view mode. So in toilet-roll mode
 	 * (for example), display_height is height * n_pages.

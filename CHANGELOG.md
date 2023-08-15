@@ -5,6 +5,8 @@
 - switch to file based image load (not source) to fix caching
 - better conversion to RGB
 - animate keypress zoom
+- use NN sampling for zoom with gtk 4.10+
+- add colour management
 
 ## 2.5.1, 23/7/23
 

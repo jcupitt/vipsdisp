@@ -20,6 +20,7 @@ enum {
 	PROP_PAGE,
 	PROP_FALSECOLOUR,
 	PROP_LOG,
+	PROP_ICC,
 	PROP_ACTIVE,
 	PROP_LOADED,
 
@@ -572,6 +573,19 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 		}
 	}
 
+	/* Colour management to srgb.
+	 */
+	if( tile_source->active &&
+		tile_source->icc) {
+		if( vips_icc_transform( image, &x, "srgb", NULL ) ) {
+			VIPS_UNREF( image );
+			VIPS_UNREF( alpha );
+			return( NULL ); 
+		}
+		VIPS_UNREF( image );
+		image = x;
+	}
+
 	/* Force to uint8 sRGB.
 	 */
 	if( image->Type != VIPS_INTERPRETATION_sRGB ) {
@@ -723,6 +737,10 @@ tile_source_property_name( guint prop_id )
 
 	case PROP_LOG:
 		return( "LOG" );
+		break;
+
+	case PROP_ICC:
+		return( "ICC" );
 		break;
 
 	case PROP_ACTIVE:
@@ -898,6 +916,16 @@ tile_source_set_property( GObject *object,
 		}
 		break;
 
+	case PROP_ICC:
+		b = g_value_get_boolean( value );
+		if( tile_source->icc != b ) { 
+			tile_source->icc = b;
+			tile_source_update_rgb( tile_source );
+
+			tile_source_tiles_changed( tile_source );
+		}
+		break;
+
 	case PROP_ACTIVE:
 		b = g_value_get_boolean( value );
 		if( tile_source->active != b ) { 
@@ -953,6 +981,10 @@ tile_source_get_property( GObject *object,
 
 	case PROP_LOG:
 		g_value_set_boolean( value, tile_source->log );
+		break;
+
+	case PROP_ICC:
+		g_value_set_boolean( value, tile_source->icc );
 		break;
 
 	case PROP_ACTIVE:
@@ -1097,6 +1129,13 @@ tile_source_class_init( TileSourceClass *class )
 		g_param_spec_boolean( "log",
 			_( "log" ),
 			_( "Log" ),
+			FALSE,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_ICC,
+		g_param_spec_boolean( "icc",
+			_( "icc" ),
+			_( "ICC" ),
 			FALSE,
 			G_PARAM_READWRITE ) );
 

@@ -1200,6 +1200,19 @@ image_window_log( GSimpleAction *action, GVariant *state, gpointer user_data )
 }
 
 static void
+image_window_icc( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"icc", g_variant_get_boolean( state ),
+			NULL );
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
 image_window_falsecolour( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
@@ -1326,6 +1339,7 @@ static GActionEntry image_window_entries[] = {
 	{ "prev", image_window_prev },
 	{ "scale", image_window_scale },
 	{ "log", image_window_toggle, NULL, "false", image_window_log },
+	{ "icc", image_window_toggle, NULL, "false", image_window_icc },
 	{ "falsecolour",
 		image_window_toggle, NULL, "false", image_window_falsecolour },
 	{ "mode", image_window_radio, "s", "'multipage'", image_window_mode },

@@ -237,9 +237,6 @@ then check the build status here:
 
 ## TODO
 
-- gtk 4.10 added GSK_SCALING_FILTER_NEAREST and GskTextureScale ... use this
-  for the main window
-
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
 
@@ -277,13 +274,9 @@ then check the build status here:
 
         does not page flip to smaller pages correctly
 
-            reset zoom/scroll on pagegflip if the page size changes?
+            reset zoom/scroll on pageflip if the page size changes?
 
         same for audi r8 pdf page flip I guess?
-
-- colour management
-
-    option to enable view through ICC profile
 
 - info bar:
 

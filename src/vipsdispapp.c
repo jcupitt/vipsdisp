@@ -55,6 +55,9 @@ vipsdisp_app_about_activated( GSimpleAction *action,
 
 	static const char *authors[] = {
 		"John Cupitt",
+		"angstyloop",
+		"TingPing",
+		"earboxer",
 		NULL
 	};
 
