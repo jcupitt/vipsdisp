@@ -1,10 +1,10 @@
 project(
   'vipsdisp', 'c',
-  version: '2.4.2',
+  version: '2.5.1',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
-    'c_std=gnu99',
+    'c_std=c11',
     # turn off asserts etc. in release mode
     'b_ndebug=if-release'
   ]

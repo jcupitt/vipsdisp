@@ -18,6 +18,11 @@
         <attribute name='label' translatable='yes'>Log scale</attribute>
         <attribute name='action'>win.log</attribute>
       </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Enable colour management</attribute>
+        <attribute name='action'>win.icc</attribute>
+      </item>
     </section>
 
     <section>

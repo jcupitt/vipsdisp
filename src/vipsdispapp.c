@@ -54,7 +54,10 @@ vipsdisp_app_about_activated( GSimpleAction *action,
 	ImageWindow *win = vipsdisp_app_win( app );
 
 	static const char *authors[] = {
-		"John Cupitt",
+		"jcupitt",
+		"angstyloop",
+		"TingPing",
+		"earboxer",
 		NULL
 	};
 

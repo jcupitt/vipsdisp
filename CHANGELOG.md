@@ -1,5 +1,21 @@
 ## master
 
+- limit bands in pages-as-bands to prevent 3000 page images causing 
+  performance issues
+- switch to file based image load (not source) to fix caching
+- better conversion to RGB
+- animate keypress zoom
+- use NN sampling for zoom with gtk 4.10+
+- add colour management
+
+## 2.5.1, 23/7/23
+
+- fix progress bar (again)
+
+## 2.5.0, 22/7/23
+
+- save options [angstyloop]
+
 ## 2.4.1, 21/8/22
 
 - remove stray printfs

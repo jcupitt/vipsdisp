@@ -28,6 +28,11 @@
  */
 #define MAX_TILES (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
 
+/* We use various gtk4 features (filechooser, dialog) which are going away 
+ * in gtk5.
+ */
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+
 #include "gtkutil.h"
 #include "tslider.h"
 #include "vipsdispapp.h"
@@ -39,5 +44,6 @@
 #include "imagewindow.h"
 #include "infobar.h"
 #include "displaybar.h"
+#include "saveoptions.h"
 
 #endif /* __VIPSDISP_H */

@@ -39,6 +39,7 @@ struct _ImageWindow
 	 */
 	guint tick_handler;
 	double scale_rate;
+	double scale_target;
 
 	GtkWidget *right_click_menu;
 	GtkWidget *title;
@@ -338,9 +339,8 @@ image_window_eval( VipsImage *image,
 	printf( "image_window_eval: %d%%\n", progress->percent );
 #endif /*DEBUG_VERBOSE*/
 
-	/* You'd think we could just update the progress bar now, but it
-	 * seems to trigger a lot of races. Instead, set an idle handler and 
-	 * do the update there. 
+	/* This can come from the background load thread, so we can't update 
+	 * the UI directly.
 	 */
 
 	update = g_new( EvalUpdate, 1 );
@@ -414,6 +414,9 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 	state = g_variant_new_boolean( tile_source->log );
 	change_state( GTK_WIDGET( win ), "log", state );
 
+	state = g_variant_new_boolean( tile_source->icc );
+	change_state( GTK_WIDGET( win ), "icc", state );
+
 	if( tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL )
 		str_mode = "toilet-roll";
 	else if( tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE )
@@ -434,7 +437,7 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 static void
 image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 {
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
+	image_window_error_hide( win );
 }
 
 static void
@@ -588,25 +591,59 @@ image_window_replace_action( GSimpleAction *action,
 }
 
 static void
-image_window_saveas_response( GtkDialog *dialog, 
-	gint response_id, gpointer user_data )
+image_window_saveas_options_response( GtkDialog *dialog, 
+	gint response, gpointer user_data )
+{
+	GtkWidget *file_chooser = GTK_WIDGET( user_data );
+
+	// final save and everything worked OK, we can all pop down
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
+	}
+
+	// save options was cancelled, just pop that down
+	if( response == GTK_RESPONSE_CANCEL ) 
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+	// other return codes are intermediate stages of processing and we
+	// should do nothing
+}
+
+static void
+image_window_saveas_response( GtkDialog *dialog,
+	gint response, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	GFile *file;
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		GFile *file;
+		char *filename;
+		SaveOptions *options;
 
-	/* We need to pop down immediately so we expose the cancel
-	 * button.
-	 */
-	file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-	image_window_error_hide( win ); 
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
+		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+		filename = g_file_get_path( file );
+		VIPS_UNREF( file ); 
 
-	if( response_id == GTK_RESPONSE_ACCEPT &&
-		tile_source_write_to_file( win->tile_source, file ) ) 
-		image_window_error( win );
+		options = save_options_new( GTK_WINDOW( dialog ),
+			win->tile_source->image, filename );
 
-	VIPS_UNREF( file ); 
+		g_free( filename ); 
+
+		if( !options ) {
+			image_window_error( win );
+			return;
+		}
+
+		g_signal_connect_object( options, "response", 
+			G_CALLBACK( image_window_saveas_options_response ), 
+			dialog, 0 );
+
+		gtk_window_present( GTK_WINDOW( options ) );
+	}
+
+	if( response == GTK_RESPONSE_CANCEL )
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
 }
 
 static void
@@ -616,27 +653,29 @@ image_window_saveas_action( GSimpleAction *action,
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 
 	if( win->tile_source ) {
-		GtkWidget *dialog;
+		GtkWidget *file_chooser;
 		GFile *file;
 
-		dialog = gtk_file_chooser_dialog_new( "Save file",
+		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
 			GTK_FILE_CHOOSER_ACTION_SAVE,
 			"_Cancel", GTK_RESPONSE_CANCEL,
 			"_Save", GTK_RESPONSE_ACCEPT,
 			NULL );
-		gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+
+		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
 
 		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			gtk_file_chooser_set_file( 
+				GTK_FILE_CHOOSER( file_chooser ), 
 				file, NULL );
 			VIPS_UNREF( file );
 		}
 
-		g_signal_connect( dialog, "response", 
+		g_signal_connect( file_chooser, "response", 
 			G_CALLBACK( image_window_saveas_response ), win );
 
-		gtk_widget_show( dialog );
+		gtk_widget_show( file_chooser );
 	}
 }
 
@@ -659,9 +698,11 @@ image_window_tick( GtkWidget *widget,
 		(double) (frame_time - win->last_frame_time) / 
 			G_TIME_SPAN_SECOND : 
 		1.0 / G_TIME_SPAN_SECOND;
+	double scale = image_window_get_scale( win );
 
 	double x_image;
 	double y_image;
+	double new_scale;
 
 #ifdef DEBUG
 	printf( "image_window_tick: dt = %g\n", dt );
@@ -669,13 +710,23 @@ image_window_tick( GtkWidget *widget,
 
 	image_window_get_mouse_position( win, &x_image, &y_image );
 
-	if( win->scale_rate != 1.0 ) {
-		double scale = image_window_get_scale( win );
-		double new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
+	new_scale = scale;
 
-		image_window_set_scale_position( win, 
-			new_scale, x_image, y_image );
+	if( win->scale_rate != 1.0 )
+		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
+
+	if( win->scale_target != 0 ) {
+		if( (win->scale_rate > 1.0 && 
+				new_scale >= win->scale_target) ||
+			(win->scale_rate < 1.0 && 
+			 new_scale <= win->scale_target) ) {
+			win->scale_rate = 1.0;
+			new_scale = win->scale_target;
+			win->scale_target = 0.0;
+		}
 	}
+
+	image_window_set_scale_position( win, new_scale, x_image, y_image );
 
 	win->last_frame_time = frame_time;
 
@@ -709,6 +760,32 @@ image_window_stop_animation( ImageWindow *win )
 			win->tick_handler );
 		win->tick_handler = 0;
 	}
+}
+
+static void
+image_window_animate_scale_to( ImageWindow *win, double scale_target )
+{
+	// use a bigger number for faster zoom
+	static const double animation_speed = 0.5;
+
+	double scale = image_window_get_scale( win );
+
+	win->scale_rate = log( scale_target / scale ) / animation_speed;
+	win->scale_target = scale_target;
+}
+
+static void
+image_window_animate_bestfit( ImageWindow *win )
+{
+	int widget_width = gtk_widget_get_width( win->imagedisplay );
+	int widget_height = gtk_widget_get_height( win->imagedisplay );
+	double hscale = (double) widget_width / 
+		win->tile_source->display_width;
+	double vscale = (double) widget_height / 
+		win->tile_source->display_height;
+	double scale = VIPS_MIN( hscale, vscale );
+
+	image_window_animate_scale_to( win, scale * win->tile_source->zoom );
 }
 
 static struct {
@@ -810,7 +887,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
 		break;
 
 	case GDK_KEY_0:
-		image_window_bestfit( win );
+		image_window_animate_bestfit( win );
 		handled = TRUE;
 		break;
 
@@ -833,7 +910,7 @@ image_window_key_pressed( GtkEventControllerKey *self,
 				if( state & GDK_CONTROL_MASK )
 					scale = 1.0 / scale;
 
-				image_window_set_scale_centre( win, scale );
+				image_window_animate_scale_to( win, scale );
 
 				handled = TRUE;
 				break;
@@ -924,6 +1001,7 @@ image_window_scale_begin( GtkGesture* self,
 	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
 		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
 }
+
 static void
 image_window_scale_changed( GtkGestureZoom *self, 
 	gdouble scale, gpointer user_data )
@@ -2163,6 +2241,19 @@ image_window_log( GSimpleAction *action, GVariant *state, gpointer user_data )
 }
 
 static void
+image_window_icc( GSimpleAction *action, GVariant *state, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"icc", g_variant_get_boolean( state ),
+			NULL );
+
+	g_simple_action_set_state( action, state );
+}
+
+static void
 image_window_falsecolour( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
@@ -2257,6 +2348,7 @@ image_window_reset( GSimpleAction *action,
 		g_object_set( win->tile_source,
 			"falsecolour", FALSE,
 			"log", FALSE,
+			"icc", FALSE,
 			"scale", 1.0,
 			"offset", 0.0,
 			NULL );
@@ -2291,6 +2383,7 @@ static GActionEntry image_window_entries[] = {
 	{ "prev", image_window_prev },
 	{ "scale", image_window_scale },
 	{ "log", image_window_toggle, NULL, "false", image_window_log },
+	{ "icc", image_window_toggle, NULL, "false", image_window_icc },
 	{ "falsecolour",
 		image_window_toggle, NULL, "false", image_window_falsecolour },
 	{ "mode", image_window_radio, "s", "'multipage'", image_window_mode },
@@ -2548,6 +2641,10 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 	tile_source->active = 
 		g_settings_get_boolean( win->settings, "control" );
 
+	/* Everything is set up ... start loading the image.
+	 */
+	tile_source_background_load( tile_source );
+
 	image_window_changed( win );
 }
 
@@ -2560,16 +2657,21 @@ image_window_get_tile_source( ImageWindow *win )
 void
 image_window_open( ImageWindow *win, GFile *file )
 {
+	char *path;
 	TileSource *tile_source;
 
-	if( !(tile_source = tile_source_new_from_file( file )) ) {
+	path = g_file_get_path( file );
+
+	if( !(tile_source = tile_source_new_from_file( path )) ) {
 		image_window_error( win ); 
+		g_free( path );
 		return;
 	}
 
 	image_window_set_tile_source( win, tile_source );
 
 	VIPS_UNREF( tile_source );
+	g_free( path );
 }
 
 void

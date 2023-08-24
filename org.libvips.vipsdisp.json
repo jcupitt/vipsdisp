@@ -1,7 +1,7 @@
 {
     "app-id" : "org.libvips.vipsdisp",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "43",
+    "runtime-version" : "44",
     "sdk" : "org.gnome.Sdk",
     "command" : "vipsdisp",
     "finish-args" : [
@@ -70,12 +70,24 @@
             "name" : "libjxl",
             "builddir" : true,
             "buildsystem" : "cmake-ninja",
+            "build-options" : {
+                "config-opts" : [
+                    "-DBUILD_TESTING=OFF",
+                    "-DJPEGXL_ENABLE_SKCMS=off",
+                    "-DJPEGXL_ENABLE_DOXYGEN=off",
+                    "-DJPEGXL_ENABLE_EXAMPLES=off",
+                    "-DJPEGXL_ENABLE_JNI=off",
+                    "-DJPEGXL_ENABLE_MANPAGES=off",
+                    "-DJPEGXL_ENABLE_OPENEXR=off",
+                    "-DJPEGXL_ENABLE_TOOLS=off"
+                ]
+            },
             "sources" : [
                 {
                     "type" : "git",
                     "url" : "https://github.com/libjxl/libjxl.git",
-                    "tag" : "v0.7.0",
-                    "commit" : "f95da131cf7c7ccd4da256356fde2fec1fa23bb5"
+                    "tag" : "v0.8.1",
+                    "commit" : "c27d499263435ac77007174e0f1cf54557cff23a"
                 }
             ]
         },
@@ -125,8 +137,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/randy408/libspng.git",
-                    "tag" : "v0.7.3",
-                    "commit" : "bab9f94a1186f8fda234b4e1cb65e1b9a77049cc"
+                    "tag" : "v0.7.4",
+                    "commit" : "fb768002d4288590083a476af628e51c3f1d47cd"
                 }
             ]
         },
@@ -152,9 +164,9 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://poppler.freedesktop.org/poppler-data-0.4.11.tar.gz",
+                    "url" : "https://poppler.freedesktop.org/poppler-data-0.4.12.tar.gz",
 
-                    "sha256" : "2cec05cd1bb03af98a8b06a1e22f6e6e1a65b1e2f3816cb3069bb0874825f08c"
+                    "sha256" : "c835b640a40ce357e1b83666aabd95edffa24ddddd49b8daff63adb851cdab74"
                 }
             ]
         },
@@ -178,9 +190,9 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://poppler.freedesktop.org/poppler-22.12.0.tar.xz",
+                    "url" : "https://poppler.freedesktop.org/poppler-23.07.0.tar.xz",
 
-                    "sha256" : "d9aa9cacdfbd0f8e98fc2b3bb008e645597ed480685757c3e7bc74b4278d15c0"
+                    "sha256" : "f29b4b4bf47572611176454c8f21506d71d27eca5011a39aa44038b30b957db0"
                 }
             ]
         },
@@ -193,8 +205,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/AcademySoftwareFoundation/Imath.git",
-                    "tag" : "v3.1.6",
-                    "commit" : "7c6c5fd76edf0c71db1a5a14d66a04a7d2bf9c1f"
+                    "tag" : "v3.1.9",
+                    "commit" : "d690a3fcff4e877ead5ae56c7e964595ade8a35e"
                 }
             ]
         },
@@ -207,8 +219,8 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/AcademySoftwareFoundation/openexr.git",
-                    "tag" : "v3.1.5",
-                    "commit" : "420da6a57a3ecaeab481b993dd590eeec8fe0c52"
+                    "tag" : "v3.1.9",
+                    "commit" : "45da397ca89527a5aa65d8d3aaf163aad58dfec9"
                 }
             ]
         },
@@ -284,12 +296,8 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://github.com/strukturag/libde265/releases/download/v1.0.9/libde265-1.0.9.tar.gz",
-                    "sha256" : "29bc6b64bf658d81a4446a3f98e0e4636fd4fd3d971b072d440cef987d5439de"
-                },
-                {
-                    "type" : "patch",
-                    "path" : "patches/libde265-1-fixes.patch"
+                    "url" : "https://github.com/strukturag/libde265/releases/download/v1.0.12/libde265-1.0.12.tar.gz",
+                    "sha256" : "62185ea2182e68cf68bba20cc6eb4c287407b509cf0a827d7ddb75614db77b5c"
                 }
             ]
         },
@@ -301,8 +309,8 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://github.com/strukturag/libheif/releases/download/v1.14.0/libheif-1.14.0.tar.gz",
-                    "sha256" : "9a2b969d827e162fa9eba582ebd0c9f6891f16e426ef608d089b1f24962295b5"
+                    "url" : "https://github.com/strukturag/libheif/releases/download/v1.16.2/libheif-1.16.2.tar.gz",
+                    "sha256" : "7f97e4205c0bd9f9b8560536c8bd2e841d1c9a6d610401eb3eb87ed9cdfe78ea"
                 }
             ]
         },
@@ -318,7 +326,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/dloebl/cgif.git",
-                    "tag" : "V0.3.0"
+                    "tag" : "V0.3.2"
                 }
             ]
         },
@@ -336,7 +344,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git",
-                    "tag" : "v8.14.1"
+                    "tag" : "v8.14.3"
                 }
             ]
         },
@@ -352,7 +360,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "commit" : "d3e71dce18f7e53a403c3d30375e512964722cde"
+                    "commit" : "97855e06fcb364d5d94e038f737b2135730dc394"
                 }
             ]
         }

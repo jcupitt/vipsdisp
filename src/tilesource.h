@@ -21,15 +21,15 @@
  *	images. Pages can have subifd pyramids. Includes single-page images.
  *	Reload on page change.
  *
- * PAGE_PYRAMID 
+ * PAGE_PYRAMID
  *
  *	"page" param is pyr levels. We load a single page and reload on
  *	magnification change.
  *
  * TOILET_ROLL
  *
- *	All pages are the identical, so we open as a single, tall, thin strip 
- *	and the viewer does any presenting as pages / animation / etc. during 
+ *	All pages are the identical, so we open as a single, tall, thin strip
+ *	and the viewer does any presenting as pages / animation / etc. during
  *	conversion to the screen display image.
  *	These images can have subifd pyramids.
  */
@@ -88,15 +88,21 @@ typedef enum _TileSourceMode {
 typedef struct _TileSource {
 	GObject parent_instance;
 
-	/* The loader and the source we have loaded. We may need to reload on
-	 * a zoom or page change, so we need to keep the source.
+	/* The loader and the file we have loaded from. We may need to reload 
+	 * on a zoom or page change.
+	 *
+	 * We can't use a VipsSource since they are not cached and we'd get
+	 * repeated decode on page change.
+	 *
+	 * We can also display a VipsImage, but we can't reload those, of
+	 * course.
 	 */
 	const char *loader;
-	VipsSource *source;
+	char *filename;
 	VipsImage *base;
 
 	/* The image we are displaying, and something to fetch pixels from it
-	 * with. 
+	 * with.
 	 */
 	VipsImage *image;
 	VipsRegion *image_region;
@@ -125,13 +131,13 @@ typedef struct _TileSource {
 	int n_delay;
 	double zoom;
 
-	/* If all the pages are the same size and format, we can load as a 
+	/* If all the pages are the same size and format, we can load as a
 	 * toilet roll.
 	 */
 	gboolean pages_same_size;
 
 	/* If all the pages are the same size and format, and also all mono,
-	 * we can display pages as bands. 
+	 * we can display pages as bands.
 	 */
 	gboolean all_mono;
 
@@ -150,6 +156,7 @@ typedef struct _TileSource {
 	double offset;
 	gboolean falsecolour;
 	gboolean log;
+	gboolean icc;
 
 	/* The size of the image with this view mode. So in toilet-roll mode
 	 * (for example), display_height is height * n_pages.
@@ -195,7 +202,7 @@ typedef struct _TileSourceClass {
 	void (*posteval)( TileSource *tile_source, VipsProgress *progress );
 
 	/* Everything has changed, so image geometry and pixels. Perhaps a
-	 * new page in a multi-page TIFF where pages change in size. 
+	 * new page in a multi-page TIFF where pages change in size.
 	 */
 	void (*changed)( TileSource *tile_source );
 
@@ -217,18 +224,18 @@ typedef struct _TileSourceClass {
 
 GType tile_source_get_type( void );
 
-TileSource *tile_source_new_from_source( VipsSource *source );
-TileSource *tile_source_new_from_file( GFile *file );
+TileSource *tile_source_new_from_file( const char *filename );
+
+void tile_source_background_load( TileSource *tile_source );
 
 int tile_source_fill_tile( TileSource *tile_source, Tile *tile );
 
 const char *tile_source_get_path( TileSource *tile_source );
 GFile *tile_source_get_file( TileSource *tile_source );
-int tile_source_write_to_file( TileSource *tile_source, GFile *file );
 
 VipsImage *tile_source_get_image( TileSource *tile_source );
 VipsImage *tile_source_get_base_image( TileSource *tile_source );
-gboolean tile_source_get_pixel( TileSource *tile_source, 
+gboolean tile_source_get_pixel( TileSource *tile_source,
 	double **vector, int *n, int x, int y );
 TileSource *tile_source_duplicate( TileSource *tile_source );
 

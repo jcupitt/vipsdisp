@@ -857,7 +857,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
 	/* Find the set of visible tiles, sorted back to front.
 	 *
-	 * FIXME ... we could often skip this, esp when panning, unless we
+	 * FIXME ... we could often skip this, esp. when panning, unless we
 	 * cross a tile boundary.
 	 */
 	tile_cache_compute_visibility( tile_cache, &viewport, z );
@@ -898,6 +898,21 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
 			graphene_rect_t bounds;
 
+#if GTK_CHECK_VERSION(4, 10, 0)
+			// add a margin along the right and bottom to prevent black seams
+			// at tile joins
+			bounds.origin.x = tile->bounds.left * scale - 
+				x + paint_rect->left;
+			bounds.origin.y = tile->bounds.top * scale - 
+				y + paint_rect->top;  
+			bounds.size.width = tile->bounds.width * scale + 2;
+			bounds.size.height = tile->bounds.height * scale + 2;
+
+			gtk_snapshot_append_scaled_texture( snapshot,
+				 tile_get_texture( tile ), 
+				 GSK_SCALING_FILTER_NEAREST, 
+				 &bounds );
+#else
 			bounds.origin.x = tile->bounds.left * scale - 
 				x + paint_rect->left;
 			bounds.origin.y = tile->bounds.top * scale - 
@@ -907,6 +922,7 @@ tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot,
 
 			gtk_snapshot_append_texture( snapshot,
 				 tile_get_texture( tile ), &bounds );
+#endif
 
 			/* In debug mode, draw the edges and add text for the 
 			 * tile pointer and age.
