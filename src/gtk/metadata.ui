@@ -22,27 +22,6 @@
         <property name="margin-bottom">5</property>
 
         <child>
-	<!--
-          <object class="GtkActionBar" id="progress_bar">
-            <property name="revealed">false</property>
-
-            <child type="center">
-              <object class="GtkProgressBar" id="progress">
-                <property name="hexpand">true</property>
-                <property name="show-text">true</property>
-              </object>
-            </child>
-
-            <child type="end">
-              <object class="GtkButton" id="progress_cancel">
-                <property name="label">Cancel</property>
-              </object>
-            </child>
-          </object>
-	-->
-        </child>
-
-        <child>
           <object class="GtkInfoBar" id="error_bar">
             <property name="message-type">error</property>
             <property name="show-close-button">true</property>
