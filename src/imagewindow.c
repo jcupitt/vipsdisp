@@ -55,6 +55,7 @@ struct _ImageWindow
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
 	GtkWidget *main_box;
+	GtkWidget *metadata;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -1588,6 +1589,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( display_bar );
 	BIND( info_bar );
 	BIND( main_box );
+	BIND( metadata );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
 		image_window_pressed_cb );
