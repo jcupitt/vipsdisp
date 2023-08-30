@@ -247,17 +247,17 @@ metadata_cancel_clicked( GtkWidget *button, Metadata *options )
 }
 
 static void
-metadata_init( Metadata *options )
+metadata_init( Metadata *metadata )
 {
-	gtk_widget_init_template( GTK_WIDGET( options ) );
+	gtk_widget_init_template( GTK_WIDGET( metadata ) );
 
-	g_signal_connect_object( options->error_bar, "response", 
-		G_CALLBACK( metadata_error_response ), options, 0 );
+	g_signal_connect_object( metadata->error_bar, "response", 
+		G_CALLBACK( metadata_error_response ), metadata, 0 );
 
-	options->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
+	metadata->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
 
-	g_signal_connect_object( options, "response", 
-		G_CALLBACK( metadata_response ), options, 0 );
+	g_signal_connect_object( metadata, "response", 
+		G_CALLBACK( metadata_response ), metadata, 0 );
 
 	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
 
