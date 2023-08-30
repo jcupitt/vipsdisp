@@ -1539,14 +1539,6 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "info" ) );
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
-
-	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
-
-	g_signal_connect( win->metadata_close_button, "clicked",
-		G_CALLBACK( metadata_close_button_cb ), win );
-
-	g_signal_connect( win->metadata_apply_button, "clicked",
-		G_CALLBACK( on_metadata_apply_button_pressed ), win );
 }
 
 static void

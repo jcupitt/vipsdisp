@@ -258,6 +258,14 @@ metadata_init( Metadata *options )
 
 	g_signal_connect_object( options, "response", 
 		G_CALLBACK( metadata_response ), options, 0 );
+
+	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
+
+	g_signal_connect( win->metadata_close_button, "clicked",
+		G_CALLBACK( metadata_close_button_cb ), win );
+
+	g_signal_connect( win->metadata_apply_button, "clicked",
+		G_CALLBACK( on_metadata_apply_button_pressed ), win );
 }
 
 #define BIND( field ) \
