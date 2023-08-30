@@ -239,39 +239,7 @@
         </child>
 
         <child>
-          <object class="GtkSearchBar" id="metadata">
-            <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <child>
-                  <object class="GtkHeaderBar">
-                    <property name="decoration-layout">:</property>
-                    <property name="title-widget">
-                      <object class="GtkLabel" id="metadata_label">
-                        <property name="use-markup">true</property>
-                        <property name="label">Metadata</property>
-                      </object>
-                    </property>
-                    <child type="start">
-                      <object class="GtkButton" id="metadata_close_button">
-                        <property name="label">Close</property>
-                      </object>
-                    </child>
-                    <child type="end">
-                      <object class="GtkButton" id="metadata_apply_button">
-                        <property name="label">Apply</property>
-                      </object>
-                    </child>
-                  </object>
-                </child>
-                <child>
-                  <object class="GtkSearchEntry" id="metadata_search_entry"></object>
-                </child>
-                <child>
-                  <object class="GtkScrolledWindow" id="metadata_window"></object>
-                </child>
-              </object>
-            </property>
+          <object class="Metadata" id="metadata">
           </object>
         </child>
 
