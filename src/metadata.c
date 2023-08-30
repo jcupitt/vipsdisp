@@ -18,7 +18,6 @@ struct _Metadata
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
 
-	GtkWidget *main_box;
 	GtkWidget *metadata;
 	GtkWidget *metadata_label;
 	GtkWidget *metadata_close_button;
@@ -281,7 +280,6 @@ metadata_class_init( MetadataClass *class )
 	BIND( error_label );
 	BIND( options_grid );
 
-	BIND( main_box );
 	BIND( metadata );
 	BIND( metadata_label );
 	BIND( metadata_close_button );
