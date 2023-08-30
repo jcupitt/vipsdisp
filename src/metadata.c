@@ -972,6 +972,24 @@ create_input_grid( ImageWindow *win )
 	return grid;
 }
 
+gboolean
+shrink_window( gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	if ( !gtk_widget_get_visible( win->metadata ) )
+		return FALSE;
+	gtk_widget_set_size_request( win->metadata, 0, 0 );
+	gtk_widget_hide( win->metadata );
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
+	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
+
+	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
+
+	change_state( GTK_WIDGET( win ), "metadata", 
+		g_settings_get_value( win->settings, "metadata" ) );
+
+	return TRUE;
+}
 
 void
 on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
@@ -1431,24 +1449,4 @@ metadata_close_button_cb( GtkWidget *widget, gpointer user_data )
 	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
 	g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
 }
-
-gboolean
-shrink_window( gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	if ( !gtk_widget_get_visible( win->metadata ) )
-		return FALSE;
-	gtk_widget_set_size_request( win->metadata, 0, 0 );
-	gtk_widget_hide( win->metadata );
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
-	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
-
-	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
-
-	change_state( GTK_WIDGET( win ), "metadata", 
-		g_settings_get_value( win->settings, "metadata" ) );
-
-	return TRUE;
-}
-
 
