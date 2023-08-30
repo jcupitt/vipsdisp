@@ -81,12 +81,12 @@ metadata_init( Metadata *metadata )
 	g_signal_connect_object( metadata, "response", 
 		G_CALLBACK( metadata_response ), metadata, 0 );
 
-	gtk_label_set_markup( GTK_LABEL( win->metadata_label ), "<b>Metadata</b>");
+	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ), "<b>Metadata</b>");
 
-	g_signal_connect( win->metadata_close_button, "clicked",
+	g_signal_connect( metadata->metadata_close_button, "clicked",
 		G_CALLBACK( metadata_close_button_cb ), win );
 
-	g_signal_connect( win->metadata_apply_button, "clicked",
+	g_signal_connect( metadata->metadata_apply_button, "clicked",
 		G_CALLBACK( on_metadata_apply_button_pressed ), win );
 }
 
@@ -373,6 +373,7 @@ void
 append_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
+	Metadata *metadata;
 	GList *match_list;
 	GtkWidget *label, *input;
 	Match *first_match;
@@ -381,14 +382,15 @@ append_field_name( gpointer data, gpointer user_data )
 	first_match = (Match *) match_list->data;
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	win->field_list = g_list_append( win->field_list, first_match->text );
+	metadata = win->metadata;
+	metadata->field_list = g_list_append( metadata->field_list, first_match->text );
 
 	label = gtk_label_new( first_match->text );	
-	gtk_grid_attach( win->metadata_grid, label, 0, win->field_list_length, 1, 1 );
+	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
 
 	if ( (input = create_input( win->tile_source->image, first_match->text )) ) {
-		gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
-		win->field_list_length++;
+		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
+		metadata->field_list_length++;
 	}
 }
 
@@ -396,6 +398,7 @@ void
 append_markup_field_name( gpointer data, gpointer user_data )
 {
 	ImageWindow *win;
+	Metadata *metadata;
 	gchar *markup;
 	GString *field_name;
 	GList *match_list;
@@ -404,20 +407,21 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	match_list = (GList *) data;
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 	markup = get_markup_from_match( match_list );
-	win->field_list = g_list_append( win->field_list, markup );
+	metadata = win->metadata;
+	metadata->field_list = g_list_append( metadata->field_list, markup );
 
 	label = gtk_label_new( NULL );	
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
-	gtk_grid_attach( win->metadata_grid, label, 0, win->field_list_length, 1, 1 );
+	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
 
 	field_name = g_string_new( markup );
 	g_string_replace( field_name, "<b>", "", 0 );
 	g_string_replace( field_name, "</b>", "", 0 );
 
 	if ( (input = create_input( win->tile_source->image, field_name->str )) ) {
-		gtk_grid_attach( win->metadata_grid, input, 1, win->field_list_length, 1, 1 );
-		win->field_list_length++;
+		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
+		metadata->field_list_length++;
 	}
 }
 
@@ -482,6 +486,7 @@ static void
 search_changed( GtkWidget *search_entry, gpointer user_data )
 {
 	ImageWindow *win;
+	Metadata *metadata;
 	char *text, *field_name;
 	char** field_names;
 	int i = 0;
@@ -493,15 +498,16 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	found = found0 = found1 = s0 = s1 = t = NULL;
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
+	metadata = win->metadata;
 
-	g_assert( win->field_list );
-	g_list_free( win->field_list );
-	win->field_list = NULL;
-	win->field_list_length = 0;
+	g_assert( metadata->field_list );
+	g_list_free( metadata->field_list );
+	metadata->field_list = NULL;
+	metadata->field_list_length = 0;
 
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), NULL );
-	win->metadata_grid = GTK_GRID( gtk_grid_new() );
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( win->metadata_window ), GTK_WIDGET( win->metadata_grid ) );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), NULL );
+	metadata->metadata_grid = GTK_GRID( gtk_grid_new() );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), GTK_WIDGET( metadata->metadata_grid ) );
 
 	found = NULL;
 	field_names = vips_image_get_fields( win->tile_source->image );
@@ -563,6 +569,7 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 GtkGrid *
 create_input_grid( ImageWindow *win )
 {
+	Metadata* metadata;
 	GtkWidget *label, *input;
 	GtkGrid *grid;
 	char *field_name;
@@ -571,16 +578,18 @@ create_input_grid( ImageWindow *win )
 
 	field_names = vips_image_get_fields( win->tile_source->image );
 
-	while ( (field_name = field_names[i++]) )
-		win->field_list = g_list_append( win->field_list, field_name );
+	metadata = win->metadata; 
 
-	win->field_list_length = g_list_length( win->field_list );
+	while ( (field_name = field_names[i++]) )
+		metadata->field_list = g_list_append( metadata->field_list, field_name );
+
+	metadata->field_list_length = g_list_length( metadata->field_list );
 
 	grid = GTK_GRID( gtk_grid_new() );
 
 	i = 0;
 
-	while ( (field_name = g_list_nth_data( win->field_list, i )) ) {
+	while ( (field_name = g_list_nth_data( metadata->field_list, i )) ) {
 		label = gtk_label_new( field_name );	
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
 		input = create_input( win->tile_source->image, field_name );
@@ -623,13 +632,15 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
 	ImageWindow *win;
+	Metadata *metadata;
 	int row_index = 0;
 
         win = VIPSDISP_IMAGE_WINDOW( user_data );
+	metadata = win->metadata;
 	image = win->tile_source->image;
 
-	while ( (label = gtk_grid_get_child_at( win->metadata_grid, 0, row_index )) ) {
-		t = gtk_grid_get_child_at( win->metadata_grid, 1, row_index++ );
+	while ( (label = gtk_grid_get_child_at( metadata->metadata_grid, 0, row_index )) ) {
+		t = gtk_grid_get_child_at( metadata->metadata_grid, 1, row_index++ );
 		g_assert( t );
 		t = gtk_widget_get_first_child( t );
 		g_assert( t );
