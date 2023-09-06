@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="Metadata" parent="GtkDialog">
+  <template class="Metadata" parent="GtkWidget">
     <object class="GtkSearchBar" id="metadata">
       <property name="child">
         <object class="GtkBox">

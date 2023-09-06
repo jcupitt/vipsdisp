@@ -3,11 +3,12 @@
 
 #define METADATA_TYPE (metadata_get_type())
 
-G_DECLARE_FINAL_TYPE( Metadata, metadata, 
-	VIPSDISP, METADATA, GtkDialog );
+G_DECLARE_FINAL_TYPE( Metadata, metadata, VIPSDISP, METADATA, GtkWidget );
 
-Metadata *metadata_new( GtkWindow *parent_window,
-	VipsImage *in, const char *filename );
+#define METADATA( obj ) \
+	(G_TYPE_CHECK_INSTANCE_CAST( (obj), METADATA_TYPE, Metadata ))
+
+Metadata *metadata_new( ImageWindow *win );
 
 #endif /* __METADATA_H */
 

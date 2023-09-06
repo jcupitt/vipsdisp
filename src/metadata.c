@@ -6,7 +6,7 @@
 
 struct _Metadata
 {
-	GtkDialog parent_instance;
+	GtkWidget parent_instance;
 
 	// the error indicator we show
 	GtkWidget *error_bar;
@@ -23,21 +23,98 @@ struct _Metadata
 	int field_list_length;
 };
 
-struct _MetadataClass
-{
-	GtkDialogClass parent_class;
-};
+G_DEFINE_TYPE( Metadata, metadata, GTK_TYPE_WIDGET );
 
-G_DEFINE_TYPE( Metadata, metadata, GTK_TYPE_DIALOG );
+enum {
+	PROP_IMAGE_WINDOW = 1,
+
+	SIG_LAST
+};
 
 static void
 metadata_dispose( GObject *object )
 {
-	Metadata *options = VIPSDISP_METADATA( object );
+	Metadata *metadata = (Metadata *) object;
 
-	VIPS_UNREF( options->image );
+#ifdef DEBUG
+	printf( "infobar_dispose:\n" );
+#endif /*DEBUG*/
+
+	/* May need to free stuff here. See infobar_dispose's usage of
+	 * VIPS_FREEF.
+	 */
 
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
+}
+
+/* TileSource has a new image. We need to destroy and recreate the Metadata
+ * widget.
+ */
+static void
+metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata ) 
+{
+	VipsImage *image = tile_source->display;
+
+	GSList *p;
+
+#ifdef DEBUG
+	printf( "metadata_tile_source_changed:\n" ); 
+#endif /*DEBUG*/
+}
+
+/* ImageWindow has a new TileSource.
+ */
+static void
+metadata_image_window_changed( ImageWindow *win, Metadata *metadata )
+{
+	TileSource *tile_source = image_window_get_tile_source( win );
+
+	g_signal_connect_object( tile_source, "changed",
+		G_CALLBACK( metadata_tile_source_changed ),
+		metadata, 0 );
+}
+
+static void
+metadata_set_image_window( Metadata *metadata, ImageWindow *win )
+{
+	/* No need to ref ... win holds ref to us.
+	 */
+	metadata->win = win;
+
+	g_signal_connect_object( win, "changed",
+		G_CALLBACK( metadata_image_window_changed ),
+		metadata, 0 );
+}
+
+static void
+metadata_set_property( GObject *object,
+	guint prop_id, const GValue *value, GParamSpec *pspec )
+{
+	Metadata *metadata = (Metadata *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE_WINDOW:
+		metadata_set_image_window( metadata,
+			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+	}
+}
+
+static void
+metadata_get_property( GObject *object,
+	guint prop_id, GValue *value, GParamSpec *pspec )
+{
+	Metadata *metadata = (Metadata *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE_WINDOW:
+		g_value_set_object( value, metadata->win );
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+	}
 }
 
 static void
@@ -73,13 +150,14 @@ metadata_error_response( GtkWidget *button, int response,
 static void
 metadata_init( Metadata *metadata )
 {
+#ifdef DEBUG
+	printf( "metadata_init:\n" );
+#endif
+
 	gtk_widget_init_template( GTK_WIDGET( metadata ) );
 
 	g_signal_connect_object( metadata->error_bar, "response", 
 		G_CALLBACK( metadata_error_response ), metadata, 0 );
-
-	g_signal_connect_object( metadata, "response", 
-		G_CALLBACK( metadata_response ), metadata, 0 );
 
 	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ), "<b>Metadata</b>");
 
@@ -100,27 +178,51 @@ metadata_class_init( MetadataClass *class )
 	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
+#ifdef DEBUG
+	printf( "metadata_class_init:\n" );
+#endif
+
 	gobject_class->dispose = metadata_dispose;
 
+	gtk_widget_class_set_layout_manager_type( widget_class, 
+		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/metadata.ui");
 
 	BIND( error_bar );
 	BIND( error_label );
-	BIND( options_grid );
-
+	BIND( metadata_grid );
 	BIND( metadata_label );
 	BIND( metadata_close_button );
 	BIND( metadata_apply_button );
 	BIND( metadata_window );
 	BIND( metadata_search_entry );
 
+	gobject_class->set_property = metadata_set_property;
+	gobject_class->get_property = metadata_get_property;
+
+	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
+		g_param_spec_object( "image-window",
+			_( "Image window" ),
+			_( "The image window we display" ),
+			IMAGE_WINDOW_TYPE,
+			G_PARAM_READWRITE ) );
 }
 
 Metadata *
-metadata_new()
+metadata_new( ImageWindow *win )
 {
-	return g_object_new( METADATA_TYPE, NULL );
+	Metadata *metadata;
+
+#ifdef
+	printf( "metadata_new:\n" );
+#endif
+
+	metadata = g_object_new( metadata_get_type(),
+		"image-window", win,
+		NULL )
+
+	return metadata;
 }
 
 ////
