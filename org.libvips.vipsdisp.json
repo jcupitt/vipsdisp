@@ -228,24 +228,15 @@
         {
             "name" : "openslide",
             "builddir" : true,
-            "buildsystem" : "autotools",
-            "rm-configure" : true,
+            "buildsystem" : "meson",
+            "config-opts" : [
+                "--buildtype=release"
+            ],
             "sources" : [
                 {
-                    "type" : "archive",
-                    "url" : "https://github.com/openslide/openslide/releases/download/v3.4.1/openslide-3.4.1.tar.gz",
-                    "sha256" : "fed08fab8a9b1ded95a34e196652291127ebe392c11f9bc13d26e760295a102d"
-                },
-                {
-                    "type" : "patch",
-                    "path" : "patches/openslide-3-fixes.patch"
-                },
-                {
-                    "type" : "script",
-                    "dest-filename" : "autogen.sh",
-                    "commands" : [ 
-                         "autoreconf --force --install"
-                    ]
+                    "type" : "git",
+                    "url" : "https://github.com/openslide/openslide.git",
+                    "commit" : "239d7bd9f603be159e6558464f311b5b243d12b1"
                 }
             ]
         },
@@ -344,7 +335,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git",
-                    "tag" : "v8.14.3"
+                    "commit" : "a25782dd296ae5192842e1ef06ca748b83e7697a"
                 }
             ]
         },
@@ -360,7 +351,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "commit" : "97855e06fcb364d5d94e038f737b2135730dc394"
+                    "commit" : "769ddc2d3728aa882980649922996e9a4a7adcdb"
                 }
             ]
         }
