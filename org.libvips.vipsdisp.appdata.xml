@@ -58,6 +58,18 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="2.6.0" date="2023-09-07">
+      <description>
+        - limit bands in pages-as-bands to prevent 3000 page images causing 
+          performance issues
+        - switch to file based image load (not source) to fix caching
+        - better conversion to RGB
+        - animate keypress zoom
+        - use NN sampling for zoom with gtk 4.10+
+        - add colour management
+      </description>
+    </release>
+
     <release version="2.5.1" date="2023-07-23">
       <description>
         Fix the progress bar (again).
