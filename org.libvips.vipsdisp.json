@@ -226,6 +226,38 @@
         },
 
         {
+            "name" : "uthash",
+            "buildsystem" : "simple",
+            "build-commands" : [
+		    "install -D include/* /app/include"
+	    ],
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/troydhanson/uthash.git",
+                    "commit" : "ca98384ce7f30beb216f9a0bc88a3b4340ead729"
+                }
+            ]
+        },
+
+        {
+            "name" : "libdicom",
+            "builddir" : true,
+            "buildsystem" : "meson",
+            "config-opts" : [
+                "--buildtype=release",
+                "-Dtests=false"
+            ],
+            "sources" : [
+                {
+                    "type" : "git",
+                    "url" : "https://github.com/jcupitt/libdicom.git",
+                    "commit" : "b0a83a843f9ee03cec5614fd198eae658c0d999f"
+                }
+            ]
+        },
+
+        {
             "name" : "openslide",
             "builddir" : true,
             "buildsystem" : "meson",
