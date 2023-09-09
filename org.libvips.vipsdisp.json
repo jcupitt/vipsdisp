@@ -383,7 +383,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "commit" : "769ddc2d3728aa882980649922996e9a4a7adcdb"
+                    "tag" : "v2.6.0"
                 }
             ]
         }
