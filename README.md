@@ -146,7 +146,7 @@ Version needs updating in the following places:
 
 - **`CHANGELOG.md`**
 
-- **`meson.buiild`**
+- **`meson.build`**
 
 - **`org.libvips.vipsdisp.appdata.xml`** and some release notes and a date as
   well.

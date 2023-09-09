@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2023 jcupitt -->
 <component type="desktop-application">
   <id>org.libvips.vipsdisp</id>
   <url type="homepage">https://github.com/jcupitt/vipsdisp</url>
@@ -6,6 +7,7 @@
   
   <name>vipsdisp</name>
   <summary>Image viewer</summary>
+  <developer_name>jcupitt</developer_name>
   
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
@@ -60,13 +62,11 @@ visualisation options and display modes.
 
     <release version="2.6.0" date="2023-09-07">
       <description>
-        - limit bands in pages-as-bands to prevent 3000 page images causing 
-          performance issues
-        - switch to file based image load (not source) to fix caching
-        - better conversion to RGB
-        - animate keypress zoom
-        - use NN sampling for zoom with gtk 4.10+
-        - add colour management
+        <p>
+          Colour management. NN sampling for zoom. Better handling of 
+          many-band images. Caching improvements. Better conversion to RGB. 
+          More animation.
+        </p>
       </description>
     </release>
 
