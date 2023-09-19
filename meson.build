@@ -1,6 +1,6 @@
 project(
   'vipsdisp', 'c',
-  version: '2.5.1',
+  version: '2.6.0',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
@@ -54,7 +54,7 @@ install_data(application_id + '.png',
   install_dir: get_option('datadir') / 'icons' / 'hicolor' / '128x128' / 'apps')
 install_data(application_id + '.desktop', 
   install_dir: get_option('datadir') / 'applications')
-install_data(application_id + '.appdata.xml', 
+install_data(application_id + '.metainfo.xml', 
   install_dir: get_option('datadir') / 'metainfo')
 
 meson.add_install_script('meson_post_install.py')

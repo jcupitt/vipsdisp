@@ -1,5 +1,7 @@
 ## master
 
+## 2.6, 7/9/23
+
 - limit bands in pages-as-bands to prevent 3000 page images causing 
   performance issues
 - switch to file based image load (not source) to fix caching
