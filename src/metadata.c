@@ -8,6 +8,10 @@ struct _Metadata
 {
 	GtkWidget parent_instance;
 
+	/* The imagewindow whose info we display.
+	 */
+	ImageWindow *win;
+
 	// the error indicator we show
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
@@ -162,10 +166,10 @@ metadata_init( Metadata *metadata )
 	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ), "<b>Metadata</b>");
 
 	g_signal_connect( metadata->metadata_close_button, "clicked",
-		G_CALLBACK( metadata_close_button_cb ), win );
+		G_CALLBACK( metadata_close_button_cb ), metadata );
 
 	g_signal_connect( metadata->metadata_apply_button, "clicked",
-		G_CALLBACK( on_metadata_apply_button_pressed ), win );
+		G_CALLBACK( on_metadata_apply_button_pressed ), metadata );
 }
 
 #define BIND( field ) \
@@ -474,7 +478,6 @@ get_markup_from_match( GList *match )
 void
 append_field_name( gpointer data, gpointer user_data )
 {
-	ImageWindow *win;
 	Metadata *metadata;
 	GList *match_list;
 	GtkWidget *label, *input;
@@ -483,14 +486,13 @@ append_field_name( gpointer data, gpointer user_data )
 	match_list = (GList *) data;
 	first_match = (Match *) match_list->data;
 
-	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	metadata = win->metadata;
+	metadata = VIPSDISP_METADATA( user_data );
 	metadata->field_list = g_list_append( metadata->field_list, first_match->text );
 
 	label = gtk_label_new( first_match->text );	
 	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
 
-	if ( (input = create_input( win->tile_source->image, first_match->text )) ) {
+	if ( (input = create_input( metadata->win->tile_source->image, first_match->text )) ) {
 		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
 		metadata->field_list_length++;
 	}
@@ -499,7 +501,6 @@ append_field_name( gpointer data, gpointer user_data )
 void
 append_markup_field_name( gpointer data, gpointer user_data )
 {
-	ImageWindow *win;
 	Metadata *metadata;
 	gchar *markup;
 	GString *field_name;
@@ -507,9 +508,8 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	GtkWidget *label, *input;
 
 	match_list = (GList *) data;
-	win = VIPSDISP_IMAGE_WINDOW( user_data );
 	markup = get_markup_from_match( match_list );
-	metadata = win->metadata;
+	metadata = VIPSDISP_METADATA( user_data );
 	metadata->field_list = g_list_append( metadata->field_list, markup );
 
 	label = gtk_label_new( NULL );	
@@ -521,7 +521,7 @@ append_markup_field_name( gpointer data, gpointer user_data )
 	g_string_replace( field_name, "<b>", "", 0 );
 	g_string_replace( field_name, "</b>", "", 0 );
 
-	if ( (input = create_input( win->tile_source->image, field_name->str )) ) {
+	if ( (input = create_input( metadata->win->tile_source->image, field_name->str )) ) {
 		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
 		metadata->field_list_length++;
 	}
@@ -587,7 +587,6 @@ find_strings_with_substring( GList *haystacks, gchar *needle )
 static void
 search_changed( GtkWidget *search_entry, gpointer user_data )
 {
-	ImageWindow *win;
 	Metadata *metadata;
 	char *text, *field_name;
 	char** field_names;
@@ -599,8 +598,7 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	GList *found, *found0, *found1, *s0, *s1, *t;
 	found = found0 = found1 = s0 = s1 = t = NULL;
 
-	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	metadata = win->metadata;
+	metadata = VIPSDISP_METADATA( user_data );
 
 	g_assert( metadata->field_list );
 	g_list_free( metadata->field_list );
@@ -612,7 +610,7 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), GTK_WIDGET( metadata->metadata_grid ) );
 
 	found = NULL;
-	field_names = vips_image_get_fields( win->tile_source->image );
+	field_names = vips_image_get_fields( metadata->win->tile_source->image );
 
 	while ( (field_name = field_names[i++]) )
 		all_field_list = g_list_append( all_field_list, field_name );
@@ -659,28 +657,25 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	/* Add the exact (k=0) matches, if any. These will have markup.
 	 */
 	if ( g_list_length( found0 ) )
-		g_list_foreach( found0, append_markup_field_name, win );
+		g_list_foreach( found0, append_markup_field_name, metadata );
 
 	/* If there are no exact matches, then add the fuzzy (k>0) matches, if
 	 * any. These will not have markup.
 	 */
 	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
-		g_list_foreach( found1, append_field_name, win );
+		g_list_foreach( found1, append_field_name, metadata );
 }
 
 GtkGrid *
-create_input_grid( ImageWindow *win )
+create_input_grid( Metadata *metadata )
 {
-	Metadata* metadata;
 	GtkWidget *label, *input;
 	GtkGrid *grid;
 	char *field_name;
 	char **field_names;
 	int i = 0;
 
-	field_names = vips_image_get_fields( win->tile_source->image );
-
-	metadata = win->metadata; 
+	field_names = vips_image_get_fields( metadata->win->tile_source->image );
 
 	while ( (field_name = field_names[i++]) )
 		metadata->field_list = g_list_append( metadata->field_list, field_name );
@@ -694,7 +689,7 @@ create_input_grid( ImageWindow *win )
 	while ( (field_name = g_list_nth_data( metadata->field_list, i )) ) {
 		label = gtk_label_new( field_name );	
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
-		input = create_input( win->tile_source->image, field_name );
+		input = create_input( metadata->win->tile_source->image, field_name );
 		gtk_grid_attach( grid, input, 1, i, 1, 1 );
 		i++;
 	}
@@ -705,18 +700,18 @@ create_input_grid( ImageWindow *win )
 gboolean
 shrink_window( gpointer user_data )
 {
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	if ( !gtk_widget_get_visible( win->metadata ) )
+	Metadata *metadata = VIPSDISP_METADATA( user_data );
+	if ( !gtk_widget_get_visible( metadata ) )
 		return FALSE;
-	gtk_widget_set_size_request( win->metadata, 0, 0 );
-	gtk_widget_hide( win->metadata );
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_VERTICAL );
-	gtk_window_set_default_size( GTK_WINDOW( win ), win->og_width, win->og_height );
+	gtk_widget_set_size_request( metadata, 0, 0 );
+	gtk_widget_hide( metadata );
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( metadata->win->main_box ), GTK_ORIENTATION_VERTICAL );
+	gtk_window_set_default_size( GTK_WINDOW( metadata->win ), metadata->win->og_width, metadata->win->og_height );
 
-	g_settings_set_value( win->settings, "metadata", g_variant_new_boolean( FALSE ) );
+	g_settings_set_value( metadata->win->settings, "metadata", g_variant_new_boolean( FALSE ) );
 
-	change_state( GTK_WIDGET( win ), "metadata", 
-		g_settings_get_value( win->settings, "metadata" ) );
+	change_state( GTK_WIDGET( metadata->win ), "metadata", 
+		g_settings_get_value( metadata->win->settings, "metadata" ) );
 
 	return TRUE;
 }
@@ -733,13 +728,11 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 	GParamSpec *pspec;
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
-	ImageWindow *win;
 	Metadata *metadata;
 	int row_index = 0;
 
-        win = VIPSDISP_IMAGE_WINDOW( user_data );
-	metadata = win->metadata;
-	image = win->tile_source->image;
+	metadata = VIPSDISP_METADATA( user_data );
+	image = metadata->win->tile_source->image;
 
 	while ( (label = gtk_grid_get_child_at( metadata->metadata_grid, 0, row_index )) ) {
 		t = gtk_grid_get_child_at( metadata->metadata_grid, 1, row_index++ );
@@ -886,9 +879,9 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 		}
 	}
 
-	revealer = gtk_widget_get_first_child( win->metadata );
+	revealer = gtk_widget_get_first_child( metadata );
 	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
-	g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
+	g_timeout_add( 200 , (GSourceFunc) shrink_window, metadata );
 }
 
 GtkWidget  *
@@ -1176,9 +1169,9 @@ create_input( VipsImage *image, char* field_name )
 static void
 metadata_close_button_cb( GtkWidget *widget, gpointer user_data )
 {
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
+	Metadata *metadata = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkWidget *revealer = gtk_widget_get_first_child( metadata );
 	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
-	g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
+	g_timeout_add( 200 , (GSourceFunc) shrink_window, metadata );
 }
 

@@ -1379,7 +1379,7 @@ image_window_metadata( GSimpleAction *action,
 
 			g_signal_connect( win->metadata_search_entry,
 				"search-changed",
-				G_CALLBACK( search_changed ), win );
+				G_CALLBACK( search_changed ), win->metadata );
 
 			/* Create the scrolled window.
 			 */
@@ -1394,7 +1394,7 @@ image_window_metadata( GSimpleAction *action,
 				GTK_SCROLLED_WINDOW( win->metadata_window ),
 				width * .75);
 
-			win->metadata_grid = create_input_grid( win );
+			win->metadata_grid = create_input_grid( win->metadata );
 
 			gtk_scrolled_window_set_child(
 				GTK_SCROLLED_WINDOW( win->metadata_window), GTK_WIDGET( win->metadata_grid ) );
