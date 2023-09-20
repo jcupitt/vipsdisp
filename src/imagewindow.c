@@ -1329,86 +1329,96 @@ image_window_reset( GSimpleAction *action,
 			NULL );
 }
 
+#define BIGGER 1.9
+#define SHORT_WAIT_MS 200
+
+/* This function is called when the Metadata widget visibility is toggled
+ * on/off by clicking "Metadata" in the dropdown menu. The visibility is
+ * backed by a GSetting named "metadata", so it will persist after app
+ * restart.
+ *
+ * action - the "metadata" action defined in the GActionEntry table
+ * 	image_window_entries.
+ *
+ * state - the new boolean value of the "metadata" GSetting after the user
+ * 	click.
+ *
+ * user_data - The ImageWindow. The Metadata widget holds a pointer to the
+ * 	ImageWindow as a GObject property, just like the InfoBar widget. The
+ * 	Metadata widget responds to changes in the VipsImage of the TileSource
+ * 	held by ImageWindow by updating the grid of user input widgets based
+ * 	on the metadata properties of the new VipsImage.
+ */
 static void
 image_window_metadata( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *search_bar_box;
+	GtkWidget *revealer;
 
-	win->field_list = NULL; // TODO should free field_list here too probably
-	win->field_list_length = 0;
-
+	/* We only want to show the Metadata widget if an image is actually
+	 * loaded.
+	 */
 	if ( win->tile_source && win->tile_source->image ) {
+		/* The ImageWindow will grow or shrink depending on whether
+		 * whether the metadata widget is being shown or hidden.
+		 * The original width and height (og_width and og_height)
+		 * are saved once. When growing the ImageWindow new width will
+		 * be relative to the original width.
+		 *
+		 * TODO: Update og_width and og_height when the user resizes
+		 * 	the ImageWindow.
+		 *
+		 * TODO: Do something nicer than multiplying by constant
+		 * 	factors.
+		 */
 		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 		if ( !win->og_width || !win->og_height) {
 			win->og_width = width;
 			win->og_height = height;
 		}
 
+		/* The Metadata widget win->metadata is a GtkSearchBar. The
+		 * first child of every GtkSearchBar is a GtkRevealer. We use
+		 * the revealer to give the entry/exit of the Metadata widget a
+		 * sliding animation.
+		 */
+		revealer = gtk_widget_get_first_child( win->metadata );
+
+		/* If the user click toggled the "metadata" GSetting to TRUE,
+		 * then the ImageWindow must be expanded Metadata widget must be revealed.
+		 */
 		if ( g_variant_get_boolean( state ) ) {
-			gtk_window_set_default_size( GTK_WINDOW( win ), 1.9*width, height );
+			/* The width of the ImageWindow is increased to
+			 * accomodate the metadata widget
+			 */
+			gtk_window_set_default_size( GTK_WINDOW( win ),
+				BIGGER * width, height );
+
+			/* The metadata window should be ready to go, since its
+			 * grid of input widgets is updated whenever a new
+			 * VipsImage is loaded.
+			 */
 			gtk_widget_show( win->metadata );
 
-			gtk_orientable_set_orientation( GTK_ORIENTABLE( win->main_box ), GTK_ORIENTATION_HORIZONTAL );
-
-			gtk_widget_set_size_request( win->metadata, width * .75, height * .75 );
-
-			gtk_search_bar_set_search_mode(
-				GTK_SEARCH_BAR( win->metadata ), TRUE );
-
-			//gtk_search_bar_set_key_capture_widget(
-			//	GTK_SEARCH_BAR( win->metadata ),
-			//	win );
-
-			GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
-			gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
-				GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT );
-
-			search_bar_box = gtk_search_bar_get_child(
-				GTK_SEARCH_BAR( win->metadata ) );
-
-			gtk_widget_set_size_request( search_bar_box,
-				width * .75, height * .75 );
-
-			/* Create the search entry.
+			/* Use a sliding animation to show the metadata widget.
 			 */
-			gtk_search_bar_connect_entry( GTK_SEARCH_BAR( win->metadata ),
-				GTK_EDITABLE( win->metadata_search_entry ) );
-
-			g_signal_connect( win->metadata_search_entry,
-				"search-changed",
-				G_CALLBACK( search_changed ), win->metadata );
-
-			/* Create the scrolled window.
-			 */
-			gtk_widget_set_size_request( win->metadata_window,
-				width, height * .75 );
-
-			gtk_scrolled_window_set_max_content_height(
-				GTK_SCROLLED_WINDOW( win->metadata_window ),
-				height * .75);
-
-			gtk_scrolled_window_set_max_content_width(
-				GTK_SCROLLED_WINDOW( win->metadata_window ),
-				width * .75);
-
-			win->metadata_grid = create_input_grid( win->metadata );
-
-			gtk_scrolled_window_set_child(
-				GTK_SCROLLED_WINDOW( win->metadata_window), GTK_WIDGET( win->metadata_grid ) );
-
 			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
 				TRUE );
 
 			gtk_widget_grab_focus( GTK_WIDGET( win->imagedisplay ) );
 		}
 		else if ( gtk_widget_get_visible( win->metadata ) ) {
-			GtkWidget *revealer = gtk_widget_get_first_child( win->metadata );
+			/* Use a sliding animation to hide the metadata widget.
+			 */
 			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
 				FALSE );
-			g_timeout_add( 200 , (GSourceFunc) shrink_window, win );
+			/* Shrink the ImageWindow back to its original size,
+			 * after a short wait.
+			 */
+			g_timeout_add( SHORT_WAIT_MS ,
+				(GSourceFunc) shrink_window, win->metadata );
 		}
 
 		g_simple_action_set_state( action, state );
@@ -1467,6 +1477,9 @@ image_window_init( ImageWindow *win )
 		"image-window", win,
 		NULL );
 	g_object_set( win->info_bar,
+		"image-window", win,
+		NULL );
+	g_object_set( win->metadata,
 		"image-window", win,
 		NULL );
 

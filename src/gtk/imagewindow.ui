@@ -164,7 +164,7 @@
 
     <child>
       <object class="GtkBox" id="main_box">
-        <property name="orientation">vertical</property>
+        <property name="orientation">horizontal</property>
         <child>
           <object class="GtkBox">
             <property name="orientation">vertical</property>

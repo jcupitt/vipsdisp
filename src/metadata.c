@@ -51,19 +51,35 @@ metadata_dispose( GObject *object )
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
 }
 
-/* TileSource has a new image. We need to destroy and recreate the Metadata
- * widget.
+/* This is called when the TileSource changes. In particular, a new VipsImage
+ * might have been loaded, or there might no image loaded. Destroy and - if
+ * needed - recreate the metadata_grid.
  */
 static void
 metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata ) 
 {
-	VipsImage *image = tile_source->display;
-
-	GSList *p;
-
 #ifdef DEBUG
 	printf( "metadata_tile_source_changed:\n" ); 
 #endif /*DEBUG*/
+
+	/* If there is a new VipsImage on the tile source, use it to create
+	 * the new grid of user input widgets. If the VipsImage was removed,
+	 * but not replaced by a new image, just destroy the old grid.
+	 *
+	 * TODO: Might need to unref metadata_grid here explicitly.
+	 */
+	//g_object_unref( metadata->metadata_grid );
+	if ( tile_source->image ) {
+		metadata->metadata_grid = create_input_grid( metadata );
+		gtk_scrolled_window_set_child(
+			GTK_SCROLLED_WINDOW( metadata->metadata_window),
+			GTK_WIDGET( metadata->metadata_grid ) );
+	} else {
+		metadata->metadata_grid = NULL;
+		gtk_scrolled_window_set_child(
+			GTK_SCROLLED_WINDOW( metadata->metadata_window),
+			NULL );
+	}
 }
 
 /* ImageWindow has a new TileSource.
@@ -151,25 +167,116 @@ metadata_error_response( GtkWidget *button, int response,
 	metadata_error_hide( options );
 }
 
+#define SMALLER .37
+ 
 static void
 metadata_init( Metadata *metadata )
 {
+	int width, height;
+	GtkWidget *search_bar_box;
+	GtkWidget *revealer;
+
 #ifdef DEBUG
 	printf( "metadata_init:\n" );
 #endif
 
 	gtk_widget_init_template( GTK_WIDGET( metadata ) );
 
+	/* Connect signals to child widgets of the Metadata widget.
+	 *
+	 * error_response: controls the error_bar, which displays VIPS errors
+	 * 	that may occur.
+	 *
+	 * close_button_cb: closes the metadata widget.
+	 *
+	 * apply_button_pressed: applies the changes the user made to metadata.
+	 *
+	 * TODO: make names more uniform.
+	 * TODO: prompt user to save unsaved changes on close.
+	 */
 	g_signal_connect_object( metadata->error_bar, "response", 
 		G_CALLBACK( metadata_error_response ), metadata, 0 );
-
-	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ), "<b>Metadata</b>");
-
 	g_signal_connect( metadata->metadata_close_button, "clicked",
 		G_CALLBACK( metadata_close_button_cb ), metadata );
-
 	g_signal_connect( metadata->metadata_apply_button, "clicked",
 		G_CALLBACK( on_metadata_apply_button_pressed ), metadata );
+
+	/* We want the Metadata widget label to be bold, so we need to use
+	 * markup instead of plain text, which means we have to do it here
+	 * instead of in the .ui file. 
+	 */
+	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ),
+		"<b>Metadata</b>");
+
+	/* The ImageWindow was resized by image_window_metadata. The metadata
+	 * widget is sized here based on the new size of ImageWindow. We want
+	 * it to be a square and leave plenty of room for the image.
+	 */
+	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+	gtk_widget_set_size_request( metadata, width * SMALLER, height * SMALLER );
+
+	/* The metadata widget is a GtkSearchBar. The static parts of the
+	 * widget are defined in gtk/metadata.ui.
+	 */
+	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( metadata ), TRUE );
+
+	/* The first child of a GtkSearchBar is a GtkRevealer. This is not the
+	 * same as the child accessible through the GtkSearchBar API via
+	 * gtk_search_bar_get_child.
+	 */
+	revealer = gtk_widget_get_first_child( metadata );
+	gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
+		GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT );
+
+	/* Each GtkSearchBar has a child accessible through the GtkSearchBar API
+	 * via gtk_search_bar_get_child. This child might not be a direct
+	 * descendant. For the metadata widget, this child is a GtkBox
+	 * called search_bar_box that is used to control orientation and size.
+	 * The search_bar_box is sized the same as the metadata widget that
+	 * contains it.
+	 */
+	search_bar_box = gtk_search_bar_get_child(
+		GTK_SEARCH_BAR( metadata ) );
+	gtk_widget_set_size_request( search_bar_box,
+		width * SMALLER, height * SMALLER );
+
+	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
+	 * providing user input text for the search query.
+	 */
+	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( metadata ),
+		GTK_EDITABLE( metadata->metadata_search_entry ) );
+
+	/* Connect the handler that gets called when the user modifies the
+	 * search query.
+	 */
+	g_signal_connect( metadata->metadata_search_entry,
+		"search-changed",
+		G_CALLBACK( search_changed ), metadata );
+
+	/* The metadata_window is a GtkScrolledWindow that is sized to match the
+	 * search_bar_box that contains it.
+	 */
+	gtk_widget_set_size_request( metadata->metadata_window,
+		width, height * SMALLER );
+	gtk_scrolled_window_set_max_content_height(
+		GTK_SCROLLED_WINDOW( metadata->metadata_window ),
+		height * SMALLER);
+	gtk_scrolled_window_set_max_content_width(
+		GTK_SCROLLED_WINDOW( metadata->metadata_window ),
+		width * SMALLER);
+
+	/* The create_input_grid function uses the VipsImage - on the
+	 * TileSource of the ImageWindow pointed to by the Metadata widget -
+	 * to dynamically create a GtkGrid of user input widgets for viewing
+	 * and editing image metadata.
+	 */
+	metadata->metadata_grid = create_input_grid( metadata );
+
+	/* We make this grid scrollable by putting it in a GtkScrolledWindow.
+	 */
+	gtk_scrolled_window_set_child(
+		GTK_SCROLLED_WINDOW( metadata->metadata_window),
+		GTK_WIDGET( metadata->metadata_grid ) );
 }
 
 #define BIND( field ) \
