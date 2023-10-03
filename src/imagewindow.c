@@ -60,6 +60,9 @@ struct _ImageWindow
 	gint64 last_frame_time;
 
 	GSettings *settings;
+
+	// use for any bg threads we need
+	VipsThreadset *threadset;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -83,6 +86,7 @@ image_window_dispose( GObject *object )
 	printf( "image_window_dispose:\n" ); 
 #endif /*DEBUG*/
 
+	VIPS_FREEF( vips_threadset_free, win->threadset );
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
 	VIPS_FREEF( gtk_widget_unparent, win->right_click_menu );
@@ -1364,6 +1368,8 @@ image_window_init( ImageWindow *win )
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
+	// only need a couple of threads
+	win->threadset = vips_threadset_new( 2 );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1610,4 +1616,10 @@ image_window_get_mouse_position( ImageWindow *win,
 {
 	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
 		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
+}
+
+VipsThreadset *
+image_window_get_threadset( ImageWindow *win )
+{
+	return( win->threadset );
 }

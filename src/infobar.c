@@ -19,6 +19,9 @@ struct _Infobar {
 	GtkWidget *mag;
 
 	GSList *value_widgets;
+
+	// a background pixel value fetch is in progress
+	gboolean updating;
 };
 
 G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_WIDGET );
@@ -137,18 +140,97 @@ infobar_status_value_set_array( Infobar *infobar, double *d )
 	}
 }
 
+/* Asynchronous update of the pixel value ... we need this off the main thread
+ * or we get awful hitching for some formats.
+ */
+typedef struct _PixelUpdate {
+	// what we update, where we get the pixel data
+	Infobar *infobar;
+	TileSource *tile_source;
+
+	// fetch params
+	int image_x;
+	int image_y;
+	double *vector;
+	int n;
+	gboolean result;
+} PixelUpdate;
+
+static void
+infobar_update_free( PixelUpdate *update )
+{
+	update->infobar->updating = FALSE;
+
+	VIPS_UNREF( update->infobar );
+	VIPS_UNREF( update->tile_source );
+	VIPS_FREE( update->vector );
+	VIPS_FREE( update );
+}
+
+// runs back in the main thread again ... update the screen
+static gboolean
+infobar_update_pixel_cb( void *a )
+{
+	PixelUpdate *update = (PixelUpdate *) a;
+
+	if( update->result )
+		infobar_status_value_set_array( update->infobar, update->vector );
+
+	infobar_update_free( update );
+
+	return( FALSE );
+}
+
+// runs in a bg thread
+static void
+infobar_get_pixel( void *a, void *b )
+{
+	PixelUpdate *update = (PixelUpdate *) a;
+
+	update->result = tile_source_get_pixel( update->tile_source, 
+		update->image_x, update->image_y, &update->vector, &update->n ); 
+
+	g_idle_add( infobar_update_pixel_cb, update );
+}
+
+// fetch the mouse position pixel and update the screen in a bg thread
+static void
+infobar_update_pixel( Infobar *infobar )
+{
+	if( !infobar->updating ) {
+		ImageWindow *win = infobar->win;
+		PixelUpdate *update = g_new0( PixelUpdate, 1 );
+
+		double x_image;
+		double y_image;
+
+		update->infobar = infobar;
+		update->tile_source = image_window_get_tile_source( win );
+		image_window_get_mouse_position( infobar->win, &x_image, &y_image );
+		update->image_x = (int) x_image;
+		update->image_y = (int) y_image;
+		infobar->updating = TRUE;
+
+		// must stay valid until we are done
+		g_object_ref( update->infobar );
+		g_object_ref( update->tile_source );
+
+		if( vips_threadset_run(image_window_get_threadset( win ), "pixel", 
+			infobar_get_pixel, update ) )
+			// if we can't run a bg task, we must free the update
+			infobar_update_free( update );
+	}
+}
+
 void
 infobar_status_update( Infobar *infobar )
 {
-	TileSource *tile_source = image_window_get_tile_source( infobar->win );
 	double scale = image_window_get_scale( infobar->win );
 
 	char str[64];
 	VipsBuf buf = VIPS_BUF_STATIC( str );
 	double image_x;
 	double image_y;
-	double *vector;
-	int n;
 
 #ifdef DEBUG
 	printf( "infobar_status_update:\n" ); 
@@ -166,13 +248,6 @@ infobar_status_update( Infobar *infobar )
 		vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
-	if( tile_source_get_pixel( tile_source, &vector, &n, 
-		image_x, image_y ) ) {
-		infobar_status_value_set_array( infobar, vector );
-		g_free( vector );
-	}
-
-	vips_buf_rewind( &buf ); 
 	vips_buf_appendf( &buf, "Magnification " );
 	if( scale >= 1.0 )
 		vips_buf_appendf( &buf, "%d:1", (int) scale );
@@ -181,6 +256,8 @@ infobar_status_update( Infobar *infobar )
 	gtk_label_set_text( GTK_LABEL( infobar->mag ), 
 		vips_buf_all( &buf ) ); 
 
+	// queue bg update of pixel value
+	infobar_update_pixel( infobar );
 }
 
 static void
