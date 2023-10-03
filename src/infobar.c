@@ -215,8 +215,7 @@ infobar_update_pixel( Infobar *infobar )
 		g_object_ref( update->infobar );
 		g_object_ref( update->tile_source );
 
-		if( vips_threadset_run(image_window_get_threadset( win ), "pixel", 
-			infobar_get_pixel, update ) )
+		if( vips_thread_execute( "pixel", infobar_get_pixel, update ) )
 			// if we can't run a bg task, we must free the update
 			infobar_update_free( update );
 	}

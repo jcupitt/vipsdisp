@@ -9,6 +9,7 @@
 - animate keypress zoom
 - use NN sampling for zoom with gtk 4.10+
 - add colour management
+- add async infobar updates
 
 ## 2.5.1, 23/7/23
 
