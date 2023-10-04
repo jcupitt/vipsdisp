@@ -20,6 +20,7 @@ struct _Metadata
 	GtkWidget *metadata_close_button;
 	GtkWidget *metadata_apply_button;
 	GtkWidget *metadata_window;
+	GtkWidget *metadata_search_bar;
 	GtkWidget *metadata_search_entry;
 	
 	GtkGrid *metadata_grid;
@@ -38,957 +39,16 @@ enum {
 static void
 metadata_dispose( GObject *object )
 {
-	Metadata *metadata = (Metadata *) object;
+	GtkWidget *child;
 
 #ifdef DEBUG
-	printf( "infobar_dispose:\n" );
+	printf( "metadata_dispose:\n" );
 #endif /*DEBUG*/
 
-	/* May need to free stuff here. See infobar_dispose's usage of
-	 * VIPS_FREEF.
-	 */
+	if ( (child = gtk_widget_get_first_child( GTK_WIDGET( object ) )) )
+		gtk_widget_unparent( child );
 
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
-}
-
-/* This is called when the TileSource changes. In particular, a new VipsImage
- * might have been loaded, or there might no image loaded. Destroy and - if
- * needed - recreate the metadata_grid.
- */
-static void
-metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata ) 
-{
-#ifdef DEBUG
-	printf( "metadata_tile_source_changed:\n" ); 
-#endif /*DEBUG*/
-
-	/* If there is a new VipsImage on the tile source, use it to create
-	 * the new grid of user input widgets. If the VipsImage was removed,
-	 * but not replaced by a new image, just destroy the old grid.
-	 *
-	 * TODO: Might need to unref metadata_grid here explicitly.
-	 */
-	//g_object_unref( metadata->metadata_grid );
-	if ( tile_source->image ) {
-		metadata->metadata_grid = create_input_grid( metadata );
-		gtk_scrolled_window_set_child(
-			GTK_SCROLLED_WINDOW( metadata->metadata_window),
-			GTK_WIDGET( metadata->metadata_grid ) );
-	} else {
-		metadata->metadata_grid = NULL;
-		gtk_scrolled_window_set_child(
-			GTK_SCROLLED_WINDOW( metadata->metadata_window),
-			NULL );
-	}
-}
-
-/* ImageWindow has a new TileSource.
- */
-static void
-metadata_image_window_changed( ImageWindow *win, Metadata *metadata )
-{
-	TileSource *tile_source = image_window_get_tile_source( win );
-
-	g_signal_connect_object( tile_source, "changed",
-		G_CALLBACK( metadata_tile_source_changed ),
-		metadata, 0 );
-}
-
-static void
-metadata_set_image_window( Metadata *metadata, ImageWindow *win )
-{
-	/* No need to ref ... win holds ref to us.
-	 */
-	metadata->win = win;
-
-	g_signal_connect_object( win, "changed",
-		G_CALLBACK( metadata_image_window_changed ),
-		metadata, 0 );
-}
-
-static void
-metadata_set_property( GObject *object,
-	guint prop_id, const GValue *value, GParamSpec *pspec )
-{
-	Metadata *metadata = (Metadata *) object;
-
-	switch( prop_id ) {
-	case PROP_IMAGE_WINDOW:
-		metadata_set_image_window( metadata,
-			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-	}
-}
-
-static void
-metadata_get_property( GObject *object,
-	guint prop_id, GValue *value, GParamSpec *pspec )
-{
-	Metadata *metadata = (Metadata *) object;
-
-	switch( prop_id ) {
-	case PROP_IMAGE_WINDOW:
-		g_value_set_object( value, metadata->win );
-		break;
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
-	}
-}
-
-static void
-metadata_error( Metadata *options )
-{
-	char *err;
-	int i;
-
-	/* Remove any trailing \n.
-	 */
-	err = vips_error_buffer_copy();
-	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
-		err[i - 1] = '\0';
-	gtk_label_set_text( GTK_LABEL( options->error_label ), err );
-	g_free( err );
-
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), TRUE );
-}
-
-static void
-metadata_error_hide( Metadata *options )
-{
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), FALSE );
-}
-
-static void
-metadata_error_response( GtkWidget *button, int response, 
-	Metadata *options )
-{
-	metadata_error_hide( options );
-}
-
-#define SMALLER .37
- 
-static void
-metadata_init( Metadata *metadata )
-{
-	int width, height;
-	GtkWidget *search_bar_box;
-	GtkWidget *revealer;
-
-#ifdef DEBUG
-	printf( "metadata_init:\n" );
-#endif
-
-	gtk_widget_init_template( GTK_WIDGET( metadata ) );
-
-	/* Connect signals to child widgets of the Metadata widget.
-	 *
-	 * error_response: controls the error_bar, which displays VIPS errors
-	 * 	that may occur.
-	 *
-	 * close_button_cb: closes the metadata widget.
-	 *
-	 * apply_button_pressed: applies the changes the user made to metadata.
-	 *
-	 * TODO: make names more uniform.
-	 * TODO: prompt user to save unsaved changes on close.
-	 */
-	g_signal_connect_object( metadata->error_bar, "response", 
-		G_CALLBACK( metadata_error_response ), metadata, 0 );
-	g_signal_connect( metadata->metadata_close_button, "clicked",
-		G_CALLBACK( metadata_close_button_cb ), metadata );
-	g_signal_connect( metadata->metadata_apply_button, "clicked",
-		G_CALLBACK( on_metadata_apply_button_pressed ), metadata );
-
-	/* We want the Metadata widget label to be bold, so we need to use
-	 * markup instead of plain text, which means we have to do it here
-	 * instead of in the .ui file. 
-	 */
-	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ),
-		"<b>Metadata</b>");
-
-	/* The ImageWindow was resized by image_window_metadata. The metadata
-	 * widget is sized here based on the new size of ImageWindow. We want
-	 * it to be a square and leave plenty of room for the image.
-	 */
-	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
-	gtk_widget_set_size_request( metadata, width * SMALLER, height * SMALLER );
-
-	/* The metadata widget is a GtkSearchBar. The static parts of the
-	 * widget are defined in gtk/metadata.ui.
-	 */
-	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( metadata ), TRUE );
-
-	/* The first child of a GtkSearchBar is a GtkRevealer. This is not the
-	 * same as the child accessible through the GtkSearchBar API via
-	 * gtk_search_bar_get_child.
-	 */
-	revealer = gtk_widget_get_first_child( metadata );
-	gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
-		GTK_REVEALER_TRANSITION_TYPE_SLIDE_RIGHT );
-
-	/* Each GtkSearchBar has a child accessible through the GtkSearchBar API
-	 * via gtk_search_bar_get_child. This child might not be a direct
-	 * descendant. For the metadata widget, this child is a GtkBox
-	 * called search_bar_box that is used to control orientation and size.
-	 * The search_bar_box is sized the same as the metadata widget that
-	 * contains it.
-	 */
-	search_bar_box = gtk_search_bar_get_child(
-		GTK_SEARCH_BAR( metadata ) );
-	gtk_widget_set_size_request( search_bar_box,
-		width * SMALLER, height * SMALLER );
-
-	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
-	 * providing user input text for the search query.
-	 */
-	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( metadata ),
-		GTK_EDITABLE( metadata->metadata_search_entry ) );
-
-	/* Connect the handler that gets called when the user modifies the
-	 * search query.
-	 */
-	g_signal_connect( metadata->metadata_search_entry,
-		"search-changed",
-		G_CALLBACK( search_changed ), metadata );
-
-	/* The metadata_window is a GtkScrolledWindow that is sized to match the
-	 * search_bar_box that contains it.
-	 */
-	gtk_widget_set_size_request( metadata->metadata_window,
-		width, height * SMALLER );
-	gtk_scrolled_window_set_max_content_height(
-		GTK_SCROLLED_WINDOW( metadata->metadata_window ),
-		height * SMALLER);
-	gtk_scrolled_window_set_max_content_width(
-		GTK_SCROLLED_WINDOW( metadata->metadata_window ),
-		width * SMALLER);
-
-	/* The create_input_grid function uses the VipsImage - on the
-	 * TileSource of the ImageWindow pointed to by the Metadata widget -
-	 * to dynamically create a GtkGrid of user input widgets for viewing
-	 * and editing image metadata.
-	 */
-	metadata->metadata_grid = create_input_grid( metadata );
-
-	/* We make this grid scrollable by putting it in a GtkScrolledWindow.
-	 */
-	gtk_scrolled_window_set_child(
-		GTK_SCROLLED_WINDOW( metadata->metadata_window),
-		GTK_WIDGET( metadata->metadata_grid ) );
-}
-
-#define BIND( field ) \
-	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
-		Metadata, field );
-
-static void
-metadata_class_init( MetadataClass *class )
-{
-	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
-
-#ifdef DEBUG
-	printf( "metadata_class_init:\n" );
-#endif
-
-	gobject_class->dispose = metadata_dispose;
-
-	gtk_widget_class_set_layout_manager_type( widget_class, 
-		GTK_TYPE_BIN_LAYOUT );
-	gtk_widget_class_set_template_from_resource( widget_class,
-		APP_PATH "/metadata.ui");
-
-	BIND( error_bar );
-	BIND( error_label );
-	BIND( metadata_grid );
-	BIND( metadata_label );
-	BIND( metadata_close_button );
-	BIND( metadata_apply_button );
-	BIND( metadata_window );
-	BIND( metadata_search_entry );
-
-	gobject_class->set_property = metadata_set_property;
-	gobject_class->get_property = metadata_get_property;
-
-	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
-		g_param_spec_object( "image-window",
-			_( "Image window" ),
-			_( "The image window we display" ),
-			IMAGE_WINDOW_TYPE,
-			G_PARAM_READWRITE ) );
-}
-
-Metadata *
-metadata_new( ImageWindow *win )
-{
-	Metadata *metadata;
-
-#ifdef
-	printf( "metadata_new:\n" );
-#endif
-
-	metadata = g_object_new( metadata_get_type(),
-		"image-window", win,
-		NULL )
-
-	return metadata;
-}
-
-////
-
-/* Size of alphabet index array. This number should be twice the size
- * of the alphabet, which is 128 in this case for ASCII (not extended).
- * The purpose of this extra space is explained later.
- */
-#define ALPHABET_SIZE 256
-
-/* The Match object will hold the index @i of the first character of the match
- * and the number of mismatched characters @k within that match. The Match
- * objects are also linked list nodes.
- */
-typedef struct Match Match;
-struct Match {
-	int i;
-	int k;
-	gchar *text;
-	gchar *pattern;
-	int pattern_length;
-};
-
-Match *
-Match_new( int i, int k, gchar *text, gchar *pattern )
-{
-	Match *t;
-	t = g_malloc( sizeof( Match ) );
-	t->i = i;
-	t->k = k;
-	g_assert( text );
-	t->text = g_strdup( text );
-	t->pattern = pattern;
-	t->pattern_length = strlen( pattern );
-	return t;
-}
-
-void
-Match_free( gpointer match_, gpointer user_data )
-{
-	Match *match = (Match *) match_;
-	if ( match ) {
-		g_free( match->text );
-		g_free( match );
-	}		
-}
-
-void
-Match_print( gpointer match_, gpointer user_data )
-{
-	Match *match = (Match *) match_;
-	printf( "position: %d, errors: %d, text: \"%s\", pattern: \"%s\", pattern_length: %d\n",
-		match->i, match->k, match->text, match->pattern,
-		match->pattern_length );
-}
-
-/* An array of lists. There are 128 linked lists in total - one for each
- * character in our 128-character alphabet. The last 128 lists characters are
- * added to the linked lists as needed. Using a power of lets us quickly access
- * the array in a cyclic manner by modding using the bitwise & operator. 
- *
- * Each list will contain the offsets for each occurence of that character, or a
- * single placeholder offset of -1 if no occurences are found.
- *
- * The offset is the distance of the character to the left of the end of
- * pattern, (i.e., measured by counting to the left from the end of pattern),
- * for a given character and a given instance of pattern.
- */
-GList *alpha[ALPHABET_SIZE];
-
-/* This function initializes the @alpha and @count arrays to look like this:
- *
- *     alpha = [ [ -1 ] ] * ALPHABET_SIZE 	where the inner brackets are a GList.
- *
- *     count = [m] * m
- *
- * @alpha will be an array of linked lists. Characters in the pattern
- * that do not occur or that occur exactly once in the text will have
- * corresponding linked lists with length one. Characters in the pattern that
- * occur in the text more than once will have corresponding linked lists with
- * length greater than one.
- *
- * The first m - 1  elements of @count will be skipped on the first iteration of
- * the cyclic array (since no match can be shorter than the @pattern). Note that
- * the values in @count are reset to m once they are no longer needed, until the
- * next loop around @count.
- *
- * @p - pattern string
- * @m - pattern length
- * @alpha - array of GList. See above.
- * @count - circular buffer for counts of matches
- */
-void
-preprocess( char *p, int m, GList *alpha[], int count[], int max_pattern_size )
-{
-	int i;
-
-	for ( i = 0; i < ALPHABET_SIZE; i++ ) {
-		alpha[i] = NULL;
-		alpha[i] = g_list_append( alpha[i], GINT_TO_POINTER( -1 ) );
-	}
-
-	for ( i = 0; i < m; i++, p++ ) {
-		if ( GPOINTER_TO_INT( alpha[(int)*p]->data ) == -1 )
-			alpha[(int)*p]->data = GINT_TO_POINTER( m - i - 1 );
-		else
-			alpha[(int)*p] = g_list_append( alpha[(int)*p],
-				GINT_TO_POINTER( m - i - 1 ) );
-	}
-
-	for ( i = 0; i < max_pattern_size; i++ )
-		count[i] = m;
-}
-
-void
-increment_offset( gpointer off_, gpointer args_ )
-{
-	gpointer *args = (gpointer *) args_;
-	int i = GPOINTER_TO_INT( args[0] );
-	int max_pattern_size = GPOINTER_TO_INT( args[1] );
-	int *count = (int *) args[2];
-	gint off = GPOINTER_TO_INT( off_ ) ;
-	count[(i + off) % max_pattern_size]--;
-}
-
-gint
-match_compare( gconstpointer a_, gconstpointer b_ )
-{
-	Match *a = (Match *) a_;
-	Match *b = (Match *) b_;
-
-	if ( a->k == b->k )
-		return 0;
-	else if (a->k < b->k )
-		return -1;
-	else return 1;
-}
-
-/* Find the position of the first character and number of mismatches of every
- * fuzzy match in a string @t with @k or fewer mismatches. Uses the array of
- * GList @alpha and the array of counts @count prepared by the preprocess
- * function.
- * @t - text string
- * @n - length of text string
- * @m - length of the pattern used to create @alpha and @count
- * @k - maximum number of allowed mismatches
- * @alpha - array of GList. See above.
- * @count - circular buffer for counts of matches
- */
-GList *
-search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern, int max_pattern_size )
-{
-	int i, off;
-	Match *match;
-	GList *l0 = NULL, *l1 = NULL;
-	char *text = t;
-
-	/* Walk the text @t, which has length @n.
-	 */
-	for ( i = 0; i < n; i++ ) {
-		/* If the current character in @t is in pattern, its
-		 * corresponding list in @alpha will have a non-negative offset,
-		 * thanks to the workdone by the preprocess function. If so, we
-		 * need to decrement the counts in the circular buffer @count
-		 * corresponding to the index of the character in the text and
-		 * the offsets the lists corresponding to those characters,
-		 * which the preprocess function prepared.
-		 * 
-		 * Note that we will only ever need m counts at a time, and
-		 * we reset them to @m when we are done with them, in case
-		 * they are needed when the text wraps 256 characters.
-		 */
-		l0 = alpha[(int)*t++];
-		off = GPOINTER_TO_INT( l0->data );
-		if ( off >= 0 ) {
-			gpointer t[3] = {
-				GINT_TO_POINTER( i ),
-				GINT_TO_POINTER( max_pattern_size ),
-				(gpointer) count,
-			};
-			g_list_foreach( l0, increment_offset, t );
-
-		}
-
-		/* If the count in @count corresponding to the current index in
-		 * the text is no greater than @k, the number of mismatches we
-		 * allow, then the pattern instance is reported as a fuzzy
-		 * match. The position of the first letter in the match is
-		 * calculated using the pattern length and the index of the last
-		 * character in the match The number of mismatches is calculated
-		 * from the number of matches.
-		 */
-		if ( i >= m - 1 && count[i % max_pattern_size] <= k ) {
-			// DBG
-			//printf( "i: %d, m: %d\n", i, m );
-			g_assert( i - m + 1 >= 0 );
-			g_assert( text );
-			match = Match_new( i - m + 1, count[i % max_pattern_size], text, pattern );
-			l1 = g_list_append( l1, match );
-		}
-
-		/* The count in @count corresponding to the current index in
-		 * text is no longer needed, so we reset it to @m until we
-		 * need it on the next wraparound.
-		 */
-		count[i % max_pattern_size] = m;
-	}
-
-	/* Sort by increasing k.
-	 */
-	l1 = g_list_sort( l1, match_compare );
-
-	return l1;
-}
-
-void
-markup_in_string_by_match( gpointer match_, gpointer markup_ )
-{
-	Match *match;
-	GString *markup;
-	gchar *replacement;
-
-	match = (Match *) match_;
-	markup = (GString *) markup_;
-
-	if ( match->pattern && match->pattern[0] && !match->k ) {
-		replacement = g_strdup_printf( "<>%s</>", match->pattern );
-		g_string_replace( markup, match->pattern, replacement, 0 );
-		g_free( replacement );
-	}
-}
-
-gchar *
-get_markup_from_match( GList *match )
-{
-	GString *markup;
-	Match *first = (Match *) match->data;
-
-	markup = g_string_new( g_strdup( first->text ) );
-
-	g_list_foreach( match, markup_in_string_by_match, markup );
-
-	g_string_replace( markup, "<>", "<b>", 0 );
-	g_string_replace( markup, "</>", "</b>", 0 );
-
-	return markup->str;
-}
-
-void
-append_field_name( gpointer data, gpointer user_data )
-{
-	Metadata *metadata;
-	GList *match_list;
-	GtkWidget *label, *input;
-	Match *first_match;
-
-	match_list = (GList *) data;
-	first_match = (Match *) match_list->data;
-
-	metadata = VIPSDISP_METADATA( user_data );
-	metadata->field_list = g_list_append( metadata->field_list, first_match->text );
-
-	label = gtk_label_new( first_match->text );	
-	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
-
-	if ( (input = create_input( metadata->win->tile_source->image, first_match->text )) ) {
-		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
-		metadata->field_list_length++;
-	}
-}
-
-void
-append_markup_field_name( gpointer data, gpointer user_data )
-{
-	Metadata *metadata;
-	gchar *markup;
-	GString *field_name;
-	GList *match_list;
-	GtkWidget *label, *input;
-
-	match_list = (GList *) data;
-	markup = get_markup_from_match( match_list );
-	metadata = VIPSDISP_METADATA( user_data );
-	metadata->field_list = g_list_append( metadata->field_list, markup );
-
-	label = gtk_label_new( NULL );	
-	gtk_label_set_markup( GTK_LABEL( label ), markup );
-
-	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
-
-	field_name = g_string_new( markup );
-	g_string_replace( field_name, "<b>", "", 0 );
-	g_string_replace( field_name, "</b>", "", 0 );
-
-	if ( (input = create_input( metadata->win->tile_source->image, field_name->str )) ) {
-		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
-		metadata->field_list_length++;
-	}
-}
-
-gint
-match_list_compare( gconstpointer a_, gconstpointer b_ )
-{
-	GList *a = (GList *) a_;
-	GList *b = (GList *) b_;
-
-	Match *match_a = (Match *) a->data;
-	Match *match_b = (Match *) b->data;
-
-	return match_compare( match_a, match_b );
-}
-
-void
-append_if_match( gpointer data, gpointer user_data )
-{
-	GList *first, *match;
-	gchar *haystack, *needle;
-	GList **list_ptr;
-	int n, m, k;
-
-	list_ptr = (GList **) user_data;
-
-	haystack = (gchar *) data;
-
-	first = g_list_first( *list_ptr );
-	needle = (gchar *) first->data;
-
-	n = strlen( haystack );
-	int count[n];
-	m = strlen( needle );
-	k = n;
-
-	preprocess( needle, m, alpha, count, n );
-
-	match = search( haystack, n, m, k, alpha, count, needle, n );
-
-	if ( g_list_length( match ) )
-		*list_ptr = g_list_append( *list_ptr, match );
-}
-
-GList *
-find_strings_with_substring( GList *haystacks, gchar *needle )
-{
-	GList *found = NULL;
-
-	found = g_list_append( found, needle );
-
-	g_list_foreach( haystacks, append_if_match, &found );
-
-	found = g_list_remove( found, (gconstpointer) needle );
-
-	return found;
-}
-
-/* This is the callback function called whenever the GtkSearchEntry is modified
- * by the user.
- */
-static void
-search_changed( GtkWidget *search_entry, gpointer user_data )
-{
-	Metadata *metadata;
-	char *text, *field_name;
-	char** field_names;
-	int i = 0;
-	GList *all_field_list = NULL;
-
-	/* Initialize GList pointers to NULL.
-	 */
-	GList *found, *found0, *found1, *s0, *s1, *t;
-	found = found0 = found1 = s0 = s1 = t = NULL;
-
-	metadata = VIPSDISP_METADATA( user_data );
-
-	g_assert( metadata->field_list );
-	g_list_free( metadata->field_list );
-	metadata->field_list = NULL;
-	metadata->field_list_length = 0;
-
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), NULL );
-	metadata->metadata_grid = GTK_GRID( gtk_grid_new() );
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), GTK_WIDGET( metadata->metadata_grid ) );
-
-	found = NULL;
-	field_names = vips_image_get_fields( metadata->win->tile_source->image );
-
-	while ( (field_name = field_names[i++]) )
-		all_field_list = g_list_append( all_field_list, field_name );
-		
-	text = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
-
-	found = find_strings_with_substring( all_field_list, (gchar *) text );
-
-	if ( ! g_list_length( found ) )
-		return;
-
-	/* Sort by increasing k, the number of errors.
-	 */
-	found = g_list_sort( found, match_list_compare );
-
-	/* Get two GLists of GLists - one with the k=0 matches, and another with
-	 * the k>0 matches.
-	 */
-	while ( found ) {
-		t = (GList *) found->data;
-		s0 = s1 = NULL;
-
-		while ( t ) {
-			Match *match = (Match *) t->data;
-			if ( match ) {
-				if ( match->k )
-					s1 = g_list_append( s1, match );
-				else
-					s0 = g_list_append( s0, match );
-				t = t->next;
-			}
-		}
-
-		if ( s0 )
-			found0 = g_list_append( found0, s0 );
-
-		if ( s1 )
-			found1 = g_list_append( found1, s1 );
-
-		found = found->next;
-	}
-
-
-	/* Add the exact (k=0) matches, if any. These will have markup.
-	 */
-	if ( g_list_length( found0 ) )
-		g_list_foreach( found0, append_markup_field_name, metadata );
-
-	/* If there are no exact matches, then add the fuzzy (k>0) matches, if
-	 * any. These will not have markup.
-	 */
-	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
-		g_list_foreach( found1, append_field_name, metadata );
-}
-
-GtkGrid *
-create_input_grid( Metadata *metadata )
-{
-	GtkWidget *label, *input;
-	GtkGrid *grid;
-	char *field_name;
-	char **field_names;
-	int i = 0;
-
-	field_names = vips_image_get_fields( metadata->win->tile_source->image );
-
-	while ( (field_name = field_names[i++]) )
-		metadata->field_list = g_list_append( metadata->field_list, field_name );
-
-	metadata->field_list_length = g_list_length( metadata->field_list );
-
-	grid = GTK_GRID( gtk_grid_new() );
-
-	i = 0;
-
-	while ( (field_name = g_list_nth_data( metadata->field_list, i )) ) {
-		label = gtk_label_new( field_name );	
-		gtk_grid_attach( grid, label, 0, i, 1, 1 );
-		input = create_input( metadata->win->tile_source->image, field_name );
-		gtk_grid_attach( grid, input, 1, i, 1, 1 );
-		i++;
-	}
-
-	return grid;
-}
-
-gboolean
-shrink_window( gpointer user_data )
-{
-	Metadata *metadata = VIPSDISP_METADATA( user_data );
-	if ( !gtk_widget_get_visible( metadata ) )
-		return FALSE;
-	gtk_widget_set_size_request( metadata, 0, 0 );
-	gtk_widget_hide( metadata );
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( metadata->win->main_box ), GTK_ORIENTATION_VERTICAL );
-	gtk_window_set_default_size( GTK_WINDOW( metadata->win ), metadata->win->og_width, metadata->win->og_height );
-
-	g_settings_set_value( metadata->win->settings, "metadata", g_variant_new_boolean( FALSE ) );
-
-	change_state( GTK_WIDGET( metadata->win ), "metadata", 
-		g_settings_get_value( metadata->win->settings, "metadata" ) );
-
-	return TRUE;
-}
-
-void
-on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
-{
-	GtkWidget *t, *label, *revealer;
-	char *field_name;
-	GString *field_name_string;
-	VipsImage *image; 
-	VipsObjectClass *oclass;
-	GType otype;
-	GParamSpec *pspec;
-	VipsArgumentClass *argument_class;
-	VipsArgumentInstance *argument_instance;
-	Metadata *metadata;
-	int row_index = 0;
-
-	metadata = VIPSDISP_METADATA( user_data );
-	image = metadata->win->tile_source->image;
-
-	while ( (label = gtk_grid_get_child_at( metadata->metadata_grid, 0, row_index )) ) {
-		t = gtk_grid_get_child_at( metadata->metadata_grid, 1, row_index++ );
-		g_assert( t );
-		t = gtk_widget_get_first_child( t );
-		g_assert( t );
-		t = gtk_widget_get_first_child( t );
-		g_assert( t );
-
-		GValue value = { 0 }, v = { 0 };
-
-		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
-		field_name_string = g_string_new( field_name );
-		g_string_replace( field_name_string, "<b>", "", 0 );
-		g_string_replace( field_name_string, "</b>", "", 0 );
-		g_free( field_name );
-		field_name = field_name_string->str;
-
-		gboolean use_string = FALSE; 
-		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
-			&pspec, &argument_class, &argument_instance ) ) {
-			vips_error_clear();
-			vips_image_get( image, field_name, &value );
-			use_string = TRUE;
-		} else {
-			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
-				return;
-			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
-				(oclass = g_type_class_ref( otype )) )
-				return;
-		}
-
-		if( use_string ) {
-			GType type = G_VALUE_TYPE( &value );
-			if ( type == G_TYPE_STRING ) {
-				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-				vips_image_set_string( image, field_name, text );
-			} else if ( type == G_TYPE_ENUM ) {
-			} else if ( type == G_TYPE_INT ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_UINT ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_INT64 ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_UINT64 ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_LONG ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_ULONG ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_BOOLEAN ) {
-				gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-				g_value_init( &v, G_TYPE_BOOLEAN );
-				g_value_set_boolean( &v, b );
-				vips_image_set( image, field_name, &v );
-				g_value_unset( &v );
-			} else if ( type == G_TYPE_FLOAT ) {
-				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_double( image, field_name, d );
-			} else if ( type == G_TYPE_DOUBLE ) {
-				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_double( image, field_name, d );
-			} else if ( type == G_TYPE_FLAGS ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_BOXED ) {
-			} else if ( (type == VIPS_TYPE_REF_STRING) ) {
-				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				const char *text = gtk_entry_buffer_get_text( buffer );
-				vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
-			} else {
-				// Must be a VipsBlob then
-
-				// Ignore metadata field names that contain the substring "thumbnail"
-				if ( !strstr( field_name, "thumbnail" ) ) {
-					GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-					const char *text = gtk_entry_buffer_get_text( buffer );
-					vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
-				}
-			}
-		}
-		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-			char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-			vips_image_set_string( image, field_name, text );
-		}
-		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-			g_value_init( &v, G_TYPE_BOOLEAN );
-			g_value_set_boolean( &v, b );
-			vips_image_set( image, field_name, &v );
-			g_value_unset( &v );
-		}
-		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-			int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-			g_value_init( &v, G_TYPE_ENUM );
-			g_value_set_enum( &v, d );
-			vips_image_set( image, field_name, &v );
-			g_value_unset( &v );
-		
-		}
-		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_INT( pspec )) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-			int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_double( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
-			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-				return;
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-				return;
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-				return;
-			}
-			else {
-				return;
-			}
-		}
-		else {
-			printf("Unknown type for property \"%s\"\n", field_name);
-			g_object_ref_sink( t );
-			return;
-		}
-	}
-
-	revealer = gtk_widget_get_first_child( metadata );
-	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
-	g_timeout_add( 200 , (GSourceFunc) shrink_window, metadata );
 }
 
 GtkWidget  *
@@ -1273,12 +333,1047 @@ create_input( VipsImage *image, char* field_name )
 	return input_box;
 }
 
+GtkGrid *
+create_input_grid( Metadata *metadata )
+{
+	GtkWidget *label, *input;
+	GtkGrid *grid;
+	TileSource *tile_source; 
+	char *field_name;
+	char **field_names;
+	int i = 0;
+
+	tile_source = image_window_get_tile_source( metadata->win );
+
+	field_names = vips_image_get_fields( tile_source->image );
+
+	while ( (field_name = field_names[i++]) )
+		metadata->field_list = g_list_append( metadata->field_list, field_name );
+
+	metadata->field_list_length = g_list_length( metadata->field_list );
+
+	grid = GTK_GRID( gtk_grid_new() );
+
+	i = 0;
+
+	while ( (field_name = g_list_nth_data( metadata->field_list, i )) ) {
+		label = gtk_label_new( field_name );	
+		gtk_grid_attach( grid, label, 0, i, 1, 1 );
+		input = create_input( tile_source->image, field_name );
+		gtk_grid_attach( grid, input, 1, i, 1, 1 );
+		i++;
+	}
+
+	return grid;
+}
+
+/* This is called when the TileSource changes. In particular, a new VipsImage
+ * might have been loaded, or there might no image loaded. Destroy and - if
+ * needed - recreate the metadata_grid.
+ */
+static void
+metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata ) 
+{
+#ifdef DEBUG
+	printf( "metadata_tile_source_changed:\n" ); 
+#endif /*DEBUG*/
+
+	/* If there is a new VipsImage on the tile source, use it to create
+	 * the new grid of user input widgets.
+	 */
+	if ( tile_source->image ) {
+		/* The create_input_grid function uses the VipsImage - on the
+		 * TileSource of the ImageWindow pointed to by the Metadata
+		 * widget - to dynamically create a GtkGrid of user input
+		 * widgets for viewing and editing image metadata.
+		 */
+		metadata->metadata_grid = create_input_grid( metadata );
+
+		/* We make this grid scrollable by putting it in a
+		 * GtkScrolledWindow.
+	 	 */
+		gtk_scrolled_window_set_child(
+			GTK_SCROLLED_WINDOW( metadata->metadata_window),
+			GTK_WIDGET( metadata->metadata_grid ) );
+	}
+}
+
+/* ImageWindow has a new TileSource.
+ */
+static void
+metadata_image_window_changed( ImageWindow *win, Metadata *metadata )
+{
+	TileSource *tile_source = image_window_get_tile_source( win );
+
+	g_signal_connect_object( tile_source, "changed",
+		G_CALLBACK( metadata_tile_source_changed ),
+		metadata, 0 );
+}
+
+static void
+metadata_set_image_window( Metadata *metadata, ImageWindow *win )
+{
+	/* No need to ref ... win holds ref to us.
+	 */
+	metadata->win = win;
+
+	g_signal_connect_object( win, "changed",
+		G_CALLBACK( metadata_image_window_changed ),
+		metadata, 0 );
+}
+
+static void
+metadata_set_property( GObject *object,
+	guint prop_id, const GValue *value, GParamSpec *pspec )
+{
+	Metadata *metadata = (Metadata *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE_WINDOW:
+		metadata_set_image_window( metadata,
+			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+	}
+}
+
+static void
+metadata_get_property( GObject *object,
+	guint prop_id, GValue *value, GParamSpec *pspec )
+{
+	Metadata *metadata = (Metadata *) object;
+
+	switch( prop_id ) {
+	case PROP_IMAGE_WINDOW:
+		g_value_set_object( value, metadata->win );
+		break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+	}
+}
+
+//static void
+//metadata_error( Metadata *options )
+//{
+//	char *err;
+//	int i;
+//
+//	// Remove any trailing \n. 
+//	err = vips_error_buffer_copy();
+//	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
+//		err[i - 1] = '\0';
+//	gtk_label_set_text( GTK_LABEL( options->error_label ), err );
+//	g_free( err );
+//
+//	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), TRUE );
+//}
+
+static void
+metadata_error_hide( Metadata *options )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), FALSE );
+}
+
+static void
+metadata_error_response( GtkWidget *button, int response, 
+	Metadata *options )
+{
+	metadata_error_hide( options );
+}
+
+#define SMALLER_X .9
+#define SMALLER_Y .79
+#define BIGGER_X 1.9
+#define SHORT_WAIT_MS 100
+
+gboolean
+metadata_reveal( gpointer user_data )
+{
+	Metadata *metadata;
+	GtkWidget *revealer;
+
+	metadata = VIPSDISP_METADATA( user_data );
+	gtk_widget_show( GTK_WIDGET( metadata ) );
+	revealer = gtk_widget_get_first_child( metadata->metadata_search_bar );
+	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), TRUE );
+
+	return FALSE;
+}
+
+void
+metadata_show( Metadata *metadata )
+{
+	int old_width, old_height, new_width, new_height;
+	GtkWidget *search_bar_box, *main_box;
+
+	main_box = image_window_get_main_box( metadata->win );
+
+	/* Make the metadata widget appear to the right of the image.
+	 */
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( main_box ),
+		GTK_ORIENTATION_HORIZONTAL );
+
+	/* Center the metadata widget vertically.
+	 */
+	gtk_widget_set_valign( main_box, GTK_ALIGN_CENTER );
+	
+	/* Get the current dimensions of the ImageWindow.
+	 */
+	gtk_window_get_default_size( GTK_WINDOW( metadata->win ), &old_width, &old_height );
+
+	/* The width of the ImageWindow is increased to accomodate the metadata
+	 * widget.
+	 */
+	gtk_window_set_default_size( GTK_WINDOW( metadata->win ),
+		BIGGER_X * old_width, old_height );
+	
+	/* The metadata widget is sized relative to the ImageWindow.
+	 */
+	new_width = old_width * SMALLER_X;
+	new_height = old_height * SMALLER_Y;
+	gtk_widget_set_size_request( GTK_WIDGET( metadata ), new_width, new_height );
+
+	/* Each GtkSearchBar has a child accessible through the GtkSearchBar API
+	 * via gtk_search_bar_get_child. This child might not be a direct
+	 * descendant. For the metadata widget, this child is a GtkBox
+	 * called search_bar_box that is used to control orientation and size.
+	 * The search_bar_box is sized the same as the metadata widget that
+	 * contains it.
+	 */
+	search_bar_box = gtk_search_bar_get_child(
+		GTK_SEARCH_BAR( metadata->metadata_search_bar ) );
+
+	gtk_widget_set_size_request( search_bar_box, new_width, new_height );
+	
+	/* The metadata_window is a GtkScrolledWindow that is sized to match the
+	 * search_bar_box that contains it.
+	 */
+	gtk_widget_set_size_request( metadata->metadata_window,
+		new_width, new_height );
+
+	gtk_scrolled_window_set_max_content_width(
+		GTK_SCROLLED_WINDOW( metadata->metadata_window ), new_width );
+
+	gtk_scrolled_window_set_max_content_height(
+		GTK_SCROLLED_WINDOW( metadata->metadata_window ), new_height );
+
+	/* The metadata window should be ready to go, since its
+	 * grid of input widgets is updated whenever a new
+	 * VipsImage is loaded. Reveal the metadata widget.
+	 */
+	metadata_reveal( metadata );
+}
+
+gboolean
+metadata_shrink_window( gpointer user_data )
+{
+	Metadata *metadata; 
+	GtkWidget *main_box;
+	int og_width, og_height;
+	GSettings *settings;
+
+	metadata = VIPSDISP_METADATA( user_data );
+
+	settings = image_window_get_settings( metadata->win );
+
+	if ( !gtk_widget_get_visible( GTK_WIDGET( metadata ) ) )
+		return FALSE;
+	
+	gtk_widget_set_size_request( GTK_WIDGET( metadata ), 0, 0 );
+	gtk_widget_hide( GTK_WIDGET( metadata ) );
+
+	/* Restore the original orientation and alignment of the ImageWindow
+	 * main_box.
+	 */
+	main_box = image_window_get_main_box( metadata->win );
+	gtk_orientable_set_orientation( GTK_ORIENTABLE( main_box ),
+		GTK_ORIENTATION_VERTICAL );
+	gtk_widget_set_valign( main_box, GTK_ALIGN_FILL );
+
+	/* Restore the original dimensions of the ImageWindow.
+	 */
+	og_width = image_window_get_og_width( metadata->win );
+	og_height = image_window_get_og_width( metadata->win );
+	gtk_window_set_default_size( GTK_WINDOW( metadata->win ),
+		og_width, og_height );
+
+	if ( g_settings_get_boolean( settings, "metadata" ) )
+		g_settings_set_boolean( settings, "metadata", FALSE );
+
+	return TRUE;
+}
+
+void
+metadata_hide( Metadata *metadata )
+{
+	GtkWidget *revealer;
+
+	/* The first child of a GtkSearchBar is a GtkRevealer.
+	 */
+	revealer = gtk_widget_get_first_child( metadata->metadata_search_bar );
+
+	/* Hide the metadata widget with a sliding animation.
+	 */
+	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
+
+	/* Shrink the ImageWindow back to its original size,
+	 * after a short wait to allow time for the animation to
+	 * show.
+	 */
+	g_timeout_add( SHORT_WAIT_MS,
+		(GSourceFunc) metadata_shrink_window, metadata );
+}
+
 static void
 metadata_close_button_cb( GtkWidget *widget, gpointer user_data )
 {
-	Metadata *metadata = VIPSDISP_IMAGE_WINDOW( user_data );
-	GtkWidget *revealer = gtk_widget_get_first_child( metadata );
-	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
-	g_timeout_add( 200 , (GSourceFunc) shrink_window, metadata );
+	Metadata *metadata; 
+	metadata = VIPSDISP_METADATA( user_data );
+	change_state( GTK_WIDGET( metadata->win ), "metadata",
+		g_variant_new_boolean( FALSE ) );
 }
 
+void
+on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
+{
+	GtkWidget *t, *label;
+	char *field_name;
+	GString *field_name_string;
+	VipsImage *image; 
+	VipsObjectClass *oclass;
+	GType otype;
+	GParamSpec *pspec;
+	VipsArgumentClass *argument_class;
+	VipsArgumentInstance *argument_instance;
+	Metadata *metadata;
+	TileSource *tile_source;
+	int row_index = 0;
+
+	metadata = VIPSDISP_METADATA( user_data );
+
+	tile_source = image_window_get_tile_source( metadata->win );
+
+	image = tile_source->image;
+
+	while ( (label = gtk_grid_get_child_at( metadata->metadata_grid, 0, row_index )) ) {
+		t = gtk_grid_get_child_at( metadata->metadata_grid, 1, row_index++ );
+		g_assert( t );
+		t = gtk_widget_get_first_child( t );
+		g_assert( t );
+		t = gtk_widget_get_first_child( t );
+		g_assert( t );
+
+		GValue value = { 0 }, v = { 0 };
+
+		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
+		field_name_string = g_string_new( field_name );
+		g_string_replace( field_name_string, "<b>", "", 0 );
+		g_string_replace( field_name_string, "</b>", "", 0 );
+		g_free( field_name );
+		field_name = field_name_string->str;
+
+		gboolean use_string = FALSE; 
+		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
+			&pspec, &argument_class, &argument_instance ) ) {
+			vips_error_clear();
+			vips_image_get( image, field_name, &value );
+			use_string = TRUE;
+		} else {
+			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
+			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
+				return;
+			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
+				(oclass = g_type_class_ref( otype )) )
+				return;
+		}
+
+		if( use_string ) {
+			GType type = G_VALUE_TYPE( &value );
+			if ( type == G_TYPE_STRING ) {
+				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+				vips_image_set_string( image, field_name, text );
+			} else if ( type == G_TYPE_ENUM ) {
+			} else if ( type == G_TYPE_INT ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_UINT ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_INT64 ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_UINT64 ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_LONG ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_ULONG ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_BOOLEAN ) {
+				gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+				g_value_init( &v, G_TYPE_BOOLEAN );
+				g_value_set_boolean( &v, b );
+				vips_image_set( image, field_name, &v );
+				g_value_unset( &v );
+			} else if ( type == G_TYPE_FLOAT ) {
+				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_double( image, field_name, d );
+			} else if ( type == G_TYPE_DOUBLE ) {
+				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_double( image, field_name, d );
+			} else if ( type == G_TYPE_FLAGS ) {
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			} else if ( type == G_TYPE_BOXED ) {
+			} else if ( (type == VIPS_TYPE_REF_STRING) ) {
+				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+				const char *text = gtk_entry_buffer_get_text( buffer );
+				vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
+			} else {
+				// Must be a VipsBlob then
+
+				// Ignore metadata field names that contain the substring "thumbnail"
+				if ( !strstr( field_name, "thumbnail" ) ) {
+					GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+					const char *text = gtk_entry_buffer_get_text( buffer );
+					vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
+				}
+			}
+		}
+		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+			char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+			vips_image_set_string( image, field_name, text );
+		}
+		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
+			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+			g_value_init( &v, G_TYPE_BOOLEAN );
+			g_value_set_boolean( &v, b );
+			vips_image_set( image, field_name, &v );
+			g_value_unset( &v );
+		}
+		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+			int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+			g_value_init( &v, G_TYPE_ENUM );
+			g_value_set_enum( &v, d );
+			vips_image_set( image, field_name, &v );
+			g_value_unset( &v );
+		
+		}
+		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_INT( pspec )) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
+			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_int( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
+			int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+			vips_image_set_double( image, field_name, d );
+		}
+		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
+				return;
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
+				return;
+			}
+			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
+				return;
+			}
+			else {
+				return;
+			}
+		}
+		else {
+			printf("Unknown type for property \"%s\"\n", field_name);
+			g_object_ref_sink( t );
+			return;
+		}
+	}
+
+	change_state( GTK_WIDGET( metadata->win ), "metadata",
+		g_variant_new_boolean( FALSE ) );
+}
+
+/* Size of alphabet index array. This number should be twice the size
+ * of the alphabet, which is 128 in this case for ASCII (not extended).
+ * The purpose of this extra space is explained later.
+ */
+#define ALPHABET_SIZE 256
+
+/* The Match object will hold the index @i of the first character of the match
+ * and the number of mismatched characters @k within that match. The Match
+ * objects are also linked list nodes.
+ */
+typedef struct Match Match;
+struct Match {
+	int i;
+	int k;
+	gchar *text;
+	gchar *pattern;
+	int pattern_length;
+};
+
+Match *
+Match_new( int i, int k, gchar *text, gchar *pattern )
+{
+	Match *t;
+	t = g_malloc( sizeof( Match ) );
+	t->i = i;
+	t->k = k;
+	g_assert( text );
+	t->text = g_strdup( text );
+	t->pattern = pattern;
+	t->pattern_length = strlen( pattern );
+	return t;
+}
+
+void
+Match_free( gpointer match_, gpointer user_data )
+{
+	Match *match = (Match *) match_;
+	if ( match ) {
+		g_free( match->text );
+		g_free( match );
+	}		
+}
+
+void
+Match_print( gpointer match_, gpointer user_data )
+{
+	Match *match = (Match *) match_;
+	printf( "position: %d, errors: %d, text: \"%s\", pattern: \"%s\", pattern_length: %d\n",
+		match->i, match->k, match->text, match->pattern,
+		match->pattern_length );
+}
+
+/* An array of lists. There are 128 linked lists in total - one for each
+ * character in our 128-character alphabet. The last 128 lists characters are
+ * added to the linked lists as needed. Using a power of lets us quickly access
+ * the array in a cyclic manner by modding using the bitwise & operator. 
+ *
+ * Each list will contain the offsets for each occurence of that character, or a
+ * single placeholder offset of -1 if no occurences are found.
+ *
+ * The offset is the distance of the character to the left of the end of
+ * pattern, (i.e., measured by counting to the left from the end of pattern),
+ * for a given character and a given instance of pattern.
+ */
+GList *alpha[ALPHABET_SIZE];
+
+/* This function initializes the @alpha and @count arrays to look like this:
+ *
+ *     alpha = [ [ -1 ] ] * ALPHABET_SIZE 	where the inner brackets are a GList.
+ *
+ *     count = [m] * m
+ *
+ * @alpha will be an array of linked lists. Characters in the pattern
+ * that do not occur or that occur exactly once in the text will have
+ * corresponding linked lists with length one. Characters in the pattern that
+ * occur in the text more than once will have corresponding linked lists with
+ * length greater than one.
+ *
+ * The first m - 1  elements of @count will be skipped on the first iteration of
+ * the cyclic array (since no match can be shorter than the @pattern). Note that
+ * the values in @count are reset to m once they are no longer needed, until the
+ * next loop around @count.
+ *
+ * @p - pattern string
+ * @m - pattern length
+ * @alpha - array of GList. See above.
+ * @count - circular buffer for counts of matches
+ */
+void
+preprocess( char *p, int m, GList *alpha[], int count[], int max_pattern_size )
+{
+	int i;
+
+	for ( i = 0; i < ALPHABET_SIZE; i++ ) {
+		alpha[i] = NULL;
+		alpha[i] = g_list_append( alpha[i], GINT_TO_POINTER( -1 ) );
+	}
+
+	for ( i = 0; i < m; i++, p++ ) {
+		if ( GPOINTER_TO_INT( alpha[(int)*p]->data ) == -1 )
+			alpha[(int)*p]->data = GINT_TO_POINTER( m - i - 1 );
+		else
+			alpha[(int)*p] = g_list_append( alpha[(int)*p],
+				GINT_TO_POINTER( m - i - 1 ) );
+	}
+
+	for ( i = 0; i < max_pattern_size; i++ )
+		count[i] = m;
+}
+
+void
+increment_offset( gpointer off_, gpointer args_ )
+{
+	gpointer *args = (gpointer *) args_;
+	int i = GPOINTER_TO_INT( args[0] );
+	int max_pattern_size = GPOINTER_TO_INT( args[1] );
+	int *count = (int *) args[2];
+	gint off = GPOINTER_TO_INT( off_ ) ;
+	count[(i + off) % max_pattern_size]--;
+}
+
+gint
+match_compare( gconstpointer a_, gconstpointer b_ )
+{
+	Match *a = (Match *) a_;
+	Match *b = (Match *) b_;
+
+	if ( a->k == b->k )
+		return 0;
+	else if (a->k < b->k )
+		return -1;
+	else return 1;
+}
+
+/* Find the position of the first character and number of mismatches of every
+ * fuzzy match in a string @t with @k or fewer mismatches. Uses the array of
+ * GList @alpha and the array of counts @count prepared by the preprocess
+ * function.
+ * @t - text string
+ * @n - length of text string
+ * @m - length of the pattern used to create @alpha and @count
+ * @k - maximum number of allowed mismatches
+ * @alpha - array of GList. See above.
+ * @count - circular buffer for counts of matches
+ */
+GList *
+search( char *t, int n, int m, int k, GList *alpha[], int count[], char *pattern, int max_pattern_size )
+{
+	int i, off;
+	Match *match;
+	GList *l0 = NULL, *l1 = NULL;
+	char *text = t;
+
+	/* Walk the text @t, which has length @n.
+	 */
+	for ( i = 0; i < n; i++ ) {
+		/* If the current character in @t is in pattern, its
+		 * corresponding list in @alpha will have a non-negative offset,
+		 * thanks to the workdone by the preprocess function. If so, we
+		 * need to decrement the counts in the circular buffer @count
+		 * corresponding to the index of the character in the text and
+		 * the offsets the lists corresponding to those characters,
+		 * which the preprocess function prepared.
+		 * 
+		 * Note that we will only ever need m counts at a time, and
+		 * we reset them to @m when we are done with them, in case
+		 * they are needed when the text wraps 256 characters.
+		 */
+		l0 = alpha[(int)*t++];
+		off = GPOINTER_TO_INT( l0->data );
+		if ( off >= 0 ) {
+			gpointer t[3] = {
+				GINT_TO_POINTER( i ),
+				GINT_TO_POINTER( max_pattern_size ),
+				(gpointer) count,
+			};
+			g_list_foreach( l0, increment_offset, t );
+
+		}
+
+		/* If the count in @count corresponding to the current index in
+		 * the text is no greater than @k, the number of mismatches we
+		 * allow, then the pattern instance is reported as a fuzzy
+		 * match. The position of the first letter in the match is
+		 * calculated using the pattern length and the index of the last
+		 * character in the match The number of mismatches is calculated
+		 * from the number of matches.
+		 */
+		if ( i >= m - 1 && count[i % max_pattern_size] <= k ) {
+			// DBG
+			//printf( "i: %d, m: %d\n", i, m );
+			g_assert( i - m + 1 >= 0 );
+			g_assert( text );
+			match = Match_new( i - m + 1, count[i % max_pattern_size], text, pattern );
+			l1 = g_list_append( l1, match );
+		}
+
+		/* The count in @count corresponding to the current index in
+		 * text is no longer needed, so we reset it to @m until we
+		 * need it on the next wraparound.
+		 */
+		count[i % max_pattern_size] = m;
+	}
+
+	/* Sort by increasing k.
+	 */
+	l1 = g_list_sort( l1, match_compare );
+
+	return l1;
+}
+
+void
+markup_in_string_by_match( gpointer match_, gpointer markup_ )
+{
+	Match *match;
+	GString *markup;
+	gchar *replacement;
+
+	match = (Match *) match_;
+	markup = (GString *) markup_;
+
+	if ( match->pattern && match->pattern[0] && !match->k ) {
+		replacement = g_strdup_printf( "<>%s</>", match->pattern );
+		g_string_replace( markup, match->pattern, replacement, 0 );
+		g_free( replacement );
+	}
+}
+
+gchar *
+get_markup_from_match( GList *match )
+{
+	GString *markup;
+	Match *first = (Match *) match->data;
+
+	markup = g_string_new( g_strdup( first->text ) );
+
+	g_list_foreach( match, markup_in_string_by_match, markup );
+
+	g_string_replace( markup, "<>", "<b>", 0 );
+	g_string_replace( markup, "</>", "</b>", 0 );
+
+	return markup->str;
+}
+
+void
+append_field_name( gpointer data, gpointer user_data )
+{
+	Metadata *metadata;
+	GList *match_list;
+	GtkWidget *label, *input;
+	Match *first_match;
+	TileSource *tile_source;
+
+	match_list = (GList *) data;
+	first_match = (Match *) match_list->data;
+
+	metadata = VIPSDISP_METADATA( user_data );
+	metadata->field_list = g_list_append( metadata->field_list, first_match->text );
+
+	label = gtk_label_new( first_match->text );	
+	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
+
+	tile_source = image_window_get_tile_source( metadata->win );
+
+	if ( (input = create_input( tile_source->image, first_match->text )) ) {
+		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
+		metadata->field_list_length++;
+	}
+}
+
+void
+append_markup_field_name( gpointer data, gpointer user_data )
+{
+	Metadata *metadata;
+	gchar *markup;
+	GString *field_name;
+	GList *match_list;
+	GtkWidget *label, *input;
+	TileSource *tile_source;
+
+	match_list = (GList *) data;
+	markup = get_markup_from_match( match_list );
+	metadata = VIPSDISP_METADATA( user_data );
+	metadata->field_list = g_list_append( metadata->field_list, markup );
+
+	label = gtk_label_new( NULL );	
+	gtk_label_set_markup( GTK_LABEL( label ), markup );
+
+	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
+
+	field_name = g_string_new( markup );
+	g_string_replace( field_name, "<b>", "", 0 );
+	g_string_replace( field_name, "</b>", "", 0 );
+
+	tile_source = image_window_get_tile_source( metadata->win );
+
+	if ( (input = create_input( tile_source->image, field_name->str )) ) {
+		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
+		metadata->field_list_length++;
+	}
+}
+
+gint
+match_list_compare( gconstpointer a_, gconstpointer b_ )
+{
+	GList *a = (GList *) a_;
+	GList *b = (GList *) b_;
+
+	Match *match_a = (Match *) a->data;
+	Match *match_b = (Match *) b->data;
+
+	return match_compare( match_a, match_b );
+}
+
+void
+append_if_match( gpointer data, gpointer user_data )
+{
+	GList *first, *match;
+	gchar *haystack, *needle;
+	GList **list_ptr;
+	int n, m, k;
+
+	list_ptr = (GList **) user_data;
+
+	haystack = (gchar *) data;
+
+	first = g_list_first( *list_ptr );
+	needle = (gchar *) first->data;
+
+	n = strlen( haystack );
+	int count[n];
+	m = strlen( needle );
+	k = n;
+
+	preprocess( needle, m, alpha, count, n );
+
+	match = search( haystack, n, m, k, alpha, count, needle, n );
+
+	if ( g_list_length( match ) )
+		*list_ptr = g_list_append( *list_ptr, match );
+}
+
+GList *
+find_strings_with_substring( GList *haystacks, gchar *needle )
+{
+	GList *found = NULL;
+
+	found = g_list_append( found, needle );
+
+	g_list_foreach( haystacks, append_if_match, &found );
+
+	found = g_list_remove( found, (gconstpointer) needle );
+
+	return found;
+}
+
+/* This is the callback function called whenever the GtkSearchEntry is modified
+ * by the user.
+ */
+static void
+search_changed( GtkWidget *search_entry, gpointer user_data )
+{
+	Metadata *metadata;
+	TileSource *tile_source;
+	char** field_names;
+	char *text, *field_name;
+	int i = 0;
+	GList *all_field_list = NULL;
+
+	/* Initialize GList pointers to NULL.
+	 */
+	GList *found, *found0, *found1, *s0, *s1, *t;
+	found = found0 = found1 = s0 = s1 = t = NULL;
+
+	metadata = VIPSDISP_METADATA( user_data );
+
+	g_assert( metadata->field_list );
+	g_list_free( metadata->field_list );
+	metadata->field_list = NULL;
+	metadata->field_list_length = 0;
+
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), NULL );
+	metadata->metadata_grid = GTK_GRID( gtk_grid_new() );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), GTK_WIDGET( metadata->metadata_grid ) );
+
+	found = NULL;
+
+	tile_source = image_window_get_tile_source( metadata->win );
+
+	field_names = vips_image_get_fields( tile_source->image );
+
+	while ( (field_name = field_names[i++]) )
+		all_field_list = g_list_append( all_field_list, field_name );
+		
+	text = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
+
+	found = find_strings_with_substring( all_field_list, (gchar *) text );
+
+	if ( ! g_list_length( found ) )
+		return;
+
+	/* Sort by increasing k, the number of errors.
+	 */
+	found = g_list_sort( found, match_list_compare );
+
+	/* Get two GLists of GLists - one with the k=0 matches, and another with
+	 * the k>0 matches.
+	 */
+	while ( found ) {
+		t = (GList *) found->data;
+		s0 = s1 = NULL;
+
+		while ( t ) {
+			Match *match = (Match *) t->data;
+			if ( match ) {
+				if ( match->k )
+					s1 = g_list_append( s1, match );
+				else
+					s0 = g_list_append( s0, match );
+				t = t->next;
+			}
+		}
+
+		if ( s0 )
+			found0 = g_list_append( found0, s0 );
+
+		if ( s1 )
+			found1 = g_list_append( found1, s1 );
+
+		found = found->next;
+	}
+
+
+	/* Add the exact (k=0) matches, if any. These will have markup.
+	 */
+	if ( g_list_length( found0 ) )
+		g_list_foreach( found0, append_markup_field_name, metadata );
+
+	/* If there are no exact matches, then add the fuzzy (k>0) matches, if
+	 * any. These will not have markup.
+	 */
+	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
+		g_list_foreach( found1, append_field_name, metadata );
+}
+ 
+static void
+metadata_init( Metadata *metadata )
+{
+	GtkWidget *revealer;
+
+#ifdef DEBUG
+	printf( "metadata_init:\n" );
+#endif
+
+	gtk_widget_init_template( GTK_WIDGET( metadata ) );
+
+	/* Connect signals to child widgets of the Metadata widget.
+	 *
+	 * error_response: controls the error_bar, which displays VIPS errors
+	 * 	that may occur.
+	 *
+	 * close_button_cb: closes the metadata widget.
+	 *
+	 * apply_button_pressed: applies the changes the user made to metadata.
+	 *
+	 * TODO: make names more uniform.
+	 * TODO: prompt user to save unsaved changes on close.
+	 */
+	g_signal_connect_object( metadata->error_bar, "response", 
+		G_CALLBACK( metadata_error_response ), metadata, 0 );
+	g_signal_connect( metadata->metadata_close_button, "clicked",
+		G_CALLBACK( metadata_close_button_cb ), metadata );
+	g_signal_connect( metadata->metadata_apply_button, "clicked",
+		G_CALLBACK( on_metadata_apply_button_pressed ), metadata );
+
+	/* We want the Metadata widget label to be bold, so we need to use
+	 * markup instead of plain text, which means we have to do it here
+	 * instead of in the .ui file. 
+	 */
+	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ),
+		"<b>Metadata</b>");
+
+	/* The only child of the metadata widget is a GtkSearchBar. The static
+	 * parts of the metadata widget are defined in gtk/metadata.ui.
+	 */
+	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( metadata->metadata_search_bar ), TRUE );
+
+	/* The first child of a GtkSearchBar is a GtkRevealer. This is not the
+	 * same as the child accessible through the GtkSearchBar API via
+	 * gtk_search_bar_get_child.
+	 */
+	revealer = gtk_widget_get_first_child( GTK_WIDGET( metadata->metadata_search_bar ) );
+
+	gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
+		GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT );
+
+	/* The metadata window is initially hidden.
+	 */
+	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
+
+	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
+	 * providing user input text for the search query.
+	 */
+	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( metadata->metadata_search_bar ),
+		GTK_EDITABLE( metadata->metadata_search_entry ) );
+
+	/* Connect the handler that gets called when the user modifies the
+	 * search query.
+	 */
+	g_signal_connect( metadata->metadata_search_entry,
+		"search-changed",
+		G_CALLBACK( search_changed ), metadata );
+}
+
+#define BIND( field ) \
+	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
+		Metadata, field );
+
+static void
+metadata_class_init( MetadataClass *class )
+{
+	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
+
+#ifdef DEBUG
+	printf( "metadata_class_init:\n" );
+#endif
+
+	gobject_class->dispose = metadata_dispose;
+
+	gtk_widget_class_set_layout_manager_type( widget_class, 
+		GTK_TYPE_BIN_LAYOUT );
+	gtk_widget_class_set_template_from_resource( widget_class,
+		APP_PATH "/metadata.ui");
+
+	BIND( error_bar );
+	BIND( error_label );
+	BIND( metadata_label );
+	BIND( metadata_close_button );
+	BIND( metadata_apply_button );
+	BIND( metadata_window );
+	BIND( metadata_search_bar );
+	BIND( metadata_search_entry );
+
+	gobject_class->set_property = metadata_set_property;
+	gobject_class->get_property = metadata_get_property;
+
+	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
+		g_param_spec_object( "image-window",
+			_( "Image window" ),
+			_( "The image window we display" ),
+			IMAGE_WINDOW_TYPE,
+			G_PARAM_READWRITE ) );
+}
+
+Metadata *
+metadata_new( ImageWindow *win )
+{
+	Metadata *metadata;
+
+#ifdef DEBUG
+	printf( "metadata_new:\n" );
+#endif
+
+	metadata = g_object_new( metadata_get_type(),
+		"image-window", win,
+		NULL );
+
+	return metadata;
+}
+
+////

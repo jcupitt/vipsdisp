@@ -13,6 +13,10 @@ TileSource *image_window_get_tile_source( ImageWindow *win );
 void image_window_set_tile_source( ImageWindow *win, TileSource *tile_source );
 void image_window_get_mouse_position( ImageWindow *win, 
 	double *image_x, double *image_y );
+GtkWidget *image_window_get_main_box( ImageWindow *win );
+int image_window_get_og_width( ImageWindow *win );
+int image_window_get_og_height( ImageWindow *win );
+GSettings *image_window_get_settings( ImageWindow *win );
 
 #endif /* __IMAGE_WINDOW_H */
 

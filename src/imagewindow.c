@@ -1329,8 +1329,7 @@ image_window_reset( GSimpleAction *action,
 			NULL );
 }
 
-#define BIGGER 1.9
-#define SHORT_WAIT_MS 200
+#define SHORT_WAIT_MS 100
 
 /* This function is called when the Metadata widget visibility is toggled
  * on/off by clicking "Metadata" in the dropdown menu. The visibility is
@@ -1355,7 +1354,6 @@ image_window_metadata( GSimpleAction *action,
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	int width, height;
-	GtkWidget *revealer;
 
 	/* We only want to show the Metadata widget if an image is actually
 	 * loaded.
@@ -1379,46 +1377,21 @@ image_window_metadata( GSimpleAction *action,
 			win->og_height = height;
 		}
 
-		/* The Metadata widget win->metadata is a GtkSearchBar. The
-		 * first child of every GtkSearchBar is a GtkRevealer. We use
-		 * the revealer to give the entry/exit of the Metadata widget a
-		 * sliding animation.
-		 */
-		revealer = gtk_widget_get_first_child( win->metadata );
-
 		/* If the user click toggled the "metadata" GSetting to TRUE,
-		 * then the ImageWindow must be expanded Metadata widget must be revealed.
+		 * then the ImageWindow must be expanded Metadata widget must
+		 * be revealed.
 		 */
 		if ( g_variant_get_boolean( state ) ) {
-			/* The width of the ImageWindow is increased to
-			 * accomodate the metadata widget
+			/* Show the metadata widget.
 			 */
-			gtk_window_set_default_size( GTK_WINDOW( win ),
-				BIGGER * width, height );
+			metadata_show( VIPSDISP_METADATA( win->metadata ) );
 
-			/* The metadata window should be ready to go, since its
-			 * grid of input widgets is updated whenever a new
-			 * VipsImage is loaded.
-			 */
-			gtk_widget_show( win->metadata );
-
-			/* Use a sliding animation to show the metadata widget.
-			 */
-			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
-				TRUE );
-
-			gtk_widget_grab_focus( GTK_WIDGET( win->imagedisplay ) );
+			//gtk_widget_grab_focus( GTK_WIDGET( win->imagedisplay ) );
 		}
 		else if ( gtk_widget_get_visible( win->metadata ) ) {
-			/* Use a sliding animation to hide the metadata widget.
+			/* Hide the metadata widget.
 			 */
-			gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ),
-				FALSE );
-			/* Shrink the ImageWindow back to its original size,
-			 * after a short wait.
-			 */
-			g_timeout_add( SHORT_WAIT_MS ,
-				(GSourceFunc) shrink_window, win->metadata );
+			metadata_hide( VIPSDISP_METADATA( win->metadata ) );
 		}
 
 		g_simple_action_set_state( action, state );
@@ -1700,6 +1673,27 @@ TileSource *
 image_window_get_tile_source( ImageWindow *win )
 {
 	return( win->tile_source );
+}
+
+GtkWidget *
+image_window_get_main_box( ImageWindow *win )
+{
+	return( win->main_box );
+}
+
+int image_window_get_og_width( ImageWindow *win )
+{
+	return( win->og_width );
+}
+
+int image_window_get_og_height( ImageWindow *win )
+{
+	return( win->og_height );
+}
+
+GSettings *image_window_get_settings( ImageWindow *win )
+{
+	return( win->settings );
 }
 
 void
