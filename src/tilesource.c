@@ -322,8 +322,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
 
 		for( page = 0; page < n_pages; page++ ) 
 			if( vips_crop( image, &t[page], 
-				0, page * page_height, 
-				page_width, page_height, 
+				0, page * page_height, page_width, page_height, 
 				NULL ) ) {
 				VIPS_UNREF( context );
 				VIPS_UNREF( image );
@@ -503,9 +502,8 @@ tile_source_n_colour(VipsImage *image)
     }
 }
 
-
-/* Build the second half of the image pipeline. The image can be sRGB or a
- * high-precision scRGB image.
+/* Build the second half of the image pipeline. This ends with an rgb image we
+ * can make textures from.
  */
 static VipsImage *
 tile_source_rgb_image( TileSource *tile_source, VipsImage *in ) 
@@ -517,6 +515,11 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 	image = in;
 	g_object_ref( image ); 
+
+	/* The image interpretation might be crazy (eg. a mono image tagged as
+	 * srgb) and that'll mess up our rules for display.
+	 */
+	image->Type = vips_image_guess_interpretation( image );
 
 	/* We don't want vis controls to touch alpha ... remove and reattach at 
 	 * the end.
