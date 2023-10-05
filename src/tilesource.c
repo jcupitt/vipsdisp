@@ -1876,8 +1876,8 @@ tile_source_get_base_image( TileSource *tile_source )
 }
 
 gboolean
-tile_source_get_pixel( TileSource *tile_source, 
-	double **vector, int *n, int x, int y )
+tile_source_get_pixel( TileSource *tile_source, int image_x, int image_y,
+	double **vector, int *n )
 {
 	if( !tile_source->loaded ||
 		!tile_source->image )
@@ -1886,21 +1886,22 @@ tile_source_get_pixel( TileSource *tile_source,
 	/* x and y are in base image coordinates, so we need to scale by the
 	 * current z.
 	 */
-	x /= 1 << tile_source->current_z;
-	y /= 1 << tile_source->current_z;
+	image_x /= 1 << tile_source->current_z;
+	image_y /= 1 << tile_source->current_z;
 
 	/* Block outside the image.
 	 */
-	if( x < 0 || 
-		y < 0 || 
-		x >= tile_source->display->Xsize ||
-		y >= tile_source->display->Ysize )
+	if( image_x < 0 || 
+		image_y < 0 || 
+		image_x >= tile_source->display->Xsize ||
+		image_y >= tile_source->display->Ysize )
 		return( FALSE );
 
 	/* The ->display image is cached in a sink screen, so this will be 
 	 * reasonably quick, even for things like svg and pdf.
 	 */
-	if( vips_getpoint( tile_source->display, vector, n, x, y, NULL ) )
+	if( vips_getpoint( tile_source->display, 
+		vector, n, image_x, image_y, NULL ) )
 		return( FALSE );
 
 	return( TRUE );

@@ -1611,3 +1611,4 @@ image_window_get_mouse_position( ImageWindow *win,
 	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
 		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
 }
+
