@@ -322,8 +322,7 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
 
 		for( page = 0; page < n_pages; page++ ) 
 			if( vips_crop( image, &t[page], 
-				0, page * page_height, 
-				page_width, page_height, 
+				0, page * page_height, page_width, page_height, 
 				NULL ) ) {
 				VIPS_UNREF( context );
 				VIPS_UNREF( image );
@@ -503,9 +502,8 @@ tile_source_n_colour(VipsImage *image)
     }
 }
 
-
-/* Build the second half of the image pipeline. The image can be sRGB or a
- * high-precision scRGB image.
+/* Build the second half of the image pipeline. This ends with an rgb image we
+ * can make textures from.
  */
 static VipsImage *
 tile_source_rgb_image( TileSource *tile_source, VipsImage *in ) 
@@ -517,6 +515,11 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 	image = in;
 	g_object_ref( image ); 
+
+	/* The image interpretation might be crazy (eg. a mono image tagged as
+	 * srgb) and that'll mess up our rules for display.
+	 */
+	image->Type = vips_image_guess_interpretation( image );
 
 	/* We don't want vis controls to touch alpha ... remove and reattach at 
 	 * the end.
@@ -1873,8 +1876,8 @@ tile_source_get_base_image( TileSource *tile_source )
 }
 
 gboolean
-tile_source_get_pixel( TileSource *tile_source, 
-	double **vector, int *n, int x, int y )
+tile_source_get_pixel( TileSource *tile_source, int image_x, int image_y,
+	double **vector, int *n )
 {
 	if( !tile_source->loaded ||
 		!tile_source->image )
@@ -1883,21 +1886,22 @@ tile_source_get_pixel( TileSource *tile_source,
 	/* x and y are in base image coordinates, so we need to scale by the
 	 * current z.
 	 */
-	x /= 1 << tile_source->current_z;
-	y /= 1 << tile_source->current_z;
+	image_x /= 1 << tile_source->current_z;
+	image_y /= 1 << tile_source->current_z;
 
 	/* Block outside the image.
 	 */
-	if( x < 0 || 
-		y < 0 || 
-		x >= tile_source->display->Xsize ||
-		y >= tile_source->display->Ysize )
+	if( image_x < 0 || 
+		image_y < 0 || 
+		image_x >= tile_source->display->Xsize ||
+		image_y >= tile_source->display->Ysize )
 		return( FALSE );
 
 	/* The ->display image is cached in a sink screen, so this will be 
 	 * reasonably quick, even for things like svg and pdf.
 	 */
-	if( vips_getpoint( tile_source->display, vector, n, x, y, NULL ) )
+	if( vips_getpoint( tile_source->display, 
+		vector, n, image_x, image_y, NULL ) )
 		return( FALSE );
 
 	return( TRUE );
