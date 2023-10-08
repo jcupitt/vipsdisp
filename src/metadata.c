@@ -8,22 +8,17 @@ struct _Metadata
 {
 	GtkWidget parent_instance;
 
-	/* The imagewindow whose info we display.
-	 */
-	ImageWindow *win;
+	ImageWindow *image_window;
 
-	// the error indicator we show
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
-
 	GtkWidget *metadata_label;
-	GtkWidget *metadata_close_button;
-	GtkWidget *metadata_apply_button;
-	GtkWidget *metadata_window;
-	GtkWidget *metadata_search_bar;
-	GtkWidget *metadata_search_entry;
+	GtkWidget *close;
+	GtkWidget *scrolled_window;
+	GtkWidget *search_bar;
+	GtkWidget *search_entry;
 	
-	GtkGrid *metadata_grid;
+	GtkGrid *grid;
 	GList *field_list;
 	int field_list_length;
 };
@@ -334,7 +329,7 @@ create_input( VipsImage *image, char* field_name )
 }
 
 GtkGrid *
-create_input_grid( Metadata *metadata )
+create_input_grid( Metadata *m )
 {
 	GtkWidget *label, *input;
 	GtkGrid *grid;
@@ -343,20 +338,20 @@ create_input_grid( Metadata *metadata )
 	char **field_names;
 	int i = 0;
 
-	tile_source = image_window_get_tile_source( metadata->win );
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	field_names = vips_image_get_fields( tile_source->image );
 
 	while ( (field_name = field_names[i++]) )
-		metadata->field_list = g_list_append( metadata->field_list, field_name );
+		m->field_list = g_list_append( m->field_list, field_name );
 
-	metadata->field_list_length = g_list_length( metadata->field_list );
+	m->field_list_length = g_list_length( m->field_list );
 
 	grid = GTK_GRID( gtk_grid_new() );
 
 	i = 0;
 
-	while ( (field_name = g_list_nth_data( metadata->field_list, i )) ) {
+	while ( (field_name = g_list_nth_data( m->field_list, i )) ) {
 		label = gtk_label_new( field_name );	
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
 		input = create_input( tile_source->image, field_name );
@@ -369,10 +364,10 @@ create_input_grid( Metadata *metadata )
 
 /* This is called when the TileSource changes. In particular, a new VipsImage
  * might have been loaded, or there might no image loaded. Destroy and - if
- * needed - recreate the metadata_grid.
+ * needed - recreate the grid.
  */
 static void
-metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata ) 
+metadata_tile_source_changed( TileSource *tile_source, Metadata *m ) 
 {
 #ifdef DEBUG
 	printf( "metadata_tile_source_changed:\n" ); 
@@ -387,50 +382,48 @@ metadata_tile_source_changed( TileSource *tile_source, Metadata *metadata )
 		 * widget - to dynamically create a GtkGrid of user input
 		 * widgets for viewing and editing image metadata.
 		 */
-		metadata->metadata_grid = create_input_grid( metadata );
+		m->grid = create_input_grid( m );
 
 		/* We make this grid scrollable by putting it in a
 		 * GtkScrolledWindow.
 	 	 */
 		gtk_scrolled_window_set_child(
-			GTK_SCROLLED_WINDOW( metadata->metadata_window),
-			GTK_WIDGET( metadata->metadata_grid ) );
+			GTK_SCROLLED_WINDOW( m->scrolled_window),
+			GTK_WIDGET( m->grid ) );
 	}
 }
 
 /* ImageWindow has a new TileSource.
  */
 static void
-metadata_image_window_changed( ImageWindow *win, Metadata *metadata )
+metadata_image_window_changed( ImageWindow *image_window, Metadata *m )
 {
-	TileSource *tile_source = image_window_get_tile_source( win );
+	TileSource *tile_source = image_window_get_tile_source( image_window );
 
 	g_signal_connect_object( tile_source, "changed",
 		G_CALLBACK( metadata_tile_source_changed ),
-		metadata, 0 );
+		m, 0 );
 }
 
 static void
-metadata_set_image_window( Metadata *metadata, ImageWindow *win )
+metadata_set_image_window( Metadata *m, ImageWindow *image_window )
 {
-	/* No need to ref ... win holds ref to us.
-	 */
-	metadata->win = win;
+	m->image_window = image_window;
 
-	g_signal_connect_object( win, "changed",
+	g_signal_connect_object( image_window, "changed",
 		G_CALLBACK( metadata_image_window_changed ),
-		metadata, 0 );
+		m, 0 );
 }
 
 static void
 metadata_set_property( GObject *object,
 	guint prop_id, const GValue *value, GParamSpec *pspec )
 {
-	Metadata *metadata = (Metadata *) object;
+	Metadata *m = (Metadata *) object;
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		metadata_set_image_window( metadata,
+		metadata_set_image_window( m,
 			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
 		break;
 	default:
@@ -442,11 +435,11 @@ static void
 metadata_get_property( GObject *object,
 	guint prop_id, GValue *value, GParamSpec *pspec )
 {
-	Metadata *metadata = (Metadata *) object;
+	Metadata *m = (Metadata *) object;
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		g_value_set_object( value, metadata->win );
+		g_value_set_object( value, m->image_window );
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
@@ -490,24 +483,24 @@ metadata_error_response( GtkWidget *button, int response,
 gboolean
 metadata_reveal( gpointer user_data )
 {
-	Metadata *metadata;
+	Metadata *m;
 	GtkWidget *revealer;
 
-	metadata = VIPSDISP_METADATA( user_data );
-	gtk_widget_show( GTK_WIDGET( metadata ) );
-	revealer = gtk_widget_get_first_child( metadata->metadata_search_bar );
+	m = VIPSDISP_METADATA( user_data );
+	gtk_widget_show( GTK_WIDGET( m ) );
+	revealer = gtk_widget_get_first_child( m->search_bar );
 	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), TRUE );
 
 	return FALSE;
 }
 
 void
-metadata_show( Metadata *metadata )
+metadata_show( Metadata *m )
 {
 	int old_width, old_height, new_width, new_height;
 	GtkWidget *search_bar_box, *main_box;
 
-	main_box = image_window_get_main_box( metadata->win );
+	main_box = image_window_get_main_box( m->image_window );
 
 	/* Make the metadata widget appear to the right of the image.
 	 */
@@ -520,19 +513,19 @@ metadata_show( Metadata *metadata )
 	
 	/* Get the current dimensions of the ImageWindow.
 	 */
-	gtk_window_get_default_size( GTK_WINDOW( metadata->win ), &old_width, &old_height );
+	gtk_window_get_default_size( GTK_WINDOW( m->image_window ), &old_width, &old_height );
 
 	/* The width of the ImageWindow is increased to accomodate the metadata
 	 * widget.
 	 */
-	gtk_window_set_default_size( GTK_WINDOW( metadata->win ),
+	gtk_window_set_default_size( GTK_WINDOW( m->image_window ),
 		BIGGER_X * old_width, old_height );
 	
 	/* The metadata widget is sized relative to the ImageWindow.
 	 */
 	new_width = old_width * SMALLER_X;
 	new_height = old_height * SMALLER_Y;
-	gtk_widget_set_size_request( GTK_WIDGET( metadata ), new_width, new_height );
+	gtk_widget_set_size_request( GTK_WIDGET( m ), new_width, new_height );
 
 	/* Each GtkSearchBar has a child accessible through the GtkSearchBar API
 	 * via gtk_search_bar_get_child. This child might not be a direct
@@ -542,60 +535,60 @@ metadata_show( Metadata *metadata )
 	 * contains it.
 	 */
 	search_bar_box = gtk_search_bar_get_child(
-		GTK_SEARCH_BAR( metadata->metadata_search_bar ) );
+		GTK_SEARCH_BAR( m->search_bar ) );
 
 	gtk_widget_set_size_request( search_bar_box, new_width, new_height );
 	
-	/* The metadata_window is a GtkScrolledWindow that is sized to match the
+	/* The scrolled_window is a GtkScrolledWindow that is sized to match the
 	 * search_bar_box that contains it.
 	 */
-	gtk_widget_set_size_request( metadata->metadata_window,
+	gtk_widget_set_size_request( m->scrolled_window,
 		new_width, new_height );
 
 	gtk_scrolled_window_set_max_content_width(
-		GTK_SCROLLED_WINDOW( metadata->metadata_window ), new_width );
+		GTK_SCROLLED_WINDOW( m->scrolled_window ), new_width );
 
 	gtk_scrolled_window_set_max_content_height(
-		GTK_SCROLLED_WINDOW( metadata->metadata_window ), new_height );
+		GTK_SCROLLED_WINDOW( m->scrolled_window ), new_height );
 
-	/* The metadata window should be ready to go, since its
+	/* The m window should be ready to go, since its
 	 * grid of input widgets is updated whenever a new
-	 * VipsImage is loaded. Reveal the metadata widget.
+	 * VipsImage is loaded. Reveal the m widget.
 	 */
-	metadata_reveal( metadata );
+	metadata_reveal( m );
 }
 
 gboolean
 metadata_shrink_window( gpointer user_data )
 {
-	Metadata *metadata; 
+	Metadata *m; 
 	GtkWidget *main_box;
 	int og_width, og_height;
 	GSettings *settings;
 
-	metadata = VIPSDISP_METADATA( user_data );
+	m = VIPSDISP_METADATA( user_data );
 
-	settings = image_window_get_settings( metadata->win );
+	settings = image_window_get_settings( m->image_window );
 
-	if ( !gtk_widget_get_visible( GTK_WIDGET( metadata ) ) )
+	if ( !gtk_widget_get_visible( GTK_WIDGET( m ) ) )
 		return FALSE;
 	
-	gtk_widget_set_size_request( GTK_WIDGET( metadata ), 0, 0 );
-	gtk_widget_hide( GTK_WIDGET( metadata ) );
+	gtk_widget_set_size_request( GTK_WIDGET( m ), 0, 0 );
+	gtk_widget_hide( GTK_WIDGET( m ) );
 
 	/* Restore the original orientation and alignment of the ImageWindow
 	 * main_box.
 	 */
-	main_box = image_window_get_main_box( metadata->win );
+	main_box = image_window_get_main_box( m->image_window );
 	gtk_orientable_set_orientation( GTK_ORIENTABLE( main_box ),
 		GTK_ORIENTATION_VERTICAL );
 	gtk_widget_set_valign( main_box, GTK_ALIGN_FILL );
 
 	/* Restore the original dimensions of the ImageWindow.
 	 */
-	og_width = image_window_get_og_width( metadata->win );
-	og_height = image_window_get_og_width( metadata->win );
-	gtk_window_set_default_size( GTK_WINDOW( metadata->win ),
+	og_width = image_window_get_og_width( m->image_window );
+	og_height = image_window_get_og_width( m->image_window );
+	gtk_window_set_default_size( GTK_WINDOW( m->image_window ),
 		og_width, og_height );
 
 	if ( g_settings_get_boolean( settings, "metadata" ) )
@@ -605,13 +598,13 @@ metadata_shrink_window( gpointer user_data )
 }
 
 void
-metadata_hide( Metadata *metadata )
+metadata_hide( Metadata *m )
 {
 	GtkWidget *revealer;
 
 	/* The first child of a GtkSearchBar is a GtkRevealer.
 	 */
-	revealer = gtk_widget_get_first_child( metadata->metadata_search_bar );
+	revealer = gtk_widget_get_first_child( m->search_bar );
 
 	/* Hide the metadata widget with a sliding animation.
 	 */
@@ -622,20 +615,20 @@ metadata_hide( Metadata *metadata )
 	 * show.
 	 */
 	g_timeout_add( SHORT_WAIT_MS,
-		(GSourceFunc) metadata_shrink_window, metadata );
+		(GSourceFunc) metadata_shrink_window, m );
 }
 
 static void
-metadata_close_button_cb( GtkWidget *widget, gpointer user_data )
+close_cb( GtkWidget *widget, gpointer user_data )
 {
-	Metadata *metadata; 
-	metadata = VIPSDISP_METADATA( user_data );
-	change_state( GTK_WIDGET( metadata->win ), "metadata",
+	Metadata *m; 
+	m = VIPSDISP_METADATA( user_data );
+	change_state( GTK_WIDGET( m->image_window ), "metadata",
 		g_variant_new_boolean( FALSE ) );
 }
 
 void
-on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
+metadata_apply( Metadata *m )
 {
 	GtkWidget *t, *label;
 	char *field_name;
@@ -646,18 +639,15 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 	GParamSpec *pspec;
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
-	Metadata *metadata;
 	TileSource *tile_source;
 	int row_index = 0;
 
-	metadata = VIPSDISP_METADATA( user_data );
-
-	tile_source = image_window_get_tile_source( metadata->win );
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	image = tile_source->image;
 
-	while ( (label = gtk_grid_get_child_at( metadata->metadata_grid, 0, row_index )) ) {
-		t = gtk_grid_get_child_at( metadata->metadata_grid, 1, row_index++ );
+	while ( (label = gtk_grid_get_child_at( m->grid, 0, row_index )) ) {
+		t = gtk_grid_get_child_at( m->grid, 1, row_index++ );
 		g_assert( t );
 		t = gtk_widget_get_first_child( t );
 		g_assert( t );
@@ -736,7 +726,7 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 			} else {
 				// Must be a VipsBlob then
 
-				// Ignore metadata field names that contain the substring "thumbnail"
+				// Ignore m field names that contain the substring "thumbnail"
 				if ( !strstr( field_name, "thumbnail" ) ) {
 					GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
 					const char *text = gtk_entry_buffer_get_text( buffer );
@@ -801,7 +791,7 @@ on_metadata_apply_button_pressed( GtkWidget *_button, gpointer user_data )
 		}
 	}
 
-	change_state( GTK_WIDGET( metadata->win ), "metadata",
+	change_state( GTK_WIDGET( m->image_window ), "metadata",
 		g_variant_new_boolean( FALSE ) );
 }
 
@@ -1052,7 +1042,7 @@ get_markup_from_match( GList *match )
 void
 append_field_name( gpointer data, gpointer user_data )
 {
-	Metadata *metadata;
+	Metadata *m;
 	GList *match_list;
 	GtkWidget *label, *input;
 	Match *first_match;
@@ -1061,24 +1051,24 @@ append_field_name( gpointer data, gpointer user_data )
 	match_list = (GList *) data;
 	first_match = (Match *) match_list->data;
 
-	metadata = VIPSDISP_METADATA( user_data );
-	metadata->field_list = g_list_append( metadata->field_list, first_match->text );
+	m = VIPSDISP_METADATA( user_data );
+	m->field_list = g_list_append( m->field_list, first_match->text );
 
 	label = gtk_label_new( first_match->text );	
-	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
+	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
-	tile_source = image_window_get_tile_source( metadata->win );
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	if ( (input = create_input( tile_source->image, first_match->text )) ) {
-		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
-		metadata->field_list_length++;
+		gtk_grid_attach( m->grid, input, 1, m->field_list_length, 1, 1 );
+		m->field_list_length++;
 	}
 }
 
 void
 append_markup_field_name( gpointer data, gpointer user_data )
 {
-	Metadata *metadata;
+	Metadata *m;
 	gchar *markup;
 	GString *field_name;
 	GList *match_list;
@@ -1087,23 +1077,23 @@ append_markup_field_name( gpointer data, gpointer user_data )
 
 	match_list = (GList *) data;
 	markup = get_markup_from_match( match_list );
-	metadata = VIPSDISP_METADATA( user_data );
-	metadata->field_list = g_list_append( metadata->field_list, markup );
+	m = VIPSDISP_METADATA( user_data );
+	m->field_list = g_list_append( m->field_list, markup );
 
 	label = gtk_label_new( NULL );	
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
-	gtk_grid_attach( metadata->metadata_grid, label, 0, metadata->field_list_length, 1, 1 );
+	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
 	field_name = g_string_new( markup );
 	g_string_replace( field_name, "<b>", "", 0 );
 	g_string_replace( field_name, "</b>", "", 0 );
 
-	tile_source = image_window_get_tile_source( metadata->win );
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	if ( (input = create_input( tile_source->image, field_name->str )) ) {
-		gtk_grid_attach( metadata->metadata_grid, input, 1, metadata->field_list_length, 1, 1 );
-		metadata->field_list_length++;
+		gtk_grid_attach( m->grid, input, 1, m->field_list_length, 1, 1 );
+		m->field_list_length++;
 	}
 }
 
@@ -1167,7 +1157,7 @@ find_strings_with_substring( GList *haystacks, gchar *needle )
 static void
 search_changed( GtkWidget *search_entry, gpointer user_data )
 {
-	Metadata *metadata;
+	Metadata *m;
 	TileSource *tile_source;
 	char** field_names;
 	char *text, *field_name;
@@ -1179,20 +1169,20 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	GList *found, *found0, *found1, *s0, *s1, *t;
 	found = found0 = found1 = s0 = s1 = t = NULL;
 
-	metadata = VIPSDISP_METADATA( user_data );
+	m = VIPSDISP_METADATA( user_data );
 
-	g_assert( metadata->field_list );
-	g_list_free( metadata->field_list );
-	metadata->field_list = NULL;
-	metadata->field_list_length = 0;
+	g_assert( m->field_list );
+	g_list_free( m->field_list );
+	m->field_list = NULL;
+	m->field_list_length = 0;
 
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), NULL );
-	metadata->metadata_grid = GTK_GRID( gtk_grid_new() );
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( metadata->metadata_window ), GTK_WIDGET( metadata->metadata_grid ) );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( m->scrolled_window ), NULL );
+	m->grid = GTK_GRID( gtk_grid_new() );
+	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( m->scrolled_window ), GTK_WIDGET( m->grid ) );
 
 	found = NULL;
 
-	tile_source = image_window_get_tile_source( metadata->win );
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	field_names = vips_image_get_fields( tile_source->image );
 
@@ -1241,17 +1231,17 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	/* Add the exact (k=0) matches, if any. These will have markup.
 	 */
 	if ( g_list_length( found0 ) )
-		g_list_foreach( found0, append_markup_field_name, metadata );
+		g_list_foreach( found0, append_markup_field_name, m );
 
 	/* If there are no exact matches, then add the fuzzy (k>0) matches, if
 	 * any. These will not have markup.
 	 */
 	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
-		g_list_foreach( found1, append_field_name, metadata );
+		g_list_foreach( found1, append_field_name, m );
 }
  
 static void
-metadata_init( Metadata *metadata )
+metadata_init( Metadata *m )
 {
 	GtkWidget *revealer;
 
@@ -1259,7 +1249,7 @@ metadata_init( Metadata *metadata )
 	printf( "metadata_init:\n" );
 #endif
 
-	gtk_widget_init_template( GTK_WIDGET( metadata ) );
+	gtk_widget_init_template( GTK_WIDGET( m ) );
 
 	/* Connect signals to child widgets of the Metadata widget.
 	 *
@@ -1268,35 +1258,31 @@ metadata_init( Metadata *metadata )
 	 *
 	 * close_button_cb: closes the metadata widget.
 	 *
-	 * apply_button_pressed: applies the changes the user made to metadata.
-	 *
 	 * TODO: make names more uniform.
 	 * TODO: prompt user to save unsaved changes on close.
 	 */
-	g_signal_connect_object( metadata->error_bar, "response", 
-		G_CALLBACK( metadata_error_response ), metadata, 0 );
-	g_signal_connect( metadata->metadata_close_button, "clicked",
-		G_CALLBACK( metadata_close_button_cb ), metadata );
-	g_signal_connect( metadata->metadata_apply_button, "clicked",
-		G_CALLBACK( on_metadata_apply_button_pressed ), metadata );
+	g_signal_connect_object( m->error_bar, "response", 
+		G_CALLBACK( metadata_error_response ), m, 0 );
+	g_signal_connect( m->close, "clicked",
+		G_CALLBACK( close_cb ), m );
 
 	/* We want the Metadata widget label to be bold, so we need to use
 	 * markup instead of plain text, which means we have to do it here
 	 * instead of in the .ui file. 
 	 */
-	gtk_label_set_markup( GTK_LABEL( metadata->metadata_label ),
+	gtk_label_set_markup( GTK_LABEL( m->metadata_label ),
 		"<b>Metadata</b>");
 
 	/* The only child of the metadata widget is a GtkSearchBar. The static
 	 * parts of the metadata widget are defined in gtk/metadata.ui.
 	 */
-	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( metadata->metadata_search_bar ), TRUE );
+	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( m->search_bar ), TRUE );
 
 	/* The first child of a GtkSearchBar is a GtkRevealer. This is not the
 	 * same as the child accessible through the GtkSearchBar API via
 	 * gtk_search_bar_get_child.
 	 */
-	revealer = gtk_widget_get_first_child( GTK_WIDGET( metadata->metadata_search_bar ) );
+	revealer = gtk_widget_get_first_child( GTK_WIDGET( m->search_bar ) );
 
 	gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
 		GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT );
@@ -1308,15 +1294,15 @@ metadata_init( Metadata *metadata )
 	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
 	 * providing user input text for the search query.
 	 */
-	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( metadata->metadata_search_bar ),
-		GTK_EDITABLE( metadata->metadata_search_entry ) );
+	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( m->search_bar ),
+		GTK_EDITABLE( m->search_entry ) );
 
 	/* Connect the handler that gets called when the user modifies the
 	 * search query.
 	 */
-	g_signal_connect( metadata->metadata_search_entry,
+	g_signal_connect( m->search_entry,
 		"search-changed",
-		G_CALLBACK( search_changed ), metadata );
+		G_CALLBACK( search_changed ), m );
 }
 
 #define BIND( field ) \
@@ -1343,11 +1329,10 @@ metadata_class_init( MetadataClass *class )
 	BIND( error_bar );
 	BIND( error_label );
 	BIND( metadata_label );
-	BIND( metadata_close_button );
-	BIND( metadata_apply_button );
-	BIND( metadata_window );
-	BIND( metadata_search_bar );
-	BIND( metadata_search_entry );
+	BIND( close );
+	BIND( scrolled_window );
+	BIND( search_bar );
+	BIND( search_entry );
 
 	gobject_class->set_property = metadata_set_property;
 	gobject_class->get_property = metadata_get_property;
@@ -1361,19 +1346,19 @@ metadata_class_init( MetadataClass *class )
 }
 
 Metadata *
-metadata_new( ImageWindow *win )
+metadata_new( ImageWindow *image_window )
 {
-	Metadata *metadata;
+	Metadata *m;
 
 #ifdef DEBUG
 	printf( "metadata_new:\n" );
 #endif
 
-	metadata = g_object_new( metadata_get_type(),
-		"image-window", win,
+	m = g_object_new( metadata_get_type(),
+		"image-window", image_window,
 		NULL );
 
-	return metadata;
+	return m;
 }
 
 ////

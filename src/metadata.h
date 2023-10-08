@@ -12,8 +12,9 @@ Metadata *metadata_new( ImageWindow *win );
 
 gboolean metadata_shrink_window( gpointer user_data );
 
-void metadata_show( Metadata *metadata );
-void metadata_hide( Metadata *metadata );
+void metadata_show( Metadata *m );
+void metadata_hide( Metadata *m );
+void metadata_apply( Metadata *m );
 
 #endif /* __METADATA_H */
 

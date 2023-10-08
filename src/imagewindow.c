@@ -642,11 +642,11 @@ image_window_saveas_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkWidget *file_chooser;
+	GFile *file;
 
 	if( win->tile_source ) {
-		GtkWidget *file_chooser;
-		GFile *file;
-
+		metadata_apply( VIPSDISP_METADATA( win->metadata ) );
 		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
 			GTK_FILE_CHOOSER_ACTION_SAVE,
