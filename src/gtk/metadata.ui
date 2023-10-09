@@ -15,11 +15,6 @@
                     <property name="label">Metadata</property>
                   </object>
                 </property>
-                <child type="start">
-                  <object class="GtkButton" id="close">
-                    <property name="label">Close</property>
-                  </object>
-                </child>
               </object>
             </child>
     

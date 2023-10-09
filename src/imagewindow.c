@@ -511,6 +511,9 @@ image_window_duplicate_action( GSimpleAction *action,
 	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
 
+	win->og_width = width;
+	win->og_height = height;
+
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "metadata" );
@@ -1352,50 +1355,19 @@ static void
 image_window_metadata( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	int width, height;
+	ImageWindow *win;
 
-	/* We only want to show the Metadata widget if an image is actually
-	 * loaded.
-	 */
-	if ( win->tile_source && win->tile_source->image ) {
-		/* The ImageWindow will grow or shrink depending on whether
-		 * whether the metadata widget is being shown or hidden.
-		 * The original width and height (og_width and og_height)
-		 * are saved once. When growing the ImageWindow new width will
-		 * be relative to the original width.
-		 *
-		 * TODO: Update og_width and og_height when the user resizes
-		 * 	the ImageWindow.
-		 *
-		 * TODO: Do something nicer than multiplying by constant
-		 * 	factors.
-		 */
-		gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
-		if ( !win->og_width || !win->og_height) {
-			win->og_width = width;
-			win->og_height = height;
-		}
+#ifdef DEBUG
+	puts("image_window_metadata");
+#endif
 
-		/* If the user click toggled the "metadata" GSetting to TRUE,
-		 * then the ImageWindow must be expanded Metadata widget must
-		 * be revealed.
-		 */
-		if ( g_variant_get_boolean( state ) ) {
-			/* Show the metadata widget.
-			 */
-			metadata_show( VIPSDISP_METADATA( win->metadata ) );
+	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-			//gtk_widget_grab_focus( GTK_WIDGET( win->imagedisplay ) );
-		}
-		else if ( gtk_widget_get_visible( win->metadata ) ) {
-			/* Hide the metadata widget.
-			 */
-			metadata_hide( VIPSDISP_METADATA( win->metadata ) );
-		}
+	g_object_set( win->metadata,
+		"revealed", g_variant_get_boolean( state ),
+		NULL );
 
-		g_simple_action_set_state( action, state );
-	}
+	g_simple_action_set_state( action, state );
 }
 
 
@@ -1438,7 +1410,10 @@ image_window_init( ImageWindow *win )
 {
 	GtkEventController *controller;
 
-	win->og_width = win->og_height = 0;
+#ifdef DEBUG
+	puts("image_window_init");
+#endif
+
 	win->progress_timer = g_timer_new();
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
@@ -1446,6 +1421,9 @@ image_window_init( ImageWindow *win )
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
+	gtk_window_get_default_size( GTK_WINDOW( win ),
+		&win->og_width, &win->og_height );
+	
 	g_object_set( win->display_bar,
 		"image-window", win,
 		NULL );
@@ -1514,7 +1492,7 @@ image_window_init( ImageWindow *win )
 
 	g_settings_bind( win->settings, "metadata",
 		G_OBJECT( win->metadata ),
-		"visible", 
+		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
 	/* Initial menu state from settings.
@@ -1525,6 +1503,7 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "info" ) );
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
+
 }
 
 static void
