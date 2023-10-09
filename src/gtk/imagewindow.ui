@@ -92,7 +92,7 @@
         <attribute name="action">win.info</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">Metadata</attribute>
+        <attribute name="label" translatable="yes">Properties</attribute>
         <attribute name="action">win.metadata</attribute>
       </item>
     </section>

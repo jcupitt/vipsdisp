@@ -12,7 +12,7 @@
                 <property name="title-widget">
                   <object class="GtkLabel" id="metadata_label">
                     <property name="use-markup">true</property>
-                    <property name="label">Metadata</property>
+                    <property name="label">Properties</property>
                   </object>
                 </property>
               </object>

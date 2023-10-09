@@ -1252,10 +1252,11 @@ search_changed( GtkWidget *search_entry, gpointer user_data )
 	if ( !g_list_length( found0 ) && g_list_length( found1 ) )
 		g_list_foreach( found1, append_field_name, m );
 }
- 
+
 static void
 metadata_init( Metadata *m )
 {
+	char *s;
 	GtkWidget *revealer;
 
 #ifdef DEBUG
@@ -1272,12 +1273,12 @@ metadata_init( Metadata *m )
 	g_signal_connect_object( m->error_bar, "response", 
 		G_CALLBACK( metadata_error_response ), m, 0 );
 
-	/* We want the Metadata widget label to be bold, so we need to use
-	 * markup instead of plain text, which means we have to do it here
-	 * instead of in the .ui file. 
+	/* Make the Metadata widget title bold.
 	 */
-	gtk_label_set_markup( GTK_LABEL( m->metadata_label ),
-		"<b>Metadata</b>");
+	s = g_strdup_printf( "<b>%s</b>", gtk_label_get_label(
+				GTK_LABEL( m->metadata_label ) )  );
+	gtk_label_set_markup( GTK_LABEL( m->metadata_label ), s );
+	g_free( s );
 
 	/* The only child of the metadata widget is a GtkSearchBar. The static
 	 * parts of the metadata widget are defined in gtk/metadata.ui.
