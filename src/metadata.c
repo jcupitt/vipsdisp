@@ -47,6 +47,62 @@ metadata_dispose( GObject *object )
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
 }
 
+static void
+spin_button_step( GtkSpinButton *s, gboolean up )
+{
+	double value, step;
+
+	value = gtk_spin_button_get_value( s );
+	gtk_spin_button_get_increments( s, &step, NULL );
+	gtk_spin_button_set_value( s, up ? value + step : value - step);
+}
+
+gboolean
+event_scroll_cb_timeout_cb_up( gpointer user_data )
+{
+	spin_button_step( GTK_SPIN_BUTTON( user_data ), TRUE );
+	return FALSE;
+}
+
+gboolean
+event_scroll_cb_timeout_cb_down( gpointer user_data )
+{
+	spin_button_step( GTK_SPIN_BUTTON( user_data ), FALSE );
+	return FALSE;
+}
+
+static void
+event_scroll_cb( GtkEventController *_ec, gdouble dx, gdouble dy, gpointer user_data )
+{
+	GtkSpinButton *s;
+	double value, min, max;
+
+	s = GTK_SPIN_BUTTON( user_data );
+	value = gtk_spin_button_get_value( s );
+	gtk_spin_button_get_range( s, &min, &max );
+	if ( dy > 0 && value != min )
+		g_timeout_add( 0, (GSourceFunc) event_scroll_cb_timeout_cb_up, s );
+	else if ( dy < 0 && value != max )
+		g_timeout_add( 0, (GSourceFunc) event_scroll_cb_timeout_cb_down, s );
+}
+
+GtkWidget *
+create_no_scroll_spin_button( GtkWidget *parent, double min, double max,
+		double step, double default_value )
+{
+	GtkWidget *t;
+	GtkEventController *ec;
+
+	t = gtk_spin_button_new_with_range( min, max, step );
+	gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), default_value );
+	ec = gtk_event_controller_scroll_new( GTK_EVENT_CONTROLLER_SCROLL_VERTICAL );
+	gtk_event_controller_set_propagation_phase( ec, GTK_PHASE_CAPTURE );
+	g_signal_connect( ec, "scroll", G_CALLBACK( event_scroll_cb ), t );
+	gtk_widget_add_controller( t, ec );
+
+	return t;
+}
+
 GtkWidget  *
 create_input( VipsImage *image, char* field_name )
 {
@@ -56,6 +112,8 @@ create_input( VipsImage *image, char* field_name )
 	GParamSpec *pspec;
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
+
+	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
 
 	/* It is crucial to zero the GValue whose address we pass to
 	 * vips_image_get. Otherwise, we will get runtime errors.
@@ -104,83 +162,51 @@ create_input( VipsImage *image, char* field_name )
 
 			t = gtk_text_new_with_buffer( buffer );
 		} else if ( type == G_TYPE_ENUM ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXINT + 1, G_MAXINT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_INT ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXINT + 1, G_MAXINT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_UINT ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, 0, G_MAXUINT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_INT64 ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXINT64 + 1, G_MAXINT64, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_UINT64 ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, 0, G_MAXUINT64, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_LONG ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXINT + 1, G_MAXINT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_ULONG ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
-		} else if ( type == G_TYPE_BOOLEAN ) {
-			t = gtk_check_button_new();
-			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
-				g_value_get_boolean( &value ) );
+			t = create_no_scroll_spin_button( box, 0, G_MAXULONG, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_FLOAT ) {
-			t = gtk_spin_button_new_with_range( -G_MAXFLOAT + 1, G_MAXFLOAT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXFLOAT + 1, G_MAXFLOAT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_DOUBLE ) {
-			t = gtk_spin_button_new_with_range( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_FLAGS ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
-		} else if ( type == G_TYPE_LONG ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
-		} else if ( type == G_TYPE_ULONG ) {
-			t = gtk_spin_button_new_with_range( -G_MAXINT + 1, G_MAXINT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
+			t = create_no_scroll_spin_button( box, -G_MAXINT + 1, G_MAXINT, 1,
+					g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_BOOLEAN ) {
 			t = gtk_check_button_new();
 			gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
 				g_value_get_boolean( &value ) );
-		} else if ( type == G_TYPE_FLOAT ) {
-			t = gtk_spin_button_new_with_range( -G_MAXFLOAT + 1, G_MAXFLOAT, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
-		} else if ( type == G_TYPE_DOUBLE ) {
-			t = gtk_spin_button_new_with_range( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-				g_value_get_int( &value ) );
 		} else if ( type == G_TYPE_BOXED ) {
 			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 				/* No default values exist for ParamSpecBoxed, so make
 				 * some up for now.
 				 */
-				t = gtk_spin_button_new_with_range( 0, 1000, 1 );
-				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+				t = create_no_scroll_spin_button( box, 0, 1000, 1, 0 );
 			}
 			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
 				/* No default values exist for ParamSpecBoxed, so make
 				 * some up for now.
 				 */
-				t = gtk_spin_button_new_with_range( 0, 1000, .1 );
-				gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+				t = create_no_scroll_spin_button( box, 0, 1000, 1, .1 );
 			}
 			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
 				/* Ignore VipsImage-type parameters for now.
@@ -249,51 +275,45 @@ create_input( VipsImage *image, char* field_name )
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
-		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
-			pspec_int64->maximum, 1 );
 
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(gint64)pspec_int64->default_value );
+		t = create_no_scroll_spin_button( box, pspec_int64->minimum,
+				pspec_int64->maximum, 1,
+				pspec_int64->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
-		t = gtk_spin_button_new_with_range( pspec_int->minimum,
-			pspec_int->maximum, 1 );
 
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(int)pspec_int->default_value );
+		t = create_no_scroll_spin_button( box, pspec_int->minimum,
+				pspec_int->maximum, 1,
+				pspec_int->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
-		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
-			pspec_uint64->maximum, 1 );
 
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(guint64)pspec_uint64->default_value );
+		t = create_no_scroll_spin_button( box, pspec_uint64->minimum,
+				pspec_uint64->maximum, 1,
+				pspec_uint64->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
 
-		t = gtk_spin_button_new_with_range( pspec_double->minimum,
-			pspec_double->maximum, 1 );
-
-		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			pspec_double->default_value );
+		t = create_no_scroll_spin_button( box, pspec_double->minimum,
+				pspec_double->maximum, 1,
+				pspec_double->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 			/* No default values exist for ParamSpecBoxed, so make
 			 * some up for now.
 			 */
-			t = gtk_spin_button_new_with_range( 0, 1000, 1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+
+			t = create_no_scroll_spin_button( box, 0, 1000, 1, 0 );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
 			/* No default values exist for ParamSpecBoxed, so make
 			 * some up for now.
 			 */
-			t = gtk_spin_button_new_with_range( 0, 1000, .1 );
-			gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ), 0 );
+			t = create_no_scroll_spin_button( box, 0, 1000, .1, 0 );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
 			/* Ignore VipsImage-type parameters for now.
@@ -317,7 +337,6 @@ create_input( VipsImage *image, char* field_name )
 	 * Make the user input widget "t" fill the box horizontally.
 	 * Append that container box to the "input_box".
 	 */
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
 	if ( !use_string )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 			g_param_spec_get_blurb( pspec ) );
