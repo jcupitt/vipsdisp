@@ -163,9 +163,15 @@
     </child>
 
     <child>
-      <object class="GtkBox" id="main_box">
+      <object class="GtkPaned" id="main_box">
+        <property name="position">600</property>
+        <property name="wide-handle">true</property>
+	<property name="resize-start-child">false</property>
+	<property name="shrink-start-child">true</property>
+	<property name="resize-end-child">false</property>
+	<property name="shrink-end-child">true</property>
         <property name="orientation">horizontal</property>
-        <child>
+        <property name="start-child">
           <object class="GtkBox">
             <property name="orientation">vertical</property>
             <child>
@@ -236,12 +242,12 @@
             </child>
 
           </object>
-        </child>
+        </property>
 
-        <child>
+        <property name="end-child">
           <object class="Metadata" id="metadata">
           </object>
-        </child>
+        </property>
 
       </object>
     </child>
