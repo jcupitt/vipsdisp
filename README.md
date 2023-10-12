@@ -148,7 +148,7 @@ Version needs updating in the following places:
 
 - **`meson.build`**
 
-- **`org.libvips.vipsdisp.appdata.xml`** and some release notes and a date as
+- **`org.libvips.vipsdisp.metainfo.xml`** and some release notes and a date as
   well.
 
 - **`org.libvips.vipsdisp.json`** needs the version number as a git tag.

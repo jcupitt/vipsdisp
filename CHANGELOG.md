@@ -1,5 +1,9 @@
 ## master
 
+## 2.6.1, 12/10/23
+
+- async infobar updates
+
 ## 2.6, 7/9/23
 
 - limit bands in pages-as-bands to prevent 3000 page images causing 
@@ -9,7 +13,6 @@
 - animate keypress zoom
 - use NN sampling for zoom with gtk 4.10+
 - add colour management
-- async infobar updates
 
 ## 2.5.1, 23/7/23
 
