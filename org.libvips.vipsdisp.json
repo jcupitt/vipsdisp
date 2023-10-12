@@ -251,7 +251,7 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "https://github.com/jcupitt/libdicom.git",
+                    "url" : "https://github.com/ImagingDataCommons/libdicom.git",
                     "commit" : "9bff18ccf8387434a80c8550c96a523a9da10433"
                 }
             ]
