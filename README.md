@@ -28,7 +28,7 @@ It all works, though see the TODO list below.
 
 This program is on flathub, see:
 
-https://flathub.org/apps/search/org.libvips.vipsdisp
+https://flathub.org/apps/org.libvips.vipsdisp
 
 Just click "install", or enter:
 
@@ -216,7 +216,7 @@ Install the appdata checker:
 
 ```
 flatpak install flathub org.freedesktop.appstream-glib
-flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.appdata.xml
+flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.metainfo.xml
 ```
 
 Also:
