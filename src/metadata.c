@@ -48,7 +48,7 @@ metadata_dispose( GObject *object )
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
 }
 
-GtkGrid *
+static GtkGrid *
 metadata_create_grid( Metadata *m )
 {
 	GtkWidget *label, *input;
@@ -69,6 +69,7 @@ metadata_create_grid( Metadata *m )
 
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
 		label = gtk_label_new( field );	
+		gtk_widget_set_halign( label, GTK_ALIGN_END );
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
 		input = create_input( image, field );
 		gtk_grid_attach( grid, input, 1, i, 1, 1 );
@@ -137,53 +138,50 @@ metadata_set_image_window( Metadata *m, ImageWindow *image_window )
 }
 
 static void
-metadata_set_property( GObject *object,
-	guint prop_id, const GValue *value, GParamSpec *pspec )
+metadata_set_property( GObject *m_, guint prop_id,
+		const GValue *v, GParamSpec *pspec )
 {
 #ifdef DEBUG
 	puts( "metadata_set_property" );
 #endif
 
-	Metadata *m = (Metadata *) object;
-
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		metadata_set_image_window( m,
-			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
+		metadata_set_image_window( VIPSDISP_METADATA( m_ ),
+			VIPSDISP_IMAGE_WINDOW( g_value_get_object( v ) ) );
 		break;
 	case PROP_REVEALED:
-		gboolean revealed;
-		revealed = g_value_get_boolean( value );
-		if ( revealed ) {
-			metadata_show( m );
-		} else {
-			metadata_hide( m );
-		}
+		if ( g_value_get_boolean( v ) )
+			gtk_widget_show( GTK_WIDGET( m_ ) );
+		else
+			gtk_widget_hide( GTK_WIDGET( m_ ) );
 		break;
 	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( m_, prop_id, pspec );
 	}
 }
 
 static void
-metadata_get_property( GObject *object,
-	guint prop_id, GValue *value, GParamSpec *pspec )
+metadata_get_property( GObject *m_,
+	guint prop_id, GValue *v, GParamSpec *pspec )
 {
+	Metadata *m; 
+
 #ifdef DEBUG
 	puts("metadata_get_property");
 #endif
 
-	Metadata *m = (Metadata *) object;
+	m = VIPSDISP_METADATA( m_ );
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		g_value_set_object( value, m->image_window );
+		g_value_set_object( v, m->image_window );
 		break;
 	case PROP_REVEALED:
-		g_value_set_boolean( value, m->revealed );
+		g_value_set_boolean( v, m->revealed );
 		break;
 	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( m_, prop_id, pspec );
 	}
 }
 
@@ -228,141 +226,6 @@ metadata_error_response( GtkWidget *button, int response,
 #define SMALLER_Y .79
 #define BIGGER_X 1.9
 #define SHORT_WAIT_MS 100
-
-void
-metadata_show( Metadata *m )
-{
-	int og_width, og_height, new_width, new_height;
-	GtkWidget *search_bar_box, *main_box, *revealer;
-
-#ifdef DEBUG
-	puts("metadata_show");
-#endif
-
-	m->revealed = TRUE;
-
-	main_box = image_window_get_main_box( m->image_window );
-
-	/* Make the metadata widget appear to the right of the image.
-	 */
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( main_box ),
-		GTK_ORIENTATION_HORIZONTAL );
-
-	/* Center the metadata widget vertically.
-	 */
-	gtk_widget_set_valign( main_box, GTK_ALIGN_CENTER );
-	
-	/* Get the original dimensions of the ImageWindow.
-	 */
-	og_width = image_window_get_og_width( m->image_window );
-	og_height = image_window_get_og_height( m->image_window );
-
-	/* The width of the ImageWindow is increased to accomodate the metadata
-	 * widget.
-	 */
-	gtk_window_set_default_size( GTK_WINDOW( m->image_window ),
-		BIGGER_X * og_width, og_height );
-	
-	/* The metadata widget is sized relative to the ImageWindow.
-	 */
-	new_width = og_width * SMALLER_X;
-	new_height = og_height * SMALLER_Y;
-	gtk_widget_set_size_request( GTK_WIDGET( m ), new_width, new_height );
-
-	/* Each GtkSearchBar has a child accessible through the GtkSearchBar API
-	 * via gtk_search_bar_get_child. This child might not be a direct
-	 * descendant. For the metadata widget, this child is a GtkBox
-	 * called search_bar_box that is used to control orientation and size.
-	 * The search_bar_box is sized the same as the metadata widget that
-	 * contains it.
-	 */
-	search_bar_box = gtk_search_bar_get_child(
-		GTK_SEARCH_BAR( m->search_bar ) );
-
-	gtk_widget_set_size_request( search_bar_box, new_width, new_height );
-	
-	/* The scrolled_window is a GtkScrolledWindow that is sized to match the
-	 * search_bar_box that contains it.
-	 */
-	gtk_widget_set_size_request( m->scrolled_window,
-		new_width, new_height );
-
-	gtk_scrolled_window_set_max_content_width(
-		GTK_SCROLLED_WINDOW( m->scrolled_window ), new_width );
-
-	gtk_scrolled_window_set_max_content_height(
-		GTK_SCROLLED_WINDOW( m->scrolled_window ), new_height );
-
-	/* The m window should be ready to go, since its
-	 * grid of input widgets is updated whenever a new
-	 * VipsImage is loaded. Reveal the m widget.
-	 */
-	gtk_widget_show( GTK_WIDGET( m ) );
-	revealer = gtk_widget_get_first_child( m->search_bar );
-	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), TRUE );
-}
-
-gboolean
-metadata_shrink_window( gpointer user_data )
-{
-	Metadata *m; 
-	GtkWidget *main_box;
-	int og_width, og_height;
-
-#ifdef DEBUG
-	puts("metadata_shrink_window");
-#endif
-
-	m = VIPSDISP_METADATA( user_data );
-	
-	gtk_widget_set_size_request( GTK_WIDGET( m ), 0, 0 );
-
-	gtk_widget_hide( GTK_WIDGET( m ) );
-
-	/* Restore the original orientation and alignment of the ImageWindow
-	 * main_box.
-	 */
-	main_box = image_window_get_main_box( m->image_window );
-	gtk_orientable_set_orientation( GTK_ORIENTABLE( main_box ),
-		GTK_ORIENTATION_VERTICAL );
-	gtk_widget_set_valign( main_box, GTK_ALIGN_FILL );
-
-	/* Restore the original dimensions of the ImageWindow.
-	 */
-	og_width = image_window_get_og_width( m->image_window );
-	og_height = image_window_get_og_width( m->image_window );
-	gtk_window_set_default_size( GTK_WINDOW( m->image_window ),
-		og_width, og_height );
-
-	return FALSE;
-}
-
-void
-metadata_hide( Metadata *m )
-{
-	GtkWidget *revealer;
-
-#ifdef DEBUG
-	puts( "metadata_hide" );
-#endif
-
-	m->revealed = FALSE;
-
-	/* The first child of a GtkSearchBar is a GtkRevealer.
-	 */
-	revealer = gtk_widget_get_first_child( m->search_bar );
-
-	/* Hide the metadata widget with a sliding animation.
-	 */
-	gtk_revealer_set_reveal_child( GTK_REVEALER( revealer ), FALSE );
-
-	/* Shrink the ImageWindow back to its original size,
-	 * after a short wait to allow time for the animation to
-	 * show.
-	 */
-	g_timeout_add( SHORT_WAIT_MS,
-		(GSourceFunc) metadata_shrink_window, m );
-}
 
 void
 metadata_apply( Metadata *m )
@@ -527,7 +390,7 @@ metadata_apply( Metadata *m )
 	}
 }
 
-void
+static void
 metadata_append_field( gpointer data, gpointer user_data )
 {
 	Metadata *m;
@@ -542,13 +405,16 @@ metadata_append_field( gpointer data, gpointer user_data )
 	m->field_list = g_list_append( m->field_list, match->text );
 
 	label = gtk_label_new( match->text );	
+	gtk_widget_set_halign( label, GTK_ALIGN_END );
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
 	t = create_input( image_window_get_tile_source(
 				m->image_window )->image, match->text );
 	if ( t )
 		gtk_grid_attach( m->grid, t,
-				1, m->field_list_length++, 1, 1 );
+				1, m->field_list_length, 1, 1 );
+
+	m->field_list_length++;
 }
 
 /* Append fields names to the UI with markup.
@@ -558,7 +424,7 @@ metadata_append_field( gpointer data, gpointer user_data )
  * @data:	GList of Match
  * @m_:		Metadata
  */
-void
+static void
 metadata_append_markup_field( gpointer data, gpointer m_ )
 {
 	Metadata *m;
@@ -697,13 +563,6 @@ static void
 metadata_init( Metadata *m )
 {
 	char *s;
-	GtkWidget *revealer;
-
-	guint v[256] = {0};
-	gchar *s1 = "damerau";
-	gchar *s2 = "levenshtein";
-	guint ld = glev( strlen(s1), s1, strlen(s2), s2, v );
-	printf( " The LD between %s and %s is %u.\n", s1, s2, ld );
 
 #ifdef DEBUG
 	puts("metadata_init");
@@ -731,15 +590,6 @@ metadata_init( Metadata *m )
 	 */
 	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( m->search_bar ), TRUE );
 
-	/* The first child of a GtkSearchBar is a GtkRevealer. This is not the
-	 * same as the child accessible through the GtkSearchBar API via
-	 * gtk_search_bar_get_child.
-	 */
-	revealer = gtk_widget_get_first_child( GTK_WIDGET( m->search_bar ) );
-
-	gtk_revealer_set_transition_type( GTK_REVEALER( revealer ),
-		GTK_REVEALER_TRANSITION_TYPE_SLIDE_LEFT );
-
 	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
 	 * providing user input text for the search query.
 	 */
@@ -752,7 +602,6 @@ metadata_init( Metadata *m )
 	g_signal_connect( m->search_entry,
 		"search-changed",
 		G_CALLBACK( metadata_search_changed ), m );
-
 }
 
 #define BIND( field ) \

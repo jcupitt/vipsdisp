@@ -164,7 +164,7 @@
 
     <child>
       <object class="GtkPaned" id="main_box">
-        <property name="position">600</property>
+        <property name="position">200</property>
         <property name="wide-handle">true</property>
 	<property name="resize-start-child">false</property>
 	<property name="shrink-start-child">true</property>
@@ -245,8 +245,7 @@
         </property>
 
         <property name="end-child">
-          <object class="Metadata" id="metadata">
-          </object>
+          <object class="Metadata" id="metadata"></object>
         </property>
 
       </object>

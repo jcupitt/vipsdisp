@@ -26,9 +26,6 @@ struct _ImageWindow
 	int drag_start_x;
 	int drag_start_y;
 
-	int og_width;
-	int og_height;
-
 	/* For pinch zoom, zoom position that we started.
 	 */
 	double last_scale;
@@ -510,9 +507,6 @@ image_window_duplicate_action( GSimpleAction *action,
 
 	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
-
-	win->og_width = width;
-	win->og_height = height;
 
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
@@ -1420,9 +1414,6 @@ image_window_init( ImageWindow *win )
 	win->settings = g_settings_new( APPLICATION_ID );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
-
-	gtk_window_get_default_size( GTK_WINDOW( win ),
-		&win->og_width, &win->og_height );
 	
 	g_object_set( win->display_bar,
 		"image-window", win,
@@ -1658,16 +1649,6 @@ GtkWidget *
 image_window_get_main_box( ImageWindow *win )
 {
 	return( win->main_box );
-}
-
-int image_window_get_og_width( ImageWindow *win )
-{
-	return( win->og_width );
-}
-
-int image_window_get_og_height( ImageWindow *win )
-{
-	return( win->og_height );
 }
 
 GSettings *image_window_get_settings( ImageWindow *win )

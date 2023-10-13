@@ -401,7 +401,17 @@ create_input( VipsImage *image, char* field_name )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 			g_param_spec_get_blurb( pspec ) );
 
+	/* Fill out the horizontal space.
+	 */
 	gtk_widget_set_hexpand( t, TRUE );
+	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+	gtk_widget_set_hexpand( box, TRUE );
+	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
+	gtk_widget_set_hexpand( input_box, TRUE );
+	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
+
+	/* Nest the input widget in two boxes.
+	 */
 	gtk_box_append( GTK_BOX( box ), t );
 	gtk_box_append( GTK_BOX( input_box ), box );
 
