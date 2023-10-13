@@ -12,7 +12,7 @@ struct _Metadata
 
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
-	GtkWidget *metadata_label;
+	GtkWidget *metadata_title;
 	GtkWidget *scrolled_window;
 	GtkWidget *search_bar;
 	GtkWidget *search_entry;
@@ -22,6 +22,9 @@ struct _Metadata
 	GList *field_list;
 	int field_list_length;
 	gboolean revealed;
+
+	GdkDisplay *display;
+	GtkCssProvider *provider;
 };
 
 G_DEFINE_TYPE( Metadata, metadata, GTK_TYPE_WIDGET );
@@ -34,18 +37,24 @@ enum {
 };
 
 static void
-metadata_dispose( GObject *object )
+metadata_dispose( GObject *m_ )
 {
 	GtkWidget *child;
+	Metadata *m;
 
 #ifdef DEBUG
 	puts( "metadata_dispose" );
 #endif
 
-	if ( (child = gtk_widget_get_first_child( GTK_WIDGET( object ) )) )
+	if ( (child = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
 		gtk_widget_unparent( child );
 
-	G_OBJECT_CLASS( metadata_parent_class )->dispose( object );
+	m = VIPSDISP_METADATA( m_ );
+
+	gtk_style_context_remove_provider_for_display( m->display,
+			GTK_STYLE_PROVIDER( m->provider ) );
+
+	G_OBJECT_CLASS( metadata_parent_class )->dispose( m_ );
 }
 
 static GtkGrid *
@@ -70,6 +79,7 @@ metadata_create_grid( Metadata *m )
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
 		label = gtk_label_new( field );	
 		gtk_widget_set_halign( label, GTK_ALIGN_END );
+		gtk_widget_add_css_class( label, "metadata-label" );
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
 		input = create_input( image, field );
 		gtk_grid_attach( grid, input, 1, i, 1, 1 );
@@ -405,6 +415,7 @@ metadata_append_field( gpointer data, gpointer user_data )
 	m->field_list = g_list_append( m->field_list, match->text );
 
 	label = gtk_label_new( match->text );	
+	gtk_widget_add_css_class( label, "metadata-label" );
 	gtk_widget_set_halign( label, GTK_ALIGN_END );
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
@@ -443,6 +454,7 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 	m->field_list = g_list_append( m->field_list, markup );
 
 	label = gtk_label_new( NULL );	
+	gtk_widget_add_css_class( label, "metadata-label" );
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
@@ -568,6 +580,14 @@ metadata_init( Metadata *m )
 	puts("metadata_init");
 #endif
 
+	m->display = gdk_display_get_default();
+	m->provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_resource( m->provider,
+		      APP_PATH "/metadata.css" );	
+	gtk_style_context_add_provider_for_display( m->display,
+			GTK_STYLE_PROVIDER( m->provider ),
+			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
+
 	gtk_widget_init_template( GTK_WIDGET( m ) );
 
 	/* Connect signals to child widgets of the Metadata widget.
@@ -581,8 +601,8 @@ metadata_init( Metadata *m )
 	/* Make the Metadata widget title bold.
 	 */
 	s = g_strdup_printf( "<b>%s</b>", gtk_label_get_label(
-				GTK_LABEL( m->metadata_label ) )  );
-	gtk_label_set_markup( GTK_LABEL( m->metadata_label ), s );
+				GTK_LABEL( m->metadata_title ) )  );
+	gtk_label_set_markup( GTK_LABEL( m->metadata_title ), s );
 	g_free( s );
 
 	/* The only child of the metadata widget is a GtkSearchBar. The static
@@ -627,7 +647,7 @@ metadata_class_init( MetadataClass *class )
 
 	BIND( error_bar );
 	BIND( error_label );
-	BIND( metadata_label );
+	BIND( metadata_title );
 	BIND( scrolled_window );
 	BIND( search_bar );
 	BIND( search_entry );

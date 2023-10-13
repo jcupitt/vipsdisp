@@ -410,6 +410,11 @@ create_input( VipsImage *image, char* field_name )
 	gtk_widget_set_hexpand( input_box, TRUE );
 	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
 
+
+	/* Style the input widget.
+	 */
+	gtk_widget_add_css_class( t, "metadata-input" );
+
 	/* Nest the input widget in two boxes.
 	 */
 	gtk_box_append( GTK_BOX( box ), t );

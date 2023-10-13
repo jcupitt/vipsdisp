@@ -18,7 +18,7 @@
               <object class="GtkHeaderBar">
                 <property name="decoration-layout">:</property>
                 <property name="title-widget">
-                  <object class="GtkLabel" id="metadata_label">
+                  <object class="GtkLabel" id="metadata_title">
                     <property name="use-markup">true</property>
                     <property name="label">Properties</property>
                   </object>
