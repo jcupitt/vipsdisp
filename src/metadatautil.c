@@ -1,128 +1,5 @@
 #include "vipsdisp.h"
 
-#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
-
-/* LEVENSHTEIN DISTANCE
- *
- * @s1 and @s2 are character arrays of size @n1 and @n2, which represent two
- * strings. Any null bytes are treated like a normal character, so strings
- * without a terminating null byte are valid input.
- * 
- * The LEVENSHTEIN DISTANCE between @s1 and @s2 is the smallest number of
- * insertions, deletions, or substitutions needed to transform @s1 into @s2.
- *
- * The algorithm dynamically builds a table T[n1+1]][n2+1] where the (x, y)
- * entry is the Levenshtein distance between the prefix of @s1 of size y-1 and
- * the prefix of @s2 of size x-1.
- *
- * This implementation uses only a single @v column, updating it in place, since
- * only the elements at (x-1, y-1) and (x, y-1) are needed to compute the
- * element at (x, y). This is expressed by the recursion relation:
- *
- *	k = (s1[y-1] == s2[x-2] ? 0 : 1)
- *
- * 	T[x][y] = MIN3( T[x-1][y] + 1, T[x][y - 1] + 1, T[x-1][y-1] + k )
- *
- * If we let @t1 hold the previous diagonal value, we can rewrite this
- * in terms of the single column @v:
- *
- *	k = (s1[y-1] == s2[x-2] ? 0 : 1)
- *
- * 	v[y] = MIN3( v[y] + 1, v[y-1] + 1, t1 + k )
- *
- * The irst column of the table T is unused, and the first row is
- * used as the base case for the recursion relation.
- *
- *                         s2
- *
- *     *----l--e--v--e--n--s--h--t--e--i--n--- x
- *     | .  1  2  3  4  5  6  7  8  9  10 11
- *     |
- *     d .  1  2  3  4  5  6  7  8  9  10 11
- *     |
- *     a .  2  2  3  4  5  6  7  8  9  10 11
- *     |
- *     m .  3  3  3  4  5  6  7  8  9  10 11
- * s1  |
- *     e .  4  3  4  3  4  5  6  7  8  9  10
- *     |
- *     r .  5  4  4  4  4  5  6  7  8  9  10
- *     |
- *     a .  6  5  5  5  5  5  6  7  8  9  10
- *     |
- *     u .  7  6  6  6  6  6  6  7  8  9  10
- *     | 
- *
- *     y
- *
- * SYMBOLS
- *
- * @v:	Column vector. Reused and updated in place. The @t1 and @t0 values keep
- *	track of the most recent and second most recent diagonal values.
- * @x:	Row Index.
- * @y:	Column Index.
- * @t0:	Second most recent diagonal value.
- * @t1:	Most recent diagonal value
- * @k:	Test inqeuality in s1[y-1] and s2[x-1], the pair of characters
- * 	corresponding to the table entry T[x][y]. Equals 0 if these characters
- *	are equal, and 1 if they are different.
- *
- * TERMS
- *
- * LD: Levenshtein Distance
- *
- * SOURCES
- *
- * https://en.wikipedia.org/wiki/Levenshtein_distance
- * https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
- */
-
-/* Compute the Levenshtein Distance (LD) between two strings, @s1 and @s2.
- *
- * @n1:		Character array 1 size
- *
- * @s1:		Character array 1
- *
- * @n2:		Character array 2 size
- *
- * @s2:		Character array 2
- *
- * @v:		Buffer where column of Levenshtein distances are written
- * 		during computation.
- */
-guint
-glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1] ) {
-	guint x, y, t0, t1, k;
-
-	// Initialize the column.
-	for ( y = 1; y <= n1; y++ )
-		v[y] = y;
-
-	// Ignore and don't even bother to initialize the first column. Walk
-	// through columns after the first.
-	for ( x = 1; x <= n2; x++ ) {
-		// The first row (ignoring the first entry) is just the column
-		// indices from 1 to n2.
-		v[0] = x;
-
-		// The recursion relation defined above and the base case
-		// conditions { y = 1, t1 = x - 1 } are used to build the
-		// Table T column by column. Only one column @v is needed
-		// in memory at a time, and it can be operated on in
-		// place, as long as temporary variables @t0 and @t1 are used
-		// to keep track of the last diagonal when @v is updated.
-		for ( y = 1, t1 = x - 1; y <= n1; y++ ) {
-			t0 = v[y];
-			k = s1[y - 1] == s2[x - 1] ? 0 : 1;
-			v[y] = MIN3( v[y] + 1, v[y - 1] + 1, t1 + k );
-			t1 = t0;
-		}
-	}
-
-	// Return Levenshtein Distance.
-	return v[y-1];
-}
-
 /* No-op to prevent @w from propagating "scroll" events it receives.
  */
 void disable_scroll_cb( GtkWidget *w ) {}
@@ -132,7 +9,7 @@ void disable_scroll_cb( GtkWidget *w ) {}
  */
 static GtkWidget *
 disable_scroll( GtkWidget *w )
-{		
+{
 	GtkEventController *ec;
 
 	ec = gtk_event_controller_scroll_new(
@@ -189,7 +66,7 @@ create_input( VipsImage *image, char* field_name )
          * widget. Initialize the widget with @value.
 	 * TODO
  	 */
-	gboolean use_string = FALSE; 
+	gboolean use_string = FALSE;
 	if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
 		&pspec, &argument_class, &argument_instance ) ) {
 		//g_warning( "%s", vips_error_buffer() );
@@ -361,7 +238,7 @@ create_input( VipsImage *image, char* field_name )
 				pspec_double->maximum, 1,
 				pspec_double->default_value, FALSE );
 	}
-	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 			/* No default values exist for ParamSpecBoxed, so make
 			 * some up for now.

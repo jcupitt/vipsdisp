@@ -17,7 +17,7 @@ struct _Metadata
 	GtkWidget *search_bar;
 	GtkWidget *search_entry;
 	GtkWidget *search_warning;
-	
+
 	GtkGrid *grid;
 	GList *field_list;
 	int field_list_length;
@@ -77,7 +77,7 @@ metadata_create_grid( Metadata *m )
 	grid = GTK_GRID( gtk_grid_new() );
 
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
-		label = gtk_label_new( field );	
+		label = gtk_label_new( field );
 		gtk_widget_set_halign( label, GTK_ALIGN_END );
 		gtk_widget_add_css_class( label, "metadata-label" );
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
@@ -93,10 +93,10 @@ metadata_create_grid( Metadata *m )
  * needed - recreate the grid.
  */
 static void
-metadata_tile_source_changed( TileSource *tile_source, Metadata *m ) 
+metadata_tile_source_changed( TileSource *tile_source, Metadata *m )
 {
 #ifdef DEBUG
-	puts( "metadata_tile_source_changed" ); 
+	puts( "metadata_tile_source_changed" );
 #endif
 
 	/* If there is a new VipsImage on the tile source, use it to create
@@ -175,7 +175,7 @@ static void
 metadata_get_property( GObject *m_,
 	guint prop_id, GValue *v, GParamSpec *pspec )
 {
-	Metadata *m; 
+	Metadata *m;
 
 #ifdef DEBUG
 	puts("metadata_get_property");
@@ -201,7 +201,7 @@ metadata_get_property( GObject *m_,
 //	char *err;
 //	int i;
 //
-//	// Remove any trailing \n. 
+//	// Remove any trailing \n.
 //	err = vips_error_buffer_copy();
 //	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
 //		err[i - 1] = '\0';
@@ -222,7 +222,7 @@ metadata_error_hide( Metadata *options )
 }
 
 static void
-metadata_error_response( GtkWidget *button, int response, 
+metadata_error_response( GtkWidget *button, int response,
 	Metadata *options )
 {
 #ifdef DEBUG
@@ -243,7 +243,7 @@ metadata_apply( Metadata *m )
 	GtkWidget *t, *label;
 	char *field_name;
 	GString *field_name_string;
-	VipsImage *image; 
+	VipsImage *image;
 	VipsObjectClass *oclass;
 	GType otype;
 	GParamSpec *pspec;
@@ -271,7 +271,7 @@ metadata_apply( Metadata *m )
 		g_free( field_name );
 		field_name = field_name_string->str;
 
-		gboolean use_string = FALSE; 
+		gboolean use_string = FALSE;
 		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
 			&pspec, &argument_class, &argument_instance ) ) {
 			vips_error_clear();
@@ -360,7 +360,7 @@ metadata_apply( Metadata *m )
 			g_value_set_enum( &v, d );
 			vips_image_set( image, field_name, &v );
 			g_value_unset( &v );
-		
+
 		}
 		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
@@ -378,7 +378,7 @@ metadata_apply( Metadata *m )
 			int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 			vips_image_set_double( image, field_name, d );
 		}
-		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {	
+		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
 				return;
 			}
@@ -414,7 +414,7 @@ metadata_append_field( gpointer data, gpointer user_data )
 	m = VIPSDISP_METADATA( user_data );
 	m->field_list = g_list_append( m->field_list, match->text );
 
-	label = gtk_label_new( match->text );	
+	label = gtk_label_new( match->text );
 	gtk_widget_add_css_class( label, "metadata-label" );
 	gtk_widget_set_halign( label, GTK_ALIGN_END );
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
@@ -453,7 +453,7 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 	m = VIPSDISP_METADATA( m_ );
 	m->field_list = g_list_append( m->field_list, markup );
 
-	label = gtk_label_new( NULL );	
+	label = gtk_label_new( NULL );
 	gtk_widget_add_css_class( label, "metadata-label" );
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
@@ -472,7 +472,7 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 }
 
 /* This is the callback function called whenever the GtkSearchEntry is modified
- * by the user. Has loops on append_markup or append_field 
+ * by the user. Has loops on append_markup or append_field
  * callback functions.
  *
  * Gets the list of matches. Separates it into two lists: exact and inexact.
@@ -510,7 +510,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	/* Get the C-style list of image field strings. Make a GList out of
 	 * them, and search through it for the user input pattern.
 	 */
-	fields = vips_image_get_fields( image_window_get_tile_source( 
+	fields = vips_image_get_fields( image_window_get_tile_source(
 			m->image_window )->image );
 
 	all_field_list = NULL;
@@ -583,7 +583,7 @@ metadata_init( Metadata *m )
 	m->display = gdk_display_get_default();
 	m->provider = gtk_css_provider_new();
 	gtk_css_provider_load_from_resource( m->provider,
-		      APP_PATH "/metadata.css" );	
+		      APP_PATH "/metadata.css" );
 	gtk_style_context_add_provider_for_display( m->display,
 			GTK_STYLE_PROVIDER( m->provider ),
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
@@ -595,7 +595,7 @@ metadata_init( Metadata *m )
 	 * error_response: controls the error_bar, which displays VIPS errors
 	 * 	that may occur.
 	 */
-	g_signal_connect_object( m->error_bar, "response", 
+	g_signal_connect_object( m->error_bar, "response",
 		G_CALLBACK( metadata_error_response ), m, 0 );
 
 	/* Make the Metadata widget title bold.
@@ -640,7 +640,7 @@ metadata_class_init( MetadataClass *class )
 
 	gobject_class->dispose = metadata_dispose;
 
-	gtk_widget_class_set_layout_manager_type( widget_class, 
+	gtk_widget_class_set_layout_manager_type( widget_class,
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/metadata.ui");
