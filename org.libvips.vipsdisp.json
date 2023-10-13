@@ -251,8 +251,8 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "https://github.com/jcupitt/libdicom.git",
-                    "commit" : "b0a83a843f9ee03cec5614fd198eae658c0d999f"
+                    "url" : "https://github.com/ImagingDataCommons/libdicom.git",
+                    "commit" : "9bff18ccf8387434a80c8550c96a523a9da10433"
                 }
             ]
         },
@@ -266,9 +266,9 @@
             ],
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "https://github.com/openslide/openslide.git",
-                    "commit" : "239d7bd9f603be159e6558464f311b5b243d12b1"
+                    "type" : "archive",
+                    "url" : "https://github.com/openslide/openslide/releases/download/v4.0.0/openslide-4.0.0.tar.xz",
+                    "sha256" : "cc227c44316abb65fb28f1c967706eb7254f91dbfab31e9ae6a48db6cf4ae562"
                 }
             ]
         },
@@ -367,7 +367,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git",
-                    "commit" : "a25782dd296ae5192842e1ef06ca748b83e7697a"
+                    "commit" : "74adb395b2ab3a15f4ec8dd734bcbd40811516fd"
                 }
             ]
         },
@@ -383,7 +383,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v2.6.0"
+                    "tag" : "v2.6.1a"
                 }
             ]
         }
