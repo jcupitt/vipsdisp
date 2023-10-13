@@ -36,6 +36,21 @@
             <child>
               <object class="GtkSearchEntry" id="search_entry"></object>
             </child>
+
+            <child>
+              <object class="GtkBox" id="search_warning">
+                <property name="margin-top">8</property>
+                <property name="margin-bottom">16</property>
+                <property name="visible">false</property>
+                <property name="halign">center</property>
+		<child>
+                  <object class="GtkLabel">
+                    <property name="label">No exact match</property>
+                  </object>
+                </child>
+              </object>
+	    </child>
+
             <child>
               <object class="GtkScrolledWindow" id="scrolled_window"></object>
             </child>

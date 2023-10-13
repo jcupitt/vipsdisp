@@ -25,7 +25,9 @@ executable('vipsdisp', [
     'tslider.c',
     'vipsdispapp.c',
     'saveoptions.c',
-    'metadata.c'
+    'match.c',
+    'metadatautil.c',
+    'metadata.c',
   ],
   dependencies: vipsdisp_deps,
   install: true,
