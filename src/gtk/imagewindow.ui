@@ -163,8 +163,8 @@
     </child>
 
     <child>
-      <object class="GtkPaned" id="main_box">
-        <property name="position">200</property>
+      <object class="GtkPaned" id="paned">
+        <property name="position">600</property>
         <property name="wide-handle">true</property>
 	<property name="resize-start-child">false</property>
 	<property name="shrink-start-child">true</property>

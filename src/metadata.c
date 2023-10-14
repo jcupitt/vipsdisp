@@ -21,7 +21,6 @@ struct _Metadata
 	GtkGrid *grid;
 	GList *field_list;
 	int field_list_length;
-	gboolean revealed;
 
 	GdkDisplay *display;
 	GtkCssProvider *provider;
@@ -188,7 +187,8 @@ metadata_get_property( GObject *m_,
 		g_value_set_object( v, m->image_window );
 		break;
 	case PROP_REVEALED:
-		g_value_set_boolean( v, m->revealed );
+		g_value_set_boolean( v,
+				gtk_widget_get_visible( GTK_WIDGET( m_ ) ) );
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( m_, prop_id, pspec );

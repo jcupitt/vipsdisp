@@ -51,7 +51,7 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
-	GtkWidget *main_box;
+	GtkWidget *paned;
 	GtkWidget *metadata;
 
 	/* Throttle progress bar updates to a few per second with this.
@@ -1399,6 +1399,13 @@ static GActionEntry image_window_entries[] = {
 	{ "reset", image_window_reset },
 };
 
+gboolean
+image_window_paned_cb( gpointer paned_ )
+{
+	gtk_paned_set_position( GTK_PANED( paned_ ), 200 );
+	return FALSE;
+}
+
 static void
 image_window_init( ImageWindow *win )
 {
@@ -1495,6 +1502,15 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
 
+	/* Let the area of the UI containing the image render full size before
+	 * setting the slider position for the first time. The slider starts
+	 * at the end, hiding the metadata widget even if it's toggled on,
+	 * allowing the image area to render full size. After a short wait
+	 * the position is initialized
+	 */
+	g_timeout_add( 200, (GSourceFunc) image_window_paned_cb,
+		       win->paned );
+
 }
 
 static void
@@ -1536,7 +1552,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( imagedisplay );
 	BIND( display_bar );
 	BIND( info_bar );
-	BIND( main_box );
+	BIND( paned );
 	BIND( metadata );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
@@ -1646,9 +1662,9 @@ image_window_get_tile_source( ImageWindow *win )
 }
 
 GtkWidget *
-image_window_get_main_box( ImageWindow *win )
+image_window_get_paned( ImageWindow *win )
 {
-	return( win->main_box );
+	return( win->paned );
 }
 
 GSettings *image_window_get_settings( ImageWindow *win )
