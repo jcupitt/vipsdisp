@@ -1508,7 +1508,7 @@ image_window_init( ImageWindow *win )
 	 * allowing the image area to render full size. After a short wait
 	 * the position is initialized
 	 */
-	g_timeout_add( 200, (GSourceFunc) image_window_paned_cb,
+	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb,
 		       win->paned );
 
 }
