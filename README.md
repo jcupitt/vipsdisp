@@ -246,6 +246,9 @@ then check the build status here:
 - can we move "new_from_file" into a bg thread? the GUI will pause on huge
   SVGs on zoom change right now
 
+    very difficult with the current structure -- we'd need to separate
+    tilesource and tilecache completely, and perhaps link them with signals
+
 - tile read errors:
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
@@ -279,9 +282,6 @@ then check the build status here:
         same for audi r8 pdf page flip I guess?
 
 - info bar:
-
-    - update pixel value in a bg thread? we do it in the GUI thread right now
-      and it can cause terrible hitching
 
     - pages as bands ... info bar displays only one band
 
