@@ -66,14 +66,11 @@ create_input( VipsImage *image, char* field_name )
          * widget. Initialize the widget with @value.
 	 * TODO
  	 */
-	gboolean use_string = FALSE;
 	if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
-		&pspec, &argument_class, &argument_instance ) ) {
-		//g_warning( "%s", vips_error_buffer() );
-		vips_error_clear();
-		//return;
+			&pspec, &argument_class, &argument_instance ) ) {
 		vips_image_get( image, field_name, &value );
-		use_string = TRUE;
+		vips_error_clear();
+		pspec = NULL;
 	} else {
 		otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
 
@@ -90,7 +87,7 @@ create_input( VipsImage *image, char* field_name )
 	 * chosen depends on the type of the property. Set the initial value of
 	 * the user input widget to the default value for the property.
 	 */
-	if( use_string ) {
+	if( !pspec ) {
 		GType type = G_VALUE_TYPE( &value );
 		if ( type == G_TYPE_STRING ) {
 			char* string_value = g_strdup( g_value_get_string( &value ) );
@@ -123,6 +120,7 @@ create_input( VipsImage *image, char* field_name )
 			t = create_spin_button( -G_MAXFLOAT + 1, G_MAXFLOAT, 1,
 					g_value_get_int( &value ), FALSE );
 		} else if ( type == G_TYPE_DOUBLE ) {
+			g_print( "double %s\n", field_name );
 			t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1,
 					g_value_get_int( &value ), FALSE );
 		} else if ( type == G_TYPE_FLAGS ) {
@@ -184,17 +182,17 @@ create_input( VipsImage *image, char* field_name )
 		}
 	}
 	else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
-		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING( pspec );
+		const char *s;
+		g_object_get( image, field_name, &s, NULL );
 		GtkEntryBuffer* buffer =
-			gtk_entry_buffer_new( pspec_string->default_value, -1 );
-
+			gtk_entry_buffer_new( g_strdup( s ), -1 );
 		t = gtk_text_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
 		t = gtk_check_button_new();
-		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
-			pspec_boolean->default_value );
+		int d;
+		g_object_get( image, field_name, &d, NULL );
+		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ), d );
 	}
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
@@ -207,36 +205,37 @@ create_input( VipsImage *image, char* field_name )
 		}
 		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
 		t = gtk_drop_down_new_from_strings( property_nicknames );
-		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ),
-			pspec_enum->default_value );
+		int d;
+		g_object_get( image, field_name, &d, NULL );
+		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
-
+		int d;
+		g_object_get( image, field_name, &d, NULL );
 		t = create_spin_button( pspec_int64->minimum,
-				pspec_int64->maximum, 1,
-				pspec_int64->default_value, FALSE );
+				pspec_int64->maximum, 1, d, FALSE );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
-
+		int d;
+		g_object_get( image, field_name, &d, NULL );
 		t = create_spin_button( pspec_int->minimum,
-				pspec_int->maximum, 1,
-				pspec_int->default_value, FALSE );
+				pspec_int->maximum, 1, d, FALSE );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
-
+		int d;
+		g_object_get( image, field_name, &d, NULL );
 		t = create_spin_button( pspec_uint64->minimum,
-				pspec_uint64->maximum, 1,
-				pspec_uint64->default_value, FALSE );
+				pspec_uint64->maximum, 1, d, FALSE );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
-
+		double d;
+		g_object_get( image, field_name, &d, NULL );
 		t = create_spin_button( pspec_double->minimum,
-				pspec_double->maximum, 1,
-				pspec_double->default_value, FALSE );
+				pspec_double->maximum, 1, d, FALSE );
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
@@ -274,7 +273,7 @@ create_input( VipsImage *image, char* field_name )
 	 * Make the user input widget "t" fill the box horizontally.
 	 * Append that container box to the "input_box".
 	 */
-	if ( !use_string )
+	if ( pspec )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 			g_param_spec_get_blurb( pspec ) );
 
