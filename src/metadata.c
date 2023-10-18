@@ -12,7 +12,6 @@ struct _Metadata
 
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
-	GtkWidget *metadata_title;
 	GtkWidget *scrolled_window;
 	GtkWidget *search_bar;
 	GtkWidget *search_entry;
@@ -575,8 +574,6 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 static void
 metadata_init( Metadata *m )
 {
-	char *s;
-
 #ifdef DEBUG
 	puts("metadata_init");
 #endif
@@ -598,13 +595,6 @@ metadata_init( Metadata *m )
 	 */
 	g_signal_connect_object( m->error_bar, "response",
 		G_CALLBACK( metadata_error_response ), m, 0 );
-
-	/* Make the Metadata widget title bold.
-	 */
-	s = g_strdup_printf( "<b>%s</b>", gtk_label_get_label(
-				GTK_LABEL( m->metadata_title ) )  );
-	gtk_label_set_markup( GTK_LABEL( m->metadata_title ), s );
-	g_free( s );
 
 	/* The only child of the metadata widget is a GtkSearchBar. The static
 	 * parts of the metadata widget are defined in gtk/metadata.ui.
@@ -648,7 +638,6 @@ metadata_class_init( MetadataClass *class )
 
 	BIND( error_bar );
 	BIND( error_label );
-	BIND( metadata_title );
 	BIND( scrolled_window );
 	BIND( search_bar );
 	BIND( search_entry );

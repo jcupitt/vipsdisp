@@ -16,11 +16,11 @@
             <property name="valign">GTK_ALIGN_FILL</property>
             <child>
               <object class="GtkHeaderBar">
-                <property name="decoration-layout">:</property>
+                <property name="decoration-layout">:title</property>
                 <property name="title-widget">
-                  <object class="GtkLabel" id="metadata_title">
-                    <property name="use-markup">true</property>
-                    <property name="label">Properties</property>
+                  <object class="GtkSearchEntry" id="search_entry">
+                    <property name="hexpand">true</property>
+                    <property name="placeholder-text"> Filter properties</property>
                   </object>
                 </property>
               </object>
@@ -41,10 +41,6 @@
               </object>
             </child>
     
-            <child>
-              <object class="GtkSearchEntry" id="search_entry"></object>
-            </child>
-
             <child>
               <object class="GtkBox" id="search_warning">
                 <property name="visible">false</property>
