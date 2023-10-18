@@ -163,56 +163,57 @@
     </child>
 
     <child>
-      <object class="GtkPaned" id="paned">
-        <property name="position">600</property>
-        <property name="wide-handle">true</property>
-	<property name="resize-start-child">false</property>
-	<property name="shrink-start-child">true</property>
-	<property name="resize-end-child">false</property>
-	<property name="shrink-end-child">true</property>
-        <property name="orientation">horizontal</property>
-        <property name="start-child">
-          <object class="GtkBox">
-            <property name="orientation">vertical</property>
-            <child>
-              <object class="GtkActionBar" id="progress_bar">
-                <property name="revealed">false</property>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkActionBar" id="progress_bar">
+            <property name="revealed">false</property>
 
-                <child type="center">
-                  <object class="GtkProgressBar" id="progress">
-                    <property name="hexpand">true</property>
-                    <property name="show-text">true</property>
-                  </object>
-                </child>
-
-                <child type="end">
-                  <object class="GtkButton" id="progress_cancel">
-                    <property name="label">Cancel</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-
-            <child>
-              <object class="GtkInfoBar" id="error_bar">
-                <property name="message-type">error</property>
-                <property name="show-close-button">true</property>
-                <property name="revealed">false</property>
-                <child>
-                  <object class="GtkLabel" id="error_label">
-                    <attributes>
-                      <attribute name="weight" value="bold"/>
-                    </attributes>
-                  </object>
-                </child>
-              </object>
-            </child>
-
-            <child>
-              <object class="GtkScrolledWindow" id="scrolled_window">
+            <child type="center">
+              <object class="GtkProgressBar" id="progress">
                 <property name="hexpand">true</property>
-                <property name="vexpand">true</property>
-                <child>
+                <property name="show-text">true</property>
+              </object>
+            </child>
+
+            <child type="end">
+              <object class="GtkButton" id="progress_cancel">
+                <property name="label">Cancel</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkInfoBar" id="error_bar">
+            <property name="message-type">error</property>
+            <property name="show-close-button">true</property>
+            <property name="revealed">false</property>
+            <child>
+              <object class="GtkLabel" id="error_label">
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                </attributes>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkScrolledWindow" id="scrolled_window">
+            <property name="hexpand">true</property>
+            <property name="vexpand">true</property>
+            <child>
+              <object class="GtkPaned" id="paned">
+                <property name="position">600</property>
+                <property name="wide-handle">true</property>
+                <property name="resize-start-child">false</property>
+                <property name="shrink-start-child">true</property>
+                <property name="resize-end-child">false</property>
+                <property name="shrink-end-child">true</property>
+                <property name="orientation">horizontal</property>
+
+                <property name="start-child">
                   <object class="Imagedisplay" id="imagedisplay">  
                     <child>
                       <object class="GtkPopoverMenu" id="right_click_menu">
@@ -227,26 +228,25 @@
                       </object>
                     </child>
                   </object>
-                </child>
+                </property>
+
+                <property name="end-child">
+                  <object class="Metadata" id="metadata"></object>
+                </property>
               </object>
             </child>
-
-            <child>
-              <object class="Displaybar" id="display_bar">
-              </object>
-            </child>
-
-            <child>
-              <object class="Infobar" id="info_bar">
-              </object>
-            </child>
-
           </object>
-        </property>
+        </child>
 
-        <property name="end-child">
-          <object class="Metadata" id="metadata"></object>
-        </property>
+        <child>
+          <object class="Displaybar" id="display_bar">
+          </object>
+        </child>
+
+        <child>
+          <object class="Infobar" id="info_bar">
+          </object>
+        </child>
 
       </object>
     </child>
