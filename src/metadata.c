@@ -10,8 +10,6 @@ struct _Metadata
 
 	ImageWindow *image_window;
 
-	GtkWidget *error_bar;
-	GtkWidget *error_label;
 	GtkWidget *scrolled_window;
 	GtkWidget *search_bar;
 	GtkWidget *search_entry;
@@ -192,43 +190,6 @@ metadata_get_property( GObject *m_,
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( m_, prop_id, pspec );
 	}
-}
-
-//static void
-//metadata_error( Metadata *options )
-//{
-//	char *err;
-//	int i;
-//
-//	// Remove any trailing \n.
-//	err = vips_error_buffer_copy();
-//	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
-//		err[i - 1] = '\0';
-//	gtk_label_set_text( GTK_LABEL( options->error_label ), err );
-//	g_free( err );
-//
-//	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), TRUE );
-//}
-
-static void
-metadata_error_hide( Metadata *options )
-{
-#ifdef DEBUG
-	puts( "metadata_error_hide" );
-#endif
-
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( options->error_bar ), FALSE );
-}
-
-static void
-metadata_error_response( GtkWidget *button, int response,
-	Metadata *options )
-{
-#ifdef DEBUG
-	puts( "metadata_error_response" );
-#endif
-
-	metadata_error_hide( options );
 }
 
 #define SMALLER_X .9
@@ -588,14 +549,6 @@ metadata_init( Metadata *m )
 
 	gtk_widget_init_template( GTK_WIDGET( m ) );
 
-	/* Connect signals to child widgets of the Metadata widget.
-	 *
-	 * error_response: controls the error_bar, which displays VIPS errors
-	 * 	that may occur.
-	 */
-	g_signal_connect_object( m->error_bar, "response",
-		G_CALLBACK( metadata_error_response ), m, 0 );
-
 	/* The only child of the metadata widget is a GtkSearchBar. The static
 	 * parts of the metadata widget are defined in gtk/metadata.ui.
 	 */
@@ -636,8 +589,6 @@ metadata_class_init( MetadataClass *class )
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/metadata.ui");
 
-	BIND( error_bar );
-	BIND( error_label );
 	BIND( scrolled_window );
 	BIND( search_bar );
 	BIND( search_entry );

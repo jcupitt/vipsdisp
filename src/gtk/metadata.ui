@@ -27,21 +27,6 @@
             </child>
     
             <child>
-              <object class="GtkInfoBar" id="error_bar">
-                <property name="message-type">error</property>
-                <property name="show-close-button">true</property>
-                <property name="revealed">false</property>
-                <child>
-                  <object class="GtkLabel" id="error_label">
-                    <attributes>
-                      <attribute name="weight" value="bold"/>
-                    </attributes>
-                  </object>
-                </child>
-              </object>
-            </child>
-    
-            <child>
               <object class="GtkBox" id="search_warning">
                 <property name="visible">false</property>
                 <property name="margin-top">8</property>
