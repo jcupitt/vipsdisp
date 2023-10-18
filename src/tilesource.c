@@ -65,7 +65,7 @@ tile_source_dispose( GObject *object )
 	G_OBJECT_CLASS( tile_source_parent_class )->dispose( object );
 }
 
-static void
+void
 tile_source_changed( TileSource *tile_source )
 {
 	g_signal_emit( tile_source, 
@@ -1291,7 +1291,7 @@ tile_source_print( TileSource *tile_source )
 
 /* Sniff basic image properties.
  */
-static int
+int
 tile_source_set_image( TileSource *tile_source, VipsImage *image )
 {
 #ifdef DEBUG

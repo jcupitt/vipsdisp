@@ -641,8 +641,18 @@ image_window_saveas_action( GSimpleAction *action,
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	GtkWidget *file_chooser;
 	GFile *file;
+	TileSource *tile_source;
+	VipsImage *image = NULL;
+	VipsImage *image_copy = NULL;
+
 
 	if( win->tile_source ) {
+		tile_source = image_window_get_tile_source( win );
+		image = tile_source_get_image( tile_source );
+		vips_copy( image, &image_copy, NULL );
+		tile_source_set_image( tile_source, image_copy );
+		VIPS_UNREF( image );
+
 		metadata_apply( VIPSDISP_METADATA( win->metadata ) );
 		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
