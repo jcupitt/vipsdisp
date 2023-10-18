@@ -455,6 +455,7 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 
 	label = gtk_label_new( NULL );
 	gtk_widget_add_css_class( label, "metadata-label" );
+	gtk_widget_set_halign( label, GTK_ALIGN_END );
 	gtk_label_set_markup( GTK_LABEL( label ), markup );
 
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
