@@ -200,20 +200,20 @@
         </child>
 
         <child>
-          <object class="GtkScrolledWindow" id="scrolled_window">
-            <property name="hexpand">true</property>
-            <property name="vexpand">true</property>
-            <child>
-              <object class="GtkPaned" id="paned">
-                <property name="position">600</property>
-                <property name="wide-handle">true</property>
-                <property name="resize-start-child">false</property>
-                <property name="shrink-start-child">true</property>
-                <property name="resize-end-child">false</property>
-                <property name="shrink-end-child">true</property>
-                <property name="orientation">horizontal</property>
+          <object class="GtkPaned" id="paned">
+            <property name="position">600</property>
+            <property name="wide-handle">true</property>
+            <property name="resize-start-child">false</property>
+            <property name="shrink-start-child">true</property>
+            <property name="resize-end-child">false</property>
+            <property name="shrink-end-child">true</property>
+            <property name="orientation">horizontal</property>
 
-                <property name="start-child">
+            <property name="start-child">
+              <object class="GtkScrolledWindow" id="scrolled_window">
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
+    	    <child>
                   <object class="Imagedisplay" id="imagedisplay">  
                     <child>
                       <object class="GtkPopoverMenu" id="right_click_menu">
@@ -228,13 +228,13 @@
                       </object>
                     </child>
                   </object>
-                </property>
-
-                <property name="end-child">
-                  <object class="Metadata" id="metadata"></object>
-                </property>
+		    </child>
               </object>
-            </child>
+            </property>
+
+            <property name="end-child">
+              <object class="Metadata" id="metadata"></object>
+            </property>
           </object>
         </child>
 
