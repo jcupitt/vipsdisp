@@ -204,8 +204,6 @@ metadata_apply( Metadata *m )
 	char *field_name;
 	GString *field_name_string;
 	VipsImage *image;
-	VipsObjectClass *oclass;
-	GType otype;
 	GParamSpec *pspec;
 	VipsArgumentClass *argument_class;
 	VipsArgumentInstance *argument_instance;
@@ -231,131 +229,51 @@ metadata_apply( Metadata *m )
 		g_free( field_name );
 		field_name = field_name_string->str;
 
-		gboolean use_string = FALSE;
+		vips_image_get( image, field_name, &value );
 		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
 			&pspec, &argument_class, &argument_instance ) ) {
-			vips_error_clear();
-			vips_image_get( image, field_name, &value );
-			use_string = TRUE;
-		} else {
-			otype = G_PARAM_SPEC_VALUE_TYPE( pspec );
-			if( g_type_is_a( otype, VIPS_TYPE_IMAGE ) )
-				return;
-			else if( g_type_is_a( otype, VIPS_TYPE_OBJECT ) &&
-				(oclass = g_type_class_ref( otype )) )
-				return;
+			pspec = NULL;
 		}
 
-		if( use_string ) {
-			GType type = G_VALUE_TYPE( &value );
-			if ( type == G_TYPE_STRING ) {
-				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-				vips_image_set_string( image, field_name, text );
-			} else if ( type == G_TYPE_ENUM ) {
-			} else if ( type == G_TYPE_INT ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_UINT ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_INT64 ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_UINT64 ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_LONG ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_ULONG ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_BOOLEAN ) {
-				gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-				g_value_init( &v, G_TYPE_BOOLEAN );
-				g_value_set_boolean( &v, b );
-				vips_image_set( image, field_name, &v );
-				g_value_unset( &v );
-			} else if ( type == G_TYPE_FLOAT ) {
-				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_double( image, field_name, d );
-			} else if ( type == G_TYPE_DOUBLE ) {
-				int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_double( image, field_name, d );
-			} else if ( type == G_TYPE_FLAGS ) {
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			} else if ( type == G_TYPE_BOXED ) {
-			} else if ( (type == VIPS_TYPE_REF_STRING) ) {
-				GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-				const char *text = gtk_entry_buffer_get_text( buffer );
-				vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
-			} else {
-				// Must be a VipsBlob then
+		GType type = G_VALUE_TYPE( &value );
 
-				// Ignore m field names that contain the substring "thumbnail"
-				if ( !strstr( field_name, "thumbnail" ) ) {
-					GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-					const char *text = gtk_entry_buffer_get_text( buffer );
-					vips_image_set_blob_copy( image, field_name, text, strlen( text ) );
-				}
-			}
-		}
-		else if ( G_IS_PARAM_SPEC_STRING( pspec ) ) {
+		if ( type == G_TYPE_STRING || (type == VIPS_TYPE_REF_STRING
+					&& !strstr( field_name, "thumbnail" )) ) {
 			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
 			char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
 			vips_image_set_string( image, field_name, text );
-		}
-		else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
+		} else if ( type == G_TYPE_BOOLEAN ) {
 			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
 			g_value_init( &v, G_TYPE_BOOLEAN );
 			g_value_set_boolean( &v, b );
 			vips_image_set( image, field_name, &v );
 			g_value_unset( &v );
-		}
-		else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-			int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-			g_value_init( &v, G_TYPE_ENUM );
-			g_value_set_enum( &v, d );
-			vips_image_set( image, field_name, &v );
-			g_value_unset( &v );
-
-		}
-		else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
+		} else if ( type == G_TYPE_ENUM || G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+			if ( pspec ) {
+				int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+				g_value_init( &v, G_TYPE_ENUM );
+				g_value_set_enum( &v, d );
+				vips_image_set( image, field_name, &v );
+				g_value_unset( &v );
+			} else { 
+				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+				vips_image_set_int( image, field_name, d );
+			}
+		} else if ( type == G_TYPE_INT || type == G_TYPE_INT64 ||
+				type == G_TYPE_UINT || type == G_TYPE_UINT64 ||
+				type == G_TYPE_LONG || type == G_TYPE_ULONG ||
+				type == G_TYPE_FLAGS ) {
 			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
 			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_INT( pspec )) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-			int d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+		} else if ( type == G_TYPE_FLOAT || type == G_TYPE_DOUBLE ) {
+			double d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 			vips_image_set_double( image, field_name, d );
-		}
-		else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
-			if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-				return;
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-				return;
-			}
-			else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_IMAGE ) ) {
-				return;
-			}
-			else {
-				return;
-			}
-		}
-		else {
-			printf("Unknown type for property \"%s\"\n", field_name);
-			g_object_ref_sink( t );
-			return;
+		} else if ( type == G_TYPE_BOXED ) {
+			//printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
+			/* do nothing */
+		} else {
+			//printf("Unknown type for property \"%s\" in metadata_apply\n", field_name);
+			/* do nothing */
 		}
 	}
 }

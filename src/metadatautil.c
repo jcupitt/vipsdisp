@@ -59,11 +59,6 @@ create_input( VipsImage *image, char* field_name )
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_widget_set_margin_start( input_box, 20 );
 
-	/* Get the value of the given field from the image.
-	 * Check the GType of @value, and select the appropriate user input
-         * widget. Initialize the widget with @value.
-	 * TODO
- 	 */
 	vips_image_get( image, field_name, &value );
 	if ( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
 			&pspec, &argument_class, &argument_instance ) ) {
@@ -115,7 +110,10 @@ create_input( VipsImage *image, char* field_name )
 			t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1,
 					d, FALSE );
 		}
-	} else if ( type == G_TYPE_INT || type == G_TYPE_INT64 || type == G_TYPE_UINT || type == G_TYPE_UINT64 || type == G_TYPE_LONG || type == G_TYPE_ULONG || type == G_TYPE_FLAGS ) {
+	} else if ( type == G_TYPE_INT || type == G_TYPE_INT64 ||
+			type == G_TYPE_UINT || type == G_TYPE_UINT64 ||
+			type == G_TYPE_LONG || type == G_TYPE_ULONG ||
+			type == G_TYPE_FLAGS ) {
 		int d;
 		vips_image_get_int( image, field_name, &d );
 		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1,
@@ -126,10 +124,11 @@ create_input( VipsImage *image, char* field_name )
 		t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1,
 				d, FALSE );
 	} else if ( type == G_TYPE_BOXED ) {
+		//printf("G_TYPE_BOXED for property \"%s\" in create_input\n");
 		t = gtk_label_new( "" );
 	} else {
+		//printf("Unknown type for property \"%s\" in create_input\n", field_name);
 		t = gtk_label_new( "" );
-		printf("Unknown type for property \"%s\"\n", field_name);
 	}
 
 	/* Create a box to contain the user input widget "t", and add a tooltip
