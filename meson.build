@@ -39,7 +39,8 @@ configure_file(
 
 # need vips_thread_execute()
 vips_dep = dependency('vips', version: '>=8.15')
-gtk_dep = dependency('gtk4')
+# we use nearest neighbour upsampling in texture scaling
+gtk_dep = dependency('gtk4', version: '>=4.10')
 m_dep = cc.find_library('m')
 
 vipsdisp_deps = [
