@@ -37,111 +37,196 @@ create_spin_button( double min, double max, double step,
 	return scroll ? sb : disable_scroll( sb );
 }
 
+GtkWidget *
+create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
+	GtkWidget *t;
+	const char *string_value;
+
+	if ( !strcmp( field, "filename" ) )
+		g_object_get( image, field, &string_value, NULL );
+	else
+		vips_image_get_string( image, field, &string_value );
+
+	string_value = g_strdup( string_value );
+	GtkEntryBuffer* buffer =
+		gtk_entry_buffer_new( string_value, -1 );
+	t = gtk_text_new();
+	gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+
+	return t;
+}
+
+GtkWidget *
+create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
+	GtkWidget *t;
+	int d;
+
+	vips_image_get_int( image, field, &d );
+	t = gtk_check_button_new();
+	gtk_check_button_set_active( GTK_CHECK_BUTTON( t ), d );
+
+	return t;
+}
+
+GtkWidget *
+create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+{
+	GtkWidget *t;
+
+	if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
+		int d;
+		const char **property_nicknames;
+		
+		property_nicknames = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
+
+		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i )
+			property_nicknames[i] = pspec_enum->enum_class->values[i].value_nick;
+		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
+		t = gtk_drop_down_new_from_strings( property_nicknames );
+		g_object_get( image, field, &d, NULL );
+		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
+	} else { 
+		int d;
+
+		vips_image_get_int( image, field, &d );
+		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
+	}
+
+	return t;
+}
+
+GtkWidget *
+create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
+	GtkWidget *t;
+	int d;
+
+	vips_image_get_int( image, field, &d );
+	t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
+
+	return t;
+}
+
+GtkWidget *
+create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+{
+	GtkWidget *t;
+	double d;
+
+	vips_image_get_double( image, field, &d );
+	t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1, d, FALSE );
+
+	return t;
+}
+
+GtkWidget *
+create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+{
+	GtkWidget *t;
+
+#ifdef DEBUG
+	printf( "G_TYPE_BOXED for property \"%s\" in create_input\n", field );
+#endif /* DEBUG */
+
+	t = gtk_label_new( "" );
+
+	return t;
+}
+
+GtkWidget *
+create_empty_input() {
+	GtkWidget *t;
+
+#ifdef DEBUG
+	printf("Unknown type for property \"%s\" in create_input\n", field);
+#endif /* DEBUG */
+
+		t = gtk_label_new( "" );
+
+	return t;
+}
+
 /* Use introspection on VipsImage to create a UI input elements for each
  * property.
  */
 GtkWidget *
-create_input( VipsImage *image, char* field_name )
+create_input( VipsImage *image, char* field )
 {
 	GtkWidget *input_box, *t, *box;
 	GType type;
 	GParamSpec *pspec;
-	VipsArgumentClass *argument_class;
-	VipsArgumentInstance *argument_instance;
+	VipsArgumentClass *arg_class;
+	VipsArgumentInstance *arg_instance;
 
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
-
-	/* It is crucial to zero the GValue whose address we pass to
-	 * vips_image_get. Otherwise, we will get runtime errors.
+	/* Zero the GValue whose address we pass to vips_image_get. Otherwise, we
+	 * will get runtime errors.
 	 */
 	GValue value = { 0 };
 
+	/* Use introspection to get information about this field on the image.
+	 * We want the paramspec ( if there is one ) in case this field is an
+	 * enum, and also to get the blurb.
+	 */
+	vips_image_get( image, field, &value );
+	if ( vips_object_get_argument( VIPS_OBJECT( image ), field,
+			&pspec, &arg_class, &arg_instance ) )
+		pspec = NULL;
+
+	/* Create the actual user input widget @t for this property. The widget
+	 * chosen depends on the type of the property. The value is the current
+	 * value on the image.
+	 */
+	type = G_VALUE_TYPE( &value );
+	if ( strstr( "thumbnail", field ) )
+		t = gtk_label_new( "" );
+	else if ( type == VIPS_TYPE_REF_STRING )
+		t = create_string_input( image, field, pspec );
+	else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
+		t = create_enum_input( image, field, pspec );
+	else switch( type ) {
+	case G_TYPE_STRING:
+		t = create_string_input( image, field, pspec );
+		break;
+	case G_TYPE_BOOLEAN:
+		t = create_boolean_input( image, field, pspec );
+		break;
+	case G_TYPE_ENUM:
+		t = create_enum_input( image, field, pspec );
+		break;
+	case G_TYPE_INT:
+	case G_TYPE_INT64:
+	case G_TYPE_UINT:
+	case G_TYPE_UINT64:
+	case G_TYPE_LONG:
+	case G_TYPE_ULONG:
+	case G_TYPE_FLAGS:
+		t = create_int_input( image, field, pspec );
+		break;
+	case G_TYPE_FLOAT:
+	case G_TYPE_DOUBLE:
+		t = create_double_input( image, field, pspec );
+		break;
+	case G_TYPE_BOXED:
+		t = create_boxed_input( image, field, pspec );
+		break;
+	default:
+		t = create_empty_input( image, field, pspec );
+	} /* end switch( type ) */
+
+	/* Create the box we will return, @input_box.
+	 */
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_widget_set_margin_start( input_box, 20 );
 
-	vips_image_get( image, field_name, &value );
-	if ( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
-			&pspec, &argument_class, &argument_instance ) ) {
-		pspec = NULL;
-	}
-
-	/* Add a user input widget for this property to the input_box. The widget
-	 * chosen depends on the type of the property. Set the initial value of
-	 * the user input widget to the default value for the property.
+	/* Create a box to contain the user input widget @t, and add a tooltip
+	 * to the box if one is available.
 	 */
-	type = G_VALUE_TYPE( &value );
-	if ( type == G_TYPE_STRING || (type == VIPS_TYPE_REF_STRING
-				&& !strstr( field_name, "thumbnail" )) ) {
-		const char *string_value;
-		if ( !strcmp( field_name, "filename" )) {
-			g_object_get( image, field_name, &string_value, NULL );
-		} else {
-			vips_image_get_string( image, field_name, &string_value );
-		}
-		string_value = g_strdup( string_value );
-		GtkEntryBuffer* buffer =
-			gtk_entry_buffer_new( string_value, -1 );
-		t = gtk_text_new();
-		gtk_text_set_buffer( GTK_TEXT( t ), buffer );
-	} else if ( type == G_TYPE_BOOLEAN ) {
-		int d;
-		vips_image_get_int( image, field_name, &d );
-		t = gtk_check_button_new();
-		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
-			d );
-	} else if ( type == G_TYPE_ENUM || G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-		if ( pspec ) {
-			GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-			const char **property_nicknames =
-				g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
-
-			for( int i = 0; i < pspec_enum->enum_class->n_values; ++i ) {
-				property_nicknames[i] =
-					pspec_enum->enum_class->values[i].value_nick;
-			}
-			property_nicknames[pspec_enum->enum_class->n_values] = NULL;
-			t = gtk_drop_down_new_from_strings( property_nicknames );
-			int d;
-			g_object_get( image, field_name, &d, NULL );
-			gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
-		} else { 
-			int d;
-			vips_image_get_int( image, field_name, &d );
-			t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1,
-					d, FALSE );
-		}
-	} else if ( type == G_TYPE_INT || type == G_TYPE_INT64 ||
-			type == G_TYPE_UINT || type == G_TYPE_UINT64 ||
-			type == G_TYPE_LONG || type == G_TYPE_ULONG ||
-			type == G_TYPE_FLAGS ) {
-		int d;
-		vips_image_get_int( image, field_name, &d );
-		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1,
-				d, FALSE );
-	} else if ( type == G_TYPE_FLOAT || type == G_TYPE_DOUBLE ) {
-		double d;
-		vips_image_get_double( image, field_name, &d );
-		t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1,
-				d, FALSE );
-	} else if ( type == G_TYPE_BOXED ) {
-		//printf("G_TYPE_BOXED for property \"%s\" in create_input\n");
-		t = gtk_label_new( "" );
-	} else {
-		//printf("Unknown type for property \"%s\" in create_input\n", field_name);
-		t = gtk_label_new( "" );
-	}
-
-	/* Create a box to contain the user input widget "t", and add a tooltip
-	 * to the box. The tooltip contains the "blurb" for the property.
-	 * Make the user input widget "t" fill the box horizontally.
-	 * Append that container box to the "input_box".
-	 */
-	if ( pspec ) {
+	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
+	if ( pspec )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
 				g_param_spec_get_blurb( pspec ) );
-	}
 
-	/* Fill out the horizontal space.
+	/* Fill out the horizontal space in @t, @box, and @input_box.
 	 */
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
@@ -150,16 +235,19 @@ create_input( VipsImage *image, char* field_name )
 	gtk_widget_set_hexpand( input_box, TRUE );
 	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
 
-
-	/* Style the input widget.
+	/* Style the user input widget @t using CSS provided by
+	 * "gtk/metadata.css".
 	 */
 	gtk_widget_add_css_class( t, "metadata-input" );
 
-	/* Nest the input widget in two boxes.
+	/* Nest the input widget in two boxes. This is the UI structure
+	 * metadata_apply expects.
 	 */
 	gtk_box_append( GTK_BOX( box ), t );
 	gtk_box_append( GTK_BOX( input_box ), box );
 
+	/* Return the outermost box @input_box.
+	 */
 	return input_box;
 }
 
