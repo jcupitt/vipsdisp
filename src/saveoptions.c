@@ -177,6 +177,33 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 			name, value,
 			NULL );
 	}
+	else if( G_IS_PARAM_SPEC_FLAGS( pspec ) ) {
+		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+
+		guint value;
+		int i;
+		GtkWidget *child;
+
+		value = 0;
+		child = gtk_widget_get_first_child( t ); 
+		for( int i = 0; i < flags->n_values; i++ ) {
+			// we skip these, see the create 
+			if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+				strcmp( flags->values[i].value_nick, "all" ) == 0 )
+				continue;
+
+			if( child &&
+				gtk_check_button_get_active( GTK_CHECK_BUTTON( child ) ) ) 
+				value |= flags->values[i].value;
+
+			child = gtk_widget_get_next_sibling( child );
+		}
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		gint64 value = 
 			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
@@ -394,6 +421,35 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		
 		g_free( nicknames );
 	}
+	else if( G_IS_PARAM_SPEC_FLAGS( pspec ) ) {
+		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+		guint value = pspec_flags->default_value;
+
+		t = gtk_box_new( GTK_ORIENTATION_VERTICAL, 5 );
+
+		for( int i = 0; i < flags->n_values; i++ ) {
+			GtkWidget *check;
+
+			// not useful in a GUI
+			if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+				strcmp( flags->values[i].value_nick, "all" ) == 0 )
+				continue;
+
+			check = gtk_check_button_new();
+			gtk_check_button_set_label( GTK_CHECK_BUTTON( check ), 
+					flags->values[i].value_nick );
+
+			// can't be 0 (would match everything), and all bits
+			// should match all bits in the value, or "all" would always match
+			// everything
+			if (flags->values[i].value &&
+				(value & flags->values[i].value) == flags->values[i].value) 
+				gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
+
+			gtk_box_append( GTK_BOX( t ), check );
+		}
+	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
@@ -461,6 +517,8 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 	 */
 	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
 	gtk_widget_set_halign( label, GTK_ALIGN_START );
+	gtk_widget_set_valign( label, GTK_ALIGN_START );
+	gtk_widget_set_margin_top( label, 3 );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 
