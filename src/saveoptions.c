@@ -182,7 +182,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
 
 		guint value;
-		int i;
 		GtkWidget *child;
 
 		value = 0;
