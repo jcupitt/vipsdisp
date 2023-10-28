@@ -77,7 +77,7 @@ metadata_create_grid( Metadata *m )
 		gtk_widget_set_halign( label, GTK_ALIGN_END );
 		gtk_widget_add_css_class( label, "metadata-label" );
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
-		input = create_input( image, field );
+		input = metadata_util_create_input( image, field );
 		gtk_grid_attach( grid, input, 1, i, 1, 1 );
 	}
 
@@ -192,21 +192,91 @@ metadata_get_property( GObject *m_,
 	}
 }
 
-#define SMALLER_X .9
-#define SMALLER_Y .79
-#define BIGGER_X 1.9
-#define SHORT_WAIT_MS 100
+static void
+apply_string_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	GtkEntryBuffer* buffer;
+	char *text;
+
+	buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+	text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+	vips_image_set_string( image, field, text );
+
+}
+
+static void
+apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	gboolean b;
+	GValue v = { 0 };
+
+	b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+	g_value_init( &v, G_TYPE_BOOLEAN );
+	g_value_set_boolean( &v, b );
+	vips_image_set( image, field, &v );
+	g_value_unset( &v );
+
+}
+
+static void
+apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	int d;
+	GValue v = { 0 };
+
+	if ( pspec ) {
+		d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+		g_value_init( &v, G_TYPE_ENUM );
+		g_value_set_enum( &v, d );
+		vips_image_set( image, field, &v );
+		g_value_unset( &v );
+	} else { 
+		d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+		vips_image_set_int( image, field, d );
+	}
+}
+	
+static void
+apply_int_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	int d;
+
+	d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+	vips_image_set_int( image, field, d );
+}
+
+static void
+apply_double_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	double d;
+
+	d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+	vips_image_set_double( image, field, d );
+}
+
+static void
+apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+#ifdef DEBUG
+	printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
+#endif /* DEBUG */
+
+	/* do nothing */
+
+	return;
+}
 
 void
 metadata_apply( Metadata *m )
 {
 	GtkWidget *t, *label;
-	char *field_name;
-	GString *field_name_string;
+	char *field;
+	GString *field_string;
 	VipsImage *image;
+	GType type;
 	GParamSpec *pspec;
-	VipsArgumentClass *argument_class;
-	VipsArgumentInstance *argument_instance;
+	VipsArgumentClass *arg_class;
+	VipsArgumentInstance *arg_instance;
 
 #ifdef DEBUG
 	puts("metadata_apply");
@@ -220,61 +290,60 @@ metadata_apply( Metadata *m )
 		t = gtk_widget_get_first_child( t );
 		t = gtk_widget_get_first_child( t );
 
-		GValue value = { 0 }, v = { 0 };
+		GValue value = { 0 };
 
-		field_name = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
-		field_name_string = g_string_new( field_name );
-		g_string_replace( field_name_string, "<b>", "", 0 );
-		g_string_replace( field_name_string, "</b>", "", 0 );
-		g_free( field_name );
-		field_name = field_name_string->str;
+		field = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
+		field_string = g_string_new( field );
+		g_string_replace( field_string, "<b>", "", 0 );
+		g_string_replace( field_string, "</b>", "", 0 );
+		g_free( field );
+		field = field_string->str;
 
-		vips_image_get( image, field_name, &value );
-		if( vips_object_get_argument( VIPS_OBJECT( image ), field_name,
-			&pspec, &argument_class, &argument_instance ) ) {
+		vips_image_get( image, field, &value );
+		if( vips_object_get_argument( VIPS_OBJECT( image ), field,
+			&pspec, &arg_class, &arg_instance ) )
 			pspec = NULL;
-		}
 
-		GType type = G_VALUE_TYPE( &value );
+		type = G_VALUE_TYPE( &value );
+		if ( strstr( "thumbnail", field ) ) {
+			/* do nothing */
+		} else if ( type == VIPS_TYPE_REF_STRING )
+			apply_string_input( t, image, field, pspec );
+		else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
+			apply_enum_input( t, image, field, pspec );
+		else switch( type ) {
+		case G_TYPE_STRING:
+			apply_string_input( t, image, field, pspec );
+			break;
+		case G_TYPE_BOOLEAN:
+			apply_boolean_input( t, image, field, pspec );
+			break;
+		case G_TYPE_ENUM:
+			apply_enum_input( t, image, field, pspec );
+			break;
+		case G_TYPE_INT:
+		case G_TYPE_INT64:
+		case G_TYPE_UINT:
+		case G_TYPE_UINT64:
+		case G_TYPE_LONG:
+		case G_TYPE_ULONG:
+		case G_TYPE_FLAGS:
+			apply_int_input( t, image, field, pspec );
+			break;
+		case G_TYPE_FLOAT:
+		case G_TYPE_DOUBLE:
+			apply_double_input( t, image, field, pspec );
+			break;
+		case G_TYPE_BOXED:
+			apply_boxed_input( t, image, field, pspec );
+			break;
+		default:
+#ifdef DEBUG
+			printf("Type of property \"%s\" unknown.", field);
+#endif /* DEBUG */
+			/* do nothing */
+		} /* end switch( type ) */
 
-		if ( type == G_TYPE_STRING || (type == VIPS_TYPE_REF_STRING
-					&& !strstr( field_name, "thumbnail" )) ) {
-			GtkEntryBuffer* buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-			char *text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-			vips_image_set_string( image, field_name, text );
-		} else if ( type == G_TYPE_BOOLEAN ) {
-			gboolean b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-			g_value_init( &v, G_TYPE_BOOLEAN );
-			g_value_set_boolean( &v, b );
-			vips_image_set( image, field_name, &v );
-			g_value_unset( &v );
-		} else if ( type == G_TYPE_ENUM || G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-			if ( pspec ) {
-				int d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-				g_value_init( &v, G_TYPE_ENUM );
-				g_value_set_enum( &v, d );
-				vips_image_set( image, field_name, &v );
-				g_value_unset( &v );
-			} else { 
-				int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-				vips_image_set_int( image, field_name, d );
-			}
-		} else if ( type == G_TYPE_INT || type == G_TYPE_INT64 ||
-				type == G_TYPE_UINT || type == G_TYPE_UINT64 ||
-				type == G_TYPE_LONG || type == G_TYPE_ULONG ||
-				type == G_TYPE_FLAGS ) {
-			int d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_int( image, field_name, d );
-		} else if ( type == G_TYPE_FLOAT || type == G_TYPE_DOUBLE ) {
-			double d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-			vips_image_set_double( image, field_name, d );
-		} else if ( type == G_TYPE_BOXED ) {
-			//printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
-			/* do nothing */
-		} else {
-			//printf("Unknown type for property \"%s\" in metadata_apply\n", field_name);
-			/* do nothing */
-		}
 	}
 }
 
@@ -297,7 +366,7 @@ metadata_append_field( gpointer data, gpointer user_data )
 	gtk_widget_set_halign( label, GTK_ALIGN_END );
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
-	t = create_input( image_window_get_tile_source(
+	t = metadata_util_create_input( image_window_get_tile_source(
 				m->image_window )->image, match->text );
 	if ( t )
 		gtk_grid_attach( m->grid, t,
@@ -318,7 +387,7 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 {
 	Metadata *m;
 	gchar *markup;
-	GString *field_name;
+	GString *field;
 	GList *ma_list;
 	GtkWidget *label, *input;
 
@@ -338,12 +407,12 @@ metadata_append_markup_field( gpointer data, gpointer m_ )
 
 	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
 
-	field_name = g_string_new( markup );
-	g_string_replace( field_name, "<b>", "", 0 );
-	g_string_replace( field_name, "</b>", "", 0 );
+	field = g_string_new( markup );
+	g_string_replace( field, "<b>", "", 0 );
+	g_string_replace( field, "</b>", "", 0 );
 
-	input = create_input( image_window_get_tile_source(
-				m->image_window )->image, field_name->str );
+	input = metadata_util_create_input( image_window_get_tile_source(
+				m->image_window )->image, field->str );
 
 	if ( input )
 		gtk_grid_attach( m->grid, input,

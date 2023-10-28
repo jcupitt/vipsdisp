@@ -37,7 +37,7 @@ create_spin_button( double min, double max, double step,
 	return scroll ? sb : disable_scroll( sb );
 }
 
-GtkWidget *
+static GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	const char *string_value;
@@ -56,7 +56,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
-GtkWidget *
+static GtkWidget *
 create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	int d;
@@ -68,7 +68,7 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	return t;
 }
 
-GtkWidget *
+static GtkWidget *
 create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
@@ -76,14 +76,14 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int d;
-		const char **property_nicknames;
+		const char **nicks;
 		
-		property_nicknames = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
+		nicks = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
 
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i )
-			property_nicknames[i] = pspec_enum->enum_class->values[i].value_nick;
-		property_nicknames[pspec_enum->enum_class->n_values] = NULL;
-		t = gtk_drop_down_new_from_strings( property_nicknames );
+			nicks[i] = pspec_enum->enum_class->values[i].value_nick;
+		nicks[pspec_enum->enum_class->n_values] = NULL;
+		t = gtk_drop_down_new_from_strings( nicks );
 		g_object_get( image, field, &d, NULL );
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 	} else { 
@@ -96,7 +96,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-GtkWidget *
+static GtkWidget *
 create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	int d;
@@ -107,7 +107,7 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
-GtkWidget *
+static GtkWidget *
 create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
@@ -119,13 +119,13 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-GtkWidget *
+static GtkWidget *
 create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf( "G_TYPE_BOXED for property \"%s\" in create_input\n", field );
+	printf( "G_TYPE_BOXED for property \"%s\" in metadata_util_create_input\n", field );
 #endif /* DEBUG */
 
 	t = gtk_label_new( "" );
@@ -133,12 +133,12 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-GtkWidget *
-create_empty_input() {
+static GtkWidget *
+create_empty_label() {
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf("Unknown type for property \"%s\" in create_input\n", field);
+	printf("Unknown type for property \"%s\" in metadata_util_create_input\n", field);
 #endif /* DEBUG */
 
 		t = gtk_label_new( "" );
@@ -150,7 +150,7 @@ create_empty_input() {
  * property.
  */
 GtkWidget *
-create_input( VipsImage *image, char* field )
+metadata_util_create_input( VipsImage *image, char* field )
 {
 	GtkWidget *input_box, *t, *box;
 	GType type;
@@ -210,7 +210,7 @@ create_input( VipsImage *image, char* field )
 		t = create_boxed_input( image, field, pspec );
 		break;
 	default:
-		t = create_empty_input( image, field, pspec );
+		t = create_empty_label( image, field, pspec );
 	} /* end switch( type ) */
 
 	/* Create the box we will return, @input_box.
@@ -250,4 +250,3 @@ create_input( VipsImage *image, char* field )
 	 */
 	return input_box;
 }
-
