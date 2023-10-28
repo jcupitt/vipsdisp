@@ -5,8 +5,6 @@
     <property name="title" translatable="yes">Save options</property>
     <property name="can-focus">True</property>
     <property name="modal">True</property>
-    <property name="default-width">400</property>
-    <property name="default-height">500</property>
 
     <style>
       <class name="saveoptions"/>
@@ -59,13 +57,15 @@
           <object class="GtkScrolledWindow">
             <property name="hexpand">1</property>
             <property name="vexpand">1</property>
-            <property name="min-content-height">600</property>
+            <property name="propagate-natural-height">true</property>
+            <property name="max-content-height">600</property>
 
             <child>
               <object class="GtkGrid" id="options_grid">
-                <property name="row-homogeneous">1</property>
+                <property name="row-homogeneous">false</property>
                 <property name="column-spacing">5</property>
                 <property name="row-spacing">3</property>
+                <property name="valign">start</property>
               </object>
             </child>
 

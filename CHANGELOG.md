@@ -1,5 +1,10 @@
 ## master
 
+# 2.6.2, 28/10/23
+
+- better saveoptions sizing
+- add flags support to saveoptions
+
 ## 2.6.1, 12/10/23
 
 - async infobar updates

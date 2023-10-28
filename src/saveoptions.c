@@ -21,7 +21,7 @@ struct _SaveOptions
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
 
-	// hash property names to the widghet for that property ... we fetch 
+	// hash property names to the widget for that property ... we fetch 
 	// values from here when we make the saver
 	GHashTable *value_widgets;
 
@@ -82,6 +82,14 @@ save_options_error_response( GtkWidget *button, int response,
 }
 
 static void
+save_options_preeval( VipsImage *image, 
+	VipsProgress *progress, SaveOptions *options )
+{
+	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
+		TRUE );
+}
+
+static void
 save_options_eval( VipsImage *image, 
 	VipsProgress *progress, SaveOptions *options )
 {
@@ -101,11 +109,6 @@ save_options_eval( VipsImage *image,
 	if( time_now - options->last_progress_time < 0.1 )
 		return;
 	options->last_progress_time = time_now;
-
-	// you'd think we could do this in preeval, but it doesn't always seem to
-	// fire for some reason
-	gtk_action_bar_set_revealed( GTK_ACTION_BAR( options->progress_bar ), 
-		TRUE );
 
 	vips_buf_appendf( &buf, "%d%% complete, %d seconds to go",
 		progress->percent, progress->eta );
@@ -169,6 +172,33 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int index = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
 		int value = pspec_enum->enum_class->values[index].value;
+
+		g_object_set( options->save_operation,
+			name, value,
+			NULL );
+	}
+	else if( G_IS_PARAM_SPEC_FLAGS( pspec ) ) {
+		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+
+		guint value;
+		int i;
+		GtkWidget *child;
+
+		value = 0;
+		child = gtk_widget_get_first_child( t ); 
+		for( int i = 0; i < flags->n_values; i++ ) {
+			// we skip these, see the create 
+			if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+				strcmp( flags->values[i].value_nick, "all" ) == 0 )
+				continue;
+
+			if( child &&
+				gtk_check_button_get_active( GTK_CHECK_BUTTON( child ) ) ) 
+				value |= flags->values[i].value;
+
+			child = gtk_widget_get_next_sibling( child );
+		}
 
 		g_object_set( options->save_operation,
 			name, value,
@@ -391,6 +421,35 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		
 		g_free( nicknames );
 	}
+	else if( G_IS_PARAM_SPEC_FLAGS( pspec ) ) {
+		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+		guint value = pspec_flags->default_value;
+
+		t = gtk_box_new( GTK_ORIENTATION_VERTICAL, 5 );
+
+		for( int i = 0; i < flags->n_values; i++ ) {
+			GtkWidget *check;
+
+			// not useful in a GUI
+			if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+				strcmp( flags->values[i].value_nick, "all" ) == 0 )
+				continue;
+
+			check = gtk_check_button_new();
+			gtk_check_button_set_label( GTK_CHECK_BUTTON( check ), 
+					flags->values[i].value_nick );
+
+			// can't be 0 (would match everything), and all bits
+			// should match all bits in the value, or "all" would always match
+			// everything
+			if (flags->values[i].value &&
+				(value & flags->values[i].value) == flags->values[i].value) 
+				gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
+
+			gtk_box_append( GTK_BOX( t ), check );
+		}
+	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
 		GParamSpecInt64 *pspec_int64 = G_PARAM_SPEC_INT64( pspec );
 
@@ -458,6 +517,8 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 	 */
 	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
 	gtk_widget_set_halign( label, GTK_ALIGN_START );
+	gtk_widget_set_valign( label, GTK_ALIGN_START );
+	gtk_widget_set_margin_top( label, 3 );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 
@@ -523,6 +584,8 @@ save_options_new( GtkWindow *parent_window,
 
 	if( options->image ) { 
 		vips_image_set_progress( options->image, TRUE ); 
+		g_signal_connect_object( options->image, "preeval", 
+			G_CALLBACK( save_options_preeval ), options, 0 );
 		g_signal_connect_object( options->image, "eval", 
 			G_CALLBACK( save_options_eval ), options, 0 );
 		g_signal_connect_object( options->image, "posteval", 
