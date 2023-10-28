@@ -40,18 +40,25 @@ create_spin_button( double min, double max, double step,
 static GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
-	const char *string_value;
+	const char *value;
 
 	if ( !strcmp( field, "filename" ) )
-		g_object_get( image, field, &string_value, NULL );
+		g_object_get( image, field, &value, NULL );
 	else
-		vips_image_get_string( image, field, &string_value );
+		vips_image_get_string( image, field, &value );
 
-	string_value = g_strdup( string_value );
+	value = g_strdup( value );
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
 	GtkEntryBuffer* buffer =
-		gtk_entry_buffer_new( string_value, -1 );
+		gtk_entry_buffer_new( value, -1 );
+
 	t = gtk_text_new();
 	gtk_text_set_buffer( GTK_TEXT( t ), buffer );
+
+#else
+	t = gtk_label_new( g_strdup_printf( "%s", value ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
 }
@@ -62,8 +69,14 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	int d;
 
 	vips_image_get_int( image, field, &d );
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
 	t = gtk_check_button_new();
 	gtk_check_button_set_active( GTK_CHECK_BUTTON( t ), d );
+#else
+	t = gtk_label_new( g_strdup_printf( "%s",
+				d ? "true" : "false" ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
 }
@@ -83,14 +96,25 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i )
 			nicks[i] = pspec_enum->enum_class->values[i].value_nick;
 		nicks[pspec_enum->enum_class->n_values] = NULL;
-		t = gtk_drop_down_new_from_strings( nicks );
+
 		g_object_get( image, field, &d, NULL );
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
+		t = gtk_drop_down_new_from_strings( nicks );
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
+#else
+		t = gtk_label_new( g_strdup_printf( "%s", nicks[d] ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
+
 	} else { 
 		int d;
 
 		vips_image_get_int( image, field, &d );
+#ifdef EXPERIMENTAL_METADATA_EDIT
 		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
+#else
+		t = gtk_label_new( g_strdup_printf( "%d", d ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
 	}
 
 	return t;
@@ -102,7 +126,12 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	int d;
 
 	vips_image_get_int( image, field, &d );
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
 	t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
+#else
+	t = gtk_label_new( g_strdup_printf( "%d", d ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
 }
@@ -114,7 +143,13 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	double d;
 
 	vips_image_get_double( image, field, &d );
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
 	t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1, d, FALSE );
+
+#else
+	t = gtk_label_new( g_strdup_printf( "%f", d ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
 }
@@ -228,8 +263,12 @@ metadata_util_create_input( VipsImage *image, char* field )
 
 	/* Fill out the horizontal space in @t, @box, and @input_box.
 	 */
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
+
 	gtk_widget_set_hexpand( box, TRUE );
 	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
 	gtk_widget_set_hexpand( input_box, TRUE );

@@ -641,12 +641,15 @@ image_window_saveas_action( GSimpleAction *action,
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
 	GtkWidget *file_chooser;
 	GFile *file;
-	TileSource *tile_source;
-	VipsImage *image = NULL;
-	VipsImage *image_copy = NULL;
 
 
 	if( win->tile_source ) {
+
+#ifdef EXPERIMENTAL_METADATA_EDIT
+		TileSource *tile_source;
+		VipsImage *image = NULL;
+		VipsImage *image_copy = NULL;
+
 		tile_source = image_window_get_tile_source( win );
 		image = tile_source_get_image( tile_source );
 		vips_copy( image, &image_copy, NULL );
@@ -654,6 +657,8 @@ image_window_saveas_action( GSimpleAction *action,
 		VIPS_UNREF( image );
 
 		metadata_apply( VIPSDISP_METADATA( win->metadata ) );
+#endif /* EXPERIMENTAL_METADATA_EDIT */
+
 		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
 			GTK_FILE_CHOOSER_ACTION_SAVE,
