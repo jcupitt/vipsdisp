@@ -1,6 +1,6 @@
 project(
   'vipsdisp', 'c',
-  version: '2.6.1',
+  version: '2.6.2',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
@@ -39,8 +39,7 @@ configure_file(
 
 # need vips_thread_execute()
 vips_dep = dependency('vips', version: '>=8.15')
-# we use nearest neighbour upsampling in texture scaling
-gtk_dep = dependency('gtk4', version: '>=4.10')
+gtk_dep = dependency('gtk4')
 m_dep = cc.find_library('m')
 
 vipsdisp_deps = [
