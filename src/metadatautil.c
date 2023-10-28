@@ -37,7 +37,7 @@ create_spin_button( double min, double max, double step,
 	return scroll ? sb : disable_scroll( sb );
 }
 
-static GtkWidget *
+GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	const char *value;
@@ -63,7 +63,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	int d;
@@ -81,7 +81,7 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
@@ -120,7 +120,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	int d;
@@ -136,7 +136,7 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
@@ -154,7 +154,7 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
@@ -168,7 +168,7 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-static GtkWidget *
+GtkWidget *
 create_empty_label() {
 	GtkWidget *t;
 
@@ -288,4 +288,134 @@ metadata_util_create_input( VipsImage *image, char* field )
 	/* Return the outermost box @input_box.
 	 */
 	return input_box;
+}
+
+void
+metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	GtkEntryBuffer* buffer;
+	char *text;
+
+	buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
+	text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+	vips_image_set_string( image, field, text );
+
+}
+
+void
+metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	gboolean b;
+	GValue v = { 0 };
+
+	b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+	g_value_init( &v, G_TYPE_BOOLEAN );
+	g_value_set_boolean( &v, b );
+	vips_image_set( image, field, &v );
+	g_value_unset( &v );
+
+}
+
+void
+metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	int d;
+	GValue v = { 0 };
+
+	if ( pspec ) {
+		d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+		g_value_init( &v, G_TYPE_ENUM );
+		g_value_set_enum( &v, d );
+		vips_image_set( image, field, &v );
+		g_value_unset( &v );
+	} else { 
+		d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+		vips_image_set_int( image, field, d );
+	}
+}
+	
+void
+metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	int d;
+
+	d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
+	vips_image_set_int( image, field, d );
+}
+
+void
+metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	double d;
+
+	d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+	vips_image_set_double( image, field, d );
+}
+
+void
+metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+#ifdef DEBUG
+	printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
+#endif /* DEBUG */
+
+	/* do nothing */
+
+	return;
+}
+
+void
+metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field )
+{
+	GValue value = { 0 };
+	GParamSpec *pspec;
+	GType type;
+	VipsArgumentClass *arg_class;
+	VipsArgumentInstance *arg_instance;
+
+	vips_image_get( image, field, &value );
+	if( vips_object_get_argument( VIPS_OBJECT( image ), field,
+		&pspec, &arg_class, &arg_instance ) )
+		pspec = NULL;
+
+	type = G_VALUE_TYPE( &value );
+
+	if ( strstr( "thumbnail", field ) ) {
+		/* do nothing */
+	} else if ( type == VIPS_TYPE_REF_STRING )
+		metadata_util_apply_string_input( t, image, field, pspec );
+	else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
+		metadata_util_apply_enum_input( t, image, field, pspec );
+	else switch( type ) {
+	case G_TYPE_STRING:
+		metadata_util_apply_string_input( t, image, field, pspec );
+		break;
+	case G_TYPE_BOOLEAN:
+		metadata_util_apply_boolean_input( t, image, field, pspec );
+		break;
+	case G_TYPE_ENUM:
+		metadata_util_apply_enum_input( t, image, field, pspec );
+		break;
+	case G_TYPE_INT:
+	case G_TYPE_INT64:
+	case G_TYPE_UINT:
+	case G_TYPE_UINT64:
+	case G_TYPE_LONG:
+	case G_TYPE_ULONG:
+	case G_TYPE_FLAGS:
+		metadata_util_apply_int_input( t, image, field, pspec );
+		break;
+	case G_TYPE_FLOAT:
+	case G_TYPE_DOUBLE:
+		metadata_util_apply_double_input( t, image, field, pspec );
+		break;
+	case G_TYPE_BOXED:
+		metadata_util_apply_boxed_input( t, image, field, pspec );
+		break;
+	default:
+#ifdef DEBUG
+		printf("Type of property \"%s\" unknown.", field);
+#endif /* DEBUG */
+		/* do nothing */
+	} /* end switch( type ) */
 }

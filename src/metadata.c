@@ -192,80 +192,6 @@ metadata_get_property( GObject *m_,
 	}
 }
 
-static void
-apply_string_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-	GtkEntryBuffer* buffer;
-	char *text;
-
-	buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-	text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
-	vips_image_set_string( image, field, text );
-
-}
-
-static void
-apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-	gboolean b;
-	GValue v = { 0 };
-
-	b = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
-	g_value_init( &v, G_TYPE_BOOLEAN );
-	g_value_set_boolean( &v, b );
-	vips_image_set( image, field, &v );
-	g_value_unset( &v );
-
-}
-
-static void
-apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-	int d;
-	GValue v = { 0 };
-
-	if ( pspec ) {
-		d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-		g_value_init( &v, G_TYPE_ENUM );
-		g_value_set_enum( &v, d );
-		vips_image_set( image, field, &v );
-		g_value_unset( &v );
-	} else { 
-		d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-		vips_image_set_int( image, field, d );
-	}
-}
-	
-static void
-apply_int_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-	int d;
-
-	d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-	vips_image_set_int( image, field, d );
-}
-
-static void
-apply_double_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-	double d;
-
-	d = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
-	vips_image_set_double( image, field, d );
-}
-
-static void
-apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
-{
-#ifdef DEBUG
-	printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
-#endif /* DEBUG */
-
-	/* do nothing */
-
-	return;
-}
-
 void
 metadata_apply( Metadata *m )
 {
@@ -273,77 +199,32 @@ metadata_apply( Metadata *m )
 	char *field;
 	GString *field_string;
 	VipsImage *image;
-	GType type;
-	GParamSpec *pspec;
-	VipsArgumentClass *arg_class;
-	VipsArgumentInstance *arg_instance;
 
 #ifdef DEBUG
 	puts("metadata_apply");
 #endif
 
 	image = image_window_get_tile_source( m->image_window )->image;
-	for ( int i = 0; (label = gtk_grid_get_child_at( m->grid,
-					0, i )); i++ ) {
+
+	// Walk through the labels in the UI ( the VipsImage property names )
+	// and corresponding input widgets.
+	for ( int i = 0; (label = gtk_grid_get_child_at( m->grid, 0, i )); i++ ) {
 		// Get first child of first child of ith grid item.
 		t = gtk_grid_get_child_at( m->grid, 1, i );
 		t = gtk_widget_get_first_child( t );
 		t = gtk_widget_get_first_child( t );
 
-		GValue value = { 0 };
-
+		// Get the string name of the VipsImage field from the label in the UI
 		field = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
 		field_string = g_string_new( field );
 		g_string_replace( field_string, "<b>", "", 0 );
 		g_string_replace( field_string, "</b>", "", 0 );
 		g_free( field );
-		field = field_string->str;
+		field = g_strdup( field_string->str );
+		g_string_free( field_string, 1 );
 
-		vips_image_get( image, field, &value );
-		if( vips_object_get_argument( VIPS_OBJECT( image ), field,
-			&pspec, &arg_class, &arg_instance ) )
-			pspec = NULL;
-
-		type = G_VALUE_TYPE( &value );
-		if ( strstr( "thumbnail", field ) ) {
-			/* do nothing */
-		} else if ( type == VIPS_TYPE_REF_STRING )
-			apply_string_input( t, image, field, pspec );
-		else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
-			apply_enum_input( t, image, field, pspec );
-		else switch( type ) {
-		case G_TYPE_STRING:
-			apply_string_input( t, image, field, pspec );
-			break;
-		case G_TYPE_BOOLEAN:
-			apply_boolean_input( t, image, field, pspec );
-			break;
-		case G_TYPE_ENUM:
-			apply_enum_input( t, image, field, pspec );
-			break;
-		case G_TYPE_INT:
-		case G_TYPE_INT64:
-		case G_TYPE_UINT:
-		case G_TYPE_UINT64:
-		case G_TYPE_LONG:
-		case G_TYPE_ULONG:
-		case G_TYPE_FLAGS:
-			apply_int_input( t, image, field, pspec );
-			break;
-		case G_TYPE_FLOAT:
-		case G_TYPE_DOUBLE:
-			apply_double_input( t, image, field, pspec );
-			break;
-		case G_TYPE_BOXED:
-			apply_boxed_input( t, image, field, pspec );
-			break;
-		default:
-#ifdef DEBUG
-			printf("Type of property \"%s\" unknown.", field);
-#endif /* DEBUG */
-			/* do nothing */
-		} /* end switch( type ) */
-
+		// Apply the value of the corresponding input widget to the VipsImage.
+		metadata_util_apply_input( t, image, field );
 	}
 }
 
