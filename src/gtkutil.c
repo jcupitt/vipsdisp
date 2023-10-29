@@ -175,3 +175,27 @@ process_events( void )
                         ;
         }
 }
+
+static gboolean 
+block_scroll_cb( GtkEventControllerScroll *self,
+	gdouble dx, gdouble dy, gpointer user_data )
+{
+	// TRUE means we handled the event and it should not be propagated
+	// further
+	return TRUE;
+}
+
+/* Stop scroll events (eg. the mousewheel) changing the value of this widget. 
+ * Handy for eg. scale widgets inside a scrolled window.
+ */
+void
+block_scroll( GtkWidget *widget )
+{
+    GtkEventController *controller = gtk_event_controller_scroll_new( 
+		GTK_EVENT_CONTROLLER_SCROLL_BOTH_AXES );
+
+    gtk_event_controller_set_propagation_phase( controller, GTK_PHASE_CAPTURE );
+    g_signal_connect( controller, 
+		"scroll", G_CALLBACK( block_scroll_cb ), NULL );
+    gtk_widget_add_controller( widget, controller );
+}

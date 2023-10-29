@@ -12,3 +12,5 @@ GVariant *get_state( GtkWidget *widget, const char *name );
 void copy_state( GtkWidget *to, GtkWidget *from, const char *name );
 
 void process_events( void );
+
+void block_scroll( GtkWidget *widget );

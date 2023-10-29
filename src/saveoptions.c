@@ -182,7 +182,6 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
 
 		guint value;
-		int i;
 		GtkWidget *child;
 
 		value = 0;
@@ -260,6 +259,7 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
+			 *
 			 * TODO handle arrays with two or more elements
 			 */
 			array = vips_array_double_newv( 1, value );
@@ -361,7 +361,6 @@ save_options_class_init( SaveOptionsClass *class )
 	BIND( error_bar );
 	BIND( error_label );
 	BIND( options_grid );
-
 }
 
 /* This function is used by:
@@ -513,12 +512,17 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		return;
 	}
 
+	/* Stop scroll ecvents changing widget values.
+	 */
+	block_scroll( t );
+
 	/* Label for setting, with a tooltip. The nick is the i18n name.
 	 */
 	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
-	gtk_widget_set_halign( label, GTK_ALIGN_START );
-	gtk_widget_set_valign( label, GTK_ALIGN_START );
-	gtk_widget_set_margin_top( label, 3 );
+	gtk_widget_set_name( label, "saveoptions-label" );
+	// can't set alignment in CSS for some reason
+    gtk_widget_set_halign( label, GTK_ALIGN_END );
+    gtk_widget_set_valign( label, GTK_ALIGN_START );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 
