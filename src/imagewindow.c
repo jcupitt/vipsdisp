@@ -1,6 +1,10 @@
 /*
 #define DEBUG
- */
+*/
+
+/*
+#define EXPERIMENTAL_METADATA_EDIT
+*/
 
 #include "vipsdisp.h"
 

@@ -209,12 +209,14 @@ metadata_apply( Metadata *m )
 	// Walk through the labels in the UI ( the VipsImage property names )
 	// and corresponding input widgets.
 	for ( int i = 0; (label = gtk_grid_get_child_at( m->grid, 0, i )); i++ ) {
-		// Get first child of first child of ith grid item.
-		t = gtk_grid_get_child_at( m->grid, 1, i );
-		t = gtk_widget_get_first_child( t );
-		t = gtk_widget_get_first_child( t );
+		// Get first child of grid item in the row @i, column 2. This
+		// is the input corresponding to the property name label in the
+		// first column in the same row.
+		t = gtk_widget_get_first_child(
+				gtk_grid_get_child_at( m->grid, 1, i ) );
 
-		// Get the string name of the VipsImage field from the label in the UI
+		// Get the string name of the VipsImage field from the label in
+		// the UI
 		field = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
 		field_string = g_string_new( field );
 		g_string_replace( field_string, "<b>", "", 0 );
@@ -223,7 +225,8 @@ metadata_apply( Metadata *m )
 		field = g_strdup( field_string->str );
 		g_string_free( field_string, 1 );
 
-		// Apply the value of the corresponding input widget to the VipsImage.
+		// Apply the value of the corresponding input widget to the
+		// VipsImage.
 		metadata_util_apply_input( t, image, field );
 	}
 }

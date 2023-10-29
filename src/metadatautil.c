@@ -1,5 +1,9 @@
 #include "vipsdisp.h"
 
+/*
+#define EXPERIMENTAL_METADATA_EDIT
+*/
+
 /* No-op to prevent @w from propagating "scroll" events it receives.
  */
 void disable_scroll_cb( GtkWidget *w ) {}
@@ -187,7 +191,7 @@ create_empty_label() {
 GtkWidget *
 metadata_util_create_input( VipsImage *image, char* field )
 {
-	GtkWidget *input_box, *t, *box;
+	GtkWidget *input_box, *t;
 	GType type;
 	GParamSpec *pspec;
 	VipsArgumentClass *arg_class;
@@ -253,26 +257,25 @@ metadata_util_create_input( VipsImage *image, char* field )
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_widget_set_margin_start( input_box, 20 );
 
-	/* Create a box to contain the user input widget @t, and add a tooltip
-	 * to the box if one is available.
+	/* If there was a GParamSpec for this property, use the blurb as a
+	 * tooltip.
 	 */
-	box = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
 	if ( pspec )
-		gtk_widget_set_tooltip_text( GTK_WIDGET( box ),
+		gtk_widget_set_tooltip_text( GTK_WIDGET( input_box ),
 				g_param_spec_get_blurb( pspec ) );
 
-	/* Fill out the horizontal space in @t, @box, and @input_box.
+	/* Set hexpand and halign on @t and @input_box.
 	 */
 
 #ifdef EXPERIMENTAL_METADATA_EDIT
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
+	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
+#else
+	gtk_widget_set_halign( input_box, GTK_ALIGN_START );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
-	gtk_widget_set_hexpand( box, TRUE );
-	gtk_widget_set_halign( box, GTK_ALIGN_FILL );
 	gtk_widget_set_hexpand( input_box, TRUE );
-	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
 
 	/* Style the user input widget @t using CSS provided by
 	 * "gtk/metadata.css".
@@ -282,8 +285,7 @@ metadata_util_create_input( VipsImage *image, char* field )
 	/* Nest the input widget in two boxes. This is the UI structure
 	 * metadata_apply expects.
 	 */
-	gtk_box_append( GTK_BOX( box ), t );
-	gtk_box_append( GTK_BOX( input_box ), box );
+	gtk_box_append( GTK_BOX( input_box ), t );
 
 	/* Return the outermost box @input_box.
 	 */
