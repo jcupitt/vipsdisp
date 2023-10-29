@@ -192,11 +192,12 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 				strcmp( flags->values[i].value_nick, "all" ) == 0 )
 				continue;
 
-			if( child &&
-				gtk_check_button_get_active( GTK_CHECK_BUTTON( child ) ) ) 
-				value |= flags->values[i].value;
+			if( child ) {
+				if( gtk_check_button_get_active( GTK_CHECK_BUTTON( child ) ) ) 
+					value |= flags->values[i].value;
 
-			child = gtk_widget_get_next_sibling( child );
+				child = gtk_widget_get_next_sibling( child );
+			}
 		}
 
 		g_object_set( options->save_operation,
