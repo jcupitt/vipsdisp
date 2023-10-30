@@ -7,6 +7,8 @@
     <file preprocess="xml-stripblanks">displaybar.ui</file>
     <file preprocess="xml-stripblanks">tslider.ui</file>
     <file preprocess="xml-stripblanks">saveoptions.ui</file>
+    <file preprocess="xml-stripblanks">metadata.ui</file>
     <file>saveoptions.css</file>
+    <file>metadata.css</file>
   </gresource>
 </gresources>
