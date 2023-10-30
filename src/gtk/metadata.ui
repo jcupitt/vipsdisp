@@ -45,6 +45,10 @@
                 <property name="vexpand">true</property>
                 <property name="halign">GTK_ALIGN_FILL</property>
                 <property name="valign">GTK_ALIGN_FILL</property>
+		<property name="child">
+	          <object class="GtkGrid" id="grid">
+                  </object>
+		</property>
 	      </object>
             </child>
           </object>

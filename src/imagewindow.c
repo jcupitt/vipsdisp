@@ -1527,8 +1527,7 @@ image_window_init( ImageWindow *win )
 	 * allowing the image area to render full size. After a short wait
 	 * the position is initialized
 	 */
-	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb,
-		       win->paned );
+	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb, win->paned );
 
 }
 
@@ -1705,7 +1704,14 @@ image_window_open( ImageWindow *win, GFile *file )
 		return;
 	}
 
+	// Re-initialize from settings
+	change_state( GTK_WIDGET( win ), "metadata", 
+		g_settings_get_value( win->settings, "metadata" ) );
+
+	// Give UI a chance to load before setting the paned separator position.
+	gtk_paned_set_position( GTK_PANED( win->paned ), 500 );
 	image_window_set_tile_source( win, tile_source );
+	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb, win->paned );
 
 	VIPS_UNREF( tile_source );
 	g_free( path );

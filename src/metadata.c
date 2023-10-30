@@ -53,30 +53,48 @@ metadata_dispose( GObject *m_ )
 	G_OBJECT_CLASS( metadata_parent_class )->dispose( m_ );
 }
 
+static void
+metadata_clear_grid( Metadata *m )
+{
+	// Clean up the old grid
+	for ( int i = 0; i < m->field_list_length; i++ )
+		gtk_grid_remove_row( m->grid, m->field_list_length - 1 + i );
+
+	// Clean up the old field_list
+	if ( m->field_list ) {
+		g_list_free( m->field_list );
+		m->field_list = NULL;
+		m->field_list_length = 0;
+	}
+}
+
 static GtkGrid *
 metadata_create_grid( Metadata *m )
 {
-	GtkWidget *label, *input;
-	GtkGrid *grid;
 	VipsImage *image;
 	char **fields, *field;
+	GtkGrid *grid;
+	GtkWidget *label, *input;
 
 	image = image_window_get_tile_source( m->image_window )->image;
 
-	fields = vips_image_get_fields( image );
+	metadata_clear_grid( m );
 
+	// Make new field list
+	fields = vips_image_get_fields( image );
 	while ( (field = *fields++) )
 		m->field_list = g_list_append( m->field_list, field );
 
 	m->field_list_length = g_list_length( m->field_list );
 
+	// Make 2-column grid
 	grid = GTK_GRID( gtk_grid_new() );
-
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
 		label = gtk_label_new( field );
 		gtk_widget_set_halign( label, GTK_ALIGN_END );
 		gtk_widget_add_css_class( label, "metadata-label" );
 		gtk_grid_attach( grid, label, 0, i, 1, 1 );
+
 		input = metadata_util_create_input( image, field );
 		gtk_grid_attach( grid, input, 1, i, 1, 1 );
 	}
@@ -91,6 +109,7 @@ metadata_create_grid( Metadata *m )
 static void
 metadata_tile_source_changed( TileSource *tile_source, Metadata *m )
 {
+
 #ifdef DEBUG
 	puts( "metadata_tile_source_changed" );
 #endif
@@ -324,11 +343,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 
 	m = VIPSDISP_METADATA( m_ );
 
-	/* Free the old field_list Glist.
-	 */
-	g_list_free( m->field_list );
-	m->field_list = NULL;
-	m->field_list_length = 0;
+	metadata_clear_grid( m );
 
 	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW(
 				m->scrolled_window ), NULL );
