@@ -6,7 +6,7 @@
 
 /* How much to scale view by each frame.
  */
-#define SCALE_STEP (1.1)
+#define SCALE_STEP (1.05)
 
 struct _ImageWindow
 {
