@@ -27,5 +27,6 @@ executable('vipsdisp', [
     'saveoptions.c',
   ],
   dependencies: vipsdisp_deps,
+  win_subsystem: 'windows',
   install: true,
 )
