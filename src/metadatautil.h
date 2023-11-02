@@ -14,5 +14,4 @@ GtkWidget * metadata_util_create_input_box( VipsImage *image, char* field_name )
 
 GtkWidget * metadata_util_create_simple_label_box( gchar *s );
 
-
 #endif /* __METADATAUTIL_H */

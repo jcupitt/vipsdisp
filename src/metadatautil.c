@@ -42,12 +42,27 @@ create_spin_button( double min, double max, double step,
 }
 
 static GtkWidget *
+create_empty_label() {
+	GtkWidget *t;
+
+#ifdef DEBUG
+	printf("Unknown type for property \"%s\" in metadata_util_create_input_box\n", field);
+#endif /* DEBUG */
+
+	t = gtk_label_new( "" );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
+
+	return t;
+}
+
+static GtkWidget *
 create_simple_label( gchar *s )
 {
 	GtkWidget *t;
 
-	t = gtk_label_new( s );
+	t = create_empty_label();
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
+	gtk_label_set_label( GTK_LABEL( t ), s );
 	gtk_widget_add_css_class( t, "metadata-label" );
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 
@@ -265,20 +280,6 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 
 #ifdef DEBUG
 	printf( "G_TYPE_BOXED for property \"%s\" in metadata_util_create_input_box\n", field );
-#endif /* DEBUG */
-
-	t = gtk_label_new( "" );
-	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-
-	return t;
-}
-
-GtkWidget *
-create_empty_label() {
-	GtkWidget *t;
-
-#ifdef DEBUG
-	printf("Unknown type for property \"%s\" in metadata_util_create_input_box\n", field);
 #endif /* DEBUG */
 
 	t = gtk_label_new( "" );
