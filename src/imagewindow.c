@@ -648,6 +648,25 @@ image_window_saveas_action( GSimpleAction *action,
 
 
 	if( win->tile_source ) {
+#if GTK_CHECK_VERSION(4, 10, 0)
+		GtkFileDialog *dialog;
+		GFile *file;
+
+		dialog = gtk_file_dialog_new();
+		gtk_file_dialog_set_title( dialog, "Save file" );
+		gtk_file_dialog_set_modal( dialog, TRUE );
+
+		if( (file = tile_source_get_file( win->tile_source )) ) {
+			gtk_file_dialog_set_initial_file( dialog, file );
+			g_object_unref( file );
+		}
+
+		gtk_file_dialog_save( dialog, GTK_WINDOW( win ), NULL,
+			&image_window_on_file_save_cb, win );
+#else
+		GtkWidget *file_chooser;
+		GFile *file;
+#endif /* GTK_CHECK_VERSION(4, 10, 0) */
 
 #ifdef EXPERIMENTAL_METADATA_EDIT
 		TileSource *tile_source;
