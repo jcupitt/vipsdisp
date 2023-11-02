@@ -5,20 +5,24 @@
 */
 
 /* No-op to prevent @w from propagating "scroll" events it receives.
+ *
+ * @w_	Boilerplate GTK argument.
  */
-void disable_scroll_cb( GtkWidget *w ) {}
+void disable_scroll_cb( GtkWidget *w_ ) {
+	/* Do nothing. */
+}
 
 /* Disable scroll on a widget by adding a capture phase event handler and
  * connecting a no-op callback to the "scroll" event.
+ *
+ * @w	The target widget.
  */
 static GtkWidget *
 disable_scroll( GtkWidget *w )
 {
 	GtkEventController *ec;
 
-	ec = gtk_event_controller_scroll_new(
-			GTK_EVENT_CONTROLLER_SCROLL_VERTICAL );
-
+	ec = gtk_event_controller_scroll_new( GTK_EVENT_CONTROLLER_SCROLL_VERTICAL );
 	gtk_event_controller_set_propagation_phase( ec, GTK_PHASE_CAPTURE );
 	g_signal_connect( ec, "scroll", G_CALLBACK( disable_scroll_cb ), w );
 	gtk_widget_add_controller( w, ec );
@@ -28,6 +32,12 @@ disable_scroll( GtkWidget *w )
 
 /* Create a spin button with range, default value, and optionally enabled
  * scrolling.
+ *
+ * @min		The minimum value the spin button can hold.
+ * @max		The maximum value the spin button can hold.
+ * @step	The size of the step each time a scroll event is received.
+ * @value	The initial value held by the spin button.
+ * @scroll 	TRUE if the spin button is scrollable. FALSE otherwise.
  */
 GtkWidget *
 create_spin_button( double min, double max, double step,
@@ -41,6 +51,8 @@ create_spin_button( double min, double max, double step,
 	return scroll ? sb : disable_scroll( sb );
 }
 
+/* Create an empty label and configure it.
+ */
 static GtkWidget *
 create_empty_label() {
 	GtkWidget *t;
@@ -55,20 +67,28 @@ create_empty_label() {
 	return t;
 }
 
+/* Create and configure a simple label from a string @s.
+ *
+ * @s	Contents of the label
+ */
 static GtkWidget *
 create_simple_label( gchar *s )
 {
 	GtkWidget *t;
 
 	t = create_empty_label();
-	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 	gtk_label_set_label( GTK_LABEL( t ), s );
+	/* See gtk/metadata.css
+	 */
 	gtk_widget_add_css_class( t, "metadata-label" );
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 
 	return t;
 }
 
+/* Create an empty label box. A label box is a GtkBox with no children
+ * children, configured a certain way.
+ */
 static GtkWidget *
 create_empty_label_box()
 {
@@ -82,6 +102,9 @@ create_empty_label_box()
 	return t;
 }
 
+/* Create a simple label box. A simple label box is a GtkBox with 1 GtkLabel
+ * child, configured a certain way.
+ */
 GtkWidget *
 metadata_util_create_simple_label_box( gchar *s )
 {
@@ -121,11 +144,20 @@ metadata_util_create_label_box( GList *ma_list )
 
 	ma = (Match *) ma_list->data;
 
+	/* If this is an inexact match, return a simple label box containing
+	 * just the field name.
+	 */
 	if ( !ma->exact )
 		return metadata_util_create_simple_label_box( g_strdup( ma->text ) );
 
+	/* Otherwise, it's an a exact match. Create the empty label box that
+	 * will hold the labels.
+	 */
 	box = create_empty_label_box();
 
+	/* Put each matching substring in a GtkLabel with a certain class. Use
+	 * those classes to style the matching substrings.
+	 */
 	i = 0;
 	while ( ma_list != NULL ) {
 		ma = (Match *) ma_list->data;
@@ -142,13 +174,18 @@ metadata_util_create_label_box( GList *ma_list )
 
 		ma_list = ma_list->next;
 	}
-
 	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 
 	return box;
 }
 
+/* Create an input widget appropriate for a string value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
@@ -176,6 +213,12 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
+/* Create an input widget appropriate for a boolean value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
@@ -195,6 +238,12 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	return t;
 }
 
+/* Create an input widget appropriate for an enum value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
@@ -237,6 +286,12 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
+/* Create an input widget appropriate for an int value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
@@ -254,6 +309,12 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	return t;
 }
 
+/* Create an input widget appropriate for a double value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
@@ -273,6 +334,12 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
+/* Create an input widget appropriate for a boxed value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 GtkWidget *
 create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
@@ -288,8 +355,11 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
-/* Use introspection on VipsImage to create a UI input elements for each
- * property.
+/* Use introspection on VipsImage to create a UI input element for @field of
+ * @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
  */
 GtkWidget *
 metadata_util_create_input_box( VipsImage *image, char* field )
@@ -395,6 +465,12 @@ metadata_util_create_input_box( VipsImage *image, char* field )
 	return input_box;
 }
 
+/* Apply the string value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -407,6 +483,12 @@ metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, char* field, G
 
 }
 
+/* Apply the boolean value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -421,6 +503,12 @@ metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, 
 
 }
 
+/* Apply the enum value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -439,6 +527,12 @@ metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GPa
 	}
 }
 	
+/* Apply the int value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -448,6 +542,12 @@ metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, char* field, GPar
 	vips_image_set_int( image, field, d );
 }
 
+/* Apply the double value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -457,6 +557,12 @@ metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, char* field, G
 	vips_image_set_double( image, field, d );
 }
 
+/* Apply the boxed value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
@@ -469,6 +575,13 @@ metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GP
 	return;
 }
 
+/* Use introspection on VipsImage to apply the value for @field from the UI to
+ * @image. 
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
 void
 metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field )
 {
