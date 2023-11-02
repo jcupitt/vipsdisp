@@ -721,9 +721,6 @@ image_window_saveas_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	GtkWidget *file_chooser;
-	GFile *file;
-
 
 	if( win->tile_source ) {
 #if GTK_CHECK_VERSION(4, 10, 0)
@@ -744,7 +741,6 @@ image_window_saveas_action( GSimpleAction *action,
 #else
 		GtkWidget *file_chooser;
 		GFile *file;
-#endif /* GTK_CHECK_VERSION(4, 10, 0) */
 
 #ifdef EXPERIMENTAL_METADATA_EDIT
 		TileSource *tile_source;
@@ -780,7 +776,7 @@ image_window_saveas_action( GSimpleAction *action,
 			G_CALLBACK( image_window_saveas_response ), win );
 
 		gtk_widget_show( file_chooser );
-#endif
+#endif /* GTK_CHECK_VERSION(4, 10, 0) */
 	}
 }
 
