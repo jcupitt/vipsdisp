@@ -30,5 +30,6 @@ executable('vipsdisp', [
     'metadata.c',
   ],
   dependencies: vipsdisp_deps,
+  win_subsystem: 'windows',
   install: true,
 )

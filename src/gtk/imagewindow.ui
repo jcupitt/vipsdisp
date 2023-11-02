@@ -115,8 +115,8 @@
 
   <template class="ImageWindow" parent="GtkApplicationWindow">
     <property name="title" translatable="yes">Image window</property>
-    <property name="default-width">600</property>
-    <property name="default-height">600</property>
+    <property name="default-width">1100</property>
+    <property name="default-height">1000</property>
 
     <child type="titlebar">
       <object class="GtkHeaderBar" id="header">
