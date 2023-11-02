@@ -202,7 +202,8 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		t = gtk_drop_down_new_from_strings( nicks );
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 #else
-		t = gtk_label_new( g_strdup_printf( "%s", nicks[d] ) );
+	        t = gtk_label_new( vips_enum_nick( pspec->value_type, d ) );
+
 		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
