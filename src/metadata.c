@@ -320,7 +320,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	for ( int i=0; (field = fields[i]); i++ )
 		all_field_list = g_list_append( all_field_list, field );
 
-	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
+	patt = g_utf8_strdown( gtk_editable_get_text( GTK_EDITABLE( search_entry) ), -1 );
 
 	found = Match_substr( all_field_list, (gchar *) patt );
 
