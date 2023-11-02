@@ -8,6 +8,11 @@ GtkWidget * create_spin_button( double min, double max, double step,
 
 void metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field );
 
-GtkWidget * metadata_util_create_input( VipsImage *image, char* field_name );
+GtkWidget * metadata_util_create_label_box( GList *ma_list );
+
+GtkWidget * metadata_util_create_input_box( VipsImage *image, char* field_name );
+
+GtkWidget * metadata_util_create_simple_label_box( gchar *s );
+
 
 #endif /* __METADATAUTIL_H */

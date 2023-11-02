@@ -41,6 +41,99 @@ create_spin_button( double min, double max, double step,
 	return scroll ? sb : disable_scroll( sb );
 }
 
+static GtkWidget *
+create_simple_label( gchar *s )
+{
+	GtkWidget *t;
+
+	t = gtk_label_new( s );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
+	gtk_widget_add_css_class( t, "metadata-label" );
+	gtk_widget_set_halign( t, GTK_ALIGN_END );
+
+	return t;
+}
+
+static GtkWidget *
+create_empty_label_box()
+{
+	GtkWidget *t;
+
+	t = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
+	gtk_widget_set_halign( t, GTK_ALIGN_END );
+	gtk_widget_set_hexpand( t, TRUE );
+	gtk_widget_add_css_class( t, "metadata-label-box" );
+
+	return t;
+}
+
+GtkWidget *
+metadata_util_create_simple_label_box( gchar *s )
+{
+	GtkWidget *t;
+
+	t = create_empty_label_box();
+	gtk_box_append( GTK_BOX( t ), create_simple_label( s ) );
+
+	return t;
+}
+
+/* Create a new label box for the given GList of Match objects. The list has all
+ * exact or all inexact matches - not both. An exact match has a label box with
+ * multiple labels, where each label contains the matching substring or the
+ * substrings between matching substrings. An inexact match has a label box with
+ * only one label containing the field.
+ *
+ * The matching substrings of an exact match label box are styled by applying
+ * the CSS class "matching-substring" to the labels containing the matching
+ * substrings.
+ *
+ * The label-box node has CSS class "metadata-label-box".
+ *
+ * The labels have CSS class "metadata-label".
+ *
+ * These classes are defined in "gtk/metadata.css".
+ *
+ * @ma_list	A GList of Match objects.
+ */
+GtkWidget *
+metadata_util_create_label_box( GList *ma_list )
+{
+	Match *ma;
+	GtkWidget *box, *t;
+	int i;
+	gchar *s;
+
+	ma = (Match *) ma_list->data;
+
+	if ( !ma->exact )
+		return metadata_util_create_simple_label_box( g_strdup( ma->text ) );
+
+	box = create_empty_label_box();
+
+	i = 0;
+	while ( ma_list != NULL ) {
+		ma = (Match *) ma_list->data;
+
+		s = g_utf8_substring( ma->text, i, ma->i );
+		gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
+		
+		s = g_utf8_substring( ma->text, ma->i, ma->i + ma->n_patt );
+		t = create_simple_label( s );
+		gtk_widget_add_css_class( t, "matching-substring" );
+		gtk_box_append( GTK_BOX( box ), t );
+		
+		i = ma->i + ma->n_patt;
+
+		ma_list = ma_list->next;
+	}
+
+	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
+	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
+
+	return box;
+}
+
 GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
@@ -62,6 +155,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 
 #else
 	t = gtk_label_new( g_strdup_printf( "%s", value ) );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
@@ -80,6 +174,7 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 #else
 	t = gtk_label_new( g_strdup_printf( "%s",
 				d ? "true" : "false" ) );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
@@ -108,6 +203,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 #else
 		t = gtk_label_new( g_strdup_printf( "%s", nicks[d] ) );
+		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	} else { 
@@ -118,6 +214,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
 		t = gtk_label_new( g_strdup_printf( "%d", d ) );
+		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 	}
 
@@ -135,6 +232,7 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
 	t = gtk_label_new( g_strdup_printf( "%d", d ) );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
@@ -153,6 +251,7 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 
 #else
 	t = gtk_label_new( g_strdup_printf( "%f", d ) );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
 	return t;
@@ -164,10 +263,11 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf( "G_TYPE_BOXED for property \"%s\" in metadata_util_create_input\n", field );
+	printf( "G_TYPE_BOXED for property \"%s\" in metadata_util_create_input_box\n", field );
 #endif /* DEBUG */
 
 	t = gtk_label_new( "" );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 
 	return t;
 }
@@ -177,10 +277,11 @@ create_empty_label() {
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf("Unknown type for property \"%s\" in metadata_util_create_input\n", field);
+	printf("Unknown type for property \"%s\" in metadata_util_create_input_box\n", field);
 #endif /* DEBUG */
 
-		t = gtk_label_new( "" );
+	t = gtk_label_new( "" );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 
 	return t;
 }
@@ -189,7 +290,7 @@ create_empty_label() {
  * property.
  */
 GtkWidget *
-metadata_util_create_input( VipsImage *image, char* field )
+metadata_util_create_input_box( VipsImage *image, char* field )
 {
 	GtkWidget *input_box, *t;
 	GType type;
@@ -280,7 +381,7 @@ metadata_util_create_input( VipsImage *image, char* field )
 	/* Style the user input widget @t using CSS provided by
 	 * "gtk/metadata.css".
 	 */
-	gtk_widget_add_css_class( t, "metadata-input" );
+	gtk_widget_add_css_class( t, "metadata-input-box" );
 
 	/* Nest the input widget in two boxes. This is the UI structure
 	 * metadata_apply expects.

@@ -27,10 +27,6 @@ void Match_print( gpointer match_, gpointer user_data );
 
 gint Match_comp( gconstpointer a_, gconstpointer b_ );
 
-void Match_markup_cb( gpointer ma_, gpointer markup_ );
-
-gchar * Match_markup( GList *match );
-
 gint Match_list_comp( gconstpointer a_, gconstpointer b_ );
 
 GList* Match_fuzzy_list( char *text, char *patt );

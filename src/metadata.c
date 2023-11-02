@@ -74,7 +74,7 @@ metadata_create_grid( Metadata *m )
 	VipsImage *image;
 	char **fields, *field;
 	GtkGrid *grid;
-	GtkWidget *label, *input;
+	GtkWidget *t;
 
 	image = image_window_get_tile_source( m->image_window )->image;
 
@@ -90,13 +90,11 @@ metadata_create_grid( Metadata *m )
 	// Make 2-column grid
 	grid = GTK_GRID( gtk_grid_new() );
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
-		label = gtk_label_new( field );
-		gtk_widget_set_halign( label, GTK_ALIGN_END );
-		gtk_widget_add_css_class( label, "metadata-label" );
-		gtk_grid_attach( grid, label, 0, i, 1, 1 );
+		t = metadata_util_create_simple_label_box( field );
+		gtk_grid_attach( grid, t, 0, i, 1, 1 );
 
-		input = metadata_util_create_input( image, field );
-		gtk_grid_attach( grid, input, 1, i, 1, 1 );
+		t = metadata_util_create_input_box( image, field );
+		gtk_grid_attach( grid, t, 1, i, 1, 1 );
 	}
 
 	return grid;
@@ -216,7 +214,6 @@ metadata_apply( Metadata *m )
 {
 	GtkWidget *t, *label;
 	char *field;
-	GString *field_string;
 	VipsImage *image;
 
 #ifdef DEBUG
@@ -237,12 +234,6 @@ metadata_apply( Metadata *m )
 		// Get the string name of the VipsImage field from the label in
 		// the UI
 		field = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
-		field_string = g_string_new( field );
-		g_string_replace( field_string, "<b>", "", 0 );
-		g_string_replace( field_string, "</b>", "", 0 );
-		g_free( field );
-		field = g_strdup( field_string->str );
-		g_string_free( field_string, 1 );
 
 		// Apply the value of the corresponding input widget to the
 		// VipsImage.
@@ -250,81 +241,46 @@ metadata_apply( Metadata *m )
 	}
 }
 
+/* Attach a new row with a label and an input widget to the metadata grid
+ * for the provided VipsImage field name.
+ *
+ * Used as a callback in a foreach loop in metadata_search_changed.
+ *
+ * @ma_list_:	GList of Match
+ * @m_:		Metadata
+ */
 static void
-metadata_append_field( gpointer data, gpointer user_data )
+metadata_append_field( gpointer ma_list_, gpointer m_ )
 {
-	Metadata *m;
 	GList *ma_list;
-	GtkWidget *label, *t;
-	Match *match;
+	Metadata *m;
+	Match *ma;
+	gchar *field;
+	GtkWidget *t;
 
-	ma_list = (GList *) data;
-	match = (Match *) ma_list->data;
+#ifdef DEBUG
+	puts("metadata_append_field")
+#endif
 
-	m = VIPSDISP_METADATA( user_data );
-	m->field_list = g_list_append( m->field_list, match->text );
+	ma_list = (GList *) ma_list_;
+	m = VIPSDISP_METADATA( m_ );
 
-	label = gtk_label_new( match->text );
-	gtk_widget_add_css_class( label, "metadata-label" );
-	gtk_widget_set_halign( label, GTK_ALIGN_END );
-	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
+	ma = (Match *) ma_list->data;
+	field = g_strdup( ma->text );
 
-	t = metadata_util_create_input( image_window_get_tile_source(
-				m->image_window )->image, match->text );
-	if ( t )
-		gtk_grid_attach( m->grid, t,
-				1, m->field_list_length, 1, 1 );
+	m->field_list = g_list_append( m->field_list, field );
+
+	t = metadata_util_create_label_box( ma_list );
+	gtk_grid_attach( m->grid, t, 0, m->field_list_length, 1, 1 );
+
+	t = metadata_util_create_input_box( image_window_get_tile_source( m->image_window )->image, field );
+	gtk_grid_attach( m->grid, t, 1, m->field_list_length, 1, 1 );
 
 	m->field_list_length++;
 }
 
-/* Append fields names to the UI with markup.
- *
- * Used as a callback in a foreach loop in metadata_search_changed.
- *
- * @data:	GList of Match
- * @m_:		Metadata
- */
-static void
-metadata_append_markup_field( gpointer data, gpointer m_ )
-{
-	Metadata *m;
-	gchar *markup;
-	GString *field;
-	GList *ma_list;
-	GtkWidget *label, *input;
-
-#ifdef DEBUG
-	puts("metadata_append_markup_field")
-#endif
-
-	ma_list = (GList *) data;
-	markup = Match_markup( ma_list );
-	m = VIPSDISP_METADATA( m_ );
-	m->field_list = g_list_append( m->field_list, markup );
-
-	label = gtk_label_new( NULL );
-	gtk_widget_add_css_class( label, "metadata-label" );
-	gtk_widget_set_halign( label, GTK_ALIGN_END );
-	gtk_label_set_markup( GTK_LABEL( label ), markup );
-
-	gtk_grid_attach( m->grid, label, 0, m->field_list_length, 1, 1 );
-
-	field = g_string_new( markup );
-	g_string_replace( field, "<b>", "", 0 );
-	g_string_replace( field, "</b>", "", 0 );
-
-	input = metadata_util_create_input( image_window_get_tile_source(
-				m->image_window )->image, field->str );
-
-	if ( input )
-		gtk_grid_attach( m->grid, input,
-				1, m->field_list_length++, 1, 1 );
-}
-
 /* This is the callback function called whenever the GtkSearchEntry is modified
- * by the user. Has loops on append_markup or append_field
- * callback functions.
+ * by the user. Has loops or append_field callback function.
  *
  * Gets the list of matches. Separates it into two lists: exact and inexact.
  * Sorts inexact matches by increasing Levenshtein distance.
@@ -401,7 +357,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 */
 	if ( g_list_length( found0 ) ) {
 		gtk_widget_set_visible( m->search_warning, FALSE );
-		g_list_foreach( found0, metadata_append_markup_field, m );
+		g_list_foreach( found0, metadata_append_field, m );
 	}
 
 	/* If there are no exact matches, then add the inexact matches, if

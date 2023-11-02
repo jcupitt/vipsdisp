@@ -177,39 +177,6 @@ Match_comp( gconstpointer a_, gconstpointer b_ )
 	else return 1;
 }
 
-void
-Match_markup_cb( gpointer ma_, gpointer markup_ )
-{
-	Match *ma;
-	GString *markup;
-	gchar *replacement;
-
-	ma = (Match *) ma_;
-	markup = (GString *) markup_;
-
-	if ( ma->patt && ma->patt[0] && !ma->ld ) {
-		replacement = g_strdup_printf( "<>%s</>", ma->patt );
-		g_string_replace( markup, ma->patt, replacement, 0 );
-		g_free( replacement );
-	}
-}
-
-gchar *
-Match_markup( GList *match )
-{
-	GString *markup;
-	Match *first = (Match *) match->data;
-
-	markup = g_string_new( g_strdup( first->text ) );
-
-	g_list_foreach( match, Match_markup_cb, markup );
-
-	g_string_replace( markup, "<>", "<b>", 0 );
-	g_string_replace( markup, "</>", "</b>", 0 );
-
-	return markup->str;
-}
-
 gint
 Match_list_comp( gconstpointer a_, gconstpointer b_ )
 {
@@ -251,7 +218,7 @@ Match_fuzzy_list( char *text, char *patt )
 
 	s = text;
 	while( *s && (s = strstr( s, patt )) ) {
-		ma = Match_new( TRUE, text - s, 0, text, patt );
+		ma = Match_new( TRUE, s - text, 0, text, patt );
 		r = g_list_append( r, ma );
 		s += ma->n_patt;
 	}

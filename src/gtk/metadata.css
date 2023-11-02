@@ -1,9 +1,17 @@
 #metadata_title {
 }
 
-.metadata-label {
+.metadata-label-box {
+}
+
+.metadata-label-box .metadata-label {
 	color: gray;
 }
 
-.metadata-input {
+.metadata-label-box .metadata-label.matching-substring {
+	color: white;
+	font-weight: bold;
+}
+
+.metadata-input-box {
 }
