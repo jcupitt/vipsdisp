@@ -4,7 +4,17 @@
 
 #include "vipsdisp.h"
 
-/* Expects NULL-terminated strings.
+/* Create a new Match object.
+ *
+ * Expects NULL-terminated strings.
+ *
+ * Must be freed with Match_free.
+ *
+ * @exact:	Exact match (TRUE) or inexact (FALSE)
+ * @i:		Offset from @text to @patt. Used for exact matching.
+ * @ld:		Distance between @text and @patt. Used for inexact matching.
+ * @text:	Text to search in
+ * @patt:	Search pattern
  */
 Match *
 Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
@@ -22,16 +32,31 @@ Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
 	return t;
 }
 
+/* Clean up a Match object. Usable as a callback function in a g_list_foreach
+ * call.
+ * 
+ * @match_	gpointer (Match *)
+ * @user_data_	gpointer		Boilerplate argument
+ */
 void
-Match_free( gpointer match_, gpointer user_data )
+Match_free( gpointer match_, gpointer user_data_ )
 {
-	Match *match = (Match *) match_;
+	Match *match;
+
+	match = (Match *) match_;
+
 	if ( match ) {
 		g_free( match->text );
 		g_free( match );
 	}		
 }
 
+/* Print a string representation of a Match object. Usable as a callback
+ * function in a g_list_foreach call.
+ *
+ * @match_	gpointer (Match *)
+ * @user_data_	gpointer		Boilerplate argument
+ */
 void
 Match_print( gpointer match_, gpointer user_data )
 {
@@ -41,6 +66,8 @@ Match_print( gpointer match_, gpointer user_data )
 		match->n_patt );
 }
 
+/* This convenient macro gets the minimum value of three values.
+ */
 #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
 /* LEVENSHTEIN DISTANCE
@@ -164,6 +191,11 @@ glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1] ) {
 	return v[y-1];
 }
 
+/* Compare two Match objects.
+ *
+ * @a_	gconstpointer (Match *)		The lefthand Match object.
+ * @b_ 	gconstpointer (Match *)		The righthand Match object.
+ */
 gint
 Match_comp( gconstpointer a_, gconstpointer b_ )
 {
@@ -177,6 +209,12 @@ Match_comp( gconstpointer a_, gconstpointer b_ )
 	else return 1;
 }
 
+/* Version of Match_comp that can be used with g_list_sort on a GList of Match
+ * pointers.
+ *
+ * @a_	gconstpointer (Match *)		The lefthand Match object.
+ * @b_ 	gconstpointer (Match *)		The righthand Match object.
+ */
 gint
 Match_list_comp( gconstpointer a_, gconstpointer b_ )
 {
@@ -196,7 +234,7 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  *
  * A GList of inexact or "fuzzy" matches contain data needed to order
  * those match from best to worst. In this case the metric used ws
- * the Levenshtein Distance.
+ * the Levenshtein Distance between @text and @patt.
  *
  * @text - NULL-terminated string; the target of the search
  * @patt - NULL-terminated string; the pattern to search for
@@ -234,14 +272,14 @@ Match_fuzzy_list( char *text, char *patt )
 	return r;
 }
 
-/* Callback for g_list_foreach loop
+/* Callback for g_list_foreach loop in Match_substr.
  *
  * @data:	text to search
  *
  * @user_data:	Pointer to GList of GList of Match objects to append
  * 		to. The first element is the search pattern.
  */
-void
+static void
 Match_substr_cb( gpointer data, gpointer user_data )
 {
 	// Pointer to GList of GList
