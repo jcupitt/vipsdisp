@@ -22,7 +22,9 @@ struct _Metadata
 	GtkWidget *search_entry;
 	GtkWidget *search_warning;
 
-	GtkGrid *grid;
+	GtkWidget *main_box;
+	GtkWidget *left_column;
+	GtkWidget *right_column;
 	GList *field_list;
 	int field_list_length;
 
@@ -49,57 +51,69 @@ enum {
 	SIG_LAST
 };
 
-/* Clean up the old GtkGrid @m->grid children and the old GList @field_list.
+/* Clean up any existing children of @left_column and @right_column and any
+ * existing elements of the GList @field_list.
  *
  * @m	Metadata *	this
  */
 static void
-metadata_clear_grid( Metadata *m )
+metadata_clear_main_box( Metadata *m )
 {
-	/* Clean up the old grid, if any.
-	 */
-	for ( int i = 0; i < m->field_list_length; i++ )
-		gtk_grid_remove_row( m->grid, m->field_list_length - 1 + i );
+	GtkWidget *t0, *t1;
 
-	/* Clean up the old field_list, if any.
+	/* Clean up the old main_box contents ( if any ) and old field list
+	 * ( if of non-zero length ).
 	 */
 	if ( m->field_list ) {
+		t0 = gtk_widget_get_last_child( m->left_column );
+		while ( t0 ) {
+			t1 = gtk_widget_get_prev_sibling( t0 );
+			gtk_widget_unparent( t0 );
+			t0 = t1;
+		}
+
+		t0 = gtk_widget_get_last_child( m->right_column );
+		while ( t0 ) {
+			t1 = gtk_widget_get_prev_sibling( t0 );
+			gtk_widget_unparent( t0 );
+			t0 = t1;
+		}
+
 		g_list_free( m->field_list );
 		m->field_list = NULL;
 		m->field_list_length = 0;
 	}
 }
 
-/* Create a new grid. The caller should use metadata_clear_grid to clean up the
- * old grid children first.
+/* Create a new main_box. The caller should use metadata_clear_main_box to clean
+ * up existing input widgets first.
  *
  * @m	Metadata *	this
  */
 static void
-metadata_create_grid( Metadata *m )
+metadata_create_main_box( Metadata *m )
 {
 	TileSource *tile_source;
 	GtkWidget *t;
 	VipsImage *image;
 	char **fields, *field;
 
-	/* Make an empty grid.
+	/* If there is no TileSource, clean up any existing main_box and do
+	 * nothing.
 	 */
-	m->grid = GTK_GRID( gtk_grid_new() );
-
-	/* Return the empty grid if there is no TileSource
-	 */
-	if ( !(tile_source = image_window_get_tile_source( m->image_window )) )
+	if ( !(tile_source = image_window_get_tile_source( m->image_window )) ) {
+		metadata_clear_main_box( m );
 		return;
+	}
 
 	/* If there is a TileSource, get its VipsImage @image and continue.
 	 */
 	image = tile_source_get_image( tile_source );
 
-	/* Clean up the old GtkGrid @m->grid and GList @m->field_list. If there
-	 * is nothing to clean up, nothing happens.
+	/* Clean up the old GtkGrid @m->main_box and GList @m->field_list. If
+	 * there is nothing to clean up, nothing happens.
 	 */
-	metadata_clear_grid( m );
+	metadata_clear_main_box( m );
 
 	/* Make new GList @m->field_list using the fields from the VipsImage
 	 * @image.
@@ -109,26 +123,24 @@ metadata_create_grid( Metadata *m )
 		m->field_list = g_list_append( m->field_list, field );
 	m->field_list_length = g_list_length( m->field_list );
 
-	/* Add @m->field_list_length rows and 2 columns to the grid. There is
-	 * a row for every field, i.e., every property of the VipsImage @image.
+	/* Add @m->field_list_length rows and 2 columns to the main_box. There
+	 * is a row for every field, i.e., every property of the VipsImage
+	 * @image.
 	 */
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
 		t = metadata_util_create_simple_label_box( field );
-		gtk_grid_attach( m->grid, t, 0, i, 1, 1 );
+		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
+		gtk_box_append( GTK_BOX( m->left_column ), t );
 
 		t = metadata_util_create_input_box( image, field );
-		gtk_grid_attach( m->grid, t, 1, i, 1, 1 );
+		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
+		gtk_box_append( GTK_BOX( m->right_column ), t );
 	}
-
-	/* We make this grid scrollable by putting it in a GtkScrolledWindow.
-	 */
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( m->scrolled_window),
-			GTK_WIDGET( m->grid ) );
 }
 
 /* This is called when the TileSource changes. In particular, a new VipsImage
- * might have been loaded, or there might no image loaded. Clean up the old
- * grid ( if any ) and create a new one. This is the callback for the
+ * might have been loaded, or there might no image loaded. Clean up any
+ * existing input widgets and create new ones. This is the callback for the
  * "changed" event on @m->image_window->tile_source.
  *
  * @tile_source		The new tile_source, which is currently held by
@@ -145,16 +157,16 @@ metadata_tile_source_changed( TileSource *tile_source, Metadata *m )
 #endif
 
 	/* If there is a new VipsImage on the tile source, use it to create
-	 * the new grid of user input widgets.
+	 * the new main_box of user input widgets.
 	 */
 	if ( tile_source->image )
-		/* The metadata_create_grid function uses the VipsImage to
+		/* The metadata_create_main_box function uses the VipsImage to
 		 * dynamically create a GtkGrid of user input widgets for
-		 * viewing and editing image metadata. It cleans up the old grid
-		 * and gets the image from the new TileSource ( which is why
-		 * @tile_source isn't passed as an argument here ).
+		 * viewing and editing image metadata. It cleans up the old
+		 * main_box and gets the image from the new TileSource ( which is
+		 * why @tile_source isn't passed as an argument here ).
 		 */
-		metadata_create_grid( m );
+		metadata_create_main_box( m );
 }
 
 /* This function is called when ImageWindow changes. It is connected to the
@@ -206,7 +218,7 @@ metadata_apply( Metadata *m )
 {
 	VipsImage *image;
 	TileSource *tile_source;
-	GtkWidget *t, *label;
+	GtkWidget *label_box, *input_box, *t;
 	char *field;
 
 #ifdef DEBUG
@@ -222,26 +234,39 @@ metadata_apply( Metadata *m )
 	 */
 	image = tile_source_get_image( tile_source );
 
-	// Walk through the labels in the UI ( the VipsImage property names )
-	// and corresponding input widgets.
-	for ( int i = 0; (label = gtk_grid_get_child_at( m->grid, 0, i )); i++ ) {
-		// Get first child of grid item in the row @i, column 2. This
-		// is the input corresponding to the property name label in the
-		// first column in the same row.
-		t = gtk_widget_get_first_child(
-				gtk_grid_get_child_at( m->grid, 1, i ) );
+	/* Walk through the labels in the UI ( the VipsImage property names )
+	 * and corresponding input widgets.
+	 */
+	label_box = gtk_widget_get_first_child( m->left_column );
+	input_box = gtk_widget_get_first_child( m->right_column );
+	while ( label_box ) {
+		g_assert( input_box );
 
-		// Get the string name of the VipsImage field from the label in
-		// the UI
-		field = g_strdup( gtk_label_get_text( GTK_LABEL( label ) ) );
+		/* Get the GtkLabel child of the label_box.
+		 */
+		t = gtk_widget_get_first_child( label_box );
 
-		// Apply the value of the corresponding input widget to the
-		// VipsImage.
+		/* Get the string name of the VipsImage field from the label.
+		 */
+		field = g_strdup( gtk_label_get_text( GTK_LABEL( t ) ) );
+
+		/* Get the input widget child of the input_box.
+		 */
+		t = gtk_widget_get_first_child( input_box );
+
+		/* Apply the value of the corresponding input widget to the
+		 * VipsImage.
+		 */
 		metadata_util_apply_input( t, image, field );
+
+		/* Iterate to the next row.
+		 */
+		label_box = gtk_widget_get_next_sibling( label_box );
+		input_box = gtk_widget_get_next_sibling( input_box );
 	}
 }
 
-/* Attach a new row with a label and an input widget to the metadata grid
+/* Attach a new row with a label and an input widget to the main_box
  * for the provided VipsImage field name.
  *
  * Used as a callback in a foreach loop in metadata_search_changed.
@@ -270,12 +295,34 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 
 	m->field_list = g_list_append( m->field_list, field );
 
+	/* Create a label box.
+	 */
 	t = metadata_util_create_label_box( ma_list );
-	gtk_grid_attach( m->grid, t, 0, m->field_list_length, 1, 1 );
 
+	/* Add "even" or "odd" CSS class to label_box based on parity of the row
+	 * index.
+	 */
+	gtk_widget_add_css_class( t, m->field_list_length % 2 ? "odd" : "even" );
+
+	/* Append a label box to @left_column.
+	 */
+	gtk_box_append( GTK_BOX( m->left_column ), t );
+
+	/* Create a label box.
+	 */
 	t = metadata_util_create_input_box( image_window_get_tile_source( m->image_window )->image, field );
-	gtk_grid_attach( m->grid, t, 1, m->field_list_length, 1, 1 );
 
+	/* Add "even" or "odd" CSS class to input_box based on parity of the row
+	 * index.
+	 */
+	gtk_widget_add_css_class( t, m->field_list_length % 2 ? "odd" : "even" );
+
+	/* Append an input box to @right_column.
+	 */
+	gtk_box_append( GTK_BOX( m->right_column ), t );
+
+	/* Increment the field list length.
+	 */
 	m->field_list_length++;
 }
 
@@ -294,52 +341,53 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	Metadata *m;
 	char **fields, *patt, *field;
 	GList *field_list;
-
-	/* Initialize GList pointers to NULL.
-	 */
+	Match *match;
 	GList *found, *found0, *found1, *s0, *s1, *t;
+
+	/* Initialize GList pointers to NULL, which means they are empty.
+	 */
 	found = found0 = found1 = s0 = s1 = t = NULL;
 
 	/* Cast @m_ to Metadata *
 	 */
 	m = VIPSDISP_METADATA( m_ );
 
-	/* Remove grid children
+	/* Clean up any existing children of left_column and right_column.
 	 */
-	metadata_clear_grid( m );
+	metadata_clear_main_box( m );
 
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW(
-				m->scrolled_window ), NULL );
-
-	m->grid = GTK_GRID( gtk_grid_new() );
-
-	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW(
-				m->scrolled_window ), GTK_WIDGET( m->grid ) );
-
-
-	/* Get the C-style list of image field strings. Make a GList out of
-	 * them, and search through it for the user input pattern.
+	/* Get the C-style list of image field strings.
 	 */
 	fields = vips_image_get_fields( image_window_get_tile_source(
 			m->image_window )->image );
 
+	/* Make a GList out of them, and search through it for the user input
+	 * pattern, ignoring (UTF-8) case.
+	 *
+	 * The results of the search are stored in @found - a GList of Match
+	 * objects (see match.h and match.c).
+	 */
 	field_list = NULL;
 	for ( int i=0; (field = fields[i]); i++ )
 		field_list = g_list_append( field_list, field );
-
 	patt = g_utf8_strdown( gtk_editable_get_text( GTK_EDITABLE( search_entry) ), -1 );
-
 	found = Match_substr( field_list, (gchar *) patt );
 
-	/* Get two GList of GList: one with exact matches @s0, and another with
-	 * the inexact matches @s1.
+	/* Create two GList of GList: one with exact matches @found0, and one
+	 * with inexact matches @found1. Iterate through each GList @t contained
+	 * in the GList @found, building up GList @s0 and GList @s1 with exact
+	 * and inexact Match Match objects, respectively, and then appending @s0
+	 * to @found0 and @s1 to @found1.
 	 */
 	while ( found ) {
 		t = (GList *) found->data;
 		s0 = s1 = NULL;
 
+		/* Iterate through the GList @t, adding exact matches to @s0
+		 * and inexact matches to @s1.
+		 */
 		while ( t ) {
-			Match *match = (Match *) t->data;
+			match = (Match *) t->data;
 
 			if ( match->exact )
 				s0 = g_list_append( s0, match );
@@ -350,7 +398,8 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 		}
 
 		/* Don't append NULL lists to the lists of lists @found0 and
-		 * @found.
+		 * @found1, since that means the GList is empty, so there is
+		 * nothing to show.
 		 */
 		if ( s0 )
 			found0 = g_list_append( found0, s0 );
@@ -363,12 +412,12 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	/* Add the exact matches to the UI.
 	 */
 	if ( g_list_length( found0 ) ) {
-		/* Don't tell the user anything, since there are exact
-		 * matches.
+		/* Don't show the search warning, since there are exact matches
+		 * to show.
 		 */
 		gtk_widget_set_visible( m->search_warning, FALSE );
 
-		/* Add the exact matches to the ui.
+		/* Add the exact matches to the UI.
 		 */
 		g_list_foreach( found0, metadata_append_field, m );
 	}
@@ -587,6 +636,9 @@ metadata_class_init( MetadataClass *class )
 	BIND( search_bar );
 	BIND( search_entry );
 	BIND( search_warning );
+	BIND( main_box );
+	BIND( left_column );
+	BIND( right_column );
 
 	gobject_class->set_property = metadata_set_property;
 	gobject_class->get_property = metadata_get_property;

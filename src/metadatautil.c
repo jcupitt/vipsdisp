@@ -100,7 +100,7 @@ create_empty_label_box()
 	GtkWidget *t;
 
 	t = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
-	gtk_widget_set_halign( t, GTK_ALIGN_START );
+	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_add_css_class( t, "metadata-label-box" );
 
@@ -476,7 +476,7 @@ metadata_util_create_input_box( VipsImage *image, char* field )
 	/* Create the box we will return, @input_box.
 	 */
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-	gtk_widget_set_margin_start( input_box, 20 );
+	//gtk_widget_set_margin_start( input_box, 20 );
 
 	/* If there was a GParamSpec for this property, use the blurb as a
 	 * tooltip.
@@ -487,29 +487,24 @@ metadata_util_create_input_box( VipsImage *image, char* field )
 
 	/* Set hexpand and halign on @t and @input_box.
 	 */
+	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
+	gtk_widget_set_halign( t, GTK_ALIGN_START );
+	gtk_widget_set_hexpand( input_box, TRUE );
 
 #ifdef EXPERIMENTAL_METADATA_EDIT
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
 	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
-#else
-	gtk_widget_set_halign( input_box, GTK_ALIGN_START );
 #endif /* EXPERIMENTAL_METADATA_EDIT */
 
-	gtk_widget_set_hexpand( input_box, TRUE );
-
-	/* Style the user input widget @t using CSS provided by
-	 * "gtk/metadata.css".
+	/* Style @input_box using CSS from "gtk/metadata.css".
 	 */
-	gtk_widget_add_css_class( t, "metadata-input-box" );
+	gtk_widget_add_css_class( input_box, "metadata-input-box" );
 
-	/* Nest the input widget in two boxes. This is the UI structure
-	 * metadata_apply expects.
+	/* Append the input widget @t to @input_box.
 	 */
 	gtk_box_append( GTK_BOX( input_box ), t );
 
-	/* Return the outermost box @input_box.
-	 */
 	return input_box;
 }
 
@@ -659,12 +654,11 @@ metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GP
 	return;
 }
 
-/* Use introspection on VipsImage to apply the value for @field from the UI to
- * @image. 
+/* Apply the value for @field from the input widget @t to @image. 
  *
+ * @t		The GtkWidget
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
 metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field )

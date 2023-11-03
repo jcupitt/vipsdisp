@@ -4,6 +4,10 @@
 .metadata-label-box {
 }
 
+.metadata-label-box.even, .metadata-input-box.even {
+	background-color: rgba(0, 0, 0, .1);
+}
+
 .metadata-label-box .metadata-label {
 	color: gray;
 }
