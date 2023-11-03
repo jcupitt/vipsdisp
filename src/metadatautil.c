@@ -291,6 +291,47 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	return t;
 }
 
+/* Create an input widget appropriate for a flags value.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
+GtkWidget *
+create_flags_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+{
+	GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+	GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+	guint value = pspec_flags->default_value;
+	GtkWidget *t;
+
+	t = gtk_box_new( GTK_ORIENTATION_VERTICAL, 5 );
+
+	for( int i = 0; i < flags->n_values; i++ ) {
+		GtkWidget *check;
+
+		// not useful in a GUI
+		if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+			strcmp( flags->values[i].value_nick, "all" ) == 0 )
+			continue;
+
+		check = gtk_check_button_new();
+		gtk_check_button_set_label( GTK_CHECK_BUTTON( check ), 
+				flags->values[i].value_nick );
+
+		// can't be 0 (would match everything), and all bits
+		// should match all bits in the value, or "all" would always match
+		// everything
+		if (flags->values[i].value &&
+			(value & flags->values[i].value) == flags->values[i].value) 
+			gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
+
+		gtk_box_append( GTK_BOX( t ), check );
+	}
+
+	return t;
+}
+
 /* Create an input widget appropriate for an int value.
  *
  * @image	The VipsImage
@@ -410,13 +451,15 @@ metadata_util_create_input_box( VipsImage *image, char* field )
 	case G_TYPE_ENUM:
 		t = create_enum_input( image, field, pspec );
 		break;
+	case G_TYPE_FLAGS:
+		t = create_flags_input( image, field, pspec );
+		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
 	case G_TYPE_UINT:
 	case G_TYPE_UINT64:
 	case G_TYPE_LONG:
 	case G_TYPE_ULONG:
-	case G_TYPE_FLAGS:
 		t = create_int_input( image, field, pspec );
 		break;
 	case G_TYPE_FLOAT:
@@ -531,6 +574,42 @@ metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GPa
 		vips_image_set_int( image, field, d );
 	}
 }
+
+/* Apply the flags value for @field from the UI to @image.
+ *
+ * @image	The VipsImage
+ * @field	The name of the VipsImage property
+ * @pspec	The GParamSpec for @field
+ */
+void
+metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+{
+	GParamSpecFlags *pspec_flags;
+	GFlagsClass *flags;
+	guint value;
+	GtkWidget *child;
+
+	pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
+	flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+
+	value = 0;
+	child = gtk_widget_get_first_child( t ); 
+	for( int i = 0; i < flags->n_values; i++ ) {
+		// we skip these. not useful in UI.
+		if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
+			strcmp( flags->values[i].value_nick, "all" ) == 0 )
+			continue;
+
+		if( child ) {
+			if( gtk_check_button_get_active( GTK_CHECK_BUTTON( child ) ) ) 
+				value |= flags->values[i].value;
+
+			child = gtk_widget_get_next_sibling( child );
+		}
+	}
+
+	vips_image_set_int( image, field, value );
+}
 	
 /* Apply the int value for @field from the UI to @image.
  *
@@ -619,13 +698,15 @@ metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field )
 	case G_TYPE_ENUM:
 		metadata_util_apply_enum_input( t, image, field, pspec );
 		break;
+	case G_TYPE_FLAGS:
+		metadata_util_apply_flags_input( t, image, field, pspec );
+		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
 	case G_TYPE_UINT:
 	case G_TYPE_UINT64:
 	case G_TYPE_LONG:
 	case G_TYPE_ULONG:
-	case G_TYPE_FLAGS:
 		metadata_util_apply_int_input( t, image, field, pspec );
 		break;
 	case G_TYPE_FLOAT:

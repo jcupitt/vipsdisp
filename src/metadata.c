@@ -72,7 +72,7 @@ metadata_clear_grid( Metadata *m )
 
 /* Create a new grid. The caller should use metadata_clear_grid to clean up the
  * old grid children first.
- * 
+ *
  * @m	Metadata *	this
  */
 static void
@@ -90,7 +90,7 @@ metadata_create_grid( Metadata *m )
 	/* Return the empty grid if there is no TileSource
 	 */
 	if ( !(tile_source = image_window_get_tile_source( m->image_window )) )
-		return; 
+		return;
 
 	/* If there is a TileSource, get its VipsImage @image and continue.
 	 */
@@ -148,7 +148,7 @@ metadata_tile_source_changed( TileSource *tile_source, Metadata *m )
 	 * the new grid of user input widgets.
 	 */
 	if ( tile_source->image )
-		/* The metadata_create_grid function uses the VipsImage to 
+		/* The metadata_create_grid function uses the VipsImage to
 		 * dynamically create a GtkGrid of user input widgets for
 		 * viewing and editing image metadata. It cleans up the old grid
 		 * and gets the image from the new TileSource ( which is why
