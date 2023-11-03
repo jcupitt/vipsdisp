@@ -4,6 +4,10 @@
 
 #include "vipsdisp.h"
 
+/* The Metadata widget displays the properties of the VipsImage. This includes
+ * geometric values such as width and height as well as any exif metadata.
+ */
+
 /* This structure defines the properties of a Metadata object.
  * (GObject boilerplate)
  */

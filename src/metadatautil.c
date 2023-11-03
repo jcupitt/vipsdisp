@@ -4,6 +4,11 @@
 #define EXPERIMENTAL_METADATA_EDIT
 */
 
+/* This file defines utility functions for "metadata.c".
+ *
+ * Functions in this file do not use methods or types defined in "metadata.c".
+ */
+
 /* No-op to prevent @w from propagating "scroll" events it receives.
  *
  * @w_	Boilerplate GTK argument.
@@ -567,7 +572,7 @@ void
 metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
 {
 #ifdef DEBUG
-	printf("G_TYPE_BOXED for property \"%s\" in metadata_apply\n");
+	printf("G_TYPE_BOXED for property \"%s\" in metadata_util_apply_input\n");
 #endif /* DEBUG */
 
 	/* do nothing */

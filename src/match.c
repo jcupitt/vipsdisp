@@ -4,6 +4,11 @@
 
 #include "vipsdisp.h"
 
+/* The Match struct and its methods are used for string matching in the
+ * search-as-you-type feature of the Metadata widget. See "match.h" for a more
+ * detailed explanation of the Match struct.
+ */
+
 /* Create a new Match object.
  *
  * Expects NULL-terminated strings.
