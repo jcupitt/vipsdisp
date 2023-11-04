@@ -27,6 +27,7 @@ struct _Metadata
 	GtkWidget *right_column;
 	GList *field_list;
 	int field_list_length;
+	gboolean ignore_case;
 
 	GdkDisplay *display;
 	GtkCssProvider *provider;
@@ -362,7 +363,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 			m->image_window )->image );
 
 	/* Make a GList out of them, and search through it for the user input
-	 * pattern, ignoring (UTF-8) case.
+	 * pattern.
 	 *
 	 * The results of the search are stored in @found - a GList of Match
 	 * objects (see match.h and match.c).
@@ -370,8 +371,8 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	field_list = NULL;
 	for ( int i=0; (field = fields[i]); i++ )
 		field_list = g_list_append( field_list, field );
-	patt = g_utf8_strdown( gtk_editable_get_text( GTK_EDITABLE( search_entry) ), -1 );
-	found = Match_substr( field_list, (gchar *) patt );
+	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
+	found = Match_substr( field_list, (gchar *) patt, m->ignore_case );
 
 	/* Create two GList of GList: one with exact matches @found0, and one
 	 * with inexact matches @found1. Iterate through each GList @t contained
@@ -568,6 +569,10 @@ metadata_init( Metadata *m )
 #ifdef DEBUG
 	puts("metadata_init");
 #endif
+
+	/* Ignore case during metadata field search.
+	 */
+	m->ignore_case = TRUE;
 
 	m->display = gdk_display_get_default();
 	m->provider = gtk_css_provider_new();

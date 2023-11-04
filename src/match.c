@@ -152,19 +152,22 @@ Match_print( gpointer match_, gpointer user_data )
 
 /* Compute the Levenshtein Distance (LD) between two strings, @s1 and @s2.
  *
- * @n1:		Character array 1 size
+ * @n1:			Character array 1 size
  *
- * @s1:		Character array 1
+ * @s1:			Character array 1
  *
- * @n2:		Character array 2 size
+ * @n2:			Character array 2 size
  *
- * @s2:		Character array 2
+ * @s2:			Character array 2
  *
- * @v:		Buffer where column of Levenshtein distances are written
- * 		during computation.
+ * @v:			Buffer where column of Levenshtein distances are written
+ * 			during computation.
+ *
+ * @ignore_case:	TRUE if case is ignored. 
+ * 			FALSE if case is NOT ignored.	
  */
 guint
-glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1] ) {
+glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
 	guint x, y, t0, t1, k;
 
 	// Initialize the column.
@@ -186,7 +189,13 @@ glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1] ) {
 		// to keep track of the last diagonal when @v is updated.
 		for ( y = 1, t1 = x - 1; y <= n1; y++ ) {
 			t0 = v[y];
-			k = s1[y - 1] == s2[x - 1] ? 0 : 1;
+
+			g_assert(ignore_case);
+
+			k = ignore_case ?
+				((g_ascii_tolower(s1[y - 1]) == g_ascii_tolower(s2[x - 1])) ? 0 : 1)
+				: ((s1[y - 1] == s2[x - 1]) ? 0 : 1);
+
 			v[y] = MIN3( v[y] + 1, v[y - 1] + 1, t1 + k );
 			t1 = t0;
 		}
@@ -245,9 +254,9 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  * @patt - NULL-terminated string; the pattern to search for
  */
 GList*
-Match_fuzzy_list( char *text, char *patt )
+Match_fuzzy_list( char *text, char *patt, gboolean ignore_case )
 {
-	char *s;
+	char *comp_patt, *comp_text, *s;
 	GList *r;
 	Match *ma;
 	guint *v;
@@ -259,9 +268,12 @@ Match_fuzzy_list( char *text, char *patt )
 		return r;
 	}
 
-	s = text;
-	while( *s && (s = strstr( s, patt )) ) {
-		ma = Match_new( TRUE, s - text, 0, text, patt );
+	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : g_strdup( patt );
+	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : g_strdup( text );
+
+	s = comp_text;
+	while( *s && (s = strstr( s, comp_patt )) ) {
+		ma = Match_new( TRUE, s - comp_text, 0, text, patt );
 		r = g_list_append( r, ma );
 		s += ma->n_patt;
 	}
@@ -269,57 +281,42 @@ Match_fuzzy_list( char *text, char *patt )
 	if ( !r ) {
 		ma = Match_new( FALSE, 0, 0, text, patt );
 		v = g_malloc( (ma->n_patt + 1) * sizeof( guint ) );
-		ma->ld = glev( ma->n_patt, ma->patt, ma->n_text, ma->text, v );
+		ma->ld = glev( ma->n_patt, ma->patt, ma->n_text, ma->text, v, ignore_case );
 		g_free( v );
 		r = g_list_append( r, ma );
 	}
 
+	g_free( comp_patt );
+	g_free( comp_text );
+
 	return r;
 }
 
-/* Callback for g_list_foreach loop in Match_substr.
- *
- * @data:	text to search
- *
- * @user_data:	Pointer to GList of GList of Match objects to append
- * 		to. The first element is the search pattern.
- */
-static void
-Match_substr_cb( gpointer data, gpointer user_data )
-{
-	// Pointer to GList of GList
-	GList **ll;
-	gchar *text, *patt;
-	GList *first;
-
-	text = (gchar *) data;
-	ll = (GList **) user_data;
-
-	// first element is the search pattern
-	first = g_list_first( *ll );
-
-	patt = (gchar *) first->data;
-
-	// Append a GList of one or more Match to the list of lists
-	*ll = g_list_append( *ll, Match_fuzzy_list( text, patt ) );
-}
-
 /* Find exact and inexact matches of a pattern within a GList of text strings.
- * Use g_list_foreach with callback Match_substr_cb. Initialize text_list
- * with the search pattern
  *
  * @text_list:	List of text strings to search in
  *
  * @patt:	Search pattern
  */
 GList *
-Match_substr( GList *text_list, gchar *patt )
+Match_substr( GList *text_list, gchar *patt, gboolean ignore_case )
 {
-	GList *found = NULL;
+	GList *found = NULL, *t0, *t1;
 
-	found = g_list_append( found, patt );
-	g_list_foreach( text_list, Match_substr_cb, &found );
-	found = g_list_remove( found, (gconstpointer) patt );
+	if ( !text_list )
+		return NULL;
+
+	if ( !(t0 = g_list_first( text_list )) )
+		return NULL;
+
+	/* Iterate over elements of @text_list, which have type gchar*.
+	 */
+	do {
+		/* Append a GList of Match objects to the list of lists.
+		 */
+		t1 = Match_fuzzy_list( (gchar *) t0->data, patt, ignore_case );
+		found = g_list_append( found, t1 );
+	} while ( (t0 = t0->next) );
 
 	return found;
 }
