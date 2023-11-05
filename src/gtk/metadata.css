@@ -1,18 +1,19 @@
-#metadata_title {
+.metadata-label {
 }
 
-.metadata-label-box {
+.metadata-label-box, .metadata-input-box {
+	padding: 2px 2px 2px 8px;
 }
 
 .metadata-label-box.even, .metadata-input-box.even {
 	background-color: rgba(0, 0, 0, .1);
 }
 
-.metadata-label-box .metadata-label {
+.metadata-label {
 	color: gray;
 }
 
-.metadata-label-box .metadata-label.matching-substring {
+.metadata-label.matching-substring {
 	color: white;
 	font-weight: bold;
 }
