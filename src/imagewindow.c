@@ -66,6 +66,9 @@ struct _ImageWindow
 	gint64 last_frame_time;
 
 	GSettings *settings;
+
+	GtkCssProvider *provider;
+	GdkDisplay *display;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -88,6 +91,12 @@ image_window_dispose( GObject *object )
 #ifdef DEBUG
 	printf( "image_window_dispose:\n" ); 
 #endif /*DEBUG*/
+
+	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
+	 * @m->display.
+	 */
+	gtk_style_context_remove_provider_for_display( win->display,
+			GTK_STYLE_PROVIDER( win->provider ) );
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
@@ -1534,6 +1543,16 @@ image_window_init( ImageWindow *win )
 	win->settings = g_settings_new( APPLICATION_ID );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
+
+	/* Use CSS styles from "gtk/imagewindow.css".
+	 */
+	win->display = gdk_display_get_default();
+	win->provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_resource( win->provider,
+		      APP_PATH "/imagewindow.css" );
+	gtk_style_context_add_provider_for_display( win->display,
+		GTK_STYLE_PROVIDER( win->provider ),
+		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
 	
 	g_object_set( win->display_bar,
 		"image-window", win,
@@ -1798,11 +1817,13 @@ image_window_open( ImageWindow *win, GFile *file )
 		return;
 	}
 
-	// Re-initialize from settings
+	/* Re-initialize from settings.
+	 */
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
 
-	// Give UI a chance to load before setting the paned separator position.
+	/* Give UI a chance to load before setting the paned separator position.
+	 */
 	gtk_paned_set_position( GTK_PANED( win->paned ), 500 );
 	image_window_set_tile_source( win, tile_source );
 	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb, win->paned );
