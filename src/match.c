@@ -166,6 +166,10 @@ Match_print( gpointer match_, gpointer user_data )
  * @ignore_case:	TRUE if case is ignored. 
  * 			FALSE if case is NOT ignored.	
  */
+#define INS_COST 0
+#define DEL_COST 1
+#define SUB_COST 1
+
 guint
 glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
 	guint x, y, t0, t1, k;
@@ -194,9 +198,9 @@ glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean 
 
 			k = ignore_case ?
 				((g_ascii_tolower(s1[y - 1]) == g_ascii_tolower(s2[x - 1])) ? 0 : 1)
-				: ((s1[y - 1] == s2[x - 1]) ? 0 : 1);
+				: ((s1[y - 1] == s2[x - 1]) ? 0 : SUB_COST );
 
-			v[y] = MIN3( v[y] + 1, v[y - 1] + 1, t1 + k );
+			v[y] = MIN3( v[y] + INS_COST, v[y - 1] + DEL_COST, t1 + k );
 			t1 = t0;
 		}
 	}
@@ -205,7 +209,7 @@ glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean 
 	return v[y-1];
 }
 
-/* Compare two Match objects.
+/* Compare two Match objects by LEVENSHTEIN DISTANCE @ld.
  *
  * @a_	gconstpointer (Match *)		The lefthand Match object.
  * @b_ 	gconstpointer (Match *)		The righthand Match object.
@@ -216,11 +220,12 @@ Match_comp( gconstpointer a_, gconstpointer b_ )
 	Match *a = (Match *) a_;
 	Match *b = (Match *) b_;
 
-	if ( a->ld == b->ld )
-		return 0;
-	else if (a->ld < b->ld )
+	if ( a->ld > b->ld )
+		return 1;
+	else if ( a->ld < b->ld )
 		return -1;
-	else return 1;
+	else
+		return 0;
 }
 
 /* Version of Match_comp that can be used with g_list_sort on a GList of Match
