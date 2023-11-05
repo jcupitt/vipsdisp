@@ -44,11 +44,11 @@ Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
  * @user_data_	gpointer		Boilerplate argument
  */
 void
-Match_free( gpointer match_, gpointer user_data_ )
+Match_free( gpointer match_list, gpointer user_data_ )
 {
 	Match *match;
 
-	match = (Match *) match_;
+	match = (Match *) ((GList *) match_list)->data;
 
 	if ( match ) {
 		g_free( match->text );

@@ -336,6 +336,7 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
  * @search_entry	GtkWidget * (GtkSearchEntry *)
  * @m_			gpointer (Metadata *)
  */
+#define NUM_INEXACT_MATCHES 15
 static void
 metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 {
@@ -434,6 +435,13 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 		/* Sort by increasing Levenshtein Distance.
 		 */
 		found1 = g_list_sort( found1, Match_list_comp );
+
+		/* Truncate the list at NUM_INEXACT_MATCHES elements.
+		 */
+		t = g_list_nth( found1, NUM_INEXACT_MATCHES );
+		t->prev->next = NULL;
+		g_list_foreach( t, Match_free, NULL );
+		g_list_free( t );
 
 		/* Add the inexact matches to the ui.
 		 */
