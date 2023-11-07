@@ -22,7 +22,7 @@
  * @patt:	Search pattern
  */
 Match *
-Match_new( gboolean exact, int i, int ld, const gchar *text, gchar *patt )
+Match_new( gboolean exact, gint i, const gint ld, const gchar *text, const gchar *patt )
 {
 	Match *t;
 	t = g_malloc( sizeof( Match ) );
@@ -193,7 +193,7 @@ Match_print( gpointer match_, gpointer user_data )
 #define SUB_COST 1
 
 guint
-glev( guint n1, gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
+glev( guint n1, const gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
 	guint x, y, t0, t1, k;
 
 	// Initialize the column.
@@ -289,7 +289,7 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  * 			beforehand by the caller. Owned by the caller.
  */
 GList*
-Match_fuzzy_list( const gchar *text, gchar *patt, gboolean ignore_case, guint *v )
+Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, guint *v )
 {
 	gchar *comp_patt, *comp_text, *s;
 
@@ -343,7 +343,7 @@ Match_fuzzy_list( const gchar *text, gchar *patt, gboolean ignore_case, guint *v
  * 			beforehand by the caller. Owned by the caller.
  */
 GList *
-Match_substr( GList *text_list, gchar *patt, gboolean ignore_case, guint *v )
+Match_substr( GList *text_list, const gchar *patt, gboolean ignore_case, guint *v )
 {
 	GList *found = NULL, *t0, *t1;
 
