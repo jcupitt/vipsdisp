@@ -317,7 +317,6 @@ Match_fuzzy_list( char *text, char *patt, gboolean ignore_case, guint *v )
 	if ( !r ) {
 		ma = Match_new( FALSE, 0, 0, text, patt );
 		ma->ld = glev( ma->n_patt, ma->patt, ma->n_text, ma->text, v, ignore_case );
-		g_free( v );
 		r = g_list_append( r, ma );
 	}
 
