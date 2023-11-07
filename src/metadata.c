@@ -374,16 +374,25 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	field_list = NULL;
 	for ( int i=0; (field = fields[i]); i++ )
 		field_list = g_list_append( field_list, field );
+
 	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry ) ) );
 
+	/* Reuse the same buffer for the fuzzy matching algorithm.
+	 */
 	v = g_malloc( (strlen( patt ) + 1) * sizeof( guint ) );
-	found = Match_substr( field_list, (gchar *) patt, m->ignore_case, v );
+
+	/* Get a GList of GLists of Match objects. Each GList is either all
+	 * exact matches or all inexact matches. We'll separate them below.
+	 */
+	found = Match_get_exact_and_inexact_matches( field_list,
+			(gchar *) patt, m->ignore_case, v );
+
 	g_free( v );
 
 	/* Create two GList of GList: one with exact matches @found0, and one
 	 * with inexact matches @found1. Iterate through each GList @t contained
 	 * in the GList @found, building up GList @s0 and GList @s1 with exact
-	 * and inexact Match Match objects, respectively, and then appending @s0
+	 * and inexact Match objects, respectively, and then appending @s0
 	 * to @found0 and @s1 to @found1.
 	 */
 	while ( found ) {
@@ -448,7 +457,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 		g_list_foreach( t, Match_free, NULL );
 		g_list_free( t );
 
-		/* Add the inexact matches to the ui.
+		/* Add the inexact matches to the UI.
 		 */
 		g_list_foreach( found1, metadata_append_field, m );
 	}

@@ -36,7 +36,7 @@ void Match_print( gpointer match_, gpointer user_data );
 gint Match_comp( gconstpointer a_, gconstpointer b_ );
 gint Match_list_comp( gconstpointer a_, gconstpointer b_ );
 GList* Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, guint *v );
-GList * Match_substr( GList *text_list, const gchar *patt, gboolean ignore_case, guint *v );
+GList * Match_get_exact_and_inexact_matches( GList *text_list, const gchar *patt, gboolean ignore_case, guint *v );
 guint glev( guint n1, const gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1], gboolean ignore_case );
 
 #endif /* __MATCH_H */

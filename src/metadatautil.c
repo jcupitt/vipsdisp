@@ -161,15 +161,19 @@ metadata_util_create_label_box( GList *ma_list )
 	box = create_empty_label_box();
 
 	/* Put each matching substring in a GtkLabel with a certain class. Use
-	 * those classes to style the matching substrings.
+	 * those classes to style the matching substrings. 
 	 */
 	i = 0;
 	while ( ma_list != NULL ) {
 		ma = (Match *) ma_list->data;
 
+		/* A label containing the substring before a match.
+		 */
 		s = g_utf8_substring( ma->text, i, ma->i );
 		gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 		
+		/* A label containing the match.
+		 */
 		s = g_utf8_substring( ma->text, ma->i, ma->i + ma->n_patt );
 		t = create_simple_label( s );
 		gtk_widget_add_css_class( t, "matching-substring" );
@@ -179,6 +183,9 @@ metadata_util_create_label_box( GList *ma_list )
 
 		ma_list = ma_list->next;
 	}
+
+	/* A label containing the substring after the last match.
+	 */
 	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 
