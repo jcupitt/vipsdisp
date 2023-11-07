@@ -154,7 +154,7 @@ metadata_util_create_label_box( GList *ma_list )
 	 * up.
 	 */
 	if ( !ma->exact )
-		return metadata_util_create_simple_label_box( ma->text );
+		return metadata_util_create_simple_label_box( g_strdup( ma->text ) );
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
 	 * will hold the labels.
@@ -183,12 +183,6 @@ metadata_util_create_label_box( GList *ma_list )
 	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 
-	/* We split the @ma->text into multiple dynamically allocated strings
-	 * since this is an inexact match, so we don't need the old @ma->text.
-	 * GtkLabels will clean up the new strings.
-	 */
-	g_free( ma->text );
-
 	return box;
 }
 
@@ -201,7 +195,7 @@ metadata_util_create_label_box( GList *ma_list )
 GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
-	const char *value;
+	const gchar *value;
 
 	if ( !strcmp( field, "filename" ) )
 		g_object_get( image, field, &value, NULL );
@@ -264,9 +258,9 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int d;
-		const char **nicks;
+		const gchar **nicks;
 		
-		nicks = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( char * ) );
+		nicks = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( gchar * ) );
 
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i )
 			nicks[i] = pspec_enum->enum_class->values[i].value_nick;
@@ -415,7 +409,7 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  * @field	The name of the VipsImage property
  */
 GtkWidget *
-metadata_util_create_input_box( VipsImage *image, char* field )
+metadata_util_create_input_box( VipsImage *image, const gchar* field )
 {
 	GtkWidget *input_box, *t;
 	GType type;
@@ -522,13 +516,13 @@ metadata_util_create_input_box( VipsImage *image, char* field )
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	GtkEntryBuffer* buffer;
-	char *text;
+	const char *text;
 
 	buffer = gtk_text_get_buffer( GTK_TEXT( t ) );
-	text = g_strdup( gtk_entry_buffer_get_text( buffer ) );
+	text = gtk_entry_buffer_get_text( buffer );
 	vips_image_set_string( image, field, text );
 
 }
@@ -540,7 +534,7 @@ metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, char* field, G
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	gboolean b;
 	GValue v = { 0 };
@@ -560,7 +554,7 @@ metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, char* field, 
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	int d;
 	GValue v = { 0 };
@@ -584,7 +578,7 @@ metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, char* field, GPa
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	GParamSpecFlags *pspec_flags;
 	GFlagsClass *flags;
@@ -620,7 +614,7 @@ metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, char* field, GP
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	int d;
 
@@ -635,7 +629,7 @@ metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, char* field, GPar
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	double d;
 
@@ -650,7 +644,7 @@ metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, char* field, G
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GParamSpec *pspec )
+metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 #ifdef DEBUG
 	printf("G_TYPE_BOXED for property \"%s\" in metadata_util_apply_input\n");
@@ -668,7 +662,7 @@ metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, char* field, GP
  * @field	The name of the VipsImage property
  */
 void
-metadata_util_apply_input( GtkWidget *t, VipsImage *image, char* field )
+metadata_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	GValue value = { 0 };
 	GParamSpec *pspec;

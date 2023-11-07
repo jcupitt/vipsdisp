@@ -281,7 +281,7 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 	GList *ma_list;
 	Metadata *m;
 	Match *ma;
-	gchar *field;
+	const gchar *field;
 	GtkWidget *t;
 
 #ifdef DEBUG
@@ -293,11 +293,12 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 
 	ma = (Match *) ma_list->data;
 
-	/* A GtkLabel will own this.
+	/* A GtkLabel will own a copy of the field string. The original gets
+	 * freed by g_strfreev in metadata_search_changed.
 	 */
 	field = ma->text;
 
-	m->field_list = g_list_append( m->field_list, field );
+	m->field_list = g_list_append( m->field_list, (gpointer) field );
 
 	/* Create a label box.
 	 */
@@ -454,6 +455,13 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 		 */
 		g_list_foreach( found1, metadata_append_field, m );
 	}
+
+	/* The GtkLabel widgets should own their own copies of field strings
+	 * now, so clean up the array we got from vips_image_get_fields
+	 * using the method recommended by the VIPS docs
+	 * (see vips_image_get_fields).
+	 */
+	g_strfreev( fields );
 }
 
 /* This is like the "destructor" method of GObject. It is called to clean up

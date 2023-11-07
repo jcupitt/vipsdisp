@@ -193,7 +193,7 @@ Match_print( gpointer match_, gpointer user_data )
 #define SUB_COST 1
 
 guint
-glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
+glev( guint n1, gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1], gboolean ignore_case ) {
 	guint x, y, t0, t1, k;
 
 	// Initialize the column.
@@ -289,9 +289,10 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  * 			beforehand by the caller. Owned by the caller.
  */
 GList*
-Match_fuzzy_list( const char *text, char *patt, gboolean ignore_case, guint *v )
+Match_fuzzy_list( const gchar *text, gchar *patt, gboolean ignore_case, guint *v )
 {
-	char *comp_patt, *comp_text, *s;
+	gchar *comp_patt, *comp_text, *s;
+
 	GList *r;
 	Match *ma;
 
@@ -302,8 +303,8 @@ Match_fuzzy_list( const char *text, char *patt, gboolean ignore_case, guint *v )
 		return r;
 	}
 
-	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : patt;
-	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : text;
+	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : g_strdup( patt );
+	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : g_strdup( text );
 
 	s = comp_text;
 	while( *s && (s = strstr( s, comp_patt )) ) {
