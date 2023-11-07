@@ -292,7 +292,10 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 	m = VIPSDISP_METADATA( m_ );
 
 	ma = (Match *) ma_list->data;
-	field = g_strdup( ma->text );
+
+	/* A GtkLabel will own this.
+	 */
+	field = ma->text;
 
 	m->field_list = g_list_append( m->field_list, field );
 

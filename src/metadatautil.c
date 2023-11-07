@@ -77,7 +77,7 @@ create_empty_label() {
  * @s	Contents of the label
  */
 static GtkWidget *
-create_simple_label( gchar *s )
+create_simple_label( const gchar *s )
 {
 	GtkWidget *t;
 
@@ -111,7 +111,7 @@ create_empty_label_box()
  * child, configured a certain way.
  */
 GtkWidget *
-metadata_util_create_simple_label_box( gchar *s )
+metadata_util_create_simple_label_box( const gchar *s )
 {
 	GtkWidget *t;
 
@@ -150,10 +150,11 @@ metadata_util_create_label_box( GList *ma_list )
 	ma = (Match *) ma_list->data;
 
 	/* If this is an inexact match, return a simple label box containing
-	 * just the field name.
+	 * just the field name. A GtkLabel will own @ma->text and clean it
+	 * up.
 	 */
 	if ( !ma->exact )
-		return metadata_util_create_simple_label_box( g_strdup( ma->text ) );
+		return metadata_util_create_simple_label_box( ma->text );
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
 	 * will hold the labels.
@@ -181,6 +182,12 @@ metadata_util_create_label_box( GList *ma_list )
 	}
 	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
+
+	/* We split the @ma->text into multiple dynamically allocated strings
+	 * since this is an inexact match, so we don't need the old @ma->text.
+	 * GtkLabels will clean up the new strings.
+	 */
+	g_free( ma->text );
 
 	return box;
 }

@@ -22,7 +22,7 @@
  * @patt:	Search pattern
  */
 Match *
-Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
+Match_new( gboolean exact, int i, int ld, const gchar *text, gchar *patt )
 {
 	Match *t;
 	t = g_malloc( sizeof( Match ) );
@@ -30,7 +30,7 @@ Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
 	t->i = i;
 	t->ld = ld;
 	//g_assert( text );
-	t->text = g_strdup( text );
+	t->text = text;
 	t->n_text = strlen( text );
 	t->patt = patt;
 	t->n_patt = strlen( patt );
@@ -50,10 +50,8 @@ Match_free( gpointer match_list, gpointer user_data_ )
 
 	match = (Match *) ((GList *) match_list)->data;
 
-	if ( match ) {
-		g_free( match->text );
+	if ( match )
 		g_free( match );
-	}
 }
 
 /* Print a string representation of a Match object. Usable as a callback
@@ -291,7 +289,7 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  * 			beforehand by the caller. Owned by the caller.
  */
 GList*
-Match_fuzzy_list( char *text, char *patt, gboolean ignore_case, guint *v )
+Match_fuzzy_list( const char *text, char *patt, gboolean ignore_case, guint *v )
 {
 	char *comp_patt, *comp_text, *s;
 	GList *r;
@@ -304,8 +302,8 @@ Match_fuzzy_list( char *text, char *patt, gboolean ignore_case, guint *v )
 		return r;
 	}
 
-	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : g_strdup( patt );
-	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : g_strdup( text );
+	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : patt;
+	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : text;
 
 	s = comp_text;
 	while( *s && (s = strstr( s, comp_patt )) ) {
@@ -320,8 +318,12 @@ Match_fuzzy_list( char *text, char *patt, gboolean ignore_case, guint *v )
 		r = g_list_append( r, ma );
 	}
 
-	g_free( comp_patt );
-	g_free( comp_text );
+	if ( comp_patt != patt ) {
+		g_assert( comp_patt );
+		g_free( comp_patt );
+		g_assert( comp_text );
+		g_free( comp_text );
+	}
 
 	return r;
 }
