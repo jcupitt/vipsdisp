@@ -303,8 +303,8 @@ Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, gu
 		return r;
 	}
 
-	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : g_strdup( patt );
-	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : g_strdup( text );
+	comp_patt = ignore_case ? g_ascii_strdown( patt, -1 ) : (gchar *) patt;
+	comp_text = ignore_case ? g_ascii_strdown( text, -1 ) : (gchar *) text;
 
 	s = comp_text;
 	while( *s && (s = strstr( s, comp_patt )) ) {

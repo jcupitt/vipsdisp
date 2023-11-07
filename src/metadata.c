@@ -293,9 +293,6 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 
 	ma = (Match *) ma_list->data;
 
-	/* A GtkLabel will own a copy of the field string. The original gets
-	 * freed by g_strfreev in metadata_search_changed.
-	 */
 	field = ma->text;
 
 	m->field_list = g_list_append( m->field_list, (gpointer) field );
@@ -377,7 +374,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	field_list = NULL;
 	for ( int i=0; (field = fields[i]); i++ )
 		field_list = g_list_append( field_list, field );
-	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
+	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry ) ) );
 
 	v = g_malloc( (strlen( patt ) + 1) * sizeof( guint ) );
 	found = Match_substr( field_list, (gchar *) patt, m->ignore_case, v );
@@ -456,10 +453,8 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 		g_list_foreach( found1, metadata_append_field, m );
 	}
 
-	/* The GtkLabel widgets should own their own copies of field strings
-	 * now, so clean up the array we got from vips_image_get_fields
-	 * using the method recommended by the VIPS docs
-	 * (see vips_image_get_fields).
+	/* Clean up the array we got from vips_image_get_fields using the
+	 * method recommended by the VIPS docs (see vips_image_get_fields).
 	 */
 	g_strfreev( fields );
 }

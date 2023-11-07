@@ -150,11 +150,10 @@ metadata_util_create_label_box( GList *ma_list )
 	ma = (Match *) ma_list->data;
 
 	/* If this is an inexact match, return a simple label box containing
-	 * just the field name. A GtkLabel will own @ma->text and clean it
-	 * up.
+	 * just the field name.
 	 */
 	if ( !ma->exact )
-		return metadata_util_create_simple_label_box( g_strdup( ma->text ) );
+		return metadata_util_create_simple_label_box( ma->text );
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
 	 * will hold the labels.
@@ -202,9 +201,8 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	else
 		vips_image_get_string( image, field, &value );
 
-	value = g_strdup( value );
-
 #ifdef EXPERIMENTAL_METADATA_EDIT
+	value = g_strdup( value );
 	GtkEntryBuffer* buffer =
 		gtk_entry_buffer_new( value, -1 );
 
