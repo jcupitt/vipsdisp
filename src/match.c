@@ -39,7 +39,7 @@ Match_new( gboolean exact, int i, int ld, gchar *text, gchar *patt )
 
 /* Clean up a Match object. Usable as a callback function in a g_list_foreach
  * call.
- * 
+ *
  * @match_	gpointer (Match *)
  * @user_data_	gpointer		Boilerplate argument
  */
@@ -53,7 +53,7 @@ Match_free( gpointer match_list, gpointer user_data_ )
 	if ( match ) {
 		g_free( match->text );
 		g_free( match );
-	}		
+	}
 }
 
 /* Print a string representation of a Match object. Usable as a callback
@@ -80,17 +80,18 @@ Match_print( gpointer match_, gpointer user_data )
  * @s1 and @s2 are character arrays of size @n1 and @n2, which represent two
  * strings. Any null bytes are treated like a normal character, so strings
  * without a terminating null byte are valid input.
- * 
+ *
  * The LEVENSHTEIN DISTANCE between @s1 and @s2 is the smallest number of
  * insertions, deletions, or substitutions needed to transform @s1 into @s2.
  *
  * The algorithm dynamically builds a table T[n1+1]][n2+1] where the (x, y)
- * entry is the Levenshtein distance between the prefix of @s1 of size y-1 and
+ * entry is the LEVENSHTEIN DISTANCE between the prefix of @s1 of size y-1 and
  * the prefix of @s2 of size x-1.
  *
  * This implementation uses only a single @v column, updating it in place, since
  * only the elements at (x-1, y-1) and (x, y-1) are needed to compute the
- * element at (x, y). This is expressed by the recursion relation:
+ * element at (x, y). When the three costs defined by this dynamic algorithm are
+ * equal to 1, this is expressed by the recursion relation:
  *
  *	k = (s1[y-1] == s2[x-2] ? 0 : 1)
  *
@@ -103,7 +104,9 @@ Match_print( gpointer match_, gpointer user_data )
  *
  * 	v[y] = MIN3( v[y] + 1, v[y-1] + 1, t1 + k )
  *
- * The irst column of the table T is unused, and the first row is
+ * This array @v is reusable, so it can be allocated beforehand.
+ *
+ * The first column of the table T is unused, and the first row is
  * used as the base case for the recursion relation.
  *
  *                         s2
@@ -124,7 +127,7 @@ Match_print( gpointer match_, gpointer user_data )
  *     a .  6  5  5  5  5  5  6  7  8  9  10
  *     |
  *     u .  7  6  6  6  6  6  6  7  8  9  10
- *     | 
+ *     |
  *
  *     y
  *
@@ -142,7 +145,7 @@ Match_print( gpointer match_, gpointer user_data )
  *
  * TERMS
  *
- * LD: Levenshtein Distance
+ * LD: LEVENSHTEIN DISTANCE
  *
  * SOURCES
  *
@@ -150,7 +153,7 @@ Match_print( gpointer match_, gpointer user_data )
  * https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
  */
 
-/* Compute the Levenshtein Distance (LD) between two strings, @s1 and @s2.
+/* Compute the LEVENSHTEIN DISTANCE (LD) between two strings, @s1 and @s2.
  *
  * @n1:			Character array 1 size
  *
@@ -160,11 +163,32 @@ Match_print( gpointer match_, gpointer user_data )
  *
  * @s2:			Character array 2
  *
- * @v:			Buffer where column of Levenshtein distances are written
- * 			during computation.
+ * @v:			Buffer where column of LEVENSHTEIN DISTANCE values are
+ * 			written during computation. Must be allocated
+ * 			beforehand by the caller. Owned by the caller.
  *
- * @ignore_case:	TRUE if case is ignored. 
- * 			FALSE if case is NOT ignored.	
+ * @ignore_case:	TRUE if case is ignored.
+ * 			FALSE if case is NOT ignored.
+ */
+
+/* The insertion, deletion, and substitution costs are set to allow for long
+ * strings containing matches that are only a few deletions and/or
+ * substitutions away from any position. There is 0 cost for inserting
+ * characters to shift the smaller pattern toward the end in order to almost
+ * match with a substring near the end of the longer string.
+ * 
+ * This is ideal for the use case in the Metadata widget (the only use case),
+ * where it is used to suggest inexact matches as a user types, whenever
+ * no exact matches are available for the current search pattern.
+ *
+ * The point is to be forgiving. The costs are not high for deletion and
+ * insertion, but insertion cost is zero. The cost of swapping two
+ * adjacent letters is DEL_COST + INS_COST = 1 + 0 = 1, so the costs of
+ * all common mistakes are balanced except insertion, which is free.
+ *
+ * This allows the user to type quickly without worrying about small mistakes.
+ *
+ * The costs can be tweaked for other use cases if they arise.
  */
 #define INS_COST 0
 #define DEL_COST 1
@@ -205,7 +229,7 @@ glev( guint n1, gchar s1[n1], guint n2, gchar s2[n2], guint v[n1 + 1], gboolean 
 		}
 	}
 
-	// Return Levenshtein Distance.
+	// Return LEVENSHTEIN DISTANCE.
 	return v[y-1];
 }
 
@@ -253,18 +277,25 @@ Match_list_comp( gconstpointer a_, gconstpointer b_ )
  *
  * A GList of inexact or "fuzzy" matches contain data needed to order
  * those match from best to worst. In this case the metric used ws
- * the Levenshtein Distance between @text and @patt.
+ * the LEVENSHTEIN DISTANCE between @text and @patt.
  *
  * @text - NULL-terminated string; the target of the search
+ *
  * @patt - NULL-terminated string; the pattern to search for
+ *
+ * @ignore_case:	TRUE if case is ignored.
+ * 			FALSE if case is NOT ignored.
+ *
+ * @v:			Buffer where column of LEVENSHTEIN DISTANCE values are
+ * 			written during computation. Must be allocated
+ * 			beforehand by the caller. Owned by the caller.
  */
 GList*
-Match_fuzzy_list( char *text, char *patt, gboolean ignore_case )
+Match_fuzzy_list( char *text, char *patt, gboolean ignore_case, guint *v )
 {
 	char *comp_patt, *comp_text, *s;
 	GList *r;
 	Match *ma;
-	guint *v;
 
 	r = NULL;
 	if ( !patt || !*patt) {
@@ -285,7 +316,6 @@ Match_fuzzy_list( char *text, char *patt, gboolean ignore_case )
 
 	if ( !r ) {
 		ma = Match_new( FALSE, 0, 0, text, patt );
-		v = g_malloc( (ma->n_patt + 1) * sizeof( guint ) );
 		ma->ld = glev( ma->n_patt, ma->patt, ma->n_text, ma->text, v, ignore_case );
 		g_free( v );
 		r = g_list_append( r, ma );
@@ -302,9 +332,16 @@ Match_fuzzy_list( char *text, char *patt, gboolean ignore_case )
  * @text_list:	List of text strings to search in
  *
  * @patt:	Search pattern
+ *
+ * @ignore_case:	TRUE if case is ignored.
+ * 			FALSE if case is NOT ignored.
+ *
+ * @v:			Buffer where column of LEVENSHTEIN DISTANCE values are
+ * 			written during computation. Must be allocated
+ * 			beforehand by the caller. Owned by the caller.
  */
 GList *
-Match_substr( GList *text_list, gchar *patt, gboolean ignore_case )
+Match_substr( GList *text_list, gchar *patt, gboolean ignore_case, guint *v )
 {
 	GList *found = NULL, *t0, *t1;
 
@@ -319,7 +356,7 @@ Match_substr( GList *text_list, gchar *patt, gboolean ignore_case )
 	do {
 		/* Append a GList of Match objects to the list of lists.
 		 */
-		t1 = Match_fuzzy_list( (gchar *) t0->data, patt, ignore_case );
+		t1 = Match_fuzzy_list( (gchar *) t0->data, patt, ignore_case, v  );
 		found = g_list_append( found, t1 );
 	} while ( (t0 = t0->next) );
 

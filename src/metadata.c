@@ -345,6 +345,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	GList *field_list;
 	Match *match;
 	GList *found, *found0, *found1, *s0, *s1, *t;
+	guint *v;
 
 	/* Initialize GList pointers to NULL, which means they are empty.
 	 */
@@ -373,7 +374,10 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	for ( int i=0; (field = fields[i]); i++ )
 		field_list = g_list_append( field_list, field );
 	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry) ) );
-	found = Match_substr( field_list, (gchar *) patt, m->ignore_case );
+
+	v = g_malloc( (strlen( patt ) + 1) * sizeof( guint ) );
+	found = Match_substr( field_list, (gchar *) patt, m->ignore_case, v );
+	g_free( v );
 
 	/* Create two GList of GList: one with exact matches @found0, and one
 	 * with inexact matches @found1. Iterate through each GList @t contained
