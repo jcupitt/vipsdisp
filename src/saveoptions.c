@@ -522,7 +522,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
 	gtk_widget_set_name( label, "saveoptions-label" );
 	// can't set alignment in CSS for some reason
-    gtk_widget_set_halign( label, GTK_ALIGN_END );
+    gtk_widget_set_halign( label, GTK_ALIGN_START );
     gtk_widget_set_valign( label, GTK_ALIGN_START );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
