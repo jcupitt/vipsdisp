@@ -513,29 +513,32 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		return;
 	}
 
-	/* Stop scroll ecvents changing widget values.
+	/* Stop scroll events changing widget values.
 	 */
 	block_scroll( t );
+
+	gtk_widget_add_css_class( t, *row % 2 ? "odd" : "even" );
+	gtk_widget_set_hexpand( t, true );
+	gtk_grid_attach( GTK_GRID( options->options_grid ), t, 
+		1, *row, 1, 1 );
+	gtk_widget_set_tooltip_text( GTK_WIDGET( t ),
+		g_param_spec_get_blurb( pspec ) );
+
+	/* Note value widget for fetch.
+	 */
+	g_hash_table_insert( options->value_widgets, (gpointer) name, t );
 
 	/* Label for setting, with a tooltip. The nick is the i18n name.
 	 */
 	label = gtk_label_new( g_param_spec_get_nick( pspec ) );
 	gtk_widget_set_name( label, "saveoptions-label" );
 	// can't set alignment in CSS for some reason
-    gtk_widget_set_halign( label, GTK_ALIGN_START );
+    gtk_widget_set_halign( label, GTK_ALIGN_END );
     gtk_widget_set_valign( label, GTK_ALIGN_START );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
 	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 
 		0, *row, 1, 1 );
-
-	g_object_set( t, "hexpand", true, NULL );
-	gtk_grid_attach( GTK_GRID( options->options_grid ), t, 
-		1, *row, 1, 1 );
-	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
-		g_param_spec_get_blurb( pspec ) );
-
-	g_hash_table_insert( options->value_widgets, (gpointer) name, t );
 
 	*row += 1;
 }
