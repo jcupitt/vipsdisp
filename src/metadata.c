@@ -18,7 +18,6 @@ struct _Metadata
 	ImageWindow *image_window;
 
 	GtkWidget *scrolled_window;
-	GtkWidget *search_bar;
 	GtkWidget *search_entry;
 	GtkWidget *search_warning;
 
@@ -611,17 +610,6 @@ metadata_init( Metadata *m )
 
 	gtk_widget_init_template( GTK_WIDGET( m ) );
 
-	/* The only child of the metadata widget is a GtkSearchBar. The static
-	 * parts of the metadata widget are defined in gtk/metadata.ui.
-	 */
-	gtk_search_bar_set_search_mode( GTK_SEARCH_BAR( m->search_bar ), TRUE );
-
-	/* Tell the metadata (GtkSearchBar) which GtkEditable widget will be
-	 * providing user input text for the search query.
-	 */
-	gtk_search_bar_connect_entry( GTK_SEARCH_BAR( m->search_bar ),
-		GTK_EDITABLE( m->search_entry ) );
-
 	/* Connect the handler that gets called when the user modifies the
 	 * search query.
 	 */
@@ -665,7 +653,6 @@ metadata_class_init( MetadataClass *class )
 		APP_PATH "/metadata.ui");
 
 	BIND( scrolled_window );
-	BIND( search_bar );
 	BIND( search_entry );
 	BIND( search_warning );
 	BIND( main_box );

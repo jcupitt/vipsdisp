@@ -1,73 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="Metadata" parent="GtkWidget">
+    <property name="hexpand">true</property>
+    <property name="vexpand">true</property>
+    <child>
+      <object class="GtkBox">
+        <property name="margin-start">10px</property>
+        <property name="margin-end">10px</property>
+        <property name="orientation">vertical</property>
         <property name="hexpand">true</property>
         <property name="vexpand">true</property>
-        <property name="halign">GTK_ALIGN_FILL</property>
-        <property name="valign">GTK_ALIGN_FILL</property>
-    <child>
-      <object class="GtkFrame">
+
         <child>
-          <object class="GtkSearchBar" id="search_bar">
-            <property name="child">
-              <object class="GtkBox">
-                <property name="orientation">vertical</property>
-                <property name="hexpand">true</property>
-                <property name="halign">GTK_ALIGN_FILL</property>
-                <property name="vexpand">true</property>
-                <property name="valign">GTK_ALIGN_FILL</property>
-                <child>
-                  <object class="GtkHeaderBar">
-                    <property name="decoration-layout">:title</property>
-                    <property name="title-widget">
-                      <object class="GtkSearchEntry" id="search_entry">
-                        <property name="hexpand">true</property>
-                        <property name="placeholder-text"> Filter properties</property>
-                      </object>
-                    </property>
-                  </object>
-                </child>
-        
-                <child>
-                  <object class="GtkBox" id="search_warning">
-                    <property name="visible">false</property>
-                    <property name="margin-top">8</property>
-                    <property name="margin-bottom">16</property>
-    		<child>
-                      <object class="GtkLabel">
-                        <property name="label">Did you mean...</property>
-                      </object>
-                    </child>
-                  </object>
-    	    </child>
-    
-                <child>
-    	      <object class="GtkScrolledWindow" id="scrolled_window">
-                    <property name="hexpand">true</property>
-                    <property name="vexpand">true</property>
-                    <property name="halign">GTK_ALIGN_FILL</property>
-                    <property name="valign">GTK_ALIGN_FILL</property>
-    		<property name="child">
-    	          <object class="GtkBox" id="main_box">
-                        <property name="orientation">GTK_ORIENTATION_HORIZONTAL</property>
-                        <child>
-    	              <object class="GtkBox" id="left_column">
-                            <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
-    		      </object>
-                        </child>
-                        <child>
-    	              <object class="GtkBox" id="right_column">
-                            <property name="orientation">GTK_ORIENTATION_VERTICAL</property>
-    		      </object>
-                        </child>
-                      </object>
-    		</property>
-    	      </object>
-                </child>
-              </object>
-            </property>
+          <object class="GtkSearchEntry" id="search_entry">
+            <property name="margin-start">10px</property>
+            <property name="margin-end">10px</property>
+            <property name="margin-top">10px</property>
+            <property name="margin-bottom">10px</property>
+            <property name="hexpand">true</property>
+            <property name="placeholder-text">Filter properties</property>
           </object>
         </child>
+
+        <child>
+          <object class="GtkBox" id="search_warning">
+            <property name="visible">false</property>
+            <property name="margin-top">8</property>
+            <property name="margin-bottom">16</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="label">Did you mean...</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkScrolledWindow" id="scrolled_window">
+            <property name="hexpand">true</property>
+            <property name="vexpand">true</property>
+
+            <child>
+              <object class="GtkBox" id="main_box">
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkBox" id="left_column">
+                    <property name="orientation">vertical</property>
+                  </object>
+                </child>
+
+                <child>
+                  <object class="GtkBox" id="right_column">
+                    <property name="orientation">vertical</property>
+                  </object>
+                </child>
+
+              </object>
+            </child>
+
+          </object>
+        </child>
+
       </object>
     </child>
   </template>
