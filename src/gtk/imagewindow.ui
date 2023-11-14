@@ -209,8 +209,7 @@
             <property name="shrink-end-child">true</property>
             <property name="orientation">horizontal</property>
             <property name="start-child">
-              <object class="GtkFrame">
-                <child>
+
                   <object class="GtkScrolledWindow" id="scrolled_window">
                     <property name="hexpand">true</property>
                     <property name="vexpand">true</property>
@@ -231,8 +230,6 @@
                       </object>
                     </child>
                   </object>
-                </child>
-              </object>
             </property>
 	    <property name="end-child">
               <object class="Metadata" id="metadata">
