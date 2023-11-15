@@ -104,6 +104,7 @@ vipsdisp_app_startup( GApplication *app )
 		{ "win.prev", { "<primary>comma", NULL } },
 		{ "win.next", { "<primary>period", NULL } },
 		{ "win.fullscreen", { "F11", NULL } },
+		{ "win.metadata", { "<Alt>Return", NULL } },
 	};
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );
