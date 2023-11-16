@@ -42,6 +42,15 @@ struct _ImageWindow
 	double scale_rate;
 	double scale_target;
 
+	/* Position of the GtkPaned separator.
+	 */
+	guint paned_position;
+
+	/* This flag is TRUE when the metadata show/hide animation is in
+	 * progress.
+	 */
+	gboolean paned_is_animating;
+
 	GtkWidget *right_click_menu;
 	GtkWidget *title;
 	GtkWidget *subtitle;
@@ -1448,7 +1457,62 @@ image_window_reset( GSimpleAction *action,
 			NULL );
 }
 
-#define SHORT_WAIT_MS 100
+/* Animate the hiding of the metadata widget by moving the paned separator
+ * back to the value saved in @paned_position.
+ */
+static gboolean
+image_window_paned_leave( gpointer win_ )
+{
+	ImageWindow *win;
+	guint pos;
+	gint max_width;
+
+#ifdef DEBUG
+	puts( "image_window_paned_leave" );
+#endif /* DEBUG */
+
+	win = VIPSDISP_IMAGE_WINDOW( win_ );
+	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
+	max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
+
+	if ( pos + 80 < max_width ) {
+		gtk_paned_set_position( GTK_PANED( win->paned ), pos + 80 );
+		return G_SOURCE_CONTINUE;
+	} else {
+		gtk_paned_set_position( GTK_PANED( win->paned ), max_width );
+		g_object_set( win->metadata, "revealed", FALSE, NULL );
+		win->paned_is_animating = FALSE;
+		return G_SOURCE_REMOVE;
+	}
+}
+
+/* Animate the showing of the metadata widget by moving the paned separator
+ * back to the value saved in @paned_position.
+ */
+static gboolean
+image_window_paned_enter( gpointer win_ )
+{
+	ImageWindow *win;
+	guint pos;
+
+#ifdef DEBUG
+	puts( "image_window_paned_enter" );
+#endif /* DEBUG */
+
+	win = VIPSDISP_IMAGE_WINDOW( win_ );
+
+	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
+
+	if ( pos - 80 > win->paned_position ) {
+		gtk_paned_set_position( GTK_PANED( win->paned ), pos - 80 );
+		return G_SOURCE_CONTINUE;
+	} else {
+		gtk_paned_set_position( GTK_PANED( win->paned ),
+			       win->paned_position );
+		win->paned_is_animating = FALSE;
+		return G_SOURCE_REMOVE;
+	}
+}
 
 /* This function is called when the Metadata widget visibility is toggled
  * on/off by clicking "Metadata" in the dropdown menu. The visibility is
@@ -1475,17 +1539,25 @@ image_window_metadata( GSimpleAction *action,
 
 #ifdef DEBUG
 	puts("image_window_metadata");
-#endif
+#endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	g_object_set( win->metadata,
-		"revealed", g_variant_get_boolean( state ),
-		NULL );
+	if ( win->paned_is_animating )
+		return;
+
+	win->paned_is_animating = TRUE;
+
+	if ( g_variant_get_boolean( state ) ) {
+		g_object_set( win->metadata, "revealed", TRUE, NULL );
+		g_timeout_add( 10,
+			(GSourceFunc) image_window_paned_enter, win );
+	} else
+		g_timeout_add( 10,
+			(GSourceFunc) image_window_paned_leave, win );
 
 	g_simple_action_set_state( action, state );
 }
-
 
 static GActionEntry image_window_entries[] = {
 	{ "magin", image_window_magin_action },
@@ -1521,12 +1593,51 @@ static GActionEntry image_window_entries[] = {
 	{ "reset", image_window_reset },
 };
 
+#define MAX_WINDOW_WIDTH 7680
+
 gboolean
-image_window_paned_cb( gpointer paned_ )
+image_window_paned_position_init( gpointer win_ )
 {
-	gtk_paned_set_position( GTK_PANED( paned_ ), 200 );
+	ImageWindow *win;
+	gboolean revealed;
+
+#ifdef DEBUG
+	puts( "image_window_paned_position_init" );
+#endif /* DEBUG */
+
+	win = VIPSDISP_IMAGE_WINDOW( win_ );
+
+	g_object_get( win->metadata, "revealed", &revealed, NULL );
+
+	if ( revealed )
+		gtk_paned_set_position( GTK_PANED( win->paned ),
+			win->paned_position );
+	else
+		gtk_paned_set_position( GTK_PANED( win->paned ),
+			MAX_WINDOW_WIDTH );
+
 	return FALSE;
 }
+
+static void
+image_window_paned_position_changed( GtkWidget *win_ )
+{
+	ImageWindow *win;
+	gboolean revealed;
+
+	win = VIPSDISP_IMAGE_WINDOW( win_ );
+
+	if ( win->paned_is_animating )
+		return;
+
+	g_object_get( win->metadata, "revealed", &revealed, NULL );
+
+	if ( revealed )
+		win->paned_position =
+			gtk_paned_get_position( GTK_PANED( win->paned ) );
+}
+
+#define INITIAL_PANED_SEPARATOR_POSITION 200
 
 static void
 image_window_init( ImageWindow *win )
@@ -1535,12 +1646,14 @@ image_window_init( ImageWindow *win )
 
 #ifdef DEBUG
 	puts("image_window_init");
-#endif
+#endif /* DEBUG */
 
 	win->progress_timer = g_timer_new();
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
+	win->paned_position = INITIAL_PANED_SEPARATOR_POSITION;
+	win->paned_is_animating = FALSE;
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1634,14 +1747,12 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "metadata", 
 		g_settings_get_value( win->settings, "metadata" ) );
 
-	/* Let the area of the UI containing the image render full size before
-	 * setting the slider position for the first time. The slider starts
-	 * at the end, hiding the metadata widget even if it's toggled on,
-	 * allowing the image area to render full size. After a short wait
-	 * the position is initialized
+	/* Connect a signal handler that updates paned separator position
+	 * whenever it changes.
 	 */
-	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb, win->paned );
-
+	g_signal_connect_swapped( win->paned, "notify::position",
+		G_CALLBACK( image_window_paned_position_changed ),
+		win );
 }
 
 static void
@@ -1824,9 +1935,10 @@ image_window_open( ImageWindow *win, GFile *file )
 
 	/* Give UI a chance to load before setting the paned separator position.
 	 */
-	gtk_paned_set_position( GTK_PANED( win->paned ), 500 );
+	gtk_paned_set_position( GTK_PANED( win->paned ), MAX_WINDOW_WIDTH );
 	image_window_set_tile_source( win, tile_source );
-	g_timeout_add( 500, (GSourceFunc) image_window_paned_cb, win->paned );
+	g_timeout_add( 500,
+		(GSourceFunc) image_window_paned_position_init, win );
 
 	g_object_unref( tile_source );
 	g_free( path );
