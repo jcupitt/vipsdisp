@@ -5,7 +5,7 @@
 #include "vipsdisp.h"
 
 /* The Match struct and its methods are used for string matching in the
- * search-as-you-type feature of the Metadata widget. See "match.h" for a more
+ * search-as-you-type feature of the Properties widget. See "match.h" for a more
  * detailed explanation of the Match struct.
  */
 
@@ -175,7 +175,7 @@ Match_print( gpointer match_, gpointer user_data )
  * characters to shift the smaller pattern toward the end in order to almost
  * match with a substring near the end of the longer string.
  * 
- * This is ideal for the use case in the Metadata widget (the only use case),
+ * This is ideal for the use case in the Properties widget (the only use case),
  * where it is used to suggest inexact matches as a user types, whenever
  * no exact matches are available for the current search pattern.
  *

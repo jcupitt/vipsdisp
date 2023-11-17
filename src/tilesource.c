@@ -1560,7 +1560,7 @@ tile_source_new_from_file( const char *filename )
 	 */
 	tile_source->loader = vips_nickname_find( g_type_from_name( loader ) );
 
-	/* A very basic open to fetch metadata. 
+	/* A very basic open to fetch image properties. 
 	 */
 	if( !(image = vips_image_new_from_file( filename, NULL )) ) {
 		VIPS_UNREF( tile_source );

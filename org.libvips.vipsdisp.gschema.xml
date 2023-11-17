@@ -23,11 +23,11 @@
       </description>
     </key>
 
-    <key type="b" name="metadata">
+    <key type="b" name="properties">
       <default>false</default>
-      <summary>Show metadata popover</summary>
+      <summary>Show Properties menu</summary>
       <description>
-        If set, show the metadata popover.
+        If set, show the Properties menu.
       </description>
     </key>
 

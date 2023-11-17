@@ -93,7 +93,7 @@
       </item>
       <item>
         <attribute name="label" translatable="yes">Properties</attribute>
-        <attribute name="action">win.metadata</attribute>
+        <attribute name="action">win.properties</attribute>
       </item>
     </section>
 
@@ -232,7 +232,7 @@
                   </object>
             </property>
 	    <property name="end-child">
-              <object class="Metadata" id="metadata">
+              <object class="Properties" id="properties">
               </object>
             </property>
           </object>

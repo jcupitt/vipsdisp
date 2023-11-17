@@ -45,6 +45,6 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 #include "infobar.h"
 #include "displaybar.h"
 #include "saveoptions.h"
-#include "metadata.h"
+#include "properties.h"
 
 #endif /* __VIPSDISP_H */

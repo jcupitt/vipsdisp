@@ -104,7 +104,7 @@ vipsdisp_app_startup( GApplication *app )
 		{ "win.prev", { "<primary>comma", NULL } },
 		{ "win.next", { "<primary>period", NULL } },
 		{ "win.fullscreen", { "F11", NULL } },
-		{ "win.metadata", { "<Alt>Return", NULL } },
+		{ "win.properties", { "<Alt>Return", NULL } },
 	};
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );
@@ -132,7 +132,7 @@ vipsdisp_app_startup( GApplication *app )
 	DISPLAYBAR_TYPE;
 	TSLIDER_TYPE;
 	INFOBAR_TYPE;
-	METADATA_TYPE;
+	PROPERTIES_TYPE;
 
 	g_action_map_add_action_entries( G_ACTION_MAP( app ),
 		app_entries, G_N_ELEMENTS( app_entries ),

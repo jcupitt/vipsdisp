@@ -1,12 +1,12 @@
 #include "vipsdisp.h"
 
 /*
-#define EXPERIMENTAL_METADATA_EDIT
+#define EXPERIMENTAL_PROPERTIES_EDIT
 */
 
-/* This file defines utility functions for "metadata.c".
+/* This file defines utility functions for "properties.c".
  *
- * Functions in this file do not use methods or types defined in "metadata.c".
+ * Functions in this file do not use methods or types defined in "properties.c".
  */
 
 /* No-op to prevent @w from propagating "scroll" events it receives.
@@ -63,7 +63,7 @@ create_empty_label() {
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf("Unknown type for property \"%s\" in metadata_util_create_input_box\n", field);
+	printf("Unknown type for property \"%s\" in properties_util_create_input_box\n", field);
 #endif /* DEBUG */
 
 	t = gtk_label_new( "" );
@@ -83,9 +83,9 @@ create_simple_label( const gchar *s )
 
 	t = create_empty_label();
 	gtk_label_set_label( GTK_LABEL( t ), s );
-	/* See gtk/metadata.css
+	/* See gtk/properties.css
 	 */
-	gtk_widget_add_css_class( t, "metadata-label" );
+	gtk_widget_add_css_class( t, "properties-label" );
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 
 	return t;
@@ -102,7 +102,7 @@ create_empty_label_box()
 	t = gtk_box_new( GTK_ORIENTATION_HORIZONTAL, 0 );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
 	gtk_widget_set_hexpand( t, TRUE );
-	gtk_widget_add_css_class( t, "metadata-label-box" );
+	gtk_widget_add_css_class( t, "properties-label-box" );
 
 	return t;
 }
@@ -111,7 +111,7 @@ create_empty_label_box()
  * child, configured a certain way.
  */
 GtkWidget *
-metadata_util_create_simple_label_box( const gchar *s )
+properties_util_create_simple_label_box( const gchar *s )
 {
 	GtkWidget *t;
 
@@ -131,16 +131,16 @@ metadata_util_create_simple_label_box( const gchar *s )
  * the CSS class "matching-substring" to the labels containing the matching
  * substrings.
  *
- * The label-box node has CSS class "metadata-label-box".
+ * The label-box node has CSS class "properties-label-box".
  *
- * The labels have CSS class "metadata-label".
+ * The labels have CSS class "properties-label".
  *
- * These classes are defined in "gtk/metadata.css".
+ * These classes are defined in "gtk/properties.css".
  *
  * @ma_list	A GList of Match objects.
  */
 GtkWidget *
-metadata_util_create_label_box( GList *ma_list )
+properties_util_create_label_box( GList *ma_list )
 {
 	Match *ma;
 	GtkWidget *box, *t;
@@ -153,7 +153,7 @@ metadata_util_create_label_box( GList *ma_list )
 	 * just the field name.
 	 */
 	if ( !ma->exact )
-		return metadata_util_create_simple_label_box( ma->text );
+		return properties_util_create_simple_label_box( ma->text );
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
 	 * will hold the labels.
@@ -208,7 +208,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	else
 		vips_image_get_string( image, field, &value );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	value = g_strdup( value );
 	GtkEntryBuffer* buffer =
 		gtk_entry_buffer_new( value, -1 );
@@ -219,7 +219,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 #else
 	t = gtk_label_new( g_strdup_printf( "%s", value ) );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 	return t;
 }
@@ -237,14 +237,14 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 
 	vips_image_get_int( image, field, &d );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	t = gtk_check_button_new();
 	gtk_check_button_set_active( GTK_CHECK_BUTTON( t ), d );
 #else
 	t = gtk_label_new( g_strdup_printf( "%s",
 				d ? "true" : "false" ) );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 	return t;
 }
@@ -273,25 +273,25 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 
 		g_object_get( image, field, &d, NULL );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 		t = gtk_drop_down_new_from_strings( nicks );
 		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 #else
 	        t = gtk_label_new( vips_enum_nick( pspec->value_type, d ) );
 
 		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 	} else { 
 		int d;
 
 		vips_image_get_int( image, field, &d );
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
 		t = gtk_label_new( g_strdup_printf( "%d", d ) );
 		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 	}
 
 	return t;
@@ -351,12 +351,12 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 
 	vips_image_get_int( image, field, &d );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
 	t = gtk_label_new( g_strdup_printf( "%d", d ) );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 	return t;
 }
@@ -375,13 +375,13 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 
 	vips_image_get_double( image, field, &d );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1, d, FALSE );
 
 #else
 	t = gtk_label_new( g_strdup_printf( "%f", d ) );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 	return t;
 }
@@ -398,7 +398,7 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	GtkWidget *t;
 
 #ifdef DEBUG
-	printf( "G_TYPE_BOXED for property \"%s\" in metadata_util_create_input_box\n", field );
+	printf( "G_TYPE_BOXED for property \"%s\" in properties_util_create_input_box\n", field );
 #endif /* DEBUG */
 
 	t = gtk_label_new( "" );
@@ -414,7 +414,7 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  * @field	The name of the VipsImage property
  */
 GtkWidget *
-metadata_util_create_input_box( VipsImage *image, const gchar* field )
+properties_util_create_input_box( VipsImage *image, const gchar* field )
 {
 	GtkWidget *input_box, *t;
 	GType type;
@@ -497,15 +497,15 @@ metadata_util_create_input_box( VipsImage *image, const gchar* field )
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 	gtk_widget_set_hexpand( input_box, TRUE );
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_set_halign( t, GTK_ALIGN_FILL );
 	gtk_widget_set_halign( input_box, GTK_ALIGN_FILL );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
-	/* Style @input_box using CSS from "gtk/metadata.css".
+	/* Style @input_box using CSS from "gtk/properties.css".
 	 */
-	gtk_widget_add_css_class( input_box, "metadata-input-box" );
+	gtk_widget_add_css_class( input_box, "properties-input-box" );
 
 	/* Append the input widget @t to @input_box.
 	 */
@@ -521,7 +521,7 @@ metadata_util_create_input_box( VipsImage *image, const gchar* field )
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	GtkEntryBuffer* buffer;
 	const char *text;
@@ -539,7 +539,7 @@ metadata_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* f
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	gboolean b;
 	GValue v = { 0 };
@@ -559,7 +559,7 @@ metadata_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* 
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	int d;
 	GValue v = { 0 };
@@ -583,7 +583,7 @@ metadata_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* fie
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	GParamSpecFlags *pspec_flags;
 	GFlagsClass *flags;
@@ -619,7 +619,7 @@ metadata_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* fi
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	int d;
 
@@ -634,7 +634,7 @@ metadata_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* fiel
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 	double d;
 
@@ -649,10 +649,10 @@ metadata_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* f
  * @pspec	The GParamSpec for @field
  */
 void
-metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_boxed_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
 {
 #ifdef DEBUG
-	printf("G_TYPE_BOXED for property \"%s\" in metadata_util_apply_input\n");
+	printf("G_TYPE_BOXED for property \"%s\" in properties_util_apply_input\n");
 #endif /* DEBUG */
 
 	/* do nothing */
@@ -667,7 +667,7 @@ metadata_util_apply_boxed_input( GtkWidget *t, VipsImage *image, const gchar* fi
  * @field	The name of the VipsImage property
  */
 void
-metadata_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field )
+properties_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	GValue value = { 0 };
 	GParamSpec *pspec;
@@ -685,21 +685,21 @@ metadata_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field )
 	if ( strstr( "thumbnail", field ) ) {
 		/* do nothing */
 	} else if ( type == VIPS_TYPE_REF_STRING )
-		metadata_util_apply_string_input( t, image, field, pspec );
+		properties_util_apply_string_input( t, image, field, pspec );
 	else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
-		metadata_util_apply_enum_input( t, image, field, pspec );
+		properties_util_apply_enum_input( t, image, field, pspec );
 	else switch( type ) {
 	case G_TYPE_STRING:
-		metadata_util_apply_string_input( t, image, field, pspec );
+		properties_util_apply_string_input( t, image, field, pspec );
 		break;
 	case G_TYPE_BOOLEAN:
-		metadata_util_apply_boolean_input( t, image, field, pspec );
+		properties_util_apply_boolean_input( t, image, field, pspec );
 		break;
 	case G_TYPE_ENUM:
-		metadata_util_apply_enum_input( t, image, field, pspec );
+		properties_util_apply_enum_input( t, image, field, pspec );
 		break;
 	case G_TYPE_FLAGS:
-		metadata_util_apply_flags_input( t, image, field, pspec );
+		properties_util_apply_flags_input( t, image, field, pspec );
 		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
@@ -707,14 +707,14 @@ metadata_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field )
 	case G_TYPE_UINT64:
 	case G_TYPE_LONG:
 	case G_TYPE_ULONG:
-		metadata_util_apply_int_input( t, image, field, pspec );
+		properties_util_apply_int_input( t, image, field, pspec );
 		break;
 	case G_TYPE_FLOAT:
 	case G_TYPE_DOUBLE:
-		metadata_util_apply_double_input( t, image, field, pspec );
+		properties_util_apply_double_input( t, image, field, pspec );
 		break;
 	case G_TYPE_BOXED:
-		metadata_util_apply_boxed_input( t, image, field, pspec );
+		properties_util_apply_boxed_input( t, image, field, pspec );
 		break;
 	default:
 #ifdef DEBUG

@@ -3,7 +3,7 @@
 */
 
 /*
-#define EXPERIMENTAL_METADATA_EDIT
+#define EXPERIMENTAL_PROPERTIES_EDIT
 */
 
 #include "vipsdisp.h"
@@ -46,7 +46,7 @@ struct _ImageWindow
 	 */
 	guint paned_position;
 
-	/* This flag is TRUE when the metadata show/hide animation is in
+	/* This flag is TRUE when the properties show/hide animation is in
 	 * progress.
 	 */
 	gboolean paned_is_animating;
@@ -65,7 +65,7 @@ struct _ImageWindow
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
 	GtkWidget *paned;
-	GtkWidget *metadata;
+	GtkWidget *properties;
 
 	/* Throttle progress bar updates to a few per second with this.
 	 */
@@ -532,7 +532,7 @@ image_window_duplicate_action( GSimpleAction *action,
 
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "metadata" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
 	/* We want to init the scroll position, but we can't do that until the
@@ -760,7 +760,7 @@ image_window_saveas_action( GSimpleAction *action,
 		GtkWidget *file_chooser;
 		GFile *file;
 
-#ifdef EXPERIMENTAL_METADATA_EDIT
+#ifdef EXPERIMENTAL_PROPERTIES_EDIT
 		TileSource *tile_source;
 		VipsImage *image = NULL;
 		VipsImage *image_copy = NULL;
@@ -771,8 +771,8 @@ image_window_saveas_action( GSimpleAction *action,
 		tile_source_set_image( tile_source, image_copy );
 		VIPS_UNREF( image );
 
-		metadata_apply( VIPSDISP_METADATA( win->metadata ) );
-#endif /* EXPERIMENTAL_METADATA_EDIT */
+		properties_apply( VIPSDISP_PROPERTIES( win->properties ) );
+#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
 		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
@@ -1457,7 +1457,7 @@ image_window_reset( GSimpleAction *action,
 			NULL );
 }
 
-/* Animate the hiding of the metadata widget by moving the paned separator
+/* Animate the hiding of the properties widget by moving the paned separator
  * back to the value saved in @paned_position.
  */
 static gboolean
@@ -1480,13 +1480,13 @@ image_window_paned_leave( gpointer win_ )
 		return G_SOURCE_CONTINUE;
 	} else {
 		gtk_paned_set_position( GTK_PANED( win->paned ), max_width );
-		g_object_set( win->metadata, "revealed", FALSE, NULL );
+		g_object_set( win->properties, "revealed", FALSE, NULL );
 		win->paned_is_animating = FALSE;
 		return G_SOURCE_REMOVE;
 	}
 }
 
-/* Animate the showing of the metadata widget by moving the paned separator
+/* Animate the showing of the properties widget by moving the paned separator
  * back to the value saved in @paned_position.
  */
 static gboolean
@@ -1514,31 +1514,31 @@ image_window_paned_enter( gpointer win_ )
 	}
 }
 
-/* This function is called when the Metadata widget visibility is toggled
- * on/off by clicking "Metadata" in the dropdown menu. The visibility is
- * backed by a GSetting named "metadata", so it will persist after app
+/* This function is called when the Properties widget visibility is toggled
+ * on/off by clicking "Properties" in the dropdown menu. The visibility is
+ * backed by a GSetting named "properties", so it will persist after app
  * restart.
  *
- * action - the "metadata" action defined in the GActionEntry table
+ * action - the "properties" action defined in the GActionEntry table
  * 	image_window_entries.
  *
- * state - the new boolean value of the "metadata" GSetting after the user
+ * state - the new boolean value of the "properties" GSetting after the user
  * 	click.
  *
- * user_data - The ImageWindow. The Metadata widget holds a pointer to the
+ * user_data - The ImageWindow. The Properties widget holds a pointer to the
  * 	ImageWindow as a GObject property, just like the InfoBar widget. The
- * 	Metadata widget responds to changes in the VipsImage of the TileSource
+ * 	Properties widget responds to changes in the VipsImage of the TileSource
  * 	held by ImageWindow by updating the grid of user input widgets based
- * 	on the metadata properties of the new VipsImage.
+ * 	on the properties of the new VipsImage.
  */
 static void
-image_window_metadata( GSimpleAction *action, 
+image_window_properties( GSimpleAction *action, 
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win;
 
 #ifdef DEBUG
-	puts("image_window_metadata");
+	puts("image_window_properties");
 #endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
@@ -1549,7 +1549,7 @@ image_window_metadata( GSimpleAction *action,
 	win->paned_is_animating = TRUE;
 
 	if ( g_variant_get_boolean( state ) ) {
-		g_object_set( win->metadata, "revealed", TRUE, NULL );
+		g_object_set( win->properties, "revealed", TRUE, NULL );
 		g_timeout_add( 10,
 			(GSourceFunc) image_window_paned_enter, win );
 	} else
@@ -1576,8 +1576,8 @@ static GActionEntry image_window_entries[] = {
 		image_window_control },
 	{ "info", image_window_toggle, NULL, "false", 
 		image_window_info },
-	{ "metadata", image_window_toggle, NULL, "false",
-		image_window_metadata },
+	{ "properties", image_window_toggle, NULL, "false",
+		image_window_properties },
 
 	{ "next", image_window_next },
 	{ "prev", image_window_prev },
@@ -1607,7 +1607,7 @@ image_window_paned_position_init( gpointer win_ )
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
-	g_object_get( win->metadata, "revealed", &revealed, NULL );
+	g_object_get( win->properties, "revealed", &revealed, NULL );
 
 	if ( revealed )
 		gtk_paned_set_position( GTK_PANED( win->paned ),
@@ -1630,7 +1630,7 @@ image_window_paned_position_changed( GtkWidget *win_ )
 	if ( win->paned_is_animating )
 		return;
 
-	g_object_get( win->metadata, "revealed", &revealed, NULL );
+	g_object_get( win->properties, "revealed", &revealed, NULL );
 
 	if ( revealed )
 		win->paned_position =
@@ -1673,7 +1673,7 @@ image_window_init( ImageWindow *win )
 	g_object_set( win->info_bar,
 		"image-window", win,
 		NULL );
-	g_object_set( win->metadata,
+	g_object_set( win->properties,
 		"image-window", win,
 		NULL );
 
@@ -1733,8 +1733,8 @@ image_window_init( ImageWindow *win )
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
-	g_settings_bind( win->settings, "metadata",
-		G_OBJECT( win->metadata ),
+	g_settings_bind( win->settings, "properties",
+		G_OBJECT( win->properties ),
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
@@ -1744,8 +1744,8 @@ image_window_init( ImageWindow *win )
 		g_settings_get_value( win->settings, "control" ) );
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
-	change_state( GTK_WIDGET( win ), "metadata", 
-		g_settings_get_value( win->settings, "metadata" ) );
+	change_state( GTK_WIDGET( win ), "properties", 
+		g_settings_get_value( win->settings, "properties" ) );
 
 	/* Connect a signal handler that updates paned separator position
 	 * whenever it changes.
@@ -1795,7 +1795,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( display_bar );
 	BIND( info_bar );
 	BIND( paned );
-	BIND( metadata );
+	BIND( properties );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),
 		image_window_pressed_cb );
@@ -1930,8 +1930,8 @@ image_window_open( ImageWindow *win, GFile *file )
 
 	/* Re-initialize from settings.
 	 */
-	change_state( GTK_WIDGET( win ), "metadata", 
-		g_settings_get_value( win->settings, "metadata" ) );
+	change_state( GTK_WIDGET( win ), "properties", 
+		g_settings_get_value( win->settings, "properties" ) );
 
 	/* Give UI a chance to load before setting the paned separator position.
 	 */

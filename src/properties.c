@@ -4,14 +4,14 @@
 
 #include "vipsdisp.h"
 
-/* The Metadata widget displays the properties of the VipsImage. This includes
- * geometric values such as width and height as well as any exif metadata.
+/* The Properties widget displays the properties of the VipsImage. This includes
+ * geometric values such as width and height as well as any EXIF metadata.
  */
 
-/* This structure defines the properties of a Metadata object.
+/* This structure defines the properties of a Properties object.
  * (GObject boilerplate)
  */
-struct _Metadata
+struct _Properties
 {
 	GtkWidget parent_instance;
 
@@ -32,15 +32,15 @@ struct _Metadata
 	GtkCssProvider *provider;
 };
 
-/* This macro defines the Metadata type.
+/* This macro defines the Properties type.
  * (GObject boilerplate)
  */
-G_DEFINE_TYPE( Metadata, metadata, GTK_TYPE_WIDGET );
+G_DEFINE_TYPE( Properties, properties, GTK_TYPE_WIDGET );
 
 /* This enum defines the signals used to get and set custom properties.
  * See:
- * 	- metadata_get_property
- * 	- metadata_set_property
+ * 	- properties_get_property
+ * 	- properties_set_property
  *
  * (GObject boilerplate).
  */
@@ -54,10 +54,10 @@ enum {
 /* Clean up any existing children of @left_column and @right_column and any
  * existing elements of the GList @field_list.
  *
- * @m	Metadata *	this
+ * @m	Properties *	this
  */
 static void
-metadata_clear_main_box( Metadata *m )
+properties_clear_main_box( Properties *m )
 {
 	GtkWidget *t0, *t1;
 
@@ -85,13 +85,13 @@ metadata_clear_main_box( Metadata *m )
 	}
 }
 
-/* Create a new main_box. The caller should use metadata_clear_main_box to clean
+/* Create a new main_box. The caller should use properties_clear_main_box to clean
  * up existing input widgets first.
  *
- * @m	Metadata *	this
+ * @m	Properties *	this
  */
 static void
-metadata_create_main_box( Metadata *m )
+properties_create_main_box( Properties *m )
 {
 	TileSource *tile_source;
 	GtkWidget *t;
@@ -102,7 +102,7 @@ metadata_create_main_box( Metadata *m )
 	 * nothing.
 	 */
 	if ( !(tile_source = image_window_get_tile_source( m->image_window )) ) {
-		metadata_clear_main_box( m );
+		properties_clear_main_box( m );
 		return;
 	}
 
@@ -113,7 +113,7 @@ metadata_create_main_box( Metadata *m )
 	/* Clean up the old GtkGrid @m->main_box and GList @m->field_list. If
 	 * there is nothing to clean up, nothing happens.
 	 */
-	metadata_clear_main_box( m );
+	properties_clear_main_box( m );
 
 	/* Make new GList @m->field_list using the fields from the VipsImage
 	 * @image.
@@ -128,11 +128,11 @@ metadata_create_main_box( Metadata *m )
 	 * @image.
 	 */
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
-		t = metadata_util_create_simple_label_box( field );
+		t = properties_util_create_simple_label_box( field );
 		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
 		gtk_box_append( GTK_BOX( m->left_column ), t );
 
-		t = metadata_util_create_input_box( image, field );
+		t = properties_util_create_input_box( image, field );
 		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
 		gtk_box_append( GTK_BOX( m->right_column ), t );
 	}
@@ -146,75 +146,75 @@ metadata_create_main_box( Metadata *m )
  * @tile_source		The new tile_source, which is currently held by
  * 			m->image_window.
  *
- * @m	Metadata *	this
+ * @m	Properties *	this
  */
 static void
-metadata_tile_source_changed( TileSource *tile_source, Metadata *m )
+properties_tile_source_changed( TileSource *tile_source, Properties *m )
 {
 
 #ifdef DEBUG
-	puts( "metadata_tile_source_changed" );
+	puts( "properties_tile_source_changed" );
 #endif
 
 	/* If there is a new VipsImage on the tile source, use it to create
 	 * the new main_box of user input widgets.
 	 */
 	if ( tile_source->image )
-		/* The metadata_create_main_box function uses the VipsImage to
+		/* The properties_create_main_box function uses the VipsImage to
 		 * dynamically create a GtkGrid of user input widgets for
-		 * viewing and editing image metadata. It cleans up the old
+		 * viewing and editing image properties. It cleans up the old
 		 * main_box and gets the image from the new TileSource ( which is
 		 * why @tile_source isn't passed as an argument here ).
 		 */
-		metadata_create_main_box( m );
+		properties_create_main_box( m );
 }
 
 /* This function is called when ImageWindow changes. It is connected to the
  * "changed" signal on @m->image_window.
  *
  * @image_window	The new ImageWindow *
- * @m	Metadata *	this
+ * @m	Properties *	this
  */
 static void
-metadata_image_window_changed( ImageWindow *image_window, Metadata *m )
+properties_image_window_changed( ImageWindow *image_window, Properties *m )
 {
 #ifdef DEBUG
-	puts( "metadata_image_window_changed" );
+	puts( "properties_image_window_changed" );
 #endif
 
 	g_signal_connect_object( image_window_get_tile_source( image_window ),
-			"changed", G_CALLBACK( metadata_tile_source_changed ),
+			"changed", G_CALLBACK( properties_tile_source_changed ),
 			m, 0 );
 }
 
 /* Change @m->image_window, and watch it for "changed" events. Only used
- * privately by Metadata methods.
+ * privately by Properties methods.
  *
- * @m	Metadata *	this
+ * @m	Properties *	this
  * @image_window	The new ImageWindow *
  */
 static void
-metadata_set_image_window( Metadata *m, ImageWindow *image_window )
+properties_set_image_window( Properties *m, ImageWindow *image_window )
 {
 #ifdef DEBUG
-	puts( "metadata_set_image_window" );
+	puts( "properties_set_image_window" );
 #endif
 
 	m->image_window = image_window;
 
 	g_signal_connect_object( image_window, "changed",
-		G_CALLBACK( metadata_image_window_changed ),
+		G_CALLBACK( properties_image_window_changed ),
 		m, 0 );
 }
 
 /* Apply the values currently held by the input widgets to their corresponding
  * properties on the.
  *
- * @m	Metadata *	this
+ * @m	Properties *	this
  *
  */
 void
-metadata_apply( Metadata *m )
+properties_apply( Properties *m )
 {
 	VipsImage *image;
 	TileSource *tile_source;
@@ -222,7 +222,7 @@ metadata_apply( Metadata *m )
 	char *field;
 
 #ifdef DEBUG
-	puts("metadata_apply");
+	puts("properties_apply");
 #endif
 
 	/* Do nothing if there is no TileSource.
@@ -257,7 +257,7 @@ metadata_apply( Metadata *m )
 		/* Apply the value of the corresponding input widget to the
 		 * VipsImage.
 		 */
-		metadata_util_apply_input( t, image, field );
+		properties_util_apply_input( t, image, field );
 
 		/* Iterate to the next row.
 		 */
@@ -269,26 +269,26 @@ metadata_apply( Metadata *m )
 /* Attach a new row with a label and an input widget to the main_box
  * for the provided VipsImage field name.
  *
- * Used as a callback in a foreach loop in metadata_search_changed.
+ * Used as a callback in a foreach loop in properties_search_changed.
  *
  * @ma_list_:	gpointer (GList*)	List of Match *
- * @m_:		gpointer (Metadata *)	this
+ * @m_:		gpointer (Properties *)	this
  */
 static void
-metadata_append_field( gpointer ma_list_, gpointer m_ )
+properties_append_field( gpointer ma_list_, gpointer m_ )
 {
 	GList *ma_list;
-	Metadata *m;
+	Properties *m;
 	Match *ma;
 	const gchar *field;
 	GtkWidget *t;
 
 #ifdef DEBUG
-	puts("metadata_append_field")
+	puts("properties_append_field")
 #endif
 
 	ma_list = (GList *) ma_list_;
-	m = VIPSDISP_METADATA( m_ );
+	m = VIPSDISP_PROPERTIES( m_ );
 
 	ma = (Match *) ma_list->data;
 
@@ -298,7 +298,7 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 
 	/* Create a label box.
 	 */
-	t = metadata_util_create_label_box( ma_list );
+	t = properties_util_create_label_box( ma_list );
 
 	/* Add "even" or "odd" CSS class to label_box based on parity of the row
 	 * index.
@@ -311,7 +311,7 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
 
 	/* Create a label box.
 	 */
-	t = metadata_util_create_input_box( image_window_get_tile_source( m->image_window )->image, field );
+	t = properties_util_create_input_box( image_window_get_tile_source( m->image_window )->image, field );
 
 	/* Add "even" or "odd" CSS class to input_box based on parity of the row
 	 * index.
@@ -334,13 +334,13 @@ metadata_append_field( gpointer ma_list_, gpointer m_ )
  * Sorts inexact matches by increasing Levenshtein distance.
  *
  * @search_entry	GtkWidget * (GtkSearchEntry *)
- * @m_			gpointer (Metadata *)
+ * @m_			gpointer (Properties *)
  */
 #define NUM_INEXACT_MATCHES 15
 static void
-metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
+properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 {
-	Metadata *m;
+	Properties *m;
 	char **fields, *patt, *field;
 	GList *field_list;
 	Match *match;
@@ -351,13 +351,13 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 */
 	found = found0 = found1 = s0 = s1 = t = NULL;
 
-	/* Cast @m_ to Metadata *
+	/* Cast @m_ to Properties *
 	 */
-	m = VIPSDISP_METADATA( m_ );
+	m = VIPSDISP_PROPERTIES( m_ );
 
 	/* Clean up any existing children of left_column and right_column.
 	 */
-	metadata_clear_main_box( m );
+	properties_clear_main_box( m );
 
 	/* Get the C-style list of image field strings.
 	 */
@@ -434,7 +434,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 
 		/* Add the exact matches to the UI.
 		 */
-		g_list_foreach( found0, metadata_append_field, m );
+		g_list_foreach( found0, properties_append_field, m );
 	}
 
 	/* If there are no exact matches, then add the inexact matches, if any,
@@ -458,7 +458,7 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 
 		/* Add the inexact matches to the UI.
 		 */
-		g_list_foreach( found1, metadata_append_field, m );
+		g_list_foreach( found1, properties_append_field, m );
 	}
 
 	/* Clean up the array we got from vips_image_get_fields using the
@@ -470,18 +470,18 @@ metadata_search_changed( GtkWidget *search_entry, gpointer m_ )
 /* This is like the "destructor" method of GObject. It is called to clean up
  * your object near the end of its lifetime.
  *
- * @m_	GObject * (Metadata *)	this
+ * @m_	GObject * (Properties *)	this
  *
  * (GObject boilerplate).
  */
 static void
-metadata_dispose( GObject *m_ )
+properties_dispose( GObject *m_ )
 {
 	GtkWidget *child;
-	Metadata *m;
+	Properties *m;
 
 #ifdef DEBUG
-	puts( "metadata_dispose" );
+	puts( "properties_dispose" );
 #endif
 
 	/* Clean up the straggling child widget if there is one.
@@ -489,9 +489,9 @@ metadata_dispose( GObject *m_ )
 	if ( (child = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
 		gtk_widget_unparent( child );
 
-	/* Cast to Metadata *.
+	/* Cast to Properties *.
 	 */
-	m = VIPSDISP_METADATA( m_ );
+	m = VIPSDISP_PROPERTIES( m_ );
 
 	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
 	 * @m->display.
@@ -499,17 +499,17 @@ metadata_dispose( GObject *m_ )
 	gtk_style_context_remove_provider_for_display( m->display,
 			GTK_STYLE_PROVIDER( m->provider ) );
 
-	/* "Chain up" to the @dispose method of Metadata's parent class
-	 * ( GtkWidget ). GObject defines the metadata_parent_class macro, so
+	/* "Chain up" to the @dispose method of Properties's parent class
+	 * ( GtkWidget ). GObject defines the properties_parent_class macro, so
 	 * there is no need to reference the class name explicitly.
 	 */
-	G_OBJECT_CLASS( metadata_parent_class )->dispose( m_ );
+	G_OBJECT_CLASS( properties_parent_class )->dispose( m_ );
 }
 
 /* This function lets you change the custom properties "image-window" and
  * "revealed".
  *
- * @m_		gpointer (Metadata *)	this
+ * @m_		gpointer (Properties *)	this
  *
  * @prop_id	This is the signal id, e.g. PROP_IMAGE_WINDOW, defined in the
  * 		enum above.
@@ -521,16 +521,16 @@ metadata_dispose( GObject *m_ )
  * (GObject boilerplate)
  */
 static void
-metadata_set_property( GObject *m_, guint prop_id,
+properties_set_property( GObject *m_, guint prop_id,
 		const GValue *v, GParamSpec *pspec )
 {
 #ifdef DEBUG
-	puts( "metadata_set_property" );
+	puts( "properties_set_property" );
 #endif
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
-		metadata_set_image_window( VIPSDISP_METADATA( m_ ),
+		properties_set_image_window( VIPSDISP_PROPERTIES( m_ ),
 			VIPSDISP_IMAGE_WINDOW( g_value_get_object( v ) ) );
 		break;
 	case PROP_REVEALED:
@@ -547,7 +547,7 @@ metadata_set_property( GObject *m_, guint prop_id,
 /* This function lets you read the custom properties "image-window" and
  * "revealed".
  *
- * @m_		gpointer (Metadata *)	this
+ * @m_		gpointer (Properties *)	this
  *
  * @prop_id	This is the signal id, e.g. PROP_IMAGE_WINDOW, defined in the
  * 		enum above.
@@ -559,16 +559,16 @@ metadata_set_property( GObject *m_, guint prop_id,
  * (GObject boilerplate)
  */
 static void
-metadata_get_property( GObject *m_,
+properties_get_property( GObject *m_,
 	guint prop_id, GValue *v, GParamSpec *pspec )
 {
-	Metadata *m;
+	Properties *m;
 
 #ifdef DEBUG
-	puts("metadata_get_property");
+	puts("properties_get_property");
 #endif
 
-	m = VIPSDISP_METADATA( m_ );
+	m = VIPSDISP_PROPERTIES( m_ );
 
 	switch( prop_id ) {
 	case PROP_IMAGE_WINDOW:
@@ -583,27 +583,27 @@ metadata_get_property( GObject *m_,
 	}
 }
 
-/* Initialize a Metadata object.
+/* Initialize a Properties object.
  *
- * @m	GObject * (Metadata *)	this
+ * @m	GObject * (Properties *)	this
  *
  * (GObject boilerplate).
  */
 static void
-metadata_init( Metadata *m )
+properties_init( Properties *m )
 {
 #ifdef DEBUG
-	puts("metadata_init");
+	puts("properties_init");
 #endif
 
-	/* Ignore case during metadata field search.
+	/* Ignore case during properties field search.
 	 */
 	m->ignore_case = TRUE;
 
 	m->display = gdk_display_get_default();
 	m->provider = gtk_css_provider_new();
 	gtk_css_provider_load_from_resource( m->provider,
-		      APP_PATH "/metadata.css" );
+		      APP_PATH "/properties.css" );
 	gtk_style_context_add_provider_for_display( m->display,
 			GTK_STYLE_PROVIDER( m->provider ),
 			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
@@ -615,42 +615,42 @@ metadata_init( Metadata *m )
 	 */
 	g_signal_connect( m->search_entry,
 		"search-changed",
-		G_CALLBACK( metadata_search_changed ), m );
+		G_CALLBACK( properties_search_changed ), m );
 }
 
-/* This convenient macro binds pointers on a Metadata instance to XML nodes
+/* This convenient macro binds pointers on a Properties instance to XML nodes
  * defined in a .ui template. The property name must match the value of the "id"
- * attribute of the node. See "gtk/metadata.ui"
+ * attribute of the node. See "gtk/properties.ui"
  *
  * (GObject boilerplate).
  */
 #define BIND( field ) \
 	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
-		Metadata, field );
+		Properties, field );
 
-/* Initialize MetadataClass, which GObject defines for us if we used the
+/* Initialize PropertiesClass, which GObject defines for us if we used the
  * boilerplate macros and code correctly.
  *
- * @class	MetadataClass *	this class
+ * @class	PropertiesClass *	this class
  *
  * (GObject boilerplate).
  */
 static void
-metadata_class_init( MetadataClass *class )
+properties_class_init( PropertiesClass *class )
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
-	printf( "metadata_class_init:\n" );
+	printf( "properties_class_init:\n" );
 #endif
 
-	gobject_class->dispose = metadata_dispose;
+	gobject_class->dispose = properties_dispose;
 
 	gtk_widget_class_set_layout_manager_type( widget_class,
 		GTK_TYPE_BIN_LAYOUT );
 	gtk_widget_class_set_template_from_resource( widget_class,
-		APP_PATH "/metadata.ui");
+		APP_PATH "/properties.ui");
 
 	BIND( scrolled_window );
 	BIND( search_entry );
@@ -659,8 +659,8 @@ metadata_class_init( MetadataClass *class )
 	BIND( left_column );
 	BIND( right_column );
 
-	gobject_class->set_property = metadata_set_property;
-	gobject_class->get_property = metadata_get_property;
+	gobject_class->set_property = properties_set_property;
+	gobject_class->get_property = properties_get_property;
 
 	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
 		g_param_spec_object( "image-window",
@@ -672,31 +672,31 @@ metadata_class_init( MetadataClass *class )
 	g_object_class_install_property( gobject_class, PROP_REVEALED,
 		g_param_spec_boolean( "revealed",
 			_( "Revealed" ),
-			_( "Show metadata." ),
+			_( "Show properties." ),
 			FALSE,
 			G_PARAM_READWRITE ) );
 
 }
 
-/* Create a new Metadata widget.
+/* Create a new Properties widget.
  *
- * @image_window	The ImageWindow that will own Metadata widget.
+ * @image_window	The ImageWindow that will own Properties widget.
  *
  * (GObject boilerplate).
  */
-Metadata *
-metadata_new( ImageWindow *image_window )
+Properties *
+properties_new( ImageWindow *image_window )
 {
-	Metadata *m;
+	Properties *m;
 
 #ifdef DEBUG
-	printf( "metadata_new:\n" );
+	printf( "properties_new:\n" );
 #endif
 
-	/* Create a new Metadata object with its "image-window" property set to
+	/* Create a new Properties object with its "image-window" property set to
 	 * @image_window.
 	 */
-	m = g_object_new( metadata_get_type(),
+	m = g_object_new( properties_get_type(),
 		"image-window", image_window,
 		NULL );
 

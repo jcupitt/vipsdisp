@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <template class="Metadata" parent="GtkWidget">
+  <template class="Properties" parent="GtkWidget">
     <property name="hexpand">true</property>
     <property name="vexpand">true</property>
     <child>
