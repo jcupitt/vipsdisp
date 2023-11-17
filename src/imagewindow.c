@@ -51,6 +51,11 @@ struct _ImageWindow
 	 */
 	gboolean paned_is_animating;
 
+	/* TRUE if image_window_paned_init has been called at least
+	 * once.
+	 */
+	gboolean is_paned_init;
+
 	GtkWidget *right_click_menu;
 	GtkWidget *title;
 	GtkWidget *subtitle;
@@ -78,6 +83,7 @@ struct _ImageWindow
 
 	GtkCssProvider *provider;
 	GdkDisplay *display;
+	GtkSettings *gtk_settings;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -1500,7 +1506,6 @@ image_window_paned_enter( gpointer win_ )
 #endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
-
 	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
 
 	if ( pos - 80 > win->paned_position ) {
@@ -1536,6 +1541,7 @@ image_window_properties( GSimpleAction *action,
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win;
+	gboolean enable_animations;
 
 #ifdef DEBUG
 	puts("image_window_properties");
@@ -1543,18 +1549,25 @@ image_window_properties( GSimpleAction *action,
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	if ( win->paned_is_animating )
-		return;
+	g_object_get( win->gtk_settings, "gtk-enable-animations",
+		&enable_animations, NULL );
 
-	win->paned_is_animating = TRUE;
+	if ( enable_animations ) {
+		if ( win->paned_is_animating )
+			return;
+			
+		win->paned_is_animating = TRUE;
 
-	if ( g_variant_get_boolean( state ) ) {
-		g_object_set( win->properties, "revealed", TRUE, NULL );
-		g_timeout_add( 10,
-			(GSourceFunc) image_window_paned_enter, win );
+		if ( g_variant_get_boolean( state ) ) {
+			g_object_set( win->properties, "revealed", TRUE, NULL );
+			g_timeout_add( 10,
+				(GSourceFunc) image_window_paned_enter, win );
+		} else
+			g_timeout_add( 10,
+				(GSourceFunc) image_window_paned_leave, win );
 	} else
-		g_timeout_add( 10,
-			(GSourceFunc) image_window_paned_leave, win );
+		g_object_set( win->properties, "revealed",
+			g_variant_get_boolean( state ), NULL );
 
 	g_simple_action_set_state( action, state );
 }
@@ -1593,30 +1606,89 @@ static GActionEntry image_window_entries[] = {
 	{ "reset", image_window_reset },
 };
 
-#define MAX_WINDOW_WIDTH 7680
+/* This value needs to exceed the every possible window width, in logical
+ * pixels. Currently the widest displays on the market boast a width of 7680
+ * logical pixels, so it must at least be larger than that. There is no harm
+ * in having a much larger value though. GtkPaned will place the separator
+ * as far to the right as it can, when given a separator position that would
+ * place it outside the bounds of the GtkPaned itself.
+ */
+#define MAX_WINDOW_WIDTH 100000
 
-gboolean
-image_window_paned_position_init( gpointer win_ )
+/* The initial position of the GtkPaned separator. When revealed, the Properties
+ * menu needs to be visible even on the smallest displays. We don't want users
+ * to just see the separator on the far right of the window, since it might not
+ * be obvious what it is.
+ */
+#define INITIAL_PANED_POSITION 200
+
+/* Initialize, or re-initialize, the position of the GtkPaned separator.
+ * 
+ * This function is responsible for setting the position of the separator after
+ * the image has been allowed to render full-size. It is called using
+ * g_timeout_add when a new image is opened.
+ *
+ * If animations are enabled, this function resets the separator position
+ * to the far right when the Properties menu is hidden, so that it can slide
+ * in when revealed.
+ *
+ * The GtkPaned UI template in imagewindow.ui uses a "position" value
+ * large enough to guarantee the separator will be fully extended to the right
+ * when the first image is opened. This ensures the ImageDisplay widget has
+ * enough room to render the image full-size.
+ *
+ * GtkPaned will automatically remember the position of its separator when its
+ * child ( the Properties widget ) is made visible again. We take advantage
+ * of this behavior whenever animations are disabled.
+ *
+ * However, since we animate Properties widget enter/leave by changing the
+ * separator position, we are responsible for remembering it when animations are
+ * enabled, so that we know where the animation ends.
+ *
+ * If animations are enabled, when the user drags the separator, the new 
+ * position is saved in ImageWindow::paned_position by the "notify::position"
+ * signal handler, image_window_paned_position_changed.
+ *
+ * If animations are enabled, this function ( image_window_paned_init ) uses
+ * the saved position to reset the separator position when a new image is
+ * opened.
+ *
+ * @win_	gpointer (ImageWindow *) A generic pointer to the ImageWindow.
+ * 		Must be passed as the user_data argument in g_timeout_add.
+ *
+ * This is a GSourceFunc that should only be called by g_timeout_add.
+ */
+static void
+image_window_paned_init( gpointer win_ )
 {
 	ImageWindow *win;
-	gboolean revealed;
+	gboolean revealed, enable_animations;
 
 #ifdef DEBUG
-	puts( "image_window_paned_position_init" );
+	puts( "image_window_paned_init" );
 #endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
 	g_object_get( win->properties, "revealed", &revealed, NULL );
+	g_object_get( win->gtk_settings, "gtk-enable-animations",
+		&enable_animations, NULL );
 
-	if ( revealed )
+	if ( enable_animations ) {
+		if ( revealed ) {
+			if ( !win->is_paned_init )
+				win->paned_position = INITIAL_PANED_POSITION;
+
+			gtk_paned_set_position( GTK_PANED( win->paned ),
+				win->paned_position );
+		} else
+			gtk_paned_set_position( GTK_PANED( win->paned ),
+				MAX_WINDOW_WIDTH );
+	} else if ( !win->is_paned_init )
 		gtk_paned_set_position( GTK_PANED( win->paned ),
 			win->paned_position );
-	else
-		gtk_paned_set_position( GTK_PANED( win->paned ),
-			MAX_WINDOW_WIDTH );
 
-	return FALSE;
+	win->is_paned_init = TRUE;
 }
 
 static void
@@ -1637,12 +1709,11 @@ image_window_paned_position_changed( GtkWidget *win_ )
 			gtk_paned_get_position( GTK_PANED( win->paned ) );
 }
 
-#define INITIAL_PANED_SEPARATOR_POSITION 200
-
 static void
 image_window_init( ImageWindow *win )
 {
 	GtkEventController *controller;
+	gboolean enable_animations;
 
 #ifdef DEBUG
 	puts("image_window_init");
@@ -1652,8 +1723,9 @@ image_window_init( ImageWindow *win )
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
-	win->paned_position = INITIAL_PANED_SEPARATOR_POSITION;
 	win->paned_is_animating = FALSE;
+	win->paned_position = INITIAL_PANED_POSITION;
+	win->is_paned_init = FALSE;
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1666,6 +1738,17 @@ image_window_init( ImageWindow *win )
 	gtk_style_context_add_provider_for_display( win->display,
 		GTK_STYLE_PROVIDER( win->provider ),
 		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
+
+	/* Get GtkSettings for this GdkDisplay, so we can check if animations
+	 * are enabled. If not, then Properties menu enter/leave will not be
+	 * animated.
+	 */
+	win->gtk_settings = gtk_settings_get_for_display( win->display );
+
+	/* Test to make sure gtk-enable-animations is being respected properly. 
+	 */
+	g_object_set( win->gtk_settings, "gtk-enable-animations",
+		FALSE, NULL );
 	
 	g_object_set( win->display_bar,
 		"image-window", win,
@@ -1747,12 +1830,16 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "properties", 
 		g_settings_get_value( win->settings, "properties" ) );
 
-	/* Connect a signal handler that updates paned separator position
-	 * whenever it changes.
-	 */
-	g_signal_connect_swapped( win->paned, "notify::position",
-		G_CALLBACK( image_window_paned_position_changed ),
-		win );
+	g_object_get( win->gtk_settings, "gtk-enable-animations",
+		&enable_animations, NULL );
+
+	if ( enable_animations )
+		/* Connect a signal handler that updates the saved paned
+		 * separator position whenever the user drags it around.
+	 	 */
+		g_signal_connect_swapped( win->paned, "notify::position",
+			G_CALLBACK( image_window_paned_position_changed ),
+			win );
 }
 
 static void
@@ -1935,10 +2022,8 @@ image_window_open( ImageWindow *win, GFile *file )
 
 	/* Give UI a chance to load before setting the paned separator position.
 	 */
-	gtk_paned_set_position( GTK_PANED( win->paned ), MAX_WINDOW_WIDTH );
 	image_window_set_tile_source( win, tile_source );
-	g_timeout_add( 500,
-		(GSourceFunc) image_window_paned_position_init, win );
+	g_timeout_add( 500, (GSourceFunc) image_window_paned_init, win );
 
 	g_object_unref( tile_source );
 	g_free( path );

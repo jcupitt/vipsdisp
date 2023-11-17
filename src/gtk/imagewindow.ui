@@ -201,7 +201,7 @@
 
         <child>
           <object class="GtkPaned" id="paned">
-            <property name="position">600</property>
+            <property name="position">100000</property>
             <property name="wide-handle">true</property>
             <property name="resize-start-child">false</property>
             <property name="shrink-start-child">true</property>
