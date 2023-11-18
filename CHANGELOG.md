@@ -4,6 +4,7 @@
 
 - better saveoptions sizing
 - add flags support to saveoptions
+- better discrete zoom animation
 
 ## 2.6.1, 12/10/23
 
