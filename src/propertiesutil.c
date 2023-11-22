@@ -121,6 +121,17 @@ properties_util_create_simple_label_box( const gchar *s )
 	return t;
 }
 
+void
+properties_util_free_label_box( GtkWidget *label_box )
+{
+	GtkWidget *t;
+
+	while( (t = gtk_widget_get_first_child( label_box )) )
+		gtk_box_remove( GTK_BOX( label_box ), t );
+
+	gtk_widget_unparent( label_box );
+}
+
 /* Create a new label box for the given GList of Match objects. The list has all
  * exact or all inexact matches - not both. An exact match has a label box with
  * multiple labels, where each label contains the matching substring or the
@@ -171,11 +182,13 @@ properties_util_create_label_box( GList *ma_list )
 		 */
 		s = g_utf8_substring( ma->text, i, ma->i );
 		gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
+		g_free( s );
 		
 		/* A label containing the match.
 		 */
 		s = g_utf8_substring( ma->text, ma->i, ma->i + ma->n_patt );
 		t = create_simple_label( s );
+		g_free( s );
 		gtk_widget_add_css_class( t, "matching-substring" );
 		gtk_box_append( GTK_BOX( box ), t );
 		
@@ -188,6 +201,7 @@ properties_util_create_label_box( GList *ma_list )
 	 */
 	s = g_utf8_substring( ma->text, ma->i + ma->n_patt, ma->n_text );
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
+	g_free( s );
 
 	return box;
 }
@@ -201,23 +215,24 @@ properties_util_create_label_box( GList *ma_list )
 GtkWidget *
 create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
-	const gchar *value;
+	char *value;
 
 	if ( !strcmp( field, "filename" ) )
 		g_object_get( image, field, &value, NULL );
 	else
-		vips_image_get_string( image, field, &value );
+		vips_image_get_as_string( image, field, &value );
 
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
-	value = g_strdup( value );
 	GtkEntryBuffer* buffer =
 		gtk_entry_buffer_new( value, -1 );
+	g_free( value );
 
 	t = gtk_text_new();
 	gtk_text_set_buffer( GTK_TEXT( t ), buffer );
 
 #else
-	t = gtk_label_new( g_strdup_printf( "%s", value ) );
+	t = gtk_label_new( value );
+	g_free( value );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
@@ -241,8 +256,7 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	t = gtk_check_button_new();
 	gtk_check_button_set_active( GTK_CHECK_BUTTON( t ), d );
 #else
-	t = gtk_label_new( g_strdup_printf( "%s",
-				d ? "true" : "false" ) );
+	t = gtk_label_new( d ? "true" : "false" );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
@@ -259,6 +273,7 @@ GtkWidget *
 create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
+	gchar *s;
 
 	if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
@@ -282,6 +297,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
+		g_free( nicks );
 	} else { 
 		int d;
 
@@ -289,7 +305,9 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
 		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
-		t = gtk_label_new( g_strdup_printf( "%d", d ) );
+		s = g_strdup_printf( "%d", d );
+		t = gtk_label_new( s );
+		g_free( s );
 		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 	}
@@ -348,13 +366,16 @@ GtkWidget *
 create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	int d;
+	gchar *s;
 
 	vips_image_get_int( image, field, &d );
 
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
 #else
-	t = gtk_label_new( g_strdup_printf( "%d", d ) );
+	s = g_strdup_printf( "%d", d );
+	t = gtk_label_new( s );
+	g_free( s );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
@@ -372,6 +393,7 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 {
 	GtkWidget *t;
 	double d;
+	gchar *s;
 
 	vips_image_get_double( image, field, &d );
 
@@ -379,7 +401,9 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1, d, FALSE );
 
 #else
-	t = gtk_label_new( g_strdup_printf( "%f", d ) );
+	s = g_strdup_printf( "%f", d );
+	t = gtk_label_new( s );
+	g_free( s );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
@@ -405,6 +429,18 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 
 	return t;
+}
+
+void
+properties_util_free_input_box( GtkWidget *input_box )
+{
+	GtkWidget *t;
+
+	t = gtk_widget_get_first_child( input_box );
+
+	gtk_box_remove( GTK_BOX( input_box ), t );
+
+	gtk_widget_unparent( input_box );
 }
 
 /* Use introspection on VipsImage to create a UI input element for @field of
@@ -441,6 +477,9 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 * value on the image.
 	 */
 	type = G_VALUE_TYPE( &value );
+
+	g_value_unset( &value );
+
 	if ( strstr( "thumbnail", field ) )
 		t = gtk_label_new( "" );
 	else if ( type == VIPS_TYPE_REF_STRING )
@@ -485,7 +524,8 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	//gtk_widget_set_margin_start( input_box, 20 );
 
 	/* If there was a GParamSpec for this property, use the blurb as a
-	 * tooltip.
+	 * tooltip. The GParamSpec owns the character array returned by
+	 * g_param_spec_get_blurb, so we don't free it.
 	 */
 	if ( pspec )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( input_box ),

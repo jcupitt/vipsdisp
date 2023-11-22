@@ -61,24 +61,21 @@ properties_clear_main_box( Properties *m )
 {
 	GtkWidget *t0, *t1;
 
-	/* Clean up the old main_box contents ( if any ) and old field list
-	 * ( if of non-zero length ).
-	 */
+	t0 = gtk_widget_get_last_child( m->left_column );
+	while ( t0 ) {
+		t1 = gtk_widget_get_prev_sibling( t0 );
+		properties_util_free_label_box( t0 );
+		t0 = t1;
+	}
+
+	t0 = gtk_widget_get_last_child( m->right_column );
+	while ( t0 ) {
+		t1 = gtk_widget_get_prev_sibling( t0 );
+		properties_util_free_input_box( t0 );
+		t0 = t1;
+	}
+
 	if ( m->field_list ) {
-		t0 = gtk_widget_get_last_child( m->left_column );
-		while ( t0 ) {
-			t1 = gtk_widget_get_prev_sibling( t0 );
-			gtk_widget_unparent( t0 );
-			t0 = t1;
-		}
-
-		t0 = gtk_widget_get_last_child( m->right_column );
-		while ( t0 ) {
-			t1 = gtk_widget_get_prev_sibling( t0 );
-			gtk_widget_unparent( t0 );
-			t0 = t1;
-		}
-
 		g_list_free( m->field_list );
 		m->field_list = NULL;
 		m->field_list_length = 0;
@@ -96,7 +93,7 @@ properties_create_main_box( Properties *m )
 	TileSource *tile_source;
 	GtkWidget *t;
 	VipsImage *image;
-	char **fields, *field;
+	gchar **fields, *field;
 
 	/* If there is no TileSource, clean up any existing main_box and do
 	 * nothing.
@@ -115,11 +112,19 @@ properties_create_main_box( Properties *m )
 	 */
 	properties_clear_main_box( m );
 
+	/* Get the array of image property name character arrays. We are
+	 * responsible for freeing this with g_strfreev. The Match methods do
+	 * not modify/free the character arrays in @fields, so we only free them
+	 * once the relevant data has been copied into widgets with their
+	 * character array setter methods.
+	 */
+	fields = vips_image_get_fields( image );
+
 	/* Make new GList @m->field_list using the fields from the VipsImage
 	 * @image.
 	 */
-	fields = vips_image_get_fields( image );
-	while ( (field = *fields++) )
+	m->field_list = NULL;
+	for ( int i=0; (field = fields[i]); i++ )
 		m->field_list = g_list_append( m->field_list, field );
 	m->field_list_length = g_list_length( m->field_list );
 
@@ -136,6 +141,11 @@ properties_create_main_box( Properties *m )
 		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
 		gtk_box_append( GTK_BOX( m->right_column ), t );
 	}
+
+	/* Clean up the array we got from vips_image_get_fields using the
+	 * method recommended by the VIPS docs (see vips_image_get_fields).
+	 */
+	g_strfreev( fields );
 }
 
 /* This is called when the TileSource changes. In particular, a new VipsImage
@@ -219,7 +229,7 @@ properties_apply( Properties *m )
 	VipsImage *image;
 	TileSource *tile_source;
 	GtkWidget *label_box, *input_box, *t;
-	char *field;
+	const char *field;
 
 #ifdef DEBUG
 	puts("properties_apply");
@@ -248,7 +258,7 @@ properties_apply( Properties *m )
 
 		/* Get the string name of the VipsImage field from the label.
 		 */
-		field = g_strdup( gtk_label_get_text( GTK_LABEL( t ) ) );
+		field = gtk_label_get_text( GTK_LABEL( t ) );
 
 		/* Get the input widget child of the input_box.
 		 */
@@ -258,6 +268,7 @@ properties_apply( Properties *m )
 		 * VipsImage.
 		 */
 		properties_util_apply_input( t, image, field );
+
 
 		/* Iterate to the next row.
 		 */
@@ -269,9 +280,10 @@ properties_apply( Properties *m )
 /* Attach a new row with a label and an input widget to the main_box
  * for the provided VipsImage field name.
  *
- * Used as a callback in a foreach loop in properties_search_changed.
+ * This is a GFunc that should only be called by g_list_foreach.
  *
- * @ma_list_:	gpointer (GList*)	List of Match *
+ * @ma_list_:	gpointer (GList*)	List of Match *.
+ *
  * @m_:		gpointer (Properties *)	this
  */
 static void
@@ -282,6 +294,7 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 	Match *ma;
 	const gchar *field;
 	GtkWidget *t;
+	TileSource *tile_source;
 
 #ifdef DEBUG
 	puts("properties_append_field")
@@ -296,7 +309,7 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 
 	m->field_list = g_list_append( m->field_list, (gpointer) field );
 
-	/* Create a label box.
+	/* Create a label_box for the given list node.
 	 */
 	t = properties_util_create_label_box( ma_list );
 
@@ -309,9 +322,10 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 	 */
 	gtk_box_append( GTK_BOX( m->left_column ), t );
 
-	/* Create a label box.
+	/* Create an input_box for the given list node.
 	 */
-	t = properties_util_create_input_box( image_window_get_tile_source( m->image_window )->image, field );
+	tile_source = image_window_get_tile_source( m->image_window );
+	t = properties_util_create_input_box( tile_source->image, field );
 
 	/* Add "even" or "odd" CSS class to input_box based on parity of the row
 	 * index.
@@ -341,15 +355,15 @@ static void
 properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 {
 	Properties *m;
-	char **fields, *patt, *field;
-	GList *field_list;
+	char **fields, *field;
+	const char *patt;
 	Match *match;
-	GList *found, *found0, *found1, *s0, *s1, *t;
+	GList *found_ptr, *found, *found0, *found1, *s0, *s1, *t;
 	guint *v;
 
 	/* Initialize GList pointers to NULL, which means they are empty.
 	 */
-	found = found0 = found1 = s0 = s1 = t = NULL;
+	found = found0 = found1 = NULL;
 
 	/* Cast @m_ to Properties *
 	 */
@@ -359,33 +373,54 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 */
 	properties_clear_main_box( m );
 
-	/* Get the C-style list of image field strings.
+	/* Get the array of image property name character arrays. We are
+	 * responsible for freeing this with g_strfreev. The Match methods do
+	 * not modify/free the character arrays in @fields, so we only free them
+	 * once the relevant data has been copied into widgets with their
+	 * character array setter methods.
 	 */
 	fields = vips_image_get_fields( image_window_get_tile_source(
 			m->image_window )->image );
 
-	/* Make a GList out of them, and search through it for the user input
-	 * pattern.
-	 *
-	 * The results of the search are stored in @found - a GList of Match
-	 * objects (see match.h and match.c).
+	/* Make new GList @m->field_list using the fields from the VipsImage
+	 * @image.
 	 */
-	field_list = NULL;
+	m->field_list = NULL;
 	for ( int i=0; (field = fields[i]); i++ )
-		field_list = g_list_append( field_list, field );
+		m->field_list = g_list_append( m->field_list, field );
 
-	patt = g_strdup( gtk_editable_get_text( GTK_EDITABLE( search_entry ) ) );
+	/* We don't free @patt, since the GtkSearchEntry owns it. This is
+	 * usually the case for GtkWidget getter methods that return character
+	 * pointers.
+	 *
+	 * On the other hand, GtkWidget setter methods that take character
+	 * pointers usually require the caller to free the original character
+	 * pointer argument, since setter method usually makes its own copy of
+	 * the data. 
+	 *
+	 * We never set GtkSearchEntry::text - it is set when the user edits the
+	 * search entry.
+	 */
+	patt = gtk_editable_get_text( GTK_EDITABLE( search_entry ) );
 
 	/* Reuse the same buffer for the fuzzy matching algorithm.
 	 */
 	v = g_malloc( (strlen( patt ) + 1) * sizeof( guint ) );
 
-	/* Get a GList of GLists of Match objects. Each GList is either all
-	 * exact matches or all inexact matches. We'll separate them below.
+	/* Search each property name in @m->field_list for the user input
+	 * pattern.
+	 *
+	 * The results of the search are stored in @found - a GList of GLists of
+	 * Match objects (see match.h and match.c).
+	 *
+	 * Each GList in @found is either all exact matches or all inexact
+	 * matches. We'll separate them below.
 	 */
-	found = Match_get_exact_and_inexact_matches( field_list,
-			(gchar *) patt, m->ignore_case, v );
+	found = Match_get_exact_and_inexact_matches( m->field_list,
+		patt, m->ignore_case, v );
 
+	/* Clean up the buffer used by the fuzzy matching algorithm.
+	 */
 	g_free( v );
 
 	/* Create two GList of GList: one with exact matches @found0, and one
@@ -394,13 +429,13 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 * and inexact Match objects, respectively, and then appending @s0
 	 * to @found0 and @s1 to @found1.
 	 */
-	while ( found ) {
-		t = (GList *) found->data;
-		s0 = s1 = NULL;
-
+	found_ptr = found;
+	while ( found_ptr ) {
 		/* Iterate through the GList @t, adding exact matches to @s0
 		 * and inexact matches to @s1.
 		 */
+		t = (GList *) found_ptr->data;
+		s0 = s1 = NULL;
 		while ( t ) {
 			match = (Match *) t->data;
 
@@ -421,12 +456,28 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 		if ( s1 )
 			found1 = g_list_append( found1, s1 );
 
-		found = found->next;
+		/* Clean up each GList in @found as we iterate over them.
+	 	*/
+		g_list_free( (GList *) found_ptr->data );
+
+		/* Iterate to the next GList in @found.
+		 */
+		found_ptr = found_ptr->next;
 	}
 
-	/* Add the exact matches to the UI.
+	/* Clean up the GList @found itself.
 	 */
-	if ( g_list_length( found0 ) ) {
+	g_list_free( found );
+
+	/* If there were exact matches, add them to the UI. Then, clean up the
+	 * GList @found0, and each GList in @found0, including the Match objects
+	 * they contain.
+	 *
+	 * Otherwise, if there were no exact matches, and there are inexact
+	 * matches, add them to the UI. Then, clean up the GList @found1, and
+	 * each GList in @found1, including the Match objects they contain.
+	 */
+	if( found0 ) {
 		/* Don't show the search warning, since there are exact matches
 		 * to show.
 		 */
@@ -435,12 +486,7 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 		/* Add the exact matches to the UI.
 		 */
 		g_list_foreach( found0, properties_append_field, m );
-	}
-
-	/* If there are no exact matches, then add the inexact matches, if any,
-	 * to the UI.
-	 */
-	if ( !g_list_length( found0 ) && g_list_length( found1 ) ) {
+	} else if( found1 ) {
 		/* Tell the user there are no exact matches.
 		 */
 		gtk_widget_set_visible( m->search_warning, TRUE );
@@ -449,17 +495,49 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 		 */
 		found1 = g_list_sort( found1, Match_list_comp );
 
-		/* Truncate the list at NUM_INEXACT_MATCHES elements.
+		/* Truncate the list at NUM_INEXACT_MATCHES elements. Then,
+		 * fully clean up the truncated tail of @found1, a GList of
+		 * GList of Match.
 		 */
 		t = g_list_nth( found1, NUM_INEXACT_MATCHES );
-		t->prev->next = NULL;
-		g_list_foreach( t, Match_free, NULL );
-		g_list_free( t );
+		if ( t && t->prev ) {
+			t->prev->next = NULL;
+			found_ptr = t;
+			while ( found_ptr ) {
+				g_list_foreach( (GList *) found_ptr->data,
+					Match_free, NULL );
+				g_list_free( (GList *) found_ptr->data );
+				found_ptr = found_ptr->next;
+			}
+			g_list_free( t );
+		}
 
 		/* Add the inexact matches to the UI.
 		 */
 		g_list_foreach( found1, properties_append_field, m );
 	}
+
+	/* Fully clean up @found0, a GList of GList of Match.
+	 */
+	found_ptr = found0;
+	while ( found_ptr ) {
+		g_list_foreach( (GList *) found_ptr->data, Match_free,
+			NULL );
+		g_list_free( (GList *) found_ptr->data );
+		found_ptr = found_ptr->next;
+	}
+	g_list_free( found0 );
+
+	/* Fully clean up @found1, a GList of GList of Match.
+	 */
+	found_ptr = found1;
+	while ( found_ptr ) {
+		g_list_foreach( (GList *) found_ptr->data, Match_free,
+			NULL );
+		g_list_free( (GList *) found_ptr->data );
+		found_ptr = found_ptr->next;
+	}
+	g_list_free( found1 );
 
 	/* Clean up the array we got from vips_image_get_fields using the
 	 * method recommended by the VIPS docs (see vips_image_get_fields).
@@ -477,21 +555,26 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 static void
 properties_dispose( GObject *m_ )
 {
-	GtkWidget *child;
+	GtkWidget *t;
 	Properties *m;
 
 #ifdef DEBUG
 	puts( "properties_dispose" );
 #endif
 
-	/* Clean up the straggling child widget if there is one.
-	 */
-	if ( (child = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
-		gtk_widget_unparent( child );
-
 	/* Cast to Properties *.
 	 */
 	m = VIPSDISP_PROPERTIES( m_ );
+
+	/* Clean up any existing children of @left_column and @right_column and
+	 * any existing elements of the GList @field_list.
+	 */
+	properties_clear_main_box( m );
+
+	/* Clean up the straggling child widget if there is one.
+	 */
+	if ( (t = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
+		gtk_widget_unparent( t );
 
 	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
 	 * @m->display.

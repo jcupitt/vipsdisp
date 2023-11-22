@@ -15,11 +15,13 @@
  *
  * Must be freed with Match_free.
  *
+ * The caller is responsible for freeing @text. 
+ *
  * @exact:	Exact match (TRUE) or inexact (FALSE)
  * @i:		Offset from @text to @patt. Used for exact matching.
  * @ld:		Distance between @text and @patt. Used for inexact matching.
- * @text:	Text to search in
- * @patt:	Search pattern
+ * @text:	Text to search in. Owned by the caller. 
+ * @patt:	Search pattern. Owned by the caller.
  */
 Match *
 Match_new( gboolean exact, gint i, const gint ld, const gchar *text, const gchar *patt )
@@ -29,7 +31,6 @@ Match_new( gboolean exact, gint i, const gint ld, const gchar *text, const gchar
 	t->exact = exact;
 	t->i = i;
 	t->ld = ld;
-	//g_assert( text );
 	t->text = text;
 	t->n_text = strlen( text );
 	t->patt = patt;
@@ -44,11 +45,11 @@ Match_new( gboolean exact, gint i, const gint ld, const gchar *text, const gchar
  * @user_data_	gpointer		Boilerplate argument
  */
 void
-Match_free( gpointer match_list, gpointer user_data_ )
+Match_free( gpointer match_, gpointer user_data_ )
 {
 	Match *match;
 
-	match = (Match *) ((GList *) match_list)->data;
+	match = (Match *) match_;
 
 	if ( match )
 		g_free( match );
@@ -296,15 +297,10 @@ Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, gu
 	GList *r;
 	Match *ma;
 
-	/* If @patt is null or the empty string return a list with one element:
-	 * a dummy match for the empty string.
+	/* If @patt is null or the empty string return NULL.
 	 */
-	r = NULL;
-	if ( !patt || !*patt) {
-		ma = Match_new( TRUE, 0, 0, text, patt );
-		r = g_list_append( r, ma );
-		return r;
-	}
+	if ( !patt || !*patt)
+		return NULL;
 
 	/* Use these for comparison, which changes depending on @ignore_case.
 	 * Note we only copy the string if we need to lowercase.
@@ -314,6 +310,7 @@ Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, gu
 
 	/* Find all exact matches
 	 */
+	r = NULL;
 	s = comp_text;
 	while( *s && (s = strstr( s, comp_patt )) ) {
 		ma = Match_new( TRUE, s - comp_text, 0, text, patt );
@@ -358,21 +355,21 @@ GList *
 Match_get_exact_and_inexact_matches( GList *text_list,
 		const gchar *patt, gboolean ignore_case, guint *v )
 {
-	GList *found = NULL, *t0, *t1;
+	GList *found, *t0, *t1;
+	gchar *text;
 
-	if ( !text_list )
+	if ( !text_list || !(t0 = g_list_first( text_list )) )
 		return NULL;
 
-	if ( !(t0 = g_list_first( text_list )) )
-		return NULL;
-
-	/* Iterate over elements of @text_list, which have type gchar*.
+	/* Iterate over elements of @text_list, which have type gchar*,
+	 * appending each GList of Match objects to @found, a GList of GLists.
 	 */
+	found = NULL;
 	do {
-		/* Append each GList of Match objects to the list of lists.
-		 */
-		t1 = Match_fuzzy_list( (gchar *) t0->data, patt, ignore_case, v  );
-		found = g_list_append( found, t1 );
+		text = (gchar *) t0->data;
+		t1 = Match_fuzzy_list( text, patt, ignore_case, v );
+		if ( t1 )
+			found = g_list_append( found, t1 );
 	} while ( (t0 = t0->next) );
 
 	return found;
