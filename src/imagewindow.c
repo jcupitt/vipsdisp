@@ -12,6 +12,10 @@
  */
 #define SCALE_STEP (1.05)
 
+/* Duration of discrete zoom in secs.
+ */
+#define SCALE_DURATION (0.5)
+
 struct _ImageWindow
 {
 	GtkApplicationWindow parent;
@@ -41,6 +45,8 @@ struct _ImageWindow
 	guint tick_handler;
 	double scale_rate;
 	double scale_target;
+	double scale_start;
+	double scale_progress;
 
 	/* Position of the GtkPaned separator.
 	 */
@@ -821,11 +827,25 @@ image_window_close_action( GSimpleAction *action,
 	gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
+/* From clutter-easing.c, based on Robert Penner's
+ * infamous easing equations, MIT license.
+ */
+static double
+ease_out_cubic( double t )
+{
+  double p = t - 1;
+
+  return( p * p * p + 1 );
+}
+
+static void image_window_stop_animation( ImageWindow *win );
+
 static gboolean
 image_window_tick( GtkWidget *widget, 
 	GdkFrameClock *frame_clock, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
 	gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
 	double dt = win->last_frame_time > 0 ?
 		(double) (frame_time - win->last_frame_time) / 
@@ -837,25 +857,33 @@ image_window_tick( GtkWidget *widget,
 	double y_image;
 	double new_scale;
 
+	image_window_get_mouse_position( win, &x_image, &y_image );
+
 #ifdef DEBUG
 	printf( "image_window_tick: dt = %g\n", dt );
 #endif /*DEBUG*/
 
-	image_window_get_mouse_position( win, &x_image, &y_image );
-
 	new_scale = scale;
 
+	// i/o/etc. continuous zoom
 	if( win->scale_rate != 1.0 )
 		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
 
+	// 0/1/etc. discreet zoom
 	if( win->scale_target != 0 ) {
-		if( (win->scale_rate > 1.0 && 
-				new_scale >= win->scale_target) ||
-			(win->scale_rate < 1.0 && 
-			 new_scale <= win->scale_target) ) {
-			win->scale_rate = 1.0;
+		win->scale_progress += dt;
+
+		// 0-1 progress in zoom animation
+		double t = ease_out_cubic( win->scale_progress / SCALE_DURATION );
+
+		// so current scale must be
+		new_scale = win->scale_start + 
+			t * (win->scale_target - win->scale_start);
+
+		if( t >= 1.0 ) {
 			new_scale = win->scale_target;
-			win->scale_target = 0.0;
+			win->scale_target = 0;
+			image_window_stop_animation( win );
 		}
 	}
 
@@ -866,17 +894,10 @@ image_window_tick( GtkWidget *widget,
 	return( G_SOURCE_CONTINUE );
 }
 
-static gboolean
-image_window_is_animating( ImageWindow *win )
-{
-	return( win->scale_rate != 1.0 );
-}
-
 static void
 image_window_start_animation( ImageWindow *win )
 {
-	if( image_window_is_animating( win ) &&
-		!win->tick_handler ) {
+	if( !win->tick_handler ) {
 		win->last_frame_time = -1;
 		win->tick_handler = gtk_widget_add_tick_callback( 
 			GTK_WIDGET( win ),
@@ -887,8 +908,7 @@ image_window_start_animation( ImageWindow *win )
 static void
 image_window_stop_animation( ImageWindow *win )
 {
-	if( !image_window_is_animating( win ) &&
-		win->tick_handler ) {
+	if( win->tick_handler ) {
 		gtk_widget_remove_tick_callback( GTK_WIDGET( win ), 
 			win->tick_handler );
 		win->tick_handler = 0;
@@ -898,13 +918,10 @@ image_window_stop_animation( ImageWindow *win )
 static void
 image_window_animate_scale_to( ImageWindow *win, double scale_target )
 {
-	// use a bigger number for faster zoom
-	static const double animation_speed = 0.5;
-
-	double scale = image_window_get_scale( win );
-
-	win->scale_rate = log( scale_target / scale ) / animation_speed;
+	win->scale_rate = 1.0;
 	win->scale_target = scale_target;
+	win->scale_start = image_window_get_scale( win );
+	win->scale_progress = 0.0;
 }
 
 static void
@@ -912,10 +929,8 @@ image_window_animate_bestfit( ImageWindow *win )
 {
 	int widget_width = gtk_widget_get_width( win->imagedisplay );
 	int widget_height = gtk_widget_get_height( win->imagedisplay );
-	double hscale = (double) widget_width / 
-		win->tile_source->display_width;
-	double vscale = (double) widget_height / 
-		win->tile_source->display_height;
+	double hscale = (double) widget_width / win->tile_source->display_width;
+	double vscale = (double) widget_height / win->tile_source->display_height;
 	double scale = VIPS_MIN( hscale, vscale );
 
 	image_window_animate_scale_to( win, scale * win->tile_source->zoom );
@@ -1079,7 +1094,8 @@ image_window_key_released( GtkEventControllerKey *self,
 		break;
 	}
 
-	image_window_stop_animation( win );
+	if( handled )
+		image_window_stop_animation( win );
 
 	return( handled );
 }

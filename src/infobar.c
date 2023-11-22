@@ -43,6 +43,7 @@ infobar_dispose( GObject *object )
 #endif /*DEBUG*/
 
 	VIPS_FREEF( gtk_widget_unparent, infobar->action_bar );
+	VIPS_FREEF( g_slist_free, infobar->value_widgets );
 
 	G_OBJECT_CLASS( infobar_parent_class )->dispose( object );
 }
