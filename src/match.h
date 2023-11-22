@@ -1,23 +1,30 @@
 #ifndef __MATCH_H
 #define __MATCH_H 
 
-/* A GList of pointers to this struct represent an exact or inexact match of a
- * pattern string @patt in a text string @text.
+/* A Match object represents an exact or inexact match of a pattern string @patt
+ * in a text string @text. Using the same struct for both exact and inexact
+ * matches allows the caller to process a GList of Match objects in a uniform
+ * way. This is convenient when writing GFunc functions used with
+ * g_list_foreach.
  *
- * Exact matches are GLists of Match objects with @exact=true, while inexact
- * matches are GLists of Match objects with @exact=false.
+ * Exact Match objects have @exact=true, while inexact Match objects have
+ * @exact=false.
  *
  * An exact Match indicates the zero-indexed position of the match with @i. Its
- *  @ld value should not be used.
+ * @ld value is set to 0 and should not be used.
  *
  * An inexact Match indicates the LEVENSHTEIN DISTANCE between @text and @patt
- * with @ld. Its @i value should not be used.
+ * with @ld. Its @i value is set to 0 and should not be used. The parameters of
+ * the LEVENSHTEIN_DISTANCE algorithm are chosen so that an inexact match of
+ * @patt can occur anywhere in @text.
  *
- * @exact:	Exact match (TRUE) or inexact (FALSE)
+ * @exact:	Exact match (TRUE) or inexact (FALSE).
  * @i:		Offset from @text to @patt. Used for exact matching.
  * @ld:		Distance between @text and @patt. Used for inexact matching.
- * @text:	Text to search in
- * @patt:	Search pattern
+ * @n_text	String length of @text.
+ * @text:	Text to search in.
+ * @n_patt	String length of @patt.
+ * @patt:	Search pattern.
  */
 typedef struct Match Match;
 struct Match {
@@ -30,13 +37,14 @@ struct Match {
 	const gchar *patt;
 };
 
-Match * Match_new( gboolean exact, gint i, gint ld, const gchar *text, const gchar *patt );
-void Match_free( gpointer match_, gpointer user_data );
-void Match_print( gpointer match_, gpointer user_data );
-gint Match_comp( gconstpointer a_, gconstpointer b_ );
-gint Match_list_comp( gconstpointer a_, gconstpointer b_ );
-GList* Match_fuzzy_list( const gchar *text, const gchar *patt, gboolean ignore_case, guint *v );
-GList * Match_get_exact_and_inexact_matches( GList *text_list, const gchar *patt, gboolean ignore_case, guint *v );
+Match * match_new( gboolean exact, gint i, gint ld, const gchar *text, const gchar *patt );
+void match_free( gpointer match_, gpointer user_data );
 guint glev( guint n1, const gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1], gboolean ignore_case );
+gint match_comp( gconstpointer a_, gconstpointer b_ );
+gint match_list_comp( gconstpointer a_, gconstpointer b_ );
+GList* match_exact( const gchar *text, const gchar *patt, gboolean ignore_case );
+GList* match_inexact( const gchar *text, const gchar *patt, gboolean ignore_case, guint *v );
+GList * match_list( gboolean exact, GList *text_list, const gchar *patt, gboolean ignore_case, guint *v );
+void match_list_free( GList *l );
 
 #endif /* __MATCH_H */

@@ -75,7 +75,7 @@ properties_clear_main_box( Properties *m )
 		t0 = t1;
 	}
 
-	if ( m->field_list ) {
+	if( m->field_list ) {
 		g_list_free( m->field_list );
 		m->field_list = NULL;
 		m->field_list_length = 0;
@@ -98,7 +98,7 @@ properties_create_main_box( Properties *m )
 	/* If there is no TileSource, clean up any existing main_box and do
 	 * nothing.
 	 */
-	if ( !(tile_source = image_window_get_tile_source( m->image_window )) ) {
+	if( !(tile_source = image_window_get_tile_source( m->image_window )) ) {
 		properties_clear_main_box( m );
 		return;
 	}
@@ -169,7 +169,7 @@ properties_tile_source_changed( TileSource *tile_source, Properties *m )
 	/* If there is a new VipsImage on the tile source, use it to create
 	 * the new main_box of user input widgets.
 	 */
-	if ( tile_source->image )
+	if( tile_source->image )
 		/* The properties_create_main_box function uses the VipsImage to
 		 * dynamically create a GtkGrid of user input widgets for
 		 * viewing and editing image properties. It cleans up the old
@@ -237,7 +237,7 @@ properties_apply( Properties *m )
 
 	/* Do nothing if there is no TileSource.
 	 */
-	if ( !(tile_source = image_window_get_tile_source( m->image_window )) )
+	if( !(tile_source = image_window_get_tile_source( m->image_window )) )
 		return;
 
 	/* If there is a TileSource, get its VipsImage @image and continue.
@@ -342,10 +342,8 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 }
 
 /* This is the callback function called whenever the GtkSearchEntry is modified
- * by the user. Has loops or append_field callback function.
- *
- * Gets the list of matches. Separates it into two lists: exact and inexact.
- * Sorts inexact matches by increasing Levenshtein distance.
+ * by the user. Adds exact matches - or inexact matches, if there are no exact
+ * matches - to the UI.
  *
  * @search_entry	GtkWidget * (GtkSearchEntry *)
  * @m_			gpointer (Properties *)
@@ -357,13 +355,8 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 	Properties *m;
 	char **fields, *field;
 	const char *patt;
-	Match *match;
-	GList *found_ptr, *found, *found0, *found1, *s0, *s1, *t;
+	GList *l, *t;
 	guint *v;
-
-	/* Initialize GList pointers to NULL, which means they are empty.
-	 */
-	found = found0 = found1 = NULL;
 
 	/* Cast @m_ to Properties *
 	 */
@@ -380,7 +373,7 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 * character array setter methods.
 	 */
 	fields = vips_image_get_fields( image_window_get_tile_source(
-			m->image_window )->image );
+		m->image_window )->image );
 
 	/* Make new GList @m->field_list using the fields from the VipsImage
 	 * @image.
@@ -407,137 +400,59 @@ properties_search_changed( GtkWidget *search_entry, gpointer m_ )
 	 */
 	v = g_malloc( (strlen( patt ) + 1) * sizeof( guint ) );
 
-	/* Search each property name in @m->field_list for the user input
-	 * pattern.
-	 *
-	 * The results of the search are stored in @found - a GList of GLists of
-	 * Match objects (see match.h and match.c).
-	 *
-	 * Each GList in @found is either all exact matches or all inexact
-	 * matches. We'll separate them below.
+	/* Get a GList of GList of exact Match objects. There is an inner GList
+	 * for each property name in @field_list containing one or more exact
+	 * matching substrings. Each inner GList contains an exact Match for
+	 * each exactly matching substring within the same property name. 
 	 */
-	found = Match_get_exact_and_inexact_matches( m->field_list,
-		patt, m->ignore_case, v );
+	l = match_list( TRUE, m->field_list, patt, m->ignore_case, v );
+
+	/* If there were exact matches, add them to the UI. If there were no
+	 * exact matches, get inexact matches, sort them by
+	 * LEVENSHTEIN_DISTANCE, and add them to the UI.
+	 */
+	if( l )
+		/* Don't show the search warning, since there are exact matches
+		 * to show.
+		 */
+		gtk_widget_set_visible( m->search_warning, FALSE );
+	else {
+		/* Tell the user there are no exact matches.
+		 */
+		gtk_widget_set_visible( m->search_warning, TRUE );
+
+		/* Get a GList of GList of single inexact Match objects. There
+		 * is an inner GList for each property name in @field_list. Each
+		 * inner GList contains a single inexact match.
+		 */
+		l = match_list( FALSE, m->field_list, patt, m->ignore_case, v );
+
+		/* Sort by increasing Levenshtein Distance.
+		 */
+		l = g_list_sort( l, match_list_comp );
+
+		/* Truncate the list at NUM_INEXACT_MATCHES elements. Then,
+		 * fully clean up the truncated tail of @l, a GList of
+		 * GList of Match.
+		 */
+		t = g_list_nth( l, NUM_INEXACT_MATCHES );
+		if( t && t->prev ) {
+			t->prev->next = NULL;
+			match_list_free( t );
+		}
+	}
+
+	/* Add the matches to the UI.
+	 */
+	g_list_foreach( l, properties_append_field, m );
 
 	/* Clean up the buffer used by the fuzzy matching algorithm.
 	 */
 	g_free( v );
 
-	/* Create two GList of GList: one with exact matches @found0, and one
-	 * with inexact matches @found1. Iterate through each GList @t contained
-	 * in the GList @found, building up GList @s0 and GList @s1 with exact
-	 * and inexact Match objects, respectively, and then appending @s0
-	 * to @found0 and @s1 to @found1.
+	/* Fully clean up @l, a GList of GList of Match.
 	 */
-	found_ptr = found;
-	while ( found_ptr ) {
-		/* Iterate through the GList @t, adding exact matches to @s0
-		 * and inexact matches to @s1.
-		 */
-		t = (GList *) found_ptr->data;
-		s0 = s1 = NULL;
-		while ( t ) {
-			match = (Match *) t->data;
-
-			if ( match->exact )
-				s0 = g_list_append( s0, match );
-			else
-				s1 = g_list_append( s1, match );
-
-			t = t->next;
-		}
-
-		/* Don't append NULL lists to the lists of lists @found0 and
-		 * @found1, since that means the GList is empty, so there is
-		 * nothing to show.
-		 */
-		if ( s0 )
-			found0 = g_list_append( found0, s0 );
-		if ( s1 )
-			found1 = g_list_append( found1, s1 );
-
-		/* Clean up each GList in @found as we iterate over them.
-	 	*/
-		g_list_free( (GList *) found_ptr->data );
-
-		/* Iterate to the next GList in @found.
-		 */
-		found_ptr = found_ptr->next;
-	}
-
-	/* Clean up the GList @found itself.
-	 */
-	g_list_free( found );
-
-	/* If there were exact matches, add them to the UI. Then, clean up the
-	 * GList @found0, and each GList in @found0, including the Match objects
-	 * they contain.
-	 *
-	 * Otherwise, if there were no exact matches, and there are inexact
-	 * matches, add them to the UI. Then, clean up the GList @found1, and
-	 * each GList in @found1, including the Match objects they contain.
-	 */
-	if( found0 ) {
-		/* Don't show the search warning, since there are exact matches
-		 * to show.
-		 */
-		gtk_widget_set_visible( m->search_warning, FALSE );
-
-		/* Add the exact matches to the UI.
-		 */
-		g_list_foreach( found0, properties_append_field, m );
-	} else if( found1 ) {
-		/* Tell the user there are no exact matches.
-		 */
-		gtk_widget_set_visible( m->search_warning, TRUE );
-
-		/* Sort by increasing Levenshtein Distance.
-		 */
-		found1 = g_list_sort( found1, Match_list_comp );
-
-		/* Truncate the list at NUM_INEXACT_MATCHES elements. Then,
-		 * fully clean up the truncated tail of @found1, a GList of
-		 * GList of Match.
-		 */
-		t = g_list_nth( found1, NUM_INEXACT_MATCHES );
-		if ( t && t->prev ) {
-			t->prev->next = NULL;
-			found_ptr = t;
-			while ( found_ptr ) {
-				g_list_foreach( (GList *) found_ptr->data,
-					Match_free, NULL );
-				g_list_free( (GList *) found_ptr->data );
-				found_ptr = found_ptr->next;
-			}
-			g_list_free( t );
-		}
-
-		/* Add the inexact matches to the UI.
-		 */
-		g_list_foreach( found1, properties_append_field, m );
-	}
-
-	/* Fully clean up @found0, a GList of GList of Match.
-	 */
-	found_ptr = found0;
-	while ( found_ptr ) {
-		g_list_foreach( (GList *) found_ptr->data, Match_free,
-			NULL );
-		g_list_free( (GList *) found_ptr->data );
-		found_ptr = found_ptr->next;
-	}
-	g_list_free( found0 );
-
-	/* Fully clean up @found1, a GList of GList of Match.
-	 */
-	found_ptr = found1;
-	while ( found_ptr ) {
-		g_list_foreach( (GList *) found_ptr->data, Match_free,
-			NULL );
-		g_list_free( (GList *) found_ptr->data );
-		found_ptr = found_ptr->next;
-	}
-	g_list_free( found1 );
+	match_list_free( l );
 
 	/* Clean up the array we got from vips_image_get_fields using the
 	 * method recommended by the VIPS docs (see vips_image_get_fields).
@@ -573,7 +488,7 @@ properties_dispose( GObject *m_ )
 
 	/* Clean up the straggling child widget if there is one.
 	 */
-	if ( (t = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
+	if( (t = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
 		gtk_widget_unparent( t );
 
 	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
@@ -617,7 +532,7 @@ properties_set_property( GObject *m_, guint prop_id,
 			VIPSDISP_IMAGE_WINDOW( g_value_get_object( v ) ) );
 		break;
 	case PROP_REVEALED:
-		if ( g_value_get_boolean( v ) )
+		if( g_value_get_boolean( v ) )
 			gtk_widget_show( GTK_WIDGET( m_ ) );
 		else
 			gtk_widget_hide( GTK_WIDGET( m_ ) );

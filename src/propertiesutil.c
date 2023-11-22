@@ -148,7 +148,9 @@ properties_util_free_label_box( GtkWidget *label_box )
  *
  * These classes are defined in "gtk/properties.css".
  *
- * @ma_list	A GList of Match objects.
+ * @ma_list	A GList of Match objects. The list has all exact or all inexact
+ * 		matches - not both. Thus, it is sufficient to check the type
+ * 		of first Match.
  */
 GtkWidget *
 properties_util_create_label_box( GList *ma_list )
@@ -160,10 +162,11 @@ properties_util_create_label_box( GList *ma_list )
 
 	ma = (Match *) ma_list->data;
 
-	/* If this is an inexact match, return a simple label box containing
-	 * just the field name.
+	/* If this is an inexact match, or if the search pattern is NULL or an
+	 * empty string, return a simple label box containing just the field
+	 * name.
 	 */
-	if ( !ma->exact )
+	if( !ma->exact || !ma->patt || !*ma->patt )
 		return properties_util_create_simple_label_box( ma->text );
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
@@ -217,7 +220,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	GtkWidget *t;
 	char *value;
 
-	if ( !strcmp( field, "filename" ) )
+	if( !strcmp( field, "filename" ) )
 		g_object_get( image, field, &value, NULL );
 	else
 		vips_image_get_as_string( image, field, &value );
@@ -275,7 +278,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	GtkWidget *t;
 	gchar *s;
 
-	if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
+	if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int d;
 		const gchar **nicks;
@@ -346,7 +349,7 @@ create_flags_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		// can't be 0 (would match everything), and all bits
 		// should match all bits in the value, or "all" would always match
 		// everything
-		if (flags->values[i].value &&
+		if(flags->values[i].value &&
 			(value & flags->values[i].value) == flags->values[i].value) 
 			gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
 
@@ -468,7 +471,7 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 * enum, and also to get the blurb.
 	 */
 	vips_image_get( image, field, &value );
-	if ( vips_object_get_argument( VIPS_OBJECT( image ), field,
+	if( vips_object_get_argument( VIPS_OBJECT( image ), field,
 			&pspec, &arg_class, &arg_instance ) )
 		pspec = NULL;
 
@@ -480,11 +483,11 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 
 	g_value_unset( &value );
 
-	if ( strstr( "thumbnail", field ) )
+	if( strstr( "thumbnail", field ) )
 		t = gtk_label_new( "" );
-	else if ( type == VIPS_TYPE_REF_STRING )
+	else if( type == VIPS_TYPE_REF_STRING )
 		t = create_string_input( image, field, pspec );
-	else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
+	else if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
 		t = create_enum_input( image, field, pspec );
 	else switch( type ) {
 	case G_TYPE_STRING:
@@ -527,7 +530,7 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 * tooltip. The GParamSpec owns the character array returned by
 	 * g_param_spec_get_blurb, so we don't free it.
 	 */
-	if ( pspec )
+	if( pspec )
 		gtk_widget_set_tooltip_text( GTK_WIDGET( input_box ),
 				g_param_spec_get_blurb( pspec ) );
 
@@ -604,7 +607,7 @@ properties_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* f
 	int d;
 	GValue v = { 0 };
 
-	if ( pspec ) {
+	if( pspec ) {
 		d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
 		g_value_init( &v, G_TYPE_ENUM );
 		g_value_set_enum( &v, d );
@@ -722,11 +725,11 @@ properties_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* field 
 
 	type = G_VALUE_TYPE( &value );
 
-	if ( strstr( "thumbnail", field ) ) {
+	if( strstr( "thumbnail", field ) ) {
 		/* do nothing */
-	} else if ( type == VIPS_TYPE_REF_STRING )
+	} else if( type == VIPS_TYPE_REF_STRING )
 		properties_util_apply_string_input( t, image, field, pspec );
-	else if ( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
+	else if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
 		properties_util_apply_enum_input( t, image, field, pspec );
 	else switch( type ) {
 	case G_TYPE_STRING:
