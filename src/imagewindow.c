@@ -1510,9 +1510,9 @@ image_window_paned_leave( gpointer win_ )
 	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
 	max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
 
-	if ( pos + 80 < max_width ) {
+	if( pos + 80 < max_width ) {
 		gtk_paned_set_position( GTK_PANED( win->paned ), pos + 80 );
-		return G_SOURCE_CONTINUE;
+		return( G_SOURCE_CONTINUE );
 	}
 
 	gtk_paned_set_position( GTK_PANED( win->paned ), max_width );
@@ -1545,15 +1545,27 @@ image_window_paned_enter( gpointer win_ )
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
 
-	if ( pos - 80 > win->paned_position ) {
+	if( pos - 80 > win->paned_position ) {
 		gtk_paned_set_position( GTK_PANED( win->paned ), pos - 80 );
-		return G_SOURCE_CONTINUE;
+		return( G_SOURCE_CONTINUE );
 	}
 	gtk_paned_set_position( GTK_PANED( win->paned ), win->paned_position );
 	/* Done animating, so set is_paned_animating back to FALSE.
 	 */
 	win->is_paned_animating = FALSE;
 	return G_SOURCE_REMOVE;
+}
+
+static gboolean
+image_window_get_enable_animations( ImageWindow *win )
+{
+	gboolean enable_animations;
+
+	g_object_get( win->gtk_settings, 
+		"gtk-enable-animations", &enable_animations, 
+		NULL );
+
+	return( enable_animations );
 }
 
 /* This function is called when the Properties widget visibility is toggled
@@ -1578,30 +1590,29 @@ image_window_properties( GSimpleAction *action,
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win;
-	gboolean enable_animations;
 
 #ifdef DEBUG
 	puts("image_window_properties");
 #endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
-	g_object_get( win->gtk_settings, "gtk-enable-animations",
-		&enable_animations, NULL );
 
-	if ( enable_animations ) {
-		if ( win->is_paned_animating )
+	if( image_window_get_enable_animations( win ) ) {
+		if( win->is_paned_animating )
 			return;
 
 		win->is_paned_animating = TRUE;
 
-		if ( g_variant_get_boolean( state ) ) {
+		if( g_variant_get_boolean( state ) ) {
 			g_object_set( win->properties, "revealed", TRUE, NULL );
 			g_timeout_add( 10,
 				(GSourceFunc) image_window_paned_enter, win );
-		} else
+		}
+		else
 			g_timeout_add( 10,
 				(GSourceFunc) image_window_paned_leave, win );
-	} else
+	}
+	else
 		g_object_set( win->properties, "revealed",
 			g_variant_get_boolean( state ), NULL );
 
@@ -1706,7 +1717,6 @@ static void
 image_window_paned_init( gpointer win_ )
 {
 	ImageWindow *win;
-	gboolean enable_animations;
 	gint max_width;
 
 #ifdef DEBUG
@@ -1714,13 +1724,11 @@ image_window_paned_init( gpointer win_ )
 #endif /* DEBUG */
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
-	g_object_get( win->gtk_settings, "gtk-enable-animations",
-		&enable_animations, NULL );
 
-	if ( enable_animations ) {
+	if( image_window_get_enable_animations( win ) ) {
 		max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
 
-		if ( !win->is_paned_init ) {
+		if( !win->is_paned_init ) {
 			win->paned_position = INITIAL_PANED_POSITION;
 			win->is_paned_animating = TRUE;
 			gtk_paned_set_position( GTK_PANED( win->paned ),
@@ -1728,7 +1736,7 @@ image_window_paned_init( gpointer win_ )
 			win->is_paned_animating = FALSE;
 		}
 
-		if ( win->refresh_paned ) {
+		if( win->refresh_paned ) {
 			win->is_paned_animating = TRUE;
 			gtk_paned_set_position( GTK_PANED( win->paned ),
 				max_width );
@@ -1737,13 +1745,13 @@ image_window_paned_init( gpointer win_ )
 				(GSourceFunc) image_window_paned_enter, win );
 		}
 	} else {
-		if ( !win->is_paned_init ) {
+		if( !win->is_paned_init ) {
 			win->paned_position = INITIAL_PANED_POSITION;
 			gtk_paned_set_position( GTK_PANED( win->paned ),
 				win->paned_position );
 		}
 
-		if ( win->refresh_paned )
+		if( win->refresh_paned )
 			g_object_set( win->properties, "revealed", TRUE, NULL );
 	}
 
@@ -1754,7 +1762,8 @@ image_window_paned_init( gpointer win_ )
 static void
 image_window_paned_changed( GtkWidget *win_ )
 {
-	ImageWindow *win;
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( win_ );
+
 	gboolean revealed;
 
 #ifdef DEBUG
@@ -1763,21 +1772,19 @@ image_window_paned_changed( GtkWidget *win_ )
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
-	if ( win->is_paned_animating )
+	if( win->is_paned_animating )
 		return;
 
 	g_object_get( win->properties, "revealed", &revealed, NULL );
 
-	if ( revealed )
-		win->paned_position =
-			gtk_paned_get_position( GTK_PANED( win->paned ) );
+	if( revealed )
+		win->paned_position = gtk_paned_get_position( GTK_PANED( win->paned ) );
 }
 
 static void
 image_window_init( ImageWindow *win )
 {
 	GtkEventController *controller;
-	gboolean enable_animations;
 
 #ifdef DEBUG
 	puts("image_window_init");
@@ -1894,7 +1901,6 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
 
-
 	/* If animations are enabled, connect a signal handler that updates the
 	 * saved paned separator position whenever the user drags it around.
 	 *
@@ -1903,9 +1909,7 @@ image_window_init( ImageWindow *win )
 	 * remembers its separator position when one of its children ( the
 	 * Properties widget ) is hidden.
 	 */
-	g_object_get( win->gtk_settings, "gtk-enable-animations",
-		&enable_animations, NULL );
-	if ( enable_animations )
+	if( image_window_get_enable_animations( win ) )
 		g_signal_connect_swapped( win->paned, "notify::position",
 			G_CALLBACK( image_window_paned_changed ),
 			win );
@@ -2096,7 +2100,7 @@ image_window_open( ImageWindow *win, GFile *file )
 
 	g_object_get( win->properties, "revealed", &revealed, NULL );
 
-	if ( revealed ) {
+	if( revealed ) {
 		win->refresh_paned = TRUE;
 		g_object_set( win->properties, "revealed", FALSE, NULL );
 	}
