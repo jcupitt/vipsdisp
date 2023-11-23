@@ -9,6 +9,27 @@
  * Functions in this file do not use methods or types defined in "properties.c".
  */
 
+/* Set a tooltip on a widget, if we can.
+ */
+static void
+properties_util_set_tooltip( GtkWidget *widget, 
+	VipsImage *image, const gchar *field )
+{
+    GObjectClass *class = G_OBJECT_GET_CLASS( image );
+	GParamSpec *pspec = g_object_class_find_property( class, field );
+	GType gtype = vips_image_get_typeof( image, field );
+
+	if( pspec ) 
+		gtk_widget_set_tooltip_text( widget, g_param_spec_get_blurb( pspec ) );
+	else if( gtype ) {
+		char *tooltip;
+
+		tooltip = g_strdup_printf( "Value of type %s", g_type_name( gtype ) );
+		gtk_widget_set_tooltip_text( widget, tooltip );
+		g_free( tooltip );
+	}
+}
+
 /* Create a spin button with range, default value, and optionally enabled
  * scrolling.
  *
@@ -80,32 +101,17 @@ create_empty_label_box()
 	return( t );
 }
 
-/* Get the pspec, if any, for a metadata item. Metadata items like "filename"
- * are also image properties.
- */
-static GParamSpec *
-properties_util_image_get_pspec( VipsImage *image, const gchar *field )
-{
-    VipsObjectClass *class = VIPS_OBJECT_GET_CLASS( image );
-
-    return g_object_class_find_property( G_OBJECT_CLASS( class ), field );
-}
-
 /* Create a simple label box. A simple label box is a GtkBox with 1 GtkLabel
  * child, configured a certain way.
  */
 GtkWidget *
 properties_util_create_simple_label_box( VipsImage *image, const gchar *s )
 {
-	GParamSpec *pspec = properties_util_image_get_pspec( image, s );
-
 	GtkWidget *t;
 
 	t = create_empty_label_box();
 	gtk_box_append( GTK_BOX( t ), create_simple_label( s ) );
-
-	if( pspec )
-		gtk_widget_set_tooltip_text( t, g_param_spec_get_blurb( pspec ) );
+	properties_util_set_tooltip( t, image, s );
 
 	return( t );
 }
@@ -165,12 +171,7 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
 	 */
 	box = create_empty_label_box();
 
-	/* Get a ParamSpec for this VipsImage field if there is one, so we can 
-	 * add use the blurb as tooltip on the label.
-	 */
-	GParamSpec *pspec = properties_util_image_get_pspec( image, ma->text );
-	if( pspec ) 
-		gtk_widget_set_tooltip_text( box, g_param_spec_get_blurb( pspec ) );
+	properties_util_set_tooltip( box, image, ma->text );
 
 	/* Put each matching substring in a GtkLabel with a certain class. Use
 	 * those classes to style the matching substrings.
@@ -211,10 +212,9 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage metadata item
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
+create_string_input( VipsImage *image, const gchar *field )
 {
 	char *value;
 	GtkWidget *t;
@@ -239,10 +239,10 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
+create_boolean_input( VipsImage *image, const gchar *field )
+{
 	GtkWidget *t;
 	int d;
 
@@ -263,52 +263,37 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage metadata item
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+create_enum_input( VipsImage *image, const gchar *field )
 {
+	GType type = vips_image_get_typeof( image, field );
+
 	GtkWidget *t;
 	gchar *s;
+	int d;
 
-	if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) ) {
-		int d;
-
-		vips_image_get_int( image, field, &d );
+	vips_image_get_int( image, field, &d );
 
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
-		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
-		int n_values = pspec_enum->enum_class->n_values;
+	GTypeClass *class = g_type_class_ref( type );
+	GEnumClass *enum_class = G_ENUM_CLASS( class );
+	int n_values = enum_class->n_values;
 
-		const gchar **nicks;
+	const gchar **nicks;
 
-		nicks = VIPS_ARRAY( NULL, n_values + 1, gchar * );
-		for( int i = 0; i < n_values; i++ )
-			nicks[i] = pspec_enum->enum_class->values[i].value_nick;
+	nicks = VIPS_ARRAY( NULL, n_values + 1, gchar * );
+	for( int i = 0; i < n_values; i++ )
+		nicks[i] = pspec_enum->enum_class->values[i].value_nick;
 
-		t = gtk_drop_down_new_from_strings( nicks );
-		gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
+	t = gtk_drop_down_new_from_strings( nicks );
+	gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
 
-		g_free( nicks );
+	g_free( nicks );
 #else
-		t = gtk_label_new( vips_enum_nick( pspec->value_type, d ) );
-		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
+	t = gtk_label_new( vips_enum_nick( type, d ) );
+	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
-	} 
-	else { 
-		int d;
-
-		vips_image_get_int( image, field, &d );
-
-#ifdef EXPERIMENTAL_PROPERTIES_EDIT
-		t = create_spin_button( -G_MAXINT + 1, G_MAXINT, 1, d, FALSE );
-#else
-		s = g_strdup_printf( "%d", d );
-		t = gtk_label_new( s );
-		g_free( s );
-		gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
-	}
 
 	return( t );
 }
@@ -317,35 +302,36 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_flags_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+create_flags_input( VipsImage *image, const gchar *field )
 {
-	GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
-	GFlagsClass *flags = G_FLAGS_CLASS( pspec_flags->flags_class );
+	GTypeClass *class = g_type_class_ref( type );
+	GFlagsClass *flags_class = G_FLAGS_CLASS( class );
+	int n_values = flags_class->n_values;
+
 	guint value = pspec_flags->default_value;
 	GtkWidget *t;
 
 	t = gtk_box_new( GTK_ORIENTATION_VERTICAL, 5 );
 
-	for( int i = 0; i < flags->n_values; i++ ) {
+	for( int i = 0; i < n_values; i++ ) {
 		GtkWidget *check;
 
 		// not useful in a GUI
-		if( strcmp( flags->values[i].value_nick, "none" ) == 0 ||
-			strcmp( flags->values[i].value_nick, "all" ) == 0 )
+		if( strcmp( flags_class->values[i].value_nick, "none" ) == 0 ||
+			strcmp( f_classlags->values[i].value_nick, "all" ) == 0 )
 			continue;
 
 		check = gtk_check_button_new();
 		gtk_check_button_set_label( GTK_CHECK_BUTTON( check ), 
-				flags->values[i].value_nick );
+				flags_class->values[i].value_nick );
 
 		// can't be 0 (would match everything), and all bits
 		// should match all bits in the value, or "all" would always match
 		// everything
-		if( flags->values[i].value &&
-			(value & flags->values[i].value) == flags->values[i].value ) 
+		if( flags_class->values[i].value &&
+			(value & flags_class->values[i].value) == flags_class->values[i].value ) 
 			gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
 
 		gtk_box_append( GTK_BOX( t ), check );
@@ -447,8 +433,6 @@ properties_util_free_input_box( GtkWidget *input_box )
 GtkWidget *
 properties_util_create_input_box( VipsImage *image, const gchar* field )
 {
-	GParamSpec *pspec = properties_util_image_get_pspec( image, field );
-
 	GtkWidget *input_box, *t;
 	GType type;
 
@@ -513,13 +497,7 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 */
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 
-	/* If there was a GParamSpec for this property, use the blurb as a
-	 * tooltip. The GParamSpec owns the character array returned by
-	 * g_param_spec_get_blurb, so we don't free it.
-	 */
-	if( pspec )
-		gtk_widget_set_tooltip_text( input_box,
-			g_param_spec_get_blurb( pspec ) );
+	properties_util_set_tooltip( input_box, image, field );
 
 	/* Set hexpand and halign on @t and @input_box.
 	 */
