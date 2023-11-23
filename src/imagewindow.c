@@ -1553,13 +1553,15 @@ image_window_paned_enter( gpointer win_ )
 }
 
 static gboolean
-image_window_get_enable_animations( ImageWindow *win )
+gtk_widget_should_animate( GtkWidget *t )
 {
 	gboolean enable_animations;
 
-	g_object_get( gtk_widget_get_settings( GTK_WIDGET( win ) ), 
-		"gtk-enable-animations", &enable_animations, 
-		NULL );
+	if ( !gtk_widget_get_mapped( t ) )
+		return FALSE;
+
+	g_object_get( gtk_widget_get_settings( t ), "gtk-enable-animations",
+		&enable_animations, NULL );
 
 	return( enable_animations );
 }
@@ -1593,7 +1595,7 @@ image_window_properties( GSimpleAction *action,
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	if( image_window_get_enable_animations( win ) ) {
+	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) ) {
 		if( win->is_paned_animating )
 			return;
 
@@ -1721,7 +1723,7 @@ image_window_paned_init( gpointer win_ )
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
-	if( image_window_get_enable_animations( win ) ) {
+	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) ) {
 		max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
 
 		if( !win->is_paned_init ) {
@@ -1807,8 +1809,8 @@ image_window_init( ImageWindow *win )
 	/* This is how you can check to make sure gtk-enable-animations is being
 	 * respected by the Properties widget enter/leave animations.
 	 */
-	//g_object_set( gtk_widget_get_settings( win ), "gtk-enable-animations",
-	//	FALSE, NULL );
+	//g_object_set( gtk_widget_get_settings( GTK_WIDGET( win ) ),
+	//	"gtk-enable-animations", FALSE, NULL );
 
 	g_object_set( win->display_bar,
 		"image-window", win,
@@ -1896,10 +1898,9 @@ image_window_init( ImageWindow *win )
 	 * remembers its separator position when one of its children ( the
 	 * Properties widget ) is hidden.
 	 */
-	if( image_window_get_enable_animations( win ) )
+	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) )
 		g_signal_connect_swapped( win->paned, "notify::position",
-			G_CALLBACK( image_window_paned_changed ),
-			win );
+			G_CALLBACK( image_window_paned_changed ), win );
 }
 
 static void
