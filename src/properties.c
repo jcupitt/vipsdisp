@@ -27,9 +27,6 @@ struct _Properties
 	GList *field_list;
 	int field_list_length;
 	gboolean ignore_case;
-
-	GdkDisplay *display;
-	GtkCssProvider *provider;
 };
 
 /* This macro defines the Properties type.
@@ -491,12 +488,6 @@ properties_dispose( GObject *m_ )
 	if( (t = gtk_widget_get_first_child( GTK_WIDGET( m_ ) )) )
 		gtk_widget_unparent( t );
 
-	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
-	 * @m->display.
-	 */
-	gtk_style_context_remove_provider_for_display( m->display,
-			GTK_STYLE_PROVIDER( m->provider ) );
-
 	/* "Chain up" to the @dispose method of Properties's parent class
 	 * ( GtkWidget ). GObject defines the properties_parent_class macro, so
 	 * there is no need to reference the class name explicitly.
@@ -597,14 +588,6 @@ properties_init( Properties *m )
 	/* Ignore case during properties field search.
 	 */
 	m->ignore_case = TRUE;
-
-	m->display = gdk_display_get_default();
-	m->provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_resource( m->provider,
-		      APP_PATH "/properties.css" );
-	gtk_style_context_add_provider_for_display( m->display,
-			GTK_STYLE_PROVIDER( m->provider ),
-			GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
 
 	gtk_widget_init_template( GTK_WIDGET( m ) );
 

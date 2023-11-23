@@ -95,9 +95,7 @@ struct _ImageWindow
 
 	GSettings *settings;
 
-	GtkCssProvider *provider;
-	GdkDisplay *display;
-	GtkSettings *gtk_settings;
+	GtkCssProvider *css_provider;
 };
 
 G_DEFINE_TYPE( ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW );
@@ -121,11 +119,9 @@ image_window_dispose( GObject *object )
 	printf( "image_window_dispose:\n" ); 
 #endif /*DEBUG*/
 
-	/* Remove the GtkSyleProvider ( used for CSS ) from the GdkDisplay
-	 * @m->display.
-	 */
-	gtk_style_context_remove_provider_for_display( win->display,
-			GTK_STYLE_PROVIDER( win->provider ) );
+	gtk_style_context_remove_provider_for_display(
+		gdk_display_get_default(),
+		GTK_STYLE_PROVIDER( win->css_provider ) );
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
@@ -1561,7 +1557,7 @@ image_window_get_enable_animations( ImageWindow *win )
 {
 	gboolean enable_animations;
 
-	g_object_get( win->gtk_settings, 
+	g_object_get( gtk_widget_get_settings( GTK_WIDGET( win ) ), 
 		"gtk-enable-animations", &enable_animations, 
 		NULL );
 
@@ -1801,26 +1797,17 @@ image_window_init( ImageWindow *win )
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
-	/* Use CSS styles from "gtk/imagewindow.css".
-	 */
-	win->display = gdk_display_get_default();
-	win->provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_resource( win->provider,
-		      APP_PATH "/imagewindow.css" );
-	gtk_style_context_add_provider_for_display( win->display,
-		GTK_STYLE_PROVIDER( win->provider ),
+	win->css_provider = gtk_css_provider_new();
+	gtk_css_provider_load_from_resource( win->css_provider,
+		APP_PATH "/imagewindow.css" );
+	gtk_style_context_add_provider_for_display( gdk_display_get_default(),
+		GTK_STYLE_PROVIDER( win->css_provider ),
 		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION );
-
-	/* Get GtkSettings for this GdkDisplay, so we can check if animations
-	 * are enabled. If not, then Properties menu enter/leave will not be
-	 * animated.
-	 */
-	win->gtk_settings = gtk_settings_get_for_display( win->display );
 
 	/* This is how you can check to make sure gtk-enable-animations is being
 	 * respected by the Properties widget enter/leave animations.
 	 */
-	//g_object_set( win->gtk_settings, "gtk-enable-animations",
+	//g_object_set( gtk_widget_get_settings( win ), "gtk-enable-animations",
 	//	FALSE, NULL );
 
 	g_object_set( win->display_bar,
@@ -1833,7 +1820,7 @@ image_window_init( ImageWindow *win )
 		"image-window", win,
 		NULL );
 
-	g_signal_connect_object( win->progress_cancel, "clicked", 
+	g_signal_connect_object( win->progress_cancel, "clicked",
 		G_CALLBACK( image_window_cancel_clicked ), win, 0 );
 
 	g_signal_connect_object( win->error_bar, "response", 
