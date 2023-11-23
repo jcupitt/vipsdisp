@@ -8,12 +8,12 @@ void properties_util_apply_input( GtkWidget *t, VipsImage *image, const gchar* f
 
 void properties_util_free_label_box( GtkWidget *label_box );
 
-GtkWidget * properties_util_create_label_box( GList *ma_list );
+GtkWidget * properties_util_create_label_box( VipsImage *image, GList *ma_list );
 
 void properties_util_free_input_box( GtkWidget *input_box );
 
 GtkWidget * properties_util_create_input_box( VipsImage *image, const gchar* field_name );
 
-GtkWidget * properties_util_create_simple_label_box( const gchar *s );
+GtkWidget * properties_util_create_simple_label_box( VipsImage *image, const gchar *s );
 
 #endif /* __PROPERTIESUTIL_H */

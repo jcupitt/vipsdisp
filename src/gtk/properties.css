@@ -20,3 +20,8 @@
 
 .properties-input-box {
 }
+
+tooltip * {
+	background-color: rgb(64, 64, 64);
+	color: rgba(255, 255, 255, 0.52);
+}

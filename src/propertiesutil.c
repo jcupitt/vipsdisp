@@ -111,12 +111,23 @@ create_empty_label_box()
  * child, configured a certain way.
  */
 GtkWidget *
-properties_util_create_simple_label_box( const gchar *s )
+properties_util_create_simple_label_box( VipsImage *image, const gchar *s )
 {
 	GtkWidget *t;
+	GParamSpec *pspec;
+	VipsArgumentClass *arg_class;
+	VipsArgumentInstance *arg_instance;
 
 	t = create_empty_label_box();
 	gtk_box_append( GTK_BOX( t ), create_simple_label( s ) );
+
+	/* Get a ParamSpec for this VipsImage field if there is one, so we can 
+	 * add use the blurb as tooltip on the label.
+	 */
+	if( !vips_object_get_argument( VIPS_OBJECT( image ), s,
+			&pspec, &arg_class, &arg_instance ) )
+		gtk_widget_set_tooltip_text( t,
+			g_param_spec_get_blurb( pspec ) );
 
 	return t;
 }
@@ -153,9 +164,12 @@ properties_util_free_label_box( GtkWidget *label_box )
  * 		of first Match.
  */
 GtkWidget *
-properties_util_create_label_box( GList *ma_list )
+properties_util_create_label_box( VipsImage *image, GList *ma_list )
 {
 	Match *ma;
+	GParamSpec *pspec;
+	VipsArgumentClass *arg_class;
+	VipsArgumentInstance *arg_instance;
 	GtkWidget *box, *t;
 	int i;
 	gchar *s;
@@ -166,13 +180,24 @@ properties_util_create_label_box( GList *ma_list )
 	 * empty string, return a simple label box containing just the field
 	 * name.
 	 */
-	if( !ma->exact || !ma->patt || !*ma->patt )
-		return properties_util_create_simple_label_box( ma->text );
+	if( !ma->exact || !ma->patt || !*ma->patt ) {
+		box = properties_util_create_simple_label_box( image,
+			ma->text );
+		return box;
+	}
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
 	 * will hold the labels.
 	 */
 	box = create_empty_label_box();
+
+	/* Get a ParamSpec for this VipsImage field if there is one, so we can 
+	 * add use the blurb as tooltip on the label.
+	 */
+	if( !vips_object_get_argument( VIPS_OBJECT( image ), ma->text,
+			&pspec, &arg_class, &arg_instance ) )
+		gtk_widget_set_tooltip_text( box,
+			g_param_spec_get_blurb( pspec ) );
 
 	/* Put each matching substring in a GtkLabel with a certain class. Use
 	 * those classes to style the matching substrings. 
@@ -471,6 +496,10 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 * enum, and also to get the blurb.
 	 */
 	vips_image_get( image, field, &value );
+
+	/* Get a ParamSpec for this VipsImage field if there is one, so we can 
+	 * add use the blurb as tooltip on the label.
+	 */
 	if( vips_object_get_argument( VIPS_OBJECT( image ), field,
 			&pspec, &arg_class, &arg_instance ) )
 		pspec = NULL;
@@ -524,15 +553,14 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	/* Create the box we will return, @input_box.
 	 */
 	input_box = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
-	//gtk_widget_set_margin_start( input_box, 20 );
 
 	/* If there was a GParamSpec for this property, use the blurb as a
 	 * tooltip. The GParamSpec owns the character array returned by
 	 * g_param_spec_get_blurb, so we don't free it.
 	 */
 	if( pspec )
-		gtk_widget_set_tooltip_text( GTK_WIDGET( input_box ),
-				g_param_spec_get_blurb( pspec ) );
+		gtk_widget_set_tooltip_text( input_box,
+			g_param_spec_get_blurb( pspec ) );
 
 	/* Set hexpand and halign on @t and @input_box.
 	 */

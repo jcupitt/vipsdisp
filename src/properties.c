@@ -130,7 +130,7 @@ properties_create_main_box( Properties *m )
 	 * @image.
 	 */
 	for ( int i = 0; (field = g_list_nth_data( m->field_list, i )); i++ ) {
-		t = properties_util_create_simple_label_box( field );
+		t = properties_util_create_simple_label_box( image, field );
 		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
 		gtk_box_append( GTK_BOX( m->left_column ), t );
 
@@ -299,16 +299,15 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 
 	ma_list = (GList *) ma_list_;
 	m = VIPSDISP_PROPERTIES( m_ );
-
 	ma = (Match *) ma_list->data;
-
 	field = ma->text;
+	tile_source = image_window_get_tile_source( m->image_window );
 
 	m->field_list = g_list_append( m->field_list, (gpointer) field );
 
 	/* Create a label_box for the given list node.
 	 */
-	t = properties_util_create_label_box( ma_list );
+	t = properties_util_create_label_box( tile_source->image, ma_list );
 
 	/* Add "even" or "odd" CSS class to label_box based on parity of the row
 	 * index.
@@ -321,7 +320,6 @@ properties_append_field( gpointer ma_list_, gpointer m_ )
 
 	/* Create an input_box for the given list node.
 	 */
-	tile_source = image_window_get_tile_source( m->image_window );
 	t = properties_util_create_input_box( tile_source->image, field );
 
 	/* Add "even" or "odd" CSS class to input_box based on parity of the row
