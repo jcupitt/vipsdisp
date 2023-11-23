@@ -310,8 +310,10 @@ create_flags_input( VipsImage *image, const gchar *field )
 	GFlagsClass *flags_class = G_FLAGS_CLASS( class );
 	int n_values = flags_class->n_values;
 
-	guint value = pspec_flags->default_value;
 	GtkWidget *t;
+	int d;
+
+	vips_image_get_int( image, field, &d );
 
 	t = gtk_box_new( GTK_ORIENTATION_VERTICAL, 5 );
 
@@ -331,7 +333,7 @@ create_flags_input( VipsImage *image, const gchar *field )
 		// should match all bits in the value, or "all" would always match
 		// everything
 		if( flags_class->values[i].value &&
-			(value & flags_class->values[i].value) == flags_class->values[i].value ) 
+			(d & flags_class->values[i].value) == flags_class->values[i].value )
 			gtk_check_button_set_active( GTK_CHECK_BUTTON( check ), TRUE );
 
 		gtk_box_append( GTK_BOX( t ), check );
@@ -347,7 +349,7 @@ create_flags_input( VipsImage *image, const gchar *field )
  * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
+create_int_input( VipsImage *image, const gchar *field )
 {
 	GtkWidget *t;
 	int d;
@@ -374,7 +376,7 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+create_double_input( VipsImage *image, const gchar *field )
 {
 	GtkWidget *t;
 	double d;
@@ -384,7 +386,6 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
 	t = create_spin_button( -G_MAXDOUBLE + 1, G_MAXDOUBLE, 1, d, FALSE );
-
 #else
 	s = g_strdup_printf( "%f", d );
 	t = gtk_label_new( s );
@@ -402,7 +403,7 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
  * @pspec	The GParamSpec for @field
  */
 GtkWidget *
-create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
+create_boxed_input( VipsImage *image, const gchar *field )
 {
 	GtkWidget *t;
 
@@ -452,27 +453,29 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 * value on the image.
 	 */
 	type = G_VALUE_TYPE( &value );
+	GType fundamental = G_TYPE_FUNDAMENTAL( type );
+
 
 	g_value_unset( &value );
 
 	if( strstr( "thumbnail", field ) )
 		t = gtk_label_new( "" );
 	else if( type == VIPS_TYPE_REF_STRING )
-		t = create_string_input( image, field, pspec );
-	else if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
-		t = create_enum_input( image, field, pspec );
+		t = create_string_input( image, field );
+	else if( fundamental == G_TYPE_ENUM )
+		t = create_enum_input( image, field );
 	else switch( type ) {
 	case G_TYPE_STRING:
-		t = create_string_input( image, field, pspec );
+		t = create_string_input( image, field );
 		break;
 	case G_TYPE_BOOLEAN:
-		t = create_boolean_input( image, field, pspec );
+		t = create_boolean_input( image, field );
 		break;
 	case G_TYPE_ENUM:
-		t = create_enum_input( image, field, pspec );
+		t = create_enum_input( image, field );
 		break;
 	case G_TYPE_FLAGS:
-		t = create_flags_input( image, field, pspec );
+		t = create_flags_input( image, field );
 		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
@@ -480,17 +483,17 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	case G_TYPE_UINT64:
 	case G_TYPE_LONG:
 	case G_TYPE_ULONG:
-		t = create_int_input( image, field, pspec );
+		t = create_int_input( image, field );
 		break;
 	case G_TYPE_FLOAT:
 	case G_TYPE_DOUBLE:
-		t = create_double_input( image, field, pspec );
+		t = create_double_input( image, field );
 		break;
 	case G_TYPE_BOXED:
-		t = create_boxed_input( image, field, pspec );
+		t = create_boxed_input( image, field );
 		break;
 	default:
-		t = create_empty_label( image, field, pspec );
+		t = create_empty_label( image, field );
 	} /* end switch( type ) */
 
 	/* Create the box we will return, @input_box.
