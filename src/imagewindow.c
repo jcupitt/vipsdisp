@@ -16,6 +16,17 @@
  */
 #define SCALE_DURATION (0.5)
 
+/* Duration of the GtkPaned enter/leave animations
+ */
+#define PANED_DURATION (0.5)
+
+/* Width of the GtkPaned separator. This should be the same as the value in
+ * imagewindow.css. Takes care of the discontinuous jump at the end of the leave
+ * animation, when the Properties widget is finally hidden, and the separator
+ * disappears.
+ */
+#define PANED_SEP_WIDTH (30)
+
 struct _ImageWindow
 {
 	GtkApplicationWindow parent;
@@ -51,6 +62,16 @@ struct _ImageWindow
 	/* Position of the GtkPaned separator.
 	 */
 	guint paned_position;
+
+	/* Time in seconds since the GtkPaned enter/leave animation started.
+	 */
+	double paned_progress;
+
+	/* During GtkPaned enter/leave animation, this is the time in seconds
+	 * since the last animation frame. When GtkPaned is not animating, this
+	 * is set to the sentinel value -1.
+	 */
+	double paned_last_frame_time;
 
 	/* This flag is set to TRUE before the GtkPaned separator is moved
 	 * programatically for animation purposes, and is set to its initial
@@ -1483,77 +1504,97 @@ image_window_reset( GSimpleAction *action,
 			NULL );
 }
 
-/* Implement the Properties widget leave animation by moving the paned separator
- * to the right edge of the ImageWindow and then hiding the Properties widget.
+/* Implement the Properties widget enter/leave animations by moving the paned
+ * separator to the right edge of the ImageWindow and then hiding the Properties
+ * widget.
  *
  * @win_	gpointer (ImageWindow *) A generic pointer to the ImageWindow.
  * 		Must be passed as the user_data argument in g_timeout_add.
  *
- * This is a GSourceFunc that should only be called by g_timeout_add.
+ * @frame_clock		Clock used for animations.
+ *
+ * @enter_	TRUE if performing the enter animation. FALSE if performing
+ * 		the leave animation.
+ *
+ * This is a GtkTickCallback that should only be called by
+ * gtk_widget_add_tick_callback.
  */
 static gboolean
-image_window_paned_leave( gpointer win_ )
+image_window_paned_animate_tick( GtkWidget *win_, GdkFrameClock *frame_clock,
+	gpointer enter_ )
 {
 	ImageWindow *win;
-	guint pos;
-	gint max_width;
+	double dt, t;
+	gint64 frame_time;
+	gint new_pos, max_width;
+	gboolean enter;
 
 #ifdef DEBUG
-	puts( "image_window_paned_leave" );
+	puts( "image_window_paned_animate_tick" );
 #endif /* DEBUG */
 
+	enter = GPOINTER_TO_INT( enter_ );
+	max_width = gtk_widget_get_width( win_ );
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
-	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
-	max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
+	frame_time = gdk_frame_clock_get_frame_time( frame_clock );
 
-	if( pos + 80 < max_width ) {
-		gtk_paned_set_position( GTK_PANED( win->paned ), pos + 80 );
-		return( G_SOURCE_CONTINUE );
+	dt = win->paned_last_frame_time > 0 ?
+		(double) (frame_time - win->paned_last_frame_time) / 
+			G_TIME_SPAN_SECOND : 
+		1.0 / G_TIME_SPAN_SECOND;
+
+	win->paned_progress += dt;
+	t = ease_out_cubic( win->paned_progress / PANED_DURATION );
+
+	new_pos = enter ? max_width - t * (max_width - win->paned_position)
+		: win->paned_position + t * (max_width - win->paned_position);
+
+	if( t < 1.0 && (enter || new_pos < max_width - PANED_SEP_WIDTH) ) {
+		win->paned_last_frame_time = frame_time;
+		gtk_paned_set_position( GTK_PANED( win->paned ), new_pos );
+
+		return G_SOURCE_CONTINUE;
 	}
 
-	gtk_paned_set_position( GTK_PANED( win->paned ), max_width );
-	g_object_set( win->properties, "revealed", FALSE, NULL );
-	/* Done animating, so set is_paned_animating back to FALSE.
-	 */
+	gtk_paned_set_position( GTK_PANED( win->paned ),
+		enter ? win->paned_position : max_width );
+
+	if( !enter )
+		g_object_set( win->properties, "revealed", FALSE, NULL );
+
 	win->is_paned_animating = FALSE;
+
 	return G_SOURCE_REMOVE;
 }
 
-/* Implement the Properties widget enter animation by moving the paned separator
- * back to the value saved in @paned_position. The Properties widget is made
- * visible before this function is called. ( See image_window_properties )
+/* Start the GtkPaned enter or leave animation, depending on the value of
+ * @enter.
  *
- * @win_	gpointer (ImageWindow *) A generic pointer to the ImageWindow.
- * 		Must be passed as the user_data argument in g_timeout_add.
+ * @win		The ImageWindow.
  *
- * This is a GSourceFunc that should only be called by g_timeout_add.
+ * @enter	TRUE if the enter animation should start.
+ * 		FALSE if the leave animations should start.
  */
-static gboolean
-image_window_paned_enter( gpointer win_ )
+static void
+image_window_paned_animate( ImageWindow *win, gboolean enter )
 {
-	ImageWindow *win;
-	guint pos;
+	win->paned_last_frame_time = -1;
+	win->paned_progress = 0;
+	win->is_paned_animating = TRUE;
 
-#ifdef DEBUG
-	puts( "image_window_paned_enter" );
-#endif /* DEBUG */
-
-	win = VIPSDISP_IMAGE_WINDOW( win_ );
-	pos = gtk_paned_get_position( GTK_PANED( win->paned ) );
-
-	if( pos - 80 > win->paned_position ) {
-		gtk_paned_set_position( GTK_PANED( win->paned ), pos - 80 );
-		return( G_SOURCE_CONTINUE );
+	if( enter ) {
+		gtk_paned_set_position( GTK_PANED( win->paned ),
+		       	gtk_widget_get_width( GTK_WIDGET( win ) ) );
+		g_object_set( win->properties, "revealed", TRUE, NULL );
 	}
-	gtk_paned_set_position( GTK_PANED( win->paned ), win->paned_position );
-	/* Done animating, so set is_paned_animating back to FALSE.
-	 */
-	win->is_paned_animating = FALSE;
-	return G_SOURCE_REMOVE;
+
+	gtk_widget_add_tick_callback( GTK_WIDGET( win ),
+		image_window_paned_animate_tick, GINT_TO_POINTER( enter ),
+		NULL );
 }
 
 static gboolean
-gtk_widget_should_animate( GtkWidget *t )
+image_window_paned_should_animate( GtkWidget *t )
 {
 	gboolean enable_animations;
 
@@ -1592,22 +1633,13 @@ image_window_properties( GSimpleAction *action,
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	if( gtk_widget_should_animate( win->paned ) ) {
+	if( image_window_paned_should_animate( win->paned ) ) {
 		if( win->is_paned_animating )
 			return;
 
-		win->is_paned_animating = TRUE;
-
-		if( g_variant_get_boolean( state ) ) {
-			g_object_set( win->properties, "revealed", TRUE, NULL );
-			g_timeout_add( 10,
-				(GSourceFunc) image_window_paned_enter, win );
-		}
-		else
-			g_timeout_add( 10,
-				(GSourceFunc) image_window_paned_leave, win );
-	}
-	else
+		image_window_paned_animate( win,
+			g_variant_get_boolean( state ) );
+	} else
 		g_object_set( win->properties, "revealed",
 			g_variant_get_boolean( state ), NULL );
 
@@ -1720,7 +1752,7 @@ image_window_paned_init( gpointer win_ )
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
-	if( gtk_widget_should_animate( win->paned ) ) {
+	if( image_window_paned_should_animate( win->paned ) ) {
 		max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
 
 		if( !win->is_paned_init ) {
@@ -1731,14 +1763,9 @@ image_window_paned_init( gpointer win_ )
 			win->is_paned_animating = FALSE;
 		}
 
-		if( win->refresh_paned ) {
-			win->is_paned_animating = TRUE;
-			gtk_paned_set_position( GTK_PANED( win->paned ),
-				max_width );
-			g_object_set( win->properties, "revealed", TRUE, NULL);
-			g_timeout_add( 10,
-				(GSourceFunc) image_window_paned_enter, win );
-		}
+		if( win->refresh_paned )
+			image_window_paned_animate( win, TRUE );
+
 	} else {
 		if( !win->is_paned_init ) {
 			win->paned_position = INITIAL_PANED_POSITION;
@@ -1789,10 +1816,15 @@ image_window_init( ImageWindow *win )
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
+
+	/* For animating the Properties widget, the end-child of GtkPaned.
+	 */
 	win->is_paned_animating = FALSE;
 	win->paned_position = INITIAL_PANED_POSITION;
 	win->is_paned_init = FALSE;
 	win->refresh_paned = FALSE;
+	win->paned_progress = 0;
+	win->paned_last_frame_time = -1;
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
@@ -1895,7 +1927,7 @@ image_window_init( ImageWindow *win )
 	 * remembers its separator position when one of its children ( the
 	 * Properties widget ) is hidden.
 	 */
-	if( gtk_widget_should_animate( win->paned ) )
+	if( image_window_paned_should_animate( win->paned ) )
 		g_signal_connect_swapped( win->paned, "notify::position",
 			G_CALLBACK( image_window_paned_changed ), win );
 }
