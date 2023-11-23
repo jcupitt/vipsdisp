@@ -1557,9 +1557,6 @@ gtk_widget_should_animate( GtkWidget *t )
 {
 	gboolean enable_animations;
 
-	if ( !gtk_widget_get_mapped( t ) )
-		return FALSE;
-
 	g_object_get( gtk_widget_get_settings( t ), "gtk-enable-animations",
 		&enable_animations, NULL );
 
@@ -1595,7 +1592,7 @@ image_window_properties( GSimpleAction *action,
 
 	win = VIPSDISP_IMAGE_WINDOW( user_data );
 
-	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) ) {
+	if( gtk_widget_should_animate( win->paned ) ) {
 		if( win->is_paned_animating )
 			return;
 
@@ -1723,7 +1720,7 @@ image_window_paned_init( gpointer win_ )
 
 	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
-	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) ) {
+	if( gtk_widget_should_animate( win->paned ) ) {
 		max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
 
 		if( !win->is_paned_init ) {
@@ -1898,7 +1895,7 @@ image_window_init( ImageWindow *win )
 	 * remembers its separator position when one of its children ( the
 	 * Properties widget ) is hidden.
 	 */
-	if( gtk_widget_should_animate( GTK_WIDGET( win ) ) )
+	if( gtk_widget_should_animate( win->paned ) )
 		g_signal_connect_swapped( win->paned, "notify::position",
 			G_CALLBACK( image_window_paned_changed ), win );
 }
