@@ -679,5 +679,5 @@ properties_new( ImageWindow *image_window )
 		"image-window", image_window,
 		NULL );
 
-	return p;
+	return( p );
 }

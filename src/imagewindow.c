@@ -1553,7 +1553,7 @@ image_window_paned_animate_tick( GtkWidget *win_, GdkFrameClock *frame_clock,
 		win->paned_last_frame_time = frame_time;
 		gtk_paned_set_position( GTK_PANED( win->paned ), new_pos );
 
-		return G_SOURCE_CONTINUE;
+		return( G_SOURCE_CONTINUE );
 	}
 
 	gtk_paned_set_position( GTK_PANED( win->paned ),
@@ -1564,7 +1564,7 @@ image_window_paned_animate_tick( GtkWidget *win_, GdkFrameClock *frame_clock,
 
 	win->is_paned_animating = FALSE;
 
-	return G_SOURCE_REMOVE;
+	return( G_SOURCE_REMOVE );
 }
 
 /* Start the GtkPaned enter or leave animation, depending on the value of

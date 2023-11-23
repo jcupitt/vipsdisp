@@ -33,7 +33,7 @@ match_new( gboolean exact, gint i, const gint ld, const gchar *text, const gchar
 	t->n_text = text ? strlen( text ) : 0;
 	t->patt = patt;
 	t->n_patt = patt ? strlen( patt ) : 0;
-	return t;
+	return( t );
 }
 
 /* Clean up a Match object. Usable as a callback function in a g_list_foreach
@@ -212,7 +212,7 @@ glev( guint n1, const gchar s1[n1], guint n2, const gchar s2[n2], guint v[n1 + 1
 	}
 
 	// Return LEVENSHTEIN DISTANCE.
-	return v[y-1];
+	return( v[y-1] );
 }
 
 /* Compare two Match objects by LEVENSHTEIN DISTANCE @ld.
@@ -227,11 +227,11 @@ match_comp( gconstpointer a_, gconstpointer b_ )
 	Match *b = (Match *) b_;
 
 	if( a->ld > b->ld )
-		return 1;
+		return( 1 );
 	else if( a->ld < b->ld )
-		return -1;
+		return( -1 );
 	else
-		return 0;
+		return( 0 );
 }
 
 /* Version of match_comp that can be used with g_list_sort on a GList of Match
@@ -249,7 +249,7 @@ match_list_comp( gconstpointer a_, gconstpointer b_ )
 	Match *match_a = (Match *) a->data;
 	Match *match_b = (Match *) b->data;
 
-	return match_comp( match_a, match_b );
+	return( match_comp( match_a, match_b ) );
 }
 
 /* Get a GList of exact Match objects. Each Match object contains the start and
@@ -282,7 +282,7 @@ match_exact( const gchar *text, const gchar *patt, gboolean ignore_case )
 	if( !patt || !*patt) {
 		ma = match_new( TRUE, 0, 0, text, patt );
 		r = g_list_append( r, ma );
-		return r;
+		return( r );
 	}
 
 	/* Use these for comparison, which changes depending on @ignore_case.
@@ -307,7 +307,7 @@ match_exact( const gchar *text, const gchar *patt, gboolean ignore_case )
 		g_free( comp_text );
 	}
 
-	return r;
+	return( r );
 
 }
 
@@ -342,7 +342,7 @@ match_inexact( const gchar *text, const gchar *patt, gboolean ignore_case,
 	 * should have used the result of match_exact.
 	 */
 	if( !patt || !*patt)
-		return NULL;
+		return( NULL );
 
 	/* Use these for comparison, which changes depending on @ignore_case.
 	 * Note we only copy the string if we need to lowercase.
@@ -364,7 +364,7 @@ match_inexact( const gchar *text, const gchar *patt, gboolean ignore_case,
 		g_free( comp_text );
 	}
 
-	return r;
+	return( r );
 }
 
 /* Find exact or inexact matches of a pattern within a GList of text strings,
@@ -396,7 +396,7 @@ match_list( gboolean exact, GList *text_list, const gchar *patt,
 	gchar *text;
 
 	if( !text_list || !(t0 = g_list_first( text_list )) )
-		return NULL;
+		return( NULL );
 
 	/* Iterate over elements of @text_list, which have type gchar*,
 	 * appending each GList of Match objects to @found, a GList of GLists.
@@ -410,7 +410,7 @@ match_list( gboolean exact, GList *text_list, const gchar *patt,
 			found = g_list_append( found, t1 );
 	} while ( (t0 = t0->next) );
 
-	return found;
+	return( found );
 }
 
 /* Fully clean up a GList of GList of Match objects, like the one returned by

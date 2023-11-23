@@ -32,7 +32,7 @@ disable_scroll( GtkWidget *w )
 	g_signal_connect( ec, "scroll", G_CALLBACK( disable_scroll_cb ), w );
 	gtk_widget_add_controller( w, ec );
 
-	return w;
+	return( w );
 }
 
 /* Create a spin button with range, default value, and optionally enabled
@@ -53,7 +53,7 @@ create_spin_button( double min, double max, double step,
 	sb = gtk_spin_button_new_with_range( min, max, step );
 	gtk_spin_button_set_value( GTK_SPIN_BUTTON( sb ), value );
 
-	return scroll ? sb : disable_scroll( sb );
+	return( scroll ? sb : disable_scroll( sb ) );
 }
 
 /* Create an empty label and configure it.
@@ -69,7 +69,7 @@ create_empty_label() {
 	t = gtk_label_new( "" );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 
-	return t;
+	return( t );
 }
 
 /* Create and configure a simple label from a string @s.
@@ -88,7 +88,7 @@ create_simple_label( const gchar *s )
 	gtk_widget_add_css_class( t, "properties-label" );
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 
-	return t;
+	return( t );
 }
 
 /* Create an empty label box. A label box is a GtkBox with no children
@@ -104,7 +104,7 @@ create_empty_label_box()
 	gtk_widget_set_hexpand( t, TRUE );
 	gtk_widget_add_css_class( t, "properties-label-box" );
 
-	return t;
+	return( t );
 }
 
 /* Create a simple label box. A simple label box is a GtkBox with 1 GtkLabel
@@ -129,7 +129,7 @@ properties_util_create_simple_label_box( VipsImage *image, const gchar *s )
 		gtk_widget_set_tooltip_text( t,
 			g_param_spec_get_blurb( pspec ) );
 
-	return t;
+	return( t );
 }
 
 void
@@ -183,7 +183,7 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
 	if( !ma->exact || !ma->patt || !*ma->patt ) {
 		box = properties_util_create_simple_label_box( image,
 			ma->text );
-		return box;
+		return( box );
 	}
 
 	/* Otherwise, it's an a exact match. Create the empty label box that
@@ -211,7 +211,7 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
 		s = g_utf8_substring( ma->text, i, ma->i );
 		gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 		g_free( s );
-		
+
 		/* A label containing the match.
 		 */
 		s = g_utf8_substring( ma->text, ma->i, ma->i + ma->n_patt );
@@ -219,7 +219,7 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
 		g_free( s );
 		gtk_widget_add_css_class( t, "matching-substring" );
 		gtk_box_append( GTK_BOX( box ), t );
-		
+
 		i = ma->i + ma->n_patt;
 
 		ma_list = ma_list->next;
@@ -231,7 +231,7 @@ properties_util_create_label_box( VipsImage *image, GList *ma_list )
 	gtk_box_append( GTK_BOX( box ), create_simple_label( s ) );
 	g_free( s );
 
-	return box;
+	return( box );
 }
 
 /* Create an input widget appropriate for a string value.
@@ -264,7 +264,7 @@ create_string_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for a boolean value.
@@ -288,7 +288,7 @@ create_boolean_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) 
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for an enum value.
@@ -307,7 +307,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int d;
 		const gchar **nicks;
-		
+
 		nicks = g_malloc( (pspec_enum->enum_class->n_values + 1) * sizeof( gchar * ) );
 
 		for( int i = 0; i < pspec_enum->enum_class->n_values; ++i )
@@ -340,7 +340,7 @@ create_enum_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 	}
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for a flags value.
@@ -381,7 +381,7 @@ create_flags_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 		gtk_box_append( GTK_BOX( t ), check );
 	}
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for an int value.
@@ -407,7 +407,7 @@ create_int_input( VipsImage *image, const gchar *field, GParamSpec *pspec ) {
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for a double value.
@@ -435,7 +435,7 @@ create_double_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 #endif /* EXPERIMENTAL_PROPERTIES_EDIT */
 
-	return t;
+	return( t );
 }
 
 /* Create an input widget appropriate for a boxed value.
@@ -456,7 +456,7 @@ create_boxed_input( VipsImage *image, const gchar *field, GParamSpec *pspec )
 	t = gtk_label_new( "" );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
 
-	return t;
+	return( t );
 }
 
 void
@@ -582,7 +582,7 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
 	 */
 	gtk_box_append( GTK_BOX( input_box ), t );
 
-	return input_box;
+	return( input_box );
 }
 
 /* Apply the string value for @field from the UI to @image.
@@ -682,7 +682,7 @@ properties_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* 
 
 	vips_image_set_int( image, field, value );
 }
-	
+
 /* Apply the int value for @field from the UI to @image.
  *
  * @image	The VipsImage
