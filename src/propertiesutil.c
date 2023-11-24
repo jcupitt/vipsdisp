@@ -20,11 +20,13 @@ properties_util_set_tooltip( GtkWidget *widget,
 	GType gtype = vips_image_get_typeof( image, field );
 
 	if( pspec ) 
-		gtk_widget_set_tooltip_text( widget, g_param_spec_get_blurb( pspec ) );
+		gtk_widget_set_tooltip_text( widget, 
+			g_param_spec_get_blurb( pspec ) );
 	else if( gtype ) {
 		char *tooltip;
 
-		tooltip = g_strdup_printf( "Value of type %s", g_type_name( gtype ) );
+		tooltip = g_strdup_printf( "Property \"%s\" of type %s", 
+			field, g_type_name( gtype ) );
 		gtk_widget_set_tooltip_text( widget, tooltip );
 		g_free( tooltip );
 	}
@@ -270,21 +272,19 @@ create_enum_input( VipsImage *image, const gchar *field )
 	GType type = vips_image_get_typeof( image, field );
 
 	GtkWidget *t;
-	gchar *s;
 	int d;
 
 	vips_image_get_int( image, field, &d );
 
 #ifdef EXPERIMENTAL_PROPERTIES_EDIT
-	GTypeClass *class = g_type_class_ref( type );
-	GEnumClass *enum_class = G_ENUM_CLASS( class );
+	GEnumClass *enum_class = G_ENUM_CLASS( g_type_class_ref( type ) );
 	int n_values = enum_class->n_values;
 
 	const gchar **nicks;
 
 	nicks = VIPS_ARRAY( NULL, n_values + 1, gchar * );
 	for( int i = 0; i < n_values; i++ )
-		nicks[i] = pspec_enum->enum_class->values[i].value_nick;
+		nicks[i] = enum_class->values[i].value_nick;
 
 	t = gtk_drop_down_new_from_strings( nicks );
 	gtk_drop_down_set_selected( GTK_DROP_DOWN( t ), d );
@@ -306,6 +306,7 @@ create_enum_input( VipsImage *image, const gchar *field )
 GtkWidget *
 create_flags_input( VipsImage *image, const gchar *field )
 {
+	GType type = vips_image_get_typeof( image, field );
 	GTypeClass *class = g_type_class_ref( type );
 	GFlagsClass *flags_class = G_FLAGS_CLASS( class );
 	int n_values = flags_class->n_values;
@@ -322,7 +323,7 @@ create_flags_input( VipsImage *image, const gchar *field )
 
 		// not useful in a GUI
 		if( strcmp( flags_class->values[i].value_nick, "none" ) == 0 ||
-			strcmp( f_classlags->values[i].value_nick, "all" ) == 0 )
+			strcmp( flags_class->values[i].value_nick, "all" ) == 0 )
 			continue;
 
 		check = gtk_check_button_new();
@@ -346,7 +347,6 @@ create_flags_input( VipsImage *image, const gchar *field )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
 create_int_input( VipsImage *image, const gchar *field )
@@ -373,7 +373,6 @@ create_int_input( VipsImage *image, const gchar *field )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
 create_double_input( VipsImage *image, const gchar *field )
@@ -400,7 +399,6 @@ create_double_input( VipsImage *image, const gchar *field )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 GtkWidget *
 create_boxed_input( VipsImage *image, const gchar *field )
@@ -434,48 +432,22 @@ properties_util_free_input_box( GtkWidget *input_box )
 GtkWidget *
 properties_util_create_input_box( VipsImage *image, const gchar* field )
 {
-	GtkWidget *input_box, *t;
-	GType type;
-
-	/* Zero the GValue whose address we pass to vips_image_get. Otherwise, we
-	 * will get runtime errors.
-	 */
-	GValue value = { 0 };
-
-	/* Use introspection to get information about this field on the image.
-	 * We want the paramspec ( if there is one ) in case this field is an
-	 * enum, and also to get the blurb.
-	 */
-	vips_image_get( image, field, &value );
-
-	/* Create the actual user input widget @t for this property. The widget
-	 * chosen depends on the type of the property. The value is the current
-	 * value on the image.
-	 */
-	type = G_VALUE_TYPE( &value );
+	GType type = vips_image_get_typeof( image, field );
 	GType fundamental = G_TYPE_FUNDAMENTAL( type );
 
-
-	g_value_unset( &value );
+	GtkWidget *input_box, *t;
 
 	if( strstr( "thumbnail", field ) )
 		t = gtk_label_new( "" );
-	else if( type == VIPS_TYPE_REF_STRING )
+	else if( type == VIPS_TYPE_REF_STRING || type == G_TYPE_STRING )
 		t = create_string_input( image, field );
 	else if( fundamental == G_TYPE_ENUM )
 		t = create_enum_input( image, field );
+	else if( fundamental == G_TYPE_FLAGS )
+		t = create_flags_input( image, field );
 	else switch( type ) {
-	case G_TYPE_STRING:
-		t = create_string_input( image, field );
-		break;
 	case G_TYPE_BOOLEAN:
 		t = create_boolean_input( image, field );
-		break;
-	case G_TYPE_ENUM:
-		t = create_enum_input( image, field );
-		break;
-	case G_TYPE_FLAGS:
-		t = create_flags_input( image, field );
 		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
@@ -529,10 +501,9 @@ properties_util_create_input_box( VipsImage *image, const gchar* field )
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	GtkEntryBuffer* buffer;
 	const char *text;
@@ -547,10 +518,9 @@ properties_util_apply_string_input( GtkWidget *t, VipsImage *image, const gchar*
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	gboolean b;
 	GValue v = { 0 };
@@ -567,43 +537,35 @@ properties_util_apply_boolean_input( GtkWidget *t, VipsImage *image, const gchar
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_enum_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
+	GType type = vips_image_get_typeof( image, field );
+
 	int d;
 	GValue v = { 0 };
 
-	if( pspec ) {
-		d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
-		g_value_init( &v, G_TYPE_ENUM );
-		g_value_set_enum( &v, d );
-		vips_image_set( image, field, &v );
-		g_value_unset( &v );
-	} 
-	else { 
-		d = gtk_spin_button_get_value_as_int( GTK_SPIN_BUTTON( t ) );
-		vips_image_set_int( image, field, d );
-	}
+	d = gtk_drop_down_get_selected( GTK_DROP_DOWN( t ) );
+	g_value_init( &v, type );
+	g_value_set_enum( &v, d );
+	vips_image_set( image, field, &v );
+	g_value_unset( &v );
 }
 
 /* Apply the flags value for @field from the UI to @image.
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
-	GParamSpecFlags *pspec_flags;
-	GFlagsClass *flags;
+	GType type = vips_image_get_typeof( image, field );
+	GFlagsClass *flags = G_FLAGS_CLASS( g_type_class_ref( type ) );
+
 	guint value;
 	GtkWidget *child;
-
-	pspec_flags = G_PARAM_SPEC_FLAGS( pspec );
-	flags = G_FLAGS_CLASS( pspec_flags->flags_class );
 
 	value = 0;
 	child = gtk_widget_get_first_child( t ); 
@@ -628,10 +590,9 @@ properties_util_apply_flags_input( GtkWidget *t, VipsImage *image, const gchar* 
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	int d;
 
@@ -643,10 +604,9 @@ properties_util_apply_int_input( GtkWidget *t, VipsImage *image, const gchar* fi
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
-properties_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* field, GParamSpec *pspec )
+properties_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar* field )
 {
 	double d;
 
@@ -658,11 +618,10 @@ properties_util_apply_double_input( GtkWidget *t, VipsImage *image, const gchar*
  *
  * @image	The VipsImage
  * @field	The name of the VipsImage property
- * @pspec	The GParamSpec for @field
  */
 void
 properties_util_apply_boxed_input( GtkWidget *t, 
-	VipsImage *image, const gchar* field, GParamSpec *pspec )
+	VipsImage *image, const gchar* field )
 {
 #ifdef DEBUG
 	printf("G_TYPE_BOXED for property \"%s\" in properties_util_apply_input\n");
@@ -683,34 +642,21 @@ void
 properties_util_apply_input( GtkWidget *t, 
 	VipsImage *image, const gchar* field )
 {
-	GParamSpec *pspec = properties_util_image_get_pspec( image, field );
-
-	GValue value = { 0 };
-	GType type;
-
-	vips_image_get( image, field, &value );
-
-	type = G_VALUE_TYPE( &value );
+	GType type = vips_image_get_typeof( image, field );
+	GType fundamental = G_TYPE_FUNDAMENTAL( type );
 
 	if( strstr( "thumbnail", field ) ) {
 		/* do nothing */
 	} 
-	else if( type == VIPS_TYPE_REF_STRING )
-		properties_util_apply_string_input( t, image, field, pspec );
-	else if( pspec && G_IS_PARAM_SPEC_ENUM( pspec ) )
-		properties_util_apply_enum_input( t, image, field, pspec );
+	else if( type == VIPS_TYPE_REF_STRING || type == G_TYPE_STRING )
+		properties_util_apply_string_input( t, image, field );
+	else if( fundamental == G_TYPE_ENUM )
+		properties_util_apply_enum_input( t, image, field );
+	else if( fundamental == G_TYPE_FLAGS )
+		properties_util_apply_flags_input( t, image, field );
 	else switch( type ) {
-	case G_TYPE_STRING:
-		properties_util_apply_string_input( t, image, field, pspec );
-		break;
 	case G_TYPE_BOOLEAN:
-		properties_util_apply_boolean_input( t, image, field, pspec );
-		break;
-	case G_TYPE_ENUM:
-		properties_util_apply_enum_input( t, image, field, pspec );
-		break;
-	case G_TYPE_FLAGS:
-		properties_util_apply_flags_input( t, image, field, pspec );
+		properties_util_apply_boolean_input( t, image, field );
 		break;
 	case G_TYPE_INT:
 	case G_TYPE_INT64:
@@ -718,14 +664,14 @@ properties_util_apply_input( GtkWidget *t,
 	case G_TYPE_UINT64:
 	case G_TYPE_LONG:
 	case G_TYPE_ULONG:
-		properties_util_apply_int_input( t, image, field, pspec );
+		properties_util_apply_int_input( t, image, field );
 		break;
 	case G_TYPE_FLOAT:
 	case G_TYPE_DOUBLE:
-		properties_util_apply_double_input( t, image, field, pspec );
+		properties_util_apply_double_input( t, image, field );
 		break;
 	case G_TYPE_BOXED:
-		properties_util_apply_boxed_input( t, image, field, pspec );
+		properties_util_apply_boxed_input( t, image, field );
 		break;
 	default:
 #ifdef DEBUG
