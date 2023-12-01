@@ -15,7 +15,7 @@ struct _Properties
 {
 	GtkWidget parent_instance;
 
-	ImageWindow *image_window;
+	TileSource *tile_source;
 
 	GtkWidget *scrolled_window;
 	GtkWidget *search_entry;
@@ -42,7 +42,7 @@ G_DEFINE_TYPE( Properties, properties, GTK_TYPE_WIDGET );
  * (GObject boilerplate).
  */
 enum {
-	PROP_IMAGE_WINDOW = 1,
+	PROP_TILE_SOURCE = 1,
 	PROP_REVEALED,
 
 	SIG_LAST
@@ -67,30 +67,45 @@ properties_clear_main_box( Properties *p )
 	g_list_free_full( g_steal_pointer( &p->field_list ), g_free );
 }
 
-/* Create a new main_box. The caller should use properties_clear_main_box to clean
- * up existing input widgets first.
+static void
+properties_add_row(Properties *p, const char *field)
+{
+	VipsImage *image = tile_source_get_image( p->tile_source );
+
+	GtkWidget *t;
+
+	p->field_list = g_list_append( p->field_list, g_strdup( field ) );
+
+	t = properties_util_create_label_box( image, field );
+	gtk_widget_add_css_class( t, p->field_list_length % 2 ? "odd" : "even" );
+	gtk_box_append( GTK_BOX( p->left_column ), t );
+
+	t = properties_util_create_input_box( image, field );
+	gtk_widget_add_css_class( t, p->field_list_length % 2 ? "odd" : "even" );
+	gtk_box_append( GTK_BOX( p->right_column ), t );
+
+	p->field_list_length++;
+}
+
+/* Create a new main_box. 
  *
  * @m	Properties *	this
  */
 static void
-properties_create_main_box( Properties *p )
+properties_refresh_main_box( Properties *p )
 {
-	TileSource *tile_source;
-	GtkWidget *t;
 	VipsImage *image;
-	gchar **fields, *field;
+	GtkWidget *t;
+	gchar **fields;
 
 	/* If there is no TileSource, clean up any existing main_box and do
 	 * nothing.
 	 */
-	if( !(tile_source = image_window_get_tile_source( p->image_window )) ) {
+	if( !p->tile_source ||
+		!(image = tile_source_get_image( p->tile_source )) ) {
 		properties_clear_main_box( p );
 		return;
 	}
-
-	/* If there is a TileSource, get its VipsImage @image and continue.
-	 */
-	image = tile_source_get_image( tile_source );
 
 	/* Clean up the old GtkGrid @p->main_box and GList @p->field_list. If
 	 * there is nothing to clean up, nothing happens.
@@ -108,28 +123,9 @@ properties_create_main_box( Properties *p )
 	/* Make new GList @p->field_list using the fields from the VipsImage
 	 * @image.
 	 */
-	p->field_list = NULL;
-	for ( int i=0; (field = fields[i]); i++ )
-		p->field_list = g_list_append( p->field_list, field );
-	p->field_list_length = g_list_length( p->field_list );
+	for (const char **f = fields; *f; f++) 
+		properties_add_row( p, *f );
 
-	/* Add @p->field_list_length rows and 2 columns to the main_box. There
-	 * is a row for every field, i.e., every property of the VipsImage
-	 * @image.
-	 */
-	for ( int i = 0; (field = g_list_nth_data( p->field_list, i )); i++ ) {
-		t = properties_util_create_simple_label_box( image, field );
-		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
-		gtk_box_append( GTK_BOX( p->left_column ), t );
-
-		t = properties_util_create_input_box( image, field );
-		gtk_widget_add_css_class( t, i % 2 ? "odd" : "even" );
-		gtk_box_append( GTK_BOX( p->right_column ), t );
-	}
-
-	/* Clean up the array we got from vips_image_get_fields using the
-	 * method recommended by the VIPS docs (see vips_image_get_fields).
-	 */
 	g_strfreev( fields );
 }
 
@@ -146,60 +142,27 @@ properties_create_main_box( Properties *p )
 static void
 properties_tile_source_changed( TileSource *tile_source, Properties *p )
 {
-
 #ifdef DEBUG
 	puts( "properties_tile_source_changed" );
 #endif
 
-	/* If there is a new VipsImage on the tile source, use it to create
-	 * the new main_box of user input widgets.
-	 */
-	if( tile_source->image )
-		/* The properties_create_main_box function uses the VipsImage to
-		 * dynamically create a GtkGrid of user input widgets for
-		 * viewing and editing image properties. It cleans up the old
-		 * main_box and gets the image from the new TileSource ( which is
-		 * why @tile_source isn't passed as an argument here ).
-		 */
-		properties_create_main_box( p );
+	properties_refresh_main_box( p );
 }
 
-/* This function is called when ImageWindow changes. It is connected to the
- * "changed" signal on @p->image_window.
- *
- * @image_window	The new ImageWindow *
- * @m	Properties *	this
- */
 static void
-properties_image_window_changed( ImageWindow *image_window, Properties *p )
-{
-#ifdef DEBUG
-	puts( "properties_image_window_changed" );
-#endif
-
-	g_signal_connect_object( image_window_get_tile_source( image_window ),
-			"changed", G_CALLBACK( properties_tile_source_changed ),
-			p, 0 );
-}
-
-/* Change @p->image_window, and watch it for "changed" events. Only used
- * privately by Properties methods.
- *
- * @m	Properties *	this
- * @image_window	The new ImageWindow *
- */
-static void
-properties_set_image_window( Properties *p, ImageWindow *image_window )
+properties_set_tile_source( Properties *p, ImageWindow *image_window )
 {
 #ifdef DEBUG
 	puts( "properties_set_image_window" );
 #endif
 
-	p->image_window = image_window;
+	/* No need to ref ... the enclosing window holds a ref to us.
+	 */
+	p->tile_source = tile_source;
 
-	g_signal_connect_object( image_window, "changed",
-		G_CALLBACK( properties_image_window_changed ),
-		p, 0 );
+	g_signal_connect_object( tile_source,
+			"changed", G_CALLBACK( properties_tile_source_changed ),
+			p, 0 );
 }
 
 /* Apply the values currently held by the input widgets to their corresponding
@@ -486,7 +449,7 @@ properties_dispose( GObject *p_ )
  *
  * @p_		gpointer (Properties *)	this
  *
- * @prop_id	This is the signal id, e.g. PROP_IMAGE_WINDOW, defined in the
+ * @prop_id	This is the signal id, e.g. PROP_TILE_SOURCE, defined in the
  * 		enum above.
  *
  * @v		The new value.
@@ -504,9 +467,9 @@ properties_set_property( GObject *p_, guint prop_id,
 #endif
 
 	switch( prop_id ) {
-	case PROP_IMAGE_WINDOW:
+	case PROP_TILE_SOURCE:
 		properties_set_image_window( VIPSDISP_PROPERTIES( p_ ),
-			VIPSDISP_IMAGE_WINDOW( g_value_get_object( v ) ) );
+			VIPSDISP_TILE_SOURCE( g_value_get_object( v ) ) );
 		break;
 	case PROP_REVEALED:
 		if( g_value_get_boolean( v ) )
@@ -524,7 +487,7 @@ properties_set_property( GObject *p_, guint prop_id,
  *
  * @p_		gpointer (Properties *)	this
  *
- * @prop_id	This is the signal id, e.g. PROP_IMAGE_WINDOW, defined in the
+ * @prop_id	This is the signal id, e.g. PROP_TILE_SOURCE, defined in the
  * 		enum above.
  *
  * @v		The current value of the property.
@@ -546,7 +509,7 @@ properties_get_property( GObject *p_,
 	p = VIPSDISP_PROPERTIES( p_ );
 
 	switch( prop_id ) {
-	case PROP_IMAGE_WINDOW:
+	case PROP_TILE_SOURCE:
 		g_value_set_object( v, p->image_window );
 		break;
 	case PROP_REVEALED:
@@ -629,11 +592,11 @@ properties_class_init( PropertiesClass *class )
 	gobject_class->set_property = properties_set_property;
 	gobject_class->get_property = properties_get_property;
 
-	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
-		g_param_spec_object( "image-window",
-			_( "Image window" ),
-			_( "The image window we display" ),
-			IMAGE_WINDOW_TYPE,
+	g_object_class_install_property( gobject_class, PROP_TILE_SOURCE,
+		g_param_spec_object( "tile-source",
+			_( "Tile source" ),
+			_( "The tile source whose properties we display" ),
+			TILE_SOURCE_TYPE,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_install_property( gobject_class, PROP_REVEALED,
