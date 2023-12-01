@@ -56,27 +56,15 @@ enum {
 static void
 properties_clear_main_box( Properties *p )
 {
-	GtkWidget *t0, *t1;
+	VIPS_UNREF( p->left_column );
+	p->left_column = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_box_append( GTK_BOX( p->main_box ), p->left_column );
 
-	t0 = gtk_widget_get_last_child( p->left_column );
-	while ( t0 ) {
-		t1 = gtk_widget_get_prev_sibling( t0 );
-		properties_util_free_label_box( t0 );
-		t0 = t1;
-	}
+	VIPS_UNREF( p->right_column );
+	p->right_column = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
+	gtk_box_append( GTK_BOX( p->main_box ), p->right_column );
 
-	t0 = gtk_widget_get_last_child( p->right_column );
-	while ( t0 ) {
-		t1 = gtk_widget_get_prev_sibling( t0 );
-		properties_util_free_input_box( t0 );
-		t0 = t1;
-	}
-
-	if( p->field_list ) {
-		g_list_free( p->field_list );
-		p->field_list = NULL;
-		p->field_list_length = 0;
-	}
+	g_list_free_full( g_steal_pointer( &p->field_list ), g_free );
 }
 
 /* Create a new main_box. The caller should use properties_clear_main_box to clean
