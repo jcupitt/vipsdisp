@@ -759,7 +759,7 @@ tile_cache_draw_bounds( GtkSnapshot *snapshot,
 		border_width, border_colour );
 
 	/* If we are drawing a low-res tile at the back of the stack, it can 
-	 * get extremly large with big images. Cairo hates large surfaces, 
+	 * get extremely large with big images. Cairo hates large surfaces, 
 	 * so skip the text annotation in this case.
 	 */
 	if( bounds->size.width < 32000 &&

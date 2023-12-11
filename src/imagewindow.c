@@ -19,7 +19,7 @@ struct _ImageWindow
 	TileSource *tile_source;
 	TileCache *tile_cache;
 
-	/* Last known mouse postion, in gtk coordinates. We keep these in gtk
+	/* Last known mouse position, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
 	 */
 	double last_x_gtk;
@@ -816,7 +816,7 @@ image_window_tick( GtkWidget *widget,
 	if( win->scale_rate != 1.0 )
 		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
 
-	// 0/1/etc. discreet zoom
+	// 0/1/etc. discrete zoom
 	if( win->scale_target != 0 ) {
 		win->scale_progress += dt;
 

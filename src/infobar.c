@@ -63,7 +63,7 @@ static const int infobar_label_width[] = {
 	18,	/* double complex */
 };
 
-/* TileSource has a new image. We need a new number of band elemenets and
+/* TileSource has a new image. We need a new number of band elements and
  * dimensions.
  */
 static void

@@ -171,7 +171,7 @@ flatpak install org.gnome.Platform//44
 
 Allow file. Recent security changes to git will cause submodule checkout
 to fail inside flatpak. If you get errors like `fatal: transport 'file'
-not allowed`, reenable file transport with:
+not allowed`, re-enable file transport with:
 
 ```
 git config --global protocol.file.allow always
