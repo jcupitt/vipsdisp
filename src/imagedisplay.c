@@ -33,9 +33,9 @@ struct _Imagedisplay {
 	 */
 	VipsRect paint_rect;
 
-	/* How we transform the image_rect to widget space. 
+	/* How we transform the image_rect to widget space.
 	 *
-	 * scale is how much we zoom/reduce the image by. 
+	 * scale is how much we zoom/reduce the image by.
 	 * x, y is the position of the top-left of the widget in the scaled
 	 * image.
 	 */
@@ -51,7 +51,7 @@ struct _Imagedisplay {
 	gboolean bestfit;
 };
 
-/* imagedisplay is actually a drawing area the size of the widget on screen: we 
+/* imagedisplay is actually a drawing area the size of the widget on screen: we
  * do all scrolling ourselves.
  */
 G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
@@ -88,7 +88,7 @@ imagedisplay_dispose( GObject *object )
 	Imagedisplay *imagedisplay = (Imagedisplay *) object;
 
 #ifdef DEBUG
-	printf( "imagedisplay_dispose:\n" ); 
+	printf( "imagedisplay_dispose:\n" );
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagedisplay->tile_cache );
@@ -97,12 +97,12 @@ imagedisplay_dispose( GObject *object )
 }
 
 static void
-imagedisplay_set_transform( Imagedisplay *imagedisplay, 
+imagedisplay_set_transform( Imagedisplay *imagedisplay,
 	double scale, double x, double y )
 {
 	/* Sanity limits.
 	 */
-	if( scale > 100000 || 
+	if( scale > 100000 ||
 		scale < (1.0 / 100000) )
 		return;
 	if( x < -1000 ||
@@ -122,7 +122,7 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
 }
 
 static void
-imagedisplay_adjustment_changed( GtkAdjustment *adjustment, 
+imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
 	Imagedisplay *imagedisplay )
 {
 	if( gtk_widget_get_realized( GTK_WIDGET( imagedisplay ) ) ) {
@@ -130,13 +130,13 @@ imagedisplay_adjustment_changed( GtkAdjustment *adjustment,
 		double top = gtk_adjustment_get_value( imagedisplay->vadj );
 
 #ifdef DEBUG
-		printf( "imagedisplay_adjustment_changed: %g x %g\n", 
+		printf( "imagedisplay_adjustment_changed: %g x %g\n",
 			left, top );
 #endif /*DEBUG*/
 
-		imagedisplay_set_transform( imagedisplay, 
+		imagedisplay_set_transform( imagedisplay,
 			imagedisplay->scale, left, top );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 	}
 }
 
@@ -145,10 +145,10 @@ imagedisplay_set_adjustment( Imagedisplay *imagedisplay,
 	GtkAdjustment **adjustment_slot, GtkAdjustment *new_adjustment )
 {
 #ifdef DEBUG
-	printf( "imagedisplay_set_adjustment:\n" ); 
+	printf( "imagedisplay_set_adjustment:\n" );
 #endif /*DEBUG*/
 
-	if( new_adjustment && 
+	if( new_adjustment &&
 		*adjustment_slot == new_adjustment )
 		return( FALSE );
 
@@ -159,7 +159,7 @@ imagedisplay_set_adjustment( Imagedisplay *imagedisplay,
 	}
 
 	if( !new_adjustment )
-		new_adjustment = 
+		new_adjustment =
 			gtk_adjustment_new( 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );
 
 	g_signal_connect( new_adjustment, "value-changed",
@@ -170,8 +170,8 @@ imagedisplay_set_adjustment( Imagedisplay *imagedisplay,
 }
 
 static void
-imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay, 
-	GtkAdjustment *adjustment, int axis_size, int window_size ) 
+imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay,
+	GtkAdjustment *adjustment, int axis_size, int window_size )
 {
 	double old_value;
 	double new_value;
@@ -201,20 +201,20 @@ imagedisplay_set_adjustment_values( Imagedisplay *imagedisplay,
 }
 
 static void
-imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay ) 
+imagedisplay_set_hadjustment_values( Imagedisplay *imagedisplay )
 {
-	imagedisplay_set_adjustment_values( imagedisplay, 
-		imagedisplay->hadj, 
-		imagedisplay->image_rect.width * imagedisplay->scale, 
+	imagedisplay_set_adjustment_values( imagedisplay,
+		imagedisplay->hadj,
+		imagedisplay->image_rect.width * imagedisplay->scale,
 		imagedisplay->paint_rect.width );
 }
 
 static void
-imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay ) 
+imagedisplay_set_vadjustment_values( Imagedisplay *imagedisplay )
 {
-	imagedisplay_set_adjustment_values( imagedisplay, 
-		imagedisplay->vadj, 
-		imagedisplay->image_rect.height * imagedisplay->scale, 
+	imagedisplay_set_adjustment_values( imagedisplay,
+		imagedisplay->vadj,
+		imagedisplay->image_rect.height * imagedisplay->scale,
 		imagedisplay->paint_rect.height );
 }
 
@@ -222,12 +222,12 @@ static void
 imagedisplay_layout( Imagedisplay *imagedisplay )
 {
 #ifdef DEBUG
-	printf( "imagedisplay_layout:\n" ); 
+	printf( "imagedisplay_layout:\n" );
 #endif /*DEBUG*/
 
-	imagedisplay->widget_rect.width = 
+	imagedisplay->widget_rect.width =
 		gtk_widget_get_width( GTK_WIDGET( imagedisplay ) );
-	imagedisplay->widget_rect.height = 
+	imagedisplay->widget_rect.height =
 		gtk_widget_get_height( GTK_WIDGET( imagedisplay ) );
 
 	/* width and height will be 0 if _layout runs too early to be useful.
@@ -244,15 +244,15 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 	/* Do this the first time we have the image.
 	 */
 	if( imagedisplay->bestfit ) {
-		double hscale = (double) imagedisplay->widget_rect.width / 
+		double hscale = (double) imagedisplay->widget_rect.width /
 			imagedisplay->image_rect.width;
-		double vscale = (double) imagedisplay->widget_rect.height / 
+		double vscale = (double) imagedisplay->widget_rect.height /
 			imagedisplay->image_rect.height;
 
-		imagedisplay_set_transform( imagedisplay, 
+		imagedisplay_set_transform( imagedisplay,
 			VIPS_MIN( hscale, vscale ),
-			imagedisplay->x, 
-			imagedisplay->y ); 
+			imagedisplay->x,
+			imagedisplay->y );
 
 #ifdef DEBUG
 		printf( "imagedisplay_layout: bestfit sets scale = %g\n",
@@ -262,64 +262,64 @@ imagedisplay_layout( Imagedisplay *imagedisplay )
 		imagedisplay->bestfit = FALSE;
 	}
 
-	imagedisplay->paint_rect.width = VIPS_MIN( 
-		imagedisplay->widget_rect.width, 
+	imagedisplay->paint_rect.width = VIPS_MIN(
+		imagedisplay->widget_rect.width,
 		imagedisplay->image_rect.width * imagedisplay->scale );
-	imagedisplay->paint_rect.height = VIPS_MIN( 
-		imagedisplay->widget_rect.height, 
+	imagedisplay->paint_rect.height = VIPS_MIN(
+		imagedisplay->widget_rect.height,
 		imagedisplay->image_rect.height * imagedisplay->scale );
 
 	/* If we've zoomed right out, centre the image in the window.
 	 */
 	imagedisplay->paint_rect.left = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.width - 
-		 imagedisplay->paint_rect.width) / 2 ); 
+		(imagedisplay->widget_rect.width -
+		 imagedisplay->paint_rect.width) / 2 );
 	imagedisplay->paint_rect.top = VIPS_MAX( 0,
-		(imagedisplay->widget_rect.height - 
-		 imagedisplay->paint_rect.height) / 2 ); 
+		(imagedisplay->widget_rect.height -
+		 imagedisplay->paint_rect.height) / 2 );
 
 	imagedisplay_set_hadjustment_values( imagedisplay );
 	imagedisplay_set_vadjustment_values( imagedisplay );
 }
 
-/* Large change, we need to relayout. 
+/* Large change, we need to relayout.
  */
 static void
-imagedisplay_tile_cache_changed( TileCache *tile_cache, 
-	Imagedisplay *imagedisplay ) 
+imagedisplay_tile_cache_changed( TileCache *tile_cache,
+	Imagedisplay *imagedisplay )
 {
 #ifdef DEBUG
-	printf( "imagedisplay_tile_cache_changed:\n" ); 
+	printf( "imagedisplay_tile_cache_changed:\n" );
 #endif /*DEBUG*/
 
 	imagedisplay->bestfit = TRUE;
 
-	imagedisplay->image_rect.width = 
+	imagedisplay->image_rect.width =
 		tile_cache->tile_source->display_width;
-	imagedisplay->image_rect.height = 
+	imagedisplay->image_rect.height =
 		tile_cache->tile_source->display_height;
 
 	imagedisplay_layout( imagedisplay );
 
-	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
 /* Tiles have changed, but not image geometry. Perhaps falsecolour.
  */
 static void
-imagedisplay_tile_cache_tiles_changed( TileCache *tile_cache, 
-	Imagedisplay *imagedisplay ) 
+imagedisplay_tile_cache_tiles_changed( TileCache *tile_cache,
+	Imagedisplay *imagedisplay )
 {
 #ifdef DEBUG
-	printf( "imagedisplay_tile_cache_tiles_changed:\n" ); 
+	printf( "imagedisplay_tile_cache_tiles_changed:\n" );
 #endif /*DEBUG*/
 
-	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
 static void
-imagedisplay_tile_cache_area_changed( TileCache *tile_cache, 
-	VipsRect *dirty, int z, Imagedisplay *imagedisplay ) 
+imagedisplay_tile_cache_area_changed( TileCache *tile_cache,
+	VipsRect *dirty, int z, Imagedisplay *imagedisplay )
 {
 #ifdef DEBUG_VERBOSE
 	printf( "imagedisplay_tile_cache_area_changed: "
@@ -330,27 +330,27 @@ imagedisplay_tile_cache_area_changed( TileCache *tile_cache,
 #endif /*DEBUG_VERBOSE*/
 
 	/* Sadly, gtk4 only has this and we can't redraw areas. Perhaps we
-	 * could just renegerate part of the snapshot?
+	 * could just regenerate part of the snapshot?
 	 */
 	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
 static void
-imagedisplay_set_tile_cache( Imagedisplay *imagedisplay, 
+imagedisplay_set_tile_cache( Imagedisplay *imagedisplay,
 	TileCache *tile_cache )
 {
 	VIPS_UNREF( imagedisplay->tile_cache );
 	imagedisplay->tile_cache = tile_cache;
 	g_object_ref( imagedisplay->tile_cache );
 
-	g_signal_connect_object( tile_cache, "changed", 
-		G_CALLBACK( imagedisplay_tile_cache_changed ), 
+	g_signal_connect_object( tile_cache, "changed",
+		G_CALLBACK( imagedisplay_tile_cache_changed ),
 		imagedisplay, 0 );
-	g_signal_connect_object( tile_cache, "tiles-changed", 
-		G_CALLBACK( imagedisplay_tile_cache_tiles_changed ), 
+	g_signal_connect_object( tile_cache, "tiles-changed",
+		G_CALLBACK( imagedisplay_tile_cache_tiles_changed ),
 		imagedisplay, 0 );
-	g_signal_connect_object( tile_cache, "area-changed", 
-		G_CALLBACK( imagedisplay_tile_cache_area_changed ), 
+	g_signal_connect_object( tile_cache, "area-changed",
+		G_CALLBACK( imagedisplay_tile_cache_area_changed ),
 		imagedisplay, 0 );
 
 	/* Do initial change to init.
@@ -359,36 +359,36 @@ imagedisplay_set_tile_cache( Imagedisplay *imagedisplay,
 }
 
 static void
-imagedisplay_set_property( GObject *object, 
+imagedisplay_set_property( GObject *object,
 	guint prop_id, const GValue *value, GParamSpec *pspec )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) object;
 
 	switch( prop_id ) {
 	case PROP_HADJUSTMENT:
-		if( imagedisplay_set_adjustment( imagedisplay, 
-			&imagedisplay->hadj, 
-			g_value_get_object( value ) ) ) { 
+		if( imagedisplay_set_adjustment( imagedisplay,
+			&imagedisplay->hadj,
+			g_value_get_object( value ) ) ) {
 			imagedisplay_set_hadjustment_values( imagedisplay );
-			g_object_notify( G_OBJECT( imagedisplay ), 
+			g_object_notify( G_OBJECT( imagedisplay ),
 				"hadjustment" );
 		}
 		break;
 
 	case PROP_VADJUSTMENT:
-		if( imagedisplay_set_adjustment( imagedisplay, 
-			&imagedisplay->vadj, 
-			g_value_get_object( value ) ) ) { 
+		if( imagedisplay_set_adjustment( imagedisplay,
+			&imagedisplay->vadj,
+			g_value_get_object( value ) ) ) {
 			imagedisplay_set_vadjustment_values( imagedisplay );
-			g_object_notify( G_OBJECT( imagedisplay ), 
+			g_object_notify( G_OBJECT( imagedisplay ),
 				"vadjustment" );
 		}
 		break;
 
 	case PROP_HSCROLL_POLICY:
-		if( imagedisplay->hscroll_policy != 
+		if( imagedisplay->hscroll_policy !=
 			g_value_get_enum( value ) ) {
-			imagedisplay->hscroll_policy = 
+			imagedisplay->hscroll_policy =
 				g_value_get_enum( value );
 			gtk_widget_queue_resize( GTK_WIDGET( imagedisplay ) );
 			g_object_notify_by_pspec( object, pspec );
@@ -396,9 +396,9 @@ imagedisplay_set_property( GObject *object,
 		break;
 
 	case PROP_VSCROLL_POLICY:
-		if( imagedisplay->vscroll_policy != 
+		if( imagedisplay->vscroll_policy !=
 			g_value_get_enum( value ) ) {
-			imagedisplay->vscroll_policy = 
+			imagedisplay->vscroll_policy =
 				g_value_get_enum( value );
 			gtk_widget_queue_resize( GTK_WIDGET( imagedisplay ) );
 			g_object_notify_by_pspec( object, pspec );
@@ -406,38 +406,38 @@ imagedisplay_set_property( GObject *object,
 		break;
 
 	case PROP_TILE_CACHE:
-		imagedisplay_set_tile_cache( imagedisplay, 
+		imagedisplay_set_tile_cache( imagedisplay,
 			g_value_get_object( value ) );
 		break;
 
 	case PROP_SCALE:
-		imagedisplay_set_transform( imagedisplay, 
+		imagedisplay_set_transform( imagedisplay,
 			g_value_get_double( value ),
-			imagedisplay->x, 
-			imagedisplay->y ); 
+			imagedisplay->x,
+			imagedisplay->y );
 		imagedisplay_layout( imagedisplay );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 		break;
 
 	case PROP_X:
-		imagedisplay_set_transform( imagedisplay, 
+		imagedisplay_set_transform( imagedisplay,
 			imagedisplay->scale,
 			g_value_get_double( value ),
 			imagedisplay->y );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 		break;
 
 	case PROP_Y:
-		imagedisplay_set_transform( imagedisplay, 
+		imagedisplay_set_transform( imagedisplay,
 			imagedisplay->scale,
-			imagedisplay->x, 
+			imagedisplay->x,
 			g_value_get_double( value ) );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 		break;
 
 	case PROP_DEBUG:
 		imagedisplay->debug = g_value_get_boolean( value );
-		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 		break;
 
 	default:
@@ -447,7 +447,7 @@ imagedisplay_set_property( GObject *object,
 }
 
 static void
-imagedisplay_get_property( GObject *object, 
+imagedisplay_get_property( GObject *object,
 	guint prop_id, GValue *value, GParamSpec *pspec )
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) object;
@@ -508,14 +508,14 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 	 * bar.
 	 */
 	gtk_snapshot_push_clip( snapshot, &GRAPHENE_RECT_INIT(
-		0, 
-		0, 
+		0,
+		0,
 		gtk_widget_get_width( widget ),
-		gtk_widget_get_height( widget ) )); 
+		gtk_widget_get_height( widget ) ));
 
 	if( imagedisplay->tile_cache &&
 		imagedisplay->tile_cache->tiles )
-		tile_cache_snapshot( imagedisplay->tile_cache, snapshot, 
+		tile_cache_snapshot( imagedisplay->tile_cache, snapshot,
 			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
 			&imagedisplay->paint_rect,
 			imagedisplay->debug );
@@ -530,17 +530,17 @@ imagedisplay_snapshot( GtkWidget *widget, GtkSnapshot *snapshot )
 
 		GskRoundedRect outline;
 
-		gsk_rounded_rect_init_from_rect( &outline, 
+		gsk_rounded_rect_init_from_rect( &outline,
 			&GRAPHENE_RECT_INIT(
-				3, 
-				3, 
+				3,
+				3,
 				gtk_widget_get_width( widget ) - 6,
 				gtk_widget_get_height( widget ) - 6
-			), 
+			),
 			5 );
 
-		gtk_snapshot_append_border( snapshot, 
-			&outline, 
+		gtk_snapshot_append_border( snapshot,
+			&outline,
 			(float[4]) { 2, 2, 2, 2 },
 			(GdkRGBA [4]) { BORDER, BORDER, BORDER, BORDER } );
 	}
@@ -552,12 +552,12 @@ imagedisplay_resize( GtkWidget *widget, int width, int height )
 	Imagedisplay *imagedisplay = (Imagedisplay *) widget;
 
 #ifdef DEBUG
-	printf( "imagedisplay_resize: %d x %d\n", width, height ); 
+	printf( "imagedisplay_resize: %d x %d\n", width, height );
 #endif /*DEBUG*/
 
 	imagedisplay_layout( imagedisplay );
 
-	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
 static void
@@ -570,11 +570,11 @@ imagedisplay_focus_notify( GtkEventControllerFocus *focus,
 	printf( "imagedisplay_focus_notify: %s\n", pspec->name );
 #endif /*DEBUG*/
 
-	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) ); 
+	gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 }
 
-static void 
-imagedisplay_click( GtkEventController *controller, 
+static void
+imagedisplay_click( GtkEventController *controller,
 	int n_press, double x, double y, Imagedisplay *imagedisplay )
 {
 	gtk_widget_grab_focus( GTK_WIDGET( imagedisplay ) );
@@ -586,7 +586,7 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 	GtkEventController *controller;
 
 #ifdef DEBUG
-	printf( "imagedisplay_init:\n" ); 
+	printf( "imagedisplay_init:\n" );
 #endif /*DEBUG*/
 
 	imagedisplay->scale = 1;
@@ -601,7 +601,7 @@ imagedisplay_init( Imagedisplay *imagedisplay )
 		G_CALLBACK( imagedisplay_focus_notify ), imagedisplay );
 
 	controller = GTK_EVENT_CONTROLLER( gtk_gesture_click_new() );
-	g_signal_connect( controller, "pressed", 
+	g_signal_connect( controller, "pressed",
 		G_CALLBACK( imagedisplay_click ), imagedisplay );
 	gtk_widget_add_controller( GTK_WIDGET( imagedisplay ), controller );
 }
@@ -613,7 +613,7 @@ imagedisplay_class_init( ImagedisplayClass *class )
 	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
 
 #ifdef DEBUG
-	printf( "imagedisplay_class_init:\n" ); 
+	printf( "imagedisplay_class_init:\n" );
 #endif /*DEBUG*/
 
 	gobject_class->dispose = imagedisplay_dispose;
@@ -657,30 +657,30 @@ imagedisplay_class_init( ImagedisplayClass *class )
 			FALSE,
 			G_PARAM_READWRITE ) );
 
-	g_object_class_override_property( gobject_class, 
+	g_object_class_override_property( gobject_class,
 		PROP_HADJUSTMENT, "hadjustment" );
-	g_object_class_override_property( gobject_class, 
+	g_object_class_override_property( gobject_class,
 		PROP_VADJUSTMENT, "vadjustment" );
-	g_object_class_override_property( gobject_class, 
+	g_object_class_override_property( gobject_class,
 		PROP_HSCROLL_POLICY, "hscroll-policy" );
-	g_object_class_override_property( gobject_class, 
+	g_object_class_override_property( gobject_class,
 		PROP_VSCROLL_POLICY, "vscroll-policy" );
 }
 
 Imagedisplay *
-imagedisplay_new( TileCache *tile_cache ) 
+imagedisplay_new( TileCache *tile_cache )
 {
 	Imagedisplay *imagedisplay;
 
 #ifdef DEBUG
-	printf( "imagedisplay_new:\n" ); 
+	printf( "imagedisplay_new:\n" );
 #endif /*DEBUG*/
 
 	imagedisplay = g_object_new( imagedisplay_get_type(),
 		"tile-cache", tile_cache,
 		NULL );
 
-	return( imagedisplay ); 
+	return( imagedisplay );
 }
 
 /* image	level0 image coordinates ... this is the coordinate space we
@@ -690,30 +690,30 @@ imagedisplay_new( TileCache *tile_cache )
  */
 
 void
-imagedisplay_image_to_gtk( Imagedisplay *imagedisplay, 
+imagedisplay_image_to_gtk( Imagedisplay *imagedisplay,
 	double x_image, double y_image, double *x_gtk, double *y_gtk )
 {
-	*x_gtk = x_image * imagedisplay->scale - 
-		imagedisplay->x + 
+	*x_gtk = x_image * imagedisplay->scale -
+		imagedisplay->x +
 		imagedisplay->paint_rect.left;
-	*y_gtk = y_image * imagedisplay->scale - 
-		imagedisplay->y + 
+	*y_gtk = y_image * imagedisplay->scale -
+		imagedisplay->y +
 		imagedisplay->paint_rect.top;
 }
 
 void
-imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, 
+imagedisplay_gtk_to_image( Imagedisplay *imagedisplay,
 	double x_gtk, double y_gtk, double *x_image, double *y_image )
 {
-	*x_image = (imagedisplay->x + 
-		x_gtk - 
+	*x_image = (imagedisplay->x +
+		x_gtk -
 		imagedisplay->paint_rect.left) / imagedisplay->scale;
-	*y_image = (imagedisplay->y + 
-		y_gtk - 
+	*y_image = (imagedisplay->y +
+		y_gtk -
 		imagedisplay->paint_rect.top) / imagedisplay->scale;
 
-	*x_image = VIPS_CLIP( 0, *x_image, 
+	*x_image = VIPS_CLIP( 0, *x_image,
 		imagedisplay->image_rect.width - 1 );
-	*y_image = VIPS_CLIP( 0, *y_image, 
+	*y_image = VIPS_CLIP( 0, *y_image,
 		imagedisplay->image_rect.height - 1 );
 }
