@@ -1,0 +1,22 @@
+.properties-label {
+}
+
+.properties-label-box, .properties-input-box {
+	padding: 2px 2px 2px 8px;
+}
+
+.properties-label-box.even, .properties-input-box.even {
+	background-color: rgba(0, 0, 0, .1);
+}
+
+.properties-label {
+	color: gray;
+}
+
+.properties-label.matching-substring {
+	color: white;
+	font-weight: bold;
+}
+
+.properties-input-box {
+}

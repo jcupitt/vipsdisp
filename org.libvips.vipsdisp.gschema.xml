@@ -23,6 +23,14 @@
       </description>
     </key>
 
+    <key type="b" name="properties">
+      <default>false</default>
+      <summary>Show Properties menu</summary>
+      <description>
+        If set, show the Properties menu.
+      </description>
+    </key>
+
     <key type="d" name="scale">
       <default>1.0</default>
       <summary>Scale</summary>

@@ -65,7 +65,7 @@ tile_source_dispose( GObject *object )
 	G_OBJECT_CLASS( tile_source_parent_class )->dispose( object );
 }
 
-static void
+void
 tile_source_changed( TileSource *tile_source )
 {
 	g_signal_emit( tile_source, 
@@ -1291,7 +1291,7 @@ tile_source_print( TileSource *tile_source )
 
 /* Sniff basic image properties.
  */
-static int
+int
 tile_source_set_image( TileSource *tile_source, VipsImage *image )
 {
 #ifdef DEBUG
@@ -1560,7 +1560,7 @@ tile_source_new_from_file( const char *filename )
 	 */
 	tile_source->loader = vips_nickname_find( g_type_from_name( loader ) );
 
-	/* A very basic open to fetch metadata. 
+	/* A very basic open to fetch image properties. 
 	 */
 	if( !(image = vips_image_new_from_file( filename, NULL )) ) {
 		VIPS_UNREF( tile_source );

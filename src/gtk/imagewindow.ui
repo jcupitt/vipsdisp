@@ -91,6 +91,10 @@
         <attribute name="label" translatable="yes">Info bar</attribute>
         <attribute name="action">win.info</attribute>
       </item>
+      <item>
+        <attribute name="label" translatable="yes">Properties</attribute>
+        <attribute name="action">win.properties</attribute>
+      </item>
     </section>
 
     <section>
@@ -161,7 +165,6 @@
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
-
         <child>
           <object class="GtkActionBar" id="progress_bar">
             <property name="revealed">false</property>
@@ -197,28 +200,40 @@
         </child>
 
         <child>
-          <object class="GtkScrolledWindow" id="scrolled_window">
-            <property name="hexpand">true</property>
-            <property name="vexpand">true</property>
-            <child>
-              <object class="Imagedisplay" id="imagedisplay">
+          <object class="GtkPaned" id="paned">
+            <property name="wide-handle">true</property>
+            <property name="resize-start-child">false</property>
+            <property name="shrink-start-child">true</property>
+            <property name="resize-end-child">false</property>
+            <property name="shrink-end-child">true</property>
+            <property name="orientation">horizontal</property>
+            <property name="start-child">
 
-                <child>
-                  <object class="GtkPopoverMenu" id="right_click_menu">
-                    <property name="has-arrow">0</property>
-                    <property name="menu-model">imagewindow-menu</property>
-                  </object> 
-                </child>
-
-                <child> 
-                  <object class="GtkGestureClick">
-                    <property name="button">3</property>
-                    <signal name="pressed" handler="image_window_pressed_cb"/>
+                  <object class="GtkScrolledWindow" id="scrolled_window">
+                    <property name="hexpand">true</property>
+                    <property name="vexpand">true</property>
+                    <child>
+                      <object class="Imagedisplay" id="imagedisplay">  
+                        <child>
+                          <object class="GtkPopoverMenu" id="right_click_menu">
+                            <property name="has-arrow">0</property>
+                            <property name="menu-model">imagewindow-menu</property>
+                          </object> 
+                        </child>
+                        <child> 
+                          <object class="GtkGestureClick">
+                            <property name="button">3</property>
+                            <signal name="pressed" handler="image_window_pressed_cb"/>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
                   </object>
-                </child>
-
+            </property>
+	    <property name="end-child">
+              <object class="Properties" id="properties">
               </object>
-            </child>
+            </property>
           </object>
         </child>
 
@@ -234,6 +249,5 @@
 
       </object>
     </child>
-
   </template>
 </interface>

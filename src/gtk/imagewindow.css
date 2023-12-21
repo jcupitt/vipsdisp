@@ -1,0 +1,8 @@
+paned separator {
+	/*background-color: gray;*/
+	min-width: 30px;
+}
+
+paned separator:hover {
+	box-shadow: inset 30px 0 30px -30px rgba(31, 158, 222, 0.2);
+}
