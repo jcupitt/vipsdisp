@@ -17,13 +17,14 @@ struct _Properties
 
 	TileSource *tile_source;
 
+	GtkWidget *properties;
 	GtkWidget *scrolled_window;
 	GtkWidget *search_entry;
 	GtkWidget *search_warning;
-
 	GtkWidget *main_box;
 	GtkWidget *left_column;
 	GtkWidget *right_column;
+
 	GList *field_list;
 	int field_list_length;
 	gboolean ignore_case;
@@ -76,7 +77,7 @@ properties_add_row(Properties *p, const char *field)
 
 	p->field_list = g_list_append( p->field_list, g_strdup( field ) );
 
-	t = properties_util_create_label_box( image, field );
+	t = properties_util_create_simple_label_box( image, field );
 	gtk_widget_add_css_class( t, p->field_list_length % 2 ? "odd" : "even" );
 	gtk_box_append( GTK_BOX( p->left_column ), t );
 
@@ -95,8 +96,7 @@ static void
 properties_refresh_main_box( Properties *p )
 {
 	VipsImage *image;
-	GtkWidget *t;
-	gchar **fields;
+	char **fields;
 
 	/* If there is no TileSource, clean up any existing main_box and do
 	 * nothing.
@@ -123,7 +123,7 @@ properties_refresh_main_box( Properties *p )
 	/* Make new GList @p->field_list using the fields from the VipsImage
 	 * @image.
 	 */
-	for (const char **f = fields; *f; f++) 
+	for (char **f = fields; *f; f++) 
 		properties_add_row( p, *f );
 
 	g_strfreev( fields );
@@ -150,7 +150,7 @@ properties_tile_source_changed( TileSource *tile_source, Properties *p )
 }
 
 static void
-properties_set_tile_source( Properties *p, ImageWindow *image_window )
+properties_set_tile_source( Properties *p, TileSource *tile_source )
 {
 #ifdef DEBUG
 	puts( "properties_set_image_window" );
@@ -175,7 +175,6 @@ void
 properties_apply( Properties *p )
 {
 	VipsImage *image;
-	TileSource *tile_source;
 	GtkWidget *label_box, *input_box, *t;
 	const char *field;
 
@@ -183,14 +182,9 @@ properties_apply( Properties *p )
 	puts("properties_apply");
 #endif
 
-	/* Do nothing if there is no TileSource.
-	 */
-	if( !(tile_source = image_window_get_tile_source( p->image_window )) )
-		return;
-
 	/* If there is a TileSource, get its VipsImage @image and continue.
 	 */
-	image = tile_source_get_image( tile_source );
+	image = tile_source_get_image( p->tile_source );
 
 	/* Walk through the labels in the UI ( the VipsImage property names )
 	 * and corresponding input widgets.
@@ -242,7 +236,6 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 	Match *ma;
 	const gchar *field;
 	GtkWidget *t;
-	TileSource *tile_source;
 
 #ifdef DEBUG
 	puts("properties_append_field")
@@ -252,13 +245,12 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 	p = VIPSDISP_PROPERTIES( p_ );
 	ma = (Match *) ma_list->data;
 	field = ma->text;
-	tile_source = image_window_get_tile_source( p->image_window );
 
 	p->field_list = g_list_append( p->field_list, (gpointer) field );
 
 	/* Create a label_box for the given list node.
 	 */
-	t = properties_util_create_label_box( tile_source->image, ma_list );
+	t = properties_util_create_label_box( p->tile_source->image, ma_list );
 
 	/* Add "even" or "odd" CSS class to label_box based on parity of the row
 	 * index.
@@ -271,7 +263,7 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 
 	/* Create an input_box for the given list node.
 	 */
-	t = properties_util_create_input_box( tile_source->image, field );
+	t = properties_util_create_input_box( p->tile_source->image, field );
 
 	/* Add "even" or "odd" CSS class to input_box based on parity of the row
 	 * index.
@@ -318,8 +310,7 @@ properties_search_changed( GtkWidget *search_entry, gpointer p_ )
 	 * once the relevant data has been copied into widgets with their
 	 * character array setter methods.
 	 */
-	fields = vips_image_get_fields( image_window_get_tile_source(
-		p->image_window )->image );
+	fields = vips_image_get_fields( p->tile_source->image );
 
 	/* Make new GList @p->field_list using the fields from the VipsImage
 	 * @image.
@@ -416,26 +407,13 @@ properties_search_changed( GtkWidget *search_entry, gpointer p_ )
 static void
 properties_dispose( GObject *p_ )
 {
-	GtkWidget *t;
-	Properties *p;
+	Properties *p = VIPSDISP_PROPERTIES( p_ );
 
 #ifdef DEBUG
 	puts( "properties_dispose" );
 #endif
 
-	/* Cast to Properties *.
-	 */
-	p = VIPSDISP_PROPERTIES( p_ );
-
-	/* Clean up any existing children of @left_column and @right_column and
-	 * any existing elements of the GList @field_list.
-	 */
-	properties_clear_main_box( p );
-
-	/* Clean up the straggling child widget if there is one.
-	 */
-	if( (t = gtk_widget_get_first_child( GTK_WIDGET( p_ ) )) )
-		gtk_widget_unparent( t );
+	VIPS_FREEF( gtk_widget_unparent, p->properties );
 
 	/* "Chain up" to the @dispose method of Properties's parent class
 	 * ( GtkWidget ). GObject defines the properties_parent_class macro, so
@@ -459,8 +437,8 @@ properties_dispose( GObject *p_ )
  * (GObject boilerplate)
  */
 static void
-properties_set_property( GObject *p_, guint prop_id,
-		const GValue *v, GParamSpec *pspec )
+properties_set_property( GObject *p_, guint prop_id, 
+	const GValue *v, GParamSpec *pspec )
 {
 #ifdef DEBUG
 	puts( "properties_set_property" );
@@ -468,15 +446,17 @@ properties_set_property( GObject *p_, guint prop_id,
 
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
-		properties_set_image_window( VIPSDISP_PROPERTIES( p_ ),
-			VIPSDISP_TILE_SOURCE( g_value_get_object( v ) ) );
+		properties_set_tile_source( VIPSDISP_PROPERTIES( p_ ),
+			TILE_SOURCE( g_value_get_object( v ) ) );
 		break;
+
 	case PROP_REVEALED:
 		if( g_value_get_boolean( v ) )
 			gtk_widget_show( GTK_WIDGET( p_ ) );
 		else
 			gtk_widget_hide( GTK_WIDGET( p_ ) );
 		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( p_, prop_id, pspec );
 	}
@@ -510,12 +490,14 @@ properties_get_property( GObject *p_,
 
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
-		g_value_set_object( v, p->image_window );
+		g_value_set_object( v, p->tile_source );
 		break;
+
 	case PROP_REVEALED:
 		g_value_set_boolean( v,
 				gtk_widget_get_visible( GTK_WIDGET( p_ ) ) );
 		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( p_, prop_id, pspec );
 	}
@@ -582,6 +564,7 @@ properties_class_init( PropertiesClass *class )
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/properties.ui");
 
+	BIND( properties );
 	BIND( scrolled_window );
 	BIND( search_entry );
 	BIND( search_warning );
@@ -608,14 +591,8 @@ properties_class_init( PropertiesClass *class )
 
 }
 
-/* Create a new Properties widget.
- *
- * @image_window	The ImageWindow that will own Properties widget.
- *
- * (GObject boilerplate).
- */
 Properties *
-properties_new( ImageWindow *image_window )
+properties_new( TileSource *tile_source )
 {
 	Properties *p;
 
@@ -623,11 +600,8 @@ properties_new( ImageWindow *image_window )
 	printf( "properties_new:\n" );
 #endif
 
-	/* Create a new Properties object with its "image-window" property set to
-	 * @image_window.
-	 */
 	p = g_object_new( properties_get_type(),
-		"image-window", image_window,
+		"tile-source", tile_source,
 		NULL );
 
 	return( p );

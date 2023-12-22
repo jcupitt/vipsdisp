@@ -1847,9 +1847,10 @@ image_window_init( ImageWindow *win )
 	g_object_set( win->info_bar,
 		"image-window", win,
 		NULL );
-	g_object_set( win->properties,
-		"image-window", win,
-		NULL );
+	if (win->tile_source) 
+		g_object_set( win->properties,
+			"tile-source", win->tile_source,
+			NULL );
 
 	g_signal_connect_object( win->progress_cancel, "clicked",
 		G_CALLBACK( image_window_cancel_clicked ), win, 0 );

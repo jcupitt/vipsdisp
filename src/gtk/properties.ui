@@ -4,7 +4,7 @@
     <property name="hexpand">true</property>
     <property name="vexpand">true</property>
     <child>
-      <object class="GtkBox">
+      <object class="GtkBox" id="properties">
         <property name="margin-end">10px</property>
         <property name="orientation">vertical</property>
         <property name="hexpand">true</property>
