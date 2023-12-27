@@ -1639,7 +1639,8 @@ image_window_properties( GSimpleAction *action,
 
 		image_window_paned_animate( win,
 			g_variant_get_boolean( state ) );
-	} else
+	} 
+	else
 		g_object_set( win->properties, "revealed",
 			g_variant_get_boolean( state ), NULL );
 
@@ -1758,7 +1759,8 @@ image_window_paned_init( ImageWindow *win )
 		if( win->refresh_paned )
 			image_window_paned_animate( win, TRUE );
 
-	} else {
+	} 
+	else {
 		if( !win->is_paned_init ) {
 			win->paned_position = INITIAL_PANED_POSITION;
 			gtk_paned_set_position( GTK_PANED( win->paned ),
@@ -1837,9 +1839,6 @@ image_window_init( ImageWindow *win )
 		"image-window", win,
 		NULL );
 	g_object_set( win->info_bar,
-		"image-window", win,
-		NULL );
-	g_object_set( win->properties,
 		"image-window", win,
 		NULL );
 

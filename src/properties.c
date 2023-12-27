@@ -1,11 +1,14 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
-/* The Properties widget displays the properties of the VipsImage. This includes
- * geometric values such as width and height as well as any EXIF metadata.
+#define NUM_INEXACT_MATCHES (15)
+
+/* The Properties widget displays the properties of the VipsImage. This 
+ * includes geometric values such as width and height as well as any EXIF 
+ * metadata.
  */
 
 /* This structure defines the properties of a Properties object.
@@ -278,7 +281,6 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
  * @search_entry	GtkWidget * (GtkSearchEntry *)
  * @p_			gpointer (Properties *)
  */
-#define NUM_INEXACT_MATCHES 15
 static void
 properties_search_changed( GtkWidget *search_entry, gpointer p_ )
 {
