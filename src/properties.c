@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -49,6 +49,25 @@ enum {
 	SIG_LAST
 };
 
+#ifdef DEBUG
+static const char *
+properties_property_name( guint prop_id )
+{
+	switch( prop_id ) {
+	case PROP_TILE_SOURCE:
+		return( "TILE_SOURCE" );
+		break;
+
+	case PROP_REVEALED:
+		return( "REVEALED," );
+		break;
+
+	default:
+		return( "<unknown>" );
+	}
+}
+#endif /*DEBUG*/
+
 /* Clean up any existing children of @left_column and @right_column and any
  * existing elements of the GList @field_list.
  *
@@ -57,11 +76,11 @@ enum {
 static void
 properties_clear_main_box( Properties *p )
 {
-	VIPS_UNREF( p->left_column );
+	VIPS_FREEF( gtk_widget_unparent, p->left_column );
 	p->left_column = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_box_append( GTK_BOX( p->main_box ), p->left_column );
 
-	VIPS_UNREF( p->right_column );
+	VIPS_FREEF( gtk_widget_unparent, p->right_column );
 	p->right_column = gtk_box_new( GTK_ORIENTATION_VERTICAL, 0 );
 	gtk_box_append( GTK_BOX( p->main_box ), p->right_column );
 
@@ -97,6 +116,10 @@ properties_refresh_main_box( Properties *p )
 {
 	VipsImage *image;
 	char **fields;
+
+#ifdef DEBUG
+	printf( "properties_refresh_main_box:\n" );
+#endif
 
 	/* If there is no TileSource, clean up any existing main_box and do
 	 * nothing.
@@ -143,7 +166,7 @@ static void
 properties_tile_source_changed( TileSource *tile_source, Properties *p )
 {
 #ifdef DEBUG
-	puts( "properties_tile_source_changed" );
+	printf( "properties_tile_source_changed:\n" );
 #endif
 
 	properties_refresh_main_box( p );
@@ -153,7 +176,7 @@ static void
 properties_set_tile_source( Properties *p, TileSource *tile_source )
 {
 #ifdef DEBUG
-	puts( "properties_set_image_window" );
+	printf( "properties_set_tile_source:\n" );
 #endif
 
 	/* No need to ref ... the enclosing window holds a ref to us.
@@ -179,7 +202,7 @@ properties_apply( Properties *p )
 	const char *field;
 
 #ifdef DEBUG
-	puts("properties_apply");
+	printf("properties_apply:\n");
 #endif
 
 	/* If there is a TileSource, get its VipsImage @image and continue.
@@ -235,10 +258,9 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 	Properties *p;
 	Match *ma;
 	const gchar *field;
-	GtkWidget *t;
 
 #ifdef DEBUG
-	puts("properties_append_field")
+	printf("properties_append_field:\n");
 #endif
 
 	ma_list = (GList *) ma_list_;
@@ -246,42 +268,12 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 	ma = (Match *) ma_list->data;
 	field = ma->text;
 
-	p->field_list = g_list_append( p->field_list, (gpointer) field );
-
-	/* Create a label_box for the given list node.
-	 */
-	t = properties_util_create_label_box( p->tile_source->image, ma_list );
-
-	/* Add "even" or "odd" CSS class to label_box based on parity of the row
-	 * index.
-	 */
-	gtk_widget_add_css_class( t, p->field_list_length % 2 ? "odd" : "even" );
-
-	/* Append a label box to @left_column.
-	 */
-	gtk_box_append( GTK_BOX( p->left_column ), t );
-
-	/* Create an input_box for the given list node.
-	 */
-	t = properties_util_create_input_box( p->tile_source->image, field );
-
-	/* Add "even" or "odd" CSS class to input_box based on parity of the row
-	 * index.
-	 */
-	gtk_widget_add_css_class( t, p->field_list_length % 2 ? "odd" : "even" );
-
-	/* Append an input box to @right_column.
-	 */
-	gtk_box_append( GTK_BOX( p->right_column ), t );
-
-	/* Increment the field list length.
-	 */
-	p->field_list_length++;
+	properties_add_row(p, field);
 }
 
-/* This is the callback function called whenever the GtkSearchEntry is modified
- * by the user. Adds exact matches - or inexact matches, if there are no exact
- * matches - to the UI.
+/* This is the callback function called whenever the GtkSearchEntry is 
+ * modified by the user. Adds exact matches - or inexact matches, if there 
+ * are no exact matches - to the UI.
  *
  * @search_entry	GtkWidget * (GtkSearchEntry *)
  * @p_			gpointer (Properties *)
@@ -290,47 +282,19 @@ properties_append_field( gpointer ma_list_, gpointer p_ )
 static void
 properties_search_changed( GtkWidget *search_entry, gpointer p_ )
 {
-	Properties *p;
-	char **fields, *field;
+	Properties *p = VIPSDISP_PROPERTIES( p_ );
+
+	char **fields;
 	const char *patt;
 	GList *l, *t;
 	guint *v;
 
-	/* Cast @p_ to Properties *
-	 */
-	p = VIPSDISP_PROPERTIES( p_ );
+#ifdef DEBUG
+	printf( "properties_search_changed:\n" );
+#endif
 
-	/* Clean up any existing children of left_column and right_column.
-	 */
 	properties_clear_main_box( p );
-
-	/* Get the array of image property name character arrays. We are
-	 * responsible for freeing this with g_strfreev. The Match methods do
-	 * not modify/free the character arrays in @fields, so we only free them
-	 * once the relevant data has been copied into widgets with their
-	 * character array setter methods.
-	 */
 	fields = vips_image_get_fields( p->tile_source->image );
-
-	/* Make new GList @p->field_list using the fields from the VipsImage
-	 * @image.
-	 */
-	p->field_list = NULL;
-	for ( int i=0; (field = fields[i]); i++ )
-		p->field_list = g_list_append( p->field_list, field );
-
-	/* We don't free @patt, since the GtkSearchEntry owns it. This is
-	 * usually the case for GtkWidget getter methods that return character
-	 * pointers.
-	 *
-	 * On the other hand, GtkWidget setter methods that take character
-	 * pointers usually require the caller to free the original character
-	 * pointer argument, since setter method usually makes its own copy of
-	 * the data. 
-	 *
-	 * We never set GtkSearchEntry::text - it is set when the user edits the
-	 * search entry.
-	 */
 	patt = gtk_editable_get_text( GTK_EDITABLE( search_entry ) );
 
 	/* Reuse the same buffer for the fuzzy matching algorithm.
@@ -410,7 +374,7 @@ properties_dispose( GObject *p_ )
 	Properties *p = VIPSDISP_PROPERTIES( p_ );
 
 #ifdef DEBUG
-	puts( "properties_dispose" );
+	printf( "properties_dispose:\n" );
 #endif
 
 	VIPS_FREEF( gtk_widget_unparent, p->properties );
@@ -437,28 +401,37 @@ properties_dispose( GObject *p_ )
  * (GObject boilerplate)
  */
 static void
-properties_set_property( GObject *p_, guint prop_id, 
-	const GValue *v, GParamSpec *pspec )
+properties_set_property( GObject *object, guint prop_id, 
+	const GValue *value, GParamSpec *pspec )
 {
+	Properties *p = VIPSDISP_PROPERTIES( object );
+
 #ifdef DEBUG
-	puts( "properties_set_property" );
-#endif
+{
+	char *str;
+
+	str = g_strdup_value_contents( value );
+	printf( "properties_set_property: %s %s\n", 
+		properties_property_name( prop_id ), str ); 
+	g_free( str );
+}
+#endif /*DEBUG*/
 
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
-		properties_set_tile_source( VIPSDISP_PROPERTIES( p_ ),
-			TILE_SOURCE( g_value_get_object( v ) ) );
+		properties_set_tile_source( p, 
+			TILE_SOURCE( g_value_get_object( value ) ) );
 		break;
 
 	case PROP_REVEALED:
-		if( g_value_get_boolean( v ) )
-			gtk_widget_show( GTK_WIDGET( p_ ) );
+		if( g_value_get_boolean( value ) )
+			gtk_widget_show( GTK_WIDGET( p ) );
 		else
-			gtk_widget_hide( GTK_WIDGET( p_ ) );
+			gtk_widget_hide( GTK_WIDGET( p ) );
 		break;
 
 	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( p_, prop_id, pspec );
+		G_OBJECT_WARN_INVALID_PROPERTY_ID( p, prop_id, pspec );
 	}
 }
 
@@ -478,29 +451,34 @@ properties_set_property( GObject *p_, guint prop_id,
  */
 static void
 properties_get_property( GObject *p_,
-	guint prop_id, GValue *v, GParamSpec *pspec )
+	guint prop_id, GValue *value, GParamSpec *pspec )
 {
-	Properties *p;
-
-#ifdef DEBUG
-	puts("properties_get_property");
-#endif
-
-	p = VIPSDISP_PROPERTIES( p_ );
+	Properties *p = VIPSDISP_PROPERTIES( p_ );
 
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
-		g_value_set_object( v, p->tile_source );
+		g_value_set_object( value, p->tile_source );
 		break;
 
 	case PROP_REVEALED:
-		g_value_set_boolean( v,
+		g_value_set_boolean( value,
 				gtk_widget_get_visible( GTK_WIDGET( p_ ) ) );
 		break;
 
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( p_, prop_id, pspec );
 	}
+
+#ifdef DEBUG
+{
+	char *str;
+
+	str = g_strdup_value_contents( value );
+	printf( "properties_get_property: %s %s\n", 
+		properties_property_name( prop_id ), str ); 
+	g_free( str );
+}
+#endif /*DEBUG*/
 }
 
 /* Initialize a Properties object.
@@ -513,7 +491,7 @@ static void
 properties_init( Properties *p )
 {
 #ifdef DEBUG
-	puts("properties_init");
+	printf("properties_init:\n");
 #endif
 
 	/* Ignore case during properties field search.

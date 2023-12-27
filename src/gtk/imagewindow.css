@@ -1,6 +1,6 @@
 paned separator {
 	/*background-color: gray;*/
-	min-width: 30px;
+	min-width: 3px;
 }
 
 paned separator:hover {
