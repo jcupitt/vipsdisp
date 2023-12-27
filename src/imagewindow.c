@@ -1689,16 +1689,16 @@ static GActionEntry image_window_entries[] = {
 
 /* This function is responsible for
  *
- *   -	revealing the Properties menu after the image has been allowed to render
- * 	full-size, if Properties::revealed is TRUE.
+ *   -	revealing the Properties menu after the image has been allowed to 
+ *      render full-size, if Properties::revealed is TRUE.
  *
  *   -	setting the initial position of the GtkPaned separator after the first
  *   	image is opened.
  *
  *   -	resetting the GtkPaned separator to the right edge of the ImageWindow,
  *   	when a new image is opened, if Properties::revealed is FALSE and
- *   	animations are enabled, so that the Properties widget can slide in from
- *   	the right when revealed.
+ *   	animations are enabled, so that the Properties widget can slide in 
+ *   	from the right when revealed.
  *
  * This function is called using g_timeout_add when a new image is opened.
  * ( See image_window_open )
@@ -1710,47 +1710,39 @@ static GActionEntry image_window_entries[] = {
  * initial value FALSE.
  *
  * This function is called for the first time when the first image is opened.
- * The first time this function is called, ImageWindow::is_paned_init will have
- * its initial value FALSE. In that case, this function is responsible for
- * initializing the ImageWindow::paned_position to the hardcoded value
+ * The first time this function is called, ImageWindow::is_paned_init will 
+ * have its initial value FALSE. In that case, this function is responsible 
+ * for initializing the ImageWindow::paned_position to the hardcoded value
  * INITIAL_PANED_POSITION, and setting is_paned_init to TRUE.
  *
  * If animations are enabled, this function resets the separator position
  * to the far right when the Properties menu is hidden, so that it can slide
  * in when revealed.
  *
- * When animations are disabled, we just let GtkPaned automatically remember the
- * position of its separator when its child ( the Properties widget ) is made
- * visible again.
+ * When animations are disabled, we just let GtkPaned automatically remember 
+ * the position of its separator when its child ( the Properties widget ) 
+ * is made visible again.
  *
  * However, since we animate Properties widget enter/leave by changing the
- * separator position, we are responsible for remembering it when animations are
- * enabled, so that we know where the animation ends.
+ * separator position, we are responsible for remembering it when 
+ * animations are enabled, so that we know where the animation ends.
  *
  * If animations are enabled, when the user drags the separator, the new 
  * position is saved in ImageWindow::paned_position by the "notify::position"
  * signal handler, image_window_paned_changed.
  *
  * If animations are enabled, this function ( image_window_paned_init ) uses
- * the saved value in paned_position to reset the separator position when a new
- * image is opened.
- *
- * @win_	gpointer (ImageWindow *) A generic pointer to the ImageWindow.
- * 		Must be passed as the user_data argument in g_timeout_add.
- *
- * This is a GSourceFunc that should only be called by g_timeout_add.
+ * the saved value in paned_position to reset the separator position when 
+ * a new image is opened.
  */
 static void
-image_window_paned_init( gpointer win_ )
+image_window_paned_init( ImageWindow *win )
 {
-	ImageWindow *win;
 	gint max_width;
 
 #ifdef DEBUG
 	puts( "image_window_paned_init" );
 #endif /* DEBUG */
-
-	win = VIPSDISP_IMAGE_WINDOW( win_ );
 
 	if( image_window_paned_should_animate( win->paned ) ) {
 		max_width = gtk_widget_get_width( GTK_WIDGET( win ) );
@@ -2012,6 +2004,11 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
 	win->tile_source = tile_source;
 	g_object_ref( tile_source );
+
+	g_object_set( win->properties,
+		"tile-source", win->tile_source,
+		NULL );
+
 	win->tile_cache = tile_cache_new( win->tile_source );
 
 	g_object_set( win->imagedisplay,
@@ -2125,7 +2122,9 @@ image_window_open( ImageWindow *win, GFile *file )
 	/* Give UI a chance to load before setting the paned separator position.
 	 */
 	image_window_set_tile_source( win, tile_source );
-	g_timeout_add( 500, (GSourceFunc) image_window_paned_init, win );
+	//// FIXME ... return false to stop repeated calls
+	//g_timeout_add( 500, (GSourceFunc) image_window_paned_init, win );
+	image_window_paned_init( win );
 
 	g_object_unref( tile_source );
 	g_free( path );

@@ -13,6 +13,6 @@ G_DECLARE_FINAL_TYPE( Properties, properties, VIPSDISP, PROPERTIES, GtkWidget );
 
 void properties_apply( Properties *p );
 
-Properties * properties_new( ImageWindow *image_window );
+Properties * properties_new( TileSource *tile_source );
 
 #endif /* __PROPERTIES_H */
