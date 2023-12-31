@@ -22,6 +22,10 @@ struct _Properties
 	// null, or the string we are matching against
 	char *pattern;
 
+	// in edit mode, a hash from field name -> edit widget
+	gboolean edit;
+	GHashTable *value_widgets;
+
 	int row_number;
 };
 
@@ -53,6 +57,33 @@ properties_property_name( guint prop_id )
 }
 #endif /*DEBUG*/
 
+/* Set a tooltip on a widget, if we can.
+ */
+static void
+properties_set_tooltip( Properties *p, GtkWidget *widget, const char *field )
+{
+	VipsImage *image = tile_source_get_image( p->tile_source );
+
+	if( !image ) 
+		return;
+
+    GObjectClass *class = G_OBJECT_GET_CLASS( image );
+	GParamSpec *pspec = g_object_class_find_property( class, field );
+	GType gtype = vips_image_get_typeof( image, field );
+
+	if( pspec )
+		gtk_widget_set_tooltip_text( widget,
+			g_param_spec_get_blurb( pspec ) );
+	else if( gtype ) {
+		char *tooltip;
+
+		tooltip = g_strdup_printf( "Property \"%s\" of type %s",
+			field, g_type_name( gtype ) );
+		gtk_widget_set_tooltip_text( widget, tooltip );
+		g_free( tooltip );
+	}
+}
+
 /* Clean up any existing children of @left_column and @right_column and any
  * existing elements of the GList @field_list.
  *
@@ -61,12 +92,16 @@ properties_property_name( guint prop_id )
 static void
 properties_clear( Properties *p )
 {
+	VIPS_FREEF( g_hash_table_destroy, p->value_widgets );
+	p->value_widgets = g_hash_table_new( g_str_hash, g_str_equal );
+
 	p->grid = gtk_grid_new();
 	gtk_grid_set_row_spacing( GTK_GRID( p->grid ), 3 );
 	gtk_grid_set_column_spacing( GTK_GRID( p->grid ), 10 );
 	// will unparent and destroy any old child
 	gtk_scrolled_window_set_child( GTK_SCROLLED_WINDOW( p->scrolled_window ), 
 			p->grid );
+
 	p->row_number = 0;
 }
 
@@ -83,29 +118,83 @@ properties_add_row( Properties *p,
 	gtk_widget_add_css_class( t, "properties-label" );
 	gtk_widget_add_css_class( t, p->row_number % 2 ? "odd" : "even" );
 	gtk_grid_attach( GTK_GRID( p->grid ), t, 0, p->row_number, 1, 1 );
+	properties_set_tooltip( p, t, label );
 
 	if( item ) {
 		gtk_widget_add_css_class( t, "properties-value" );
 		gtk_widget_add_css_class( item, p->row_number % 2 ? "odd" : "even" );
 		gtk_grid_attach( GTK_GRID( p->grid ), item, 1, p->row_number, 1, 1 );
+		properties_set_tooltip( p, item, label );
 	}
 
 	p->row_number++;
 }
 
+static gboolean
+value_convert( GValue *value, GValue *converted, GType cast_to )
+{
+	g_value_init( converted, cast_to );
+
+	return( g_value_transform( value, converted ) );
+}
+
+static GtkWidget *
+properties_edit_new( Properties *p, const char *field, GValue *value )
+{
+	GtkWidget *item;
+	GValue converted = { 0 };
+
+	item = NULL;
+	if( value_convert( value, &converted, G_TYPE_STRING ) ) {
+		GtkEntryBuffer* buffer = 
+			gtk_entry_buffer_new( g_value_get_string( &converted ), -1 );
+
+		item = gtk_text_new();
+		gtk_text_set_buffer( GTK_TEXT( item ), buffer );
+
+		g_value_unset( &converted );
+	}
+	else if( value_convert( value, &converted, G_TYPE_INT ) ) {
+		item = gtk_spin_button_new( NULL, 1, 0 );
+		gtk_spin_button_set_value( GTK_SPIN_BUTTON( item ), 
+				g_value_get_int( &converted ) );
+
+		g_value_unset( &converted );
+	}
+
+	return( item );
+}
+
 static void 
 properties_add_item( Properties *p, const char *field, GValue *value )
 {
-	char str[256];
-    VipsBuf buf = VIPS_BUF_STATIC( str );
+	GType type = g_value_get_gtype( value );
 
-	vips_buf_appendgv(&buf, value);
-	GtkWidget *label = gtk_label_new( vips_buf_all( &buf ) );
-	// can't set alignment in CSS for some reason
-	gtk_widget_set_halign( label, GTK_ALIGN_START );
-	gtk_label_set_selectable( GTK_LABEL( label ), TRUE );
-	gtk_label_set_ellipsize( GTK_LABEL( label ), PANGO_ELLIPSIZE_END );
-	properties_add_row( p, field, label );
+	GtkWidget *item;
+
+	if( g_type_is_a( type, VIPS_TYPE_IMAGE ) ||
+		g_type_is_a( type, VIPS_TYPE_OBJECT ) )
+		return;
+
+	if( p->edit ) {
+		item = properties_edit_new( p, field, value );
+		gtk_widget_set_hexpand( item, TRUE );
+		block_scroll( item );
+		g_hash_table_insert( p->value_widgets, (gpointer) field, item );
+	}
+	else {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC( str );
+
+		vips_buf_appendgv( &buf, value );
+		item = gtk_label_new( vips_buf_all( &buf ) );
+		// can't set alignment in CSS for some reason
+		gtk_widget_set_halign( item, GTK_ALIGN_START );
+		gtk_label_set_selectable( GTK_LABEL( item ), TRUE );
+		gtk_label_set_ellipsize( GTK_LABEL( item ), PANGO_ELLIPSIZE_END );
+	}
+
+	properties_add_row( p, field, item );
 }
 
 static void *
@@ -245,6 +334,7 @@ properties_dispose( GObject *p_ )
 	printf( "properties_dispose:\n" );
 #endif
 
+	VIPS_FREEF( g_hash_table_destroy, p->value_widgets );
 	VIPS_FREEF( gtk_widget_unparent, p->properties );
 	VIPS_FREE( p->pattern );
 
