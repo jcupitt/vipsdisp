@@ -28,6 +28,7 @@
  */
 #define MAX_TILES (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
 
+
 /* We use various gtk4 features (GtkInfoBar, GtkDialog) which are going away
  * in gtk5.
  */
@@ -46,5 +47,6 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 #include "displaybar.h"
 #include "saveoptions.h"
 #include "properties.h"
+#include "fuzzy.h"
 
 #endif /* __VIPSDISP_H */

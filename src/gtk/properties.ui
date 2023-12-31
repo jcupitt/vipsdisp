@@ -3,17 +3,17 @@
   <template class="Properties" parent="GtkWidget">
     <property name="hexpand">true</property>
     <property name="vexpand">true</property>
+    <property name="margin-start">10px</property>
+    <property name="margin-end">10px</property>
+
     <child>
       <object class="GtkBox" id="properties">
-        <property name="margin-end">10px</property>
         <property name="orientation">vertical</property>
         <property name="hexpand">true</property>
         <property name="vexpand">true</property>
 
         <child>
           <object class="GtkSearchEntry" id="search_entry">
-            <property name="margin-start">10px</property>
-            <property name="margin-end">10px</property>
             <property name="margin-top">10px</property>
             <property name="margin-bottom">10px</property>
             <property name="hexpand">true</property>
@@ -22,40 +22,9 @@
         </child>
 
         <child>
-          <object class="GtkBox" id="search_warning">
-            <property name="visible">false</property>
-            <property name="margin-top">8</property>
-            <property name="margin-bottom">16</property>
-            <child>
-              <object class="GtkLabel">
-                <property name="label">Did you mean...</property>
-              </object>
-            </child>
-          </object>
-        </child>
-
-        <child>
           <object class="GtkScrolledWindow" id="scrolled_window">
             <property name="hexpand">true</property>
             <property name="vexpand">true</property>
-
-            <child>
-              <object class="GtkBox" id="main_box">
-                <property name="orientation">horizontal</property>
-                <child>
-                  <object class="GtkBox" id="left_column">
-                    <property name="orientation">vertical</property>
-                  </object>
-                </child>
-
-                <child>
-                  <object class="GtkBox" id="right_column">
-                    <property name="orientation">vertical</property>
-                  </object>
-                </child>
-
-              </object>
-            </child>
 
           </object>
         </child>
