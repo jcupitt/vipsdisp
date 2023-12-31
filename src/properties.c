@@ -21,7 +21,6 @@ struct _Properties
 
 	// null, or the string we are matching against
 	char *pattern;
-	gboolean ignore_case;
 
 	int row_number;
 };
@@ -339,10 +338,6 @@ properties_init( Properties *p )
 #ifdef DEBUG
 	printf("properties_init:\n");
 #endif
-
-	/* Ignore case during properties field search.
-	 */
-	p->ignore_case = TRUE;
 
 	gtk_widget_init_template( GTK_WIDGET( p ) );
 
