@@ -16,5 +16,7 @@ void image_window_get_mouse_position( ImageWindow *win,
 GtkWidget *image_window_get_main_box( ImageWindow *win );
 GSettings *image_window_get_settings( ImageWindow *win );
 
+double ease_out_cubic( double t );
+
 #endif /* __IMAGE_WINDOW_H */
 

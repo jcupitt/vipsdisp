@@ -137,7 +137,6 @@ image_window_set_position( ImageWindow *win, double x, double y )
 
 	gtk_adjustment_set_value( hadj, x );
 	gtk_adjustment_set_value( vadj, y );
-
 }
 
 static void
@@ -754,20 +753,6 @@ image_window_saveas_action( GSimpleAction *action,
 		GtkWidget *file_chooser;
 		GFile *file;
 
-#ifdef EXPERIMENTAL_PROPERTIES_EDIT
-		TileSource *tile_source;
-		VipsImage *image = NULL;
-		VipsImage *image_copy = NULL;
-
-		tile_source = image_window_get_tile_source( win );
-		image = tile_source_get_image( tile_source );
-		vips_copy( image, &image_copy, NULL );
-		tile_source_set_image( tile_source, image_copy );
-		VIPS_UNREF( image );
-
-		properties_apply( VIPSDISP_PROPERTIES( win->properties ) );
-#endif /* EXPERIMENTAL_PROPERTIES_EDIT */
-
 		file_chooser = gtk_file_chooser_dialog_new( "Save file",
 			GTK_WINDOW( win ) , 
 			GTK_FILE_CHOOSER_ACTION_SAVE,
@@ -804,7 +789,7 @@ image_window_close_action( GSimpleAction *action,
 /* From clutter-easing.c, based on Robert Penner's
  * infamous easing equations, MIT license.
  */
-static double
+double
 ease_out_cubic( double t )
 {
   double p = t - 1;
@@ -1471,7 +1456,7 @@ image_window_properties( GSimpleAction *action,
 	puts("image_window_properties");
 #endif /* DEBUG */
 
-	g_object_set( win->properties,
+	g_object_set( win->paned,
 		"revealed", g_variant_get_boolean( state ),
 		NULL );
 
@@ -1600,7 +1585,7 @@ image_window_init( ImageWindow *win )
 		G_SETTINGS_BIND_DEFAULT );
 
 	g_settings_bind( win->settings, "properties",
-		G_OBJECT( win->properties ),
+		G_OBJECT( win->paned ),
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
@@ -1775,7 +1760,6 @@ image_window_open( ImageWindow *win, GFile *file )
 {
 	char *path;
 	TileSource *tile_source;
-	gboolean revealed;
 
 #ifdef DEBUG
 	puts( "image_window_open" );
@@ -1793,8 +1777,6 @@ image_window_open( ImageWindow *win, GFile *file )
 	 */
 	change_state( GTK_WIDGET( win ), "properties", 
 		g_settings_get_value( win->settings, "properties" ) );
-
-	g_object_get( win->properties, "revealed", &revealed, NULL );
 
 	image_window_set_tile_source( win, tile_source );
 

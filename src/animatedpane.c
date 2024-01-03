@@ -8,6 +8,13 @@
  */
 #define PANED_DURATION (0.5)
 
+/* The initial position of the GtkPaned separator. When revealed, the 
+ * child needs to be visible even on the smallest displays. We don't want
+ * users to just see the separator on the far right of the window, since it 
+ * might not be obvious what it is.
+ */
+#define INITIAL_PANED_POSITION (200)
+
 struct _Animatedpane
 {
 	GtkWidget parent_instance;
@@ -18,36 +25,18 @@ struct _Animatedpane
 
 	/* Saved position of the GtkPaned separator.
 	 */
-	guint paned_position;
+	int position;
 
-	/* Time in seconds since the GtkPaned enter/leave animation started.
+	/* Animation state.
 	 */
-	double paned_progress;
+	double elapsed;
+	double last_frame_time;
+	gboolean is_animating;
 
-	/* During GtkPaned enter/leave animation, this is the time in seconds
-	 * since the last animation frame. When GtkPaned is not animating, this
-	 * is set to the sentinel value -1.
+	/* The positions we animate between.
 	 */
-	double paned_last_frame_time;
-
-	/* This flag is set to TRUE before the GtkPaned separator is moved
-	 * programatically for animation purposes, and is set to its initial
-	 * value FALSE afterwards. It prevents image_window_properties and
-	 * image_window_paned_changed from firing.
-	 */
-	gboolean is_paned_animating;
-
-	/* TRUE if image_window_paned_init has been called at least once,
-	 * i.e., if the first image has been opened.
-	 */
-	gboolean is_paned_init;
-
-	/* The Properties widget is hidden before a new image is opened, to
-	 * ensure that it renders full-size. This flag is set to remind
-	 * image_window_paned_init to show the Properties widget again.
-	 */
-	gboolean refresh_paned;
-
+	int start;
+	int stop;
 };
 
 enum {
@@ -99,6 +88,114 @@ static const char *prop_names[] = {
 	"revealed"
 };
 
+// try to respect the animations on/off flag
+static gboolean
+animatedpaned_enable_animations( Animatedpane *animatedpane )
+{
+    gboolean enable_animations;
+
+    g_object_get( gtk_widget_get_settings( GTK_WIDGET( animatedpane ) ), 
+		"gtk-enable-animations", &enable_animations, 
+		NULL );
+
+    return( enable_animations );
+}
+
+static void
+animatedpaned_set_child_visibility( Animatedpane *animatedpane, 
+	gboolean revealed )
+{
+	GtkWidget *child = 
+		gtk_paned_get_end_child( GTK_PANED( animatedpane->paned ) );
+
+	if( revealed ) 
+		gtk_widget_show( child );
+	else
+		gtk_widget_hide( child );
+}
+
+static gboolean
+animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
+    gpointer client_data )
+{
+	Animatedpane *animatedpane = ANIMATEDPANE( widget );
+    gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
+	gboolean revealed = GPOINTER_TO_INT( client_data );
+
+	double t;
+
+    gint64 dt = animatedpane->last_frame_time > 0 ?
+        frame_time - animatedpane->last_frame_time :
+        0;
+
+    animatedpane->elapsed += (double) dt / G_TIME_SPAN_SECOND;
+	animatedpane->last_frame_time = frame_time;
+
+    t = ease_out_cubic( animatedpane->elapsed / PANED_DURATION );
+
+#ifdef DEBUG
+    printf( "animatedpane_animate_tick: elapsed = %g\n", 
+			animatedpane->elapsed );
+#endif /* DEBUG */
+
+
+	if( t >= 0.99 ) {
+		// all done
+		gtk_paned_set_position( GTK_PANED( animatedpane->paned ),
+			animatedpane->stop );
+		animatedpaned_set_child_visibility( animatedpane, revealed );
+		animatedpane->revealed = revealed;
+		animatedpane->is_animating = FALSE;
+
+		return( G_SOURCE_REMOVE );
+	}
+	else {
+		gint position = animatedpane->start + 
+			t * (animatedpane->stop - animatedpane->start);
+
+        gtk_paned_set_position( GTK_PANED( animatedpane->paned ), position );
+
+        return( G_SOURCE_CONTINUE );
+    }
+}
+
+static void
+animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
+{
+	if( animatedpane->revealed != revealed ) {
+		if( animatedpaned_enable_animations( animatedpane ) ) {
+			animatedpane->last_frame_time = -1;
+			animatedpane->elapsed = 0.0;
+			animatedpane->is_animating = TRUE;
+
+			if( revealed ) {
+				animatedpane->start = 
+						gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
+				animatedpane->stop = animatedpane->position;
+			}
+			else {
+				animatedpane->start = animatedpane->position;
+				animatedpane->stop = 
+						gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
+			}
+
+			gtk_paned_set_position( GTK_PANED( animatedpane->paned ),
+					animatedpane->start );
+
+			if( revealed )
+				animatedpaned_set_child_visibility( animatedpane, TRUE );
+
+			gtk_widget_add_tick_callback( GTK_WIDGET( animatedpane ),
+				animatedpane_animate_tick, GINT_TO_POINTER( revealed ),
+				NULL );
+			}
+		else {
+			animatedpaned_set_child_visibility( animatedpane, revealed );
+			animatedpane->revealed = revealed;
+		}
+	}
+}
+
 static void
 animatedpane_dispose( GObject *object )
 {
@@ -141,13 +238,12 @@ animatedpane_set_property( GObject *object,
 }
 #endif /*DEBUG*/
 
-	if( prop_id == PROP_REVEALED ) {
-		// start to animate open or closed using
-		// g_value_get_boolean( value )
-	}
+	if( prop_id == PROP_REVEALED ) 
+		animatedpaned_set_revealed( animatedpane, 
+			g_value_get_boolean( value ) );
 	else if( prop_id < PROP_REVEALED ) 
 		g_object_set_property( G_OBJECT( animatedpane->paned ), 
-				prop_names[prop_id], value );
+			prop_names[prop_id], value );
 	else
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
 }
@@ -185,19 +281,14 @@ animatedpane_position_notify( GtkWidget *paned,
 	GtkWidget *parent = gtk_widget_get_parent( paned );
 	Animatedpane *animatedpane = ANIMATEDPANE( parent );
 
-#ifdef DEBUG
-	printf( "animatedpane_position_notify:\n" );
-#endif /* DEBUG */
-
 	if( animatedpane->revealed &&
-		!animatedpane->is_paned_animating ) {
+		!animatedpane->is_animating ) {
 		// FIXME ... could get from pspec?
-		animatedpane->paned_position = 
-			gtk_paned_get_position( GTK_PANED( paned ) );
+		animatedpane->position = gtk_paned_get_position( GTK_PANED( paned ) );
 
 #ifdef DEBUG
-		printf( "animatedpane_position_notify: new position %d\n",
-			 animatedpane->paned_position );
+		printf( "animatedpane_position_notify: new position %d\n", 
+				animatedpane->position );
 #endif /* DEBUG */
 	}
 }
@@ -209,8 +300,10 @@ animatedpane_init( Animatedpane *animatedpane )
 	printf( "animatedpane_init:\n" ); 
 #endif /*DEBUG*/
 
+	animatedpane->position = INITIAL_PANED_POSITION;
+
 	// it'd be nice to create it in animatedpane.ui, but we need this
-	// pointer to be valid sooner than that
+	// pointer during builder 
 	animatedpane->paned = gtk_paned_new( GTK_ORIENTATION_HORIZONTAL );
 	gtk_widget_set_parent( animatedpane->paned, GTK_WIDGET( animatedpane ) );
 
@@ -221,8 +314,17 @@ animatedpane_init( Animatedpane *animatedpane )
 }
 
 // copy-paste from gtkpaned to get the GTK property flags
-#define GTK_PARAM_READABLE G_PARAM_READABLE|G_PARAM_STATIC_NAME|G_PARAM_STATIC_NICK|G_PARAM_STATIC_BLURB
-#define GTK_PARAM_READWRITE G_PARAM_READWRITE|G_PARAM_STATIC_NAME|G_PARAM_STATIC_NICK|G_PARAM_STATIC_BLURB
+#define GTK_PARAM_READABLE \
+	(G_PARAM_READABLE | \
+	 G_PARAM_STATIC_NAME | \
+	 G_PARAM_STATIC_NICK | \
+	 G_PARAM_STATIC_BLURB)
+
+#define GTK_PARAM_READWRITE \
+	(G_PARAM_READWRITE | \
+	 G_PARAM_STATIC_NAME | \
+	 G_PARAM_STATIC_NICK | \
+	 G_PARAM_STATIC_BLURB)
 
 static void
 animatedpane_class_init( AnimatedpaneClass *class )
@@ -234,7 +336,6 @@ animatedpane_class_init( AnimatedpaneClass *class )
 	printf( "animatedpane_class_init:\n" ); 
 #endif /*DEBUG*/
 
-	// FIXME ... do we really need this?
 	gtk_widget_class_set_layout_manager_type( widget_class,
         GTK_TYPE_BIN_LAYOUT );
     gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),

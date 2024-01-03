@@ -29,7 +29,6 @@ G_DEFINE_TYPE( Properties, properties, GTK_TYPE_WIDGET );
 
 enum {
 	PROP_TILE_SOURCE = 1,
-	PROP_REVEALED,
 
 	SIG_LAST
 };
@@ -41,10 +40,6 @@ properties_property_name( guint prop_id )
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
 		return( "TILE_SOURCE" );
-		break;
-
-	case PROP_REVEALED:
-		return( "REVEALED" );
 		break;
 
 	default:
@@ -274,13 +269,6 @@ properties_set_property( GObject *object, guint prop_id,
 			TILE_SOURCE( g_value_get_object( value ) ) );
 		break;
 
-	case PROP_REVEALED:
-		if( g_value_get_boolean( value ) )
-			gtk_widget_show( GTK_WIDGET( p ) );
-		else
-			gtk_widget_hide( GTK_WIDGET( p ) );
-		break;
-
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( p, prop_id, pspec );
 	}
@@ -309,11 +297,6 @@ properties_get_property( GObject *p_,
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
 		g_value_set_object( value, p->tile_source );
-		break;
-
-	case PROP_REVEALED:
-		g_value_set_boolean( value,
-				gtk_widget_get_visible( GTK_WIDGET( p_ ) ) );
 		break;
 
 	default:
@@ -387,12 +370,4 @@ properties_class_init( PropertiesClass *class )
 			_( "The tile source whose properties we display" ),
 			TILE_SOURCE_TYPE,
 			G_PARAM_READWRITE ) );
-
-	g_object_class_install_property( gobject_class, PROP_REVEALED,
-		g_param_spec_boolean( "revealed",
-			_( "Revealed" ),
-			_( "Show properties." ),
-			FALSE,
-			G_PARAM_READWRITE ) );
-
 }
