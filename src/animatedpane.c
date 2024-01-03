@@ -1,6 +1,6 @@
 /*
-*/
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -105,6 +105,10 @@ static void
 animatedpaned_set_child_visibility( Animatedpane *animatedpane, 
 	gboolean revealed )
 {
+#ifdef DEBUG
+    printf( "animatedpaned_set_child_visibility: %d\n", revealed );
+#endif /* DEBUG */
+
 	GtkWidget *child = 
 		gtk_paned_get_end_child( GTK_PANED( animatedpane->paned ) );
 
@@ -112,6 +116,12 @@ animatedpaned_set_child_visibility( Animatedpane *animatedpane,
 		gtk_widget_show( child );
 	else
 		gtk_widget_hide( child );
+}
+
+static void
+animatedpaned_set_child_position( Animatedpane *animatedpane, int position )
+{
+	gtk_paned_set_position( GTK_PANED( animatedpane->paned ), position );
 }
 
 static gboolean
@@ -138,11 +148,9 @@ animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
 			animatedpane->elapsed );
 #endif /* DEBUG */
 
-
 	if( t >= 0.99 ) {
 		// all done
-		gtk_paned_set_position( GTK_PANED( animatedpane->paned ),
-			animatedpane->stop );
+		animatedpaned_set_child_position( animatedpane, animatedpane->stop );
 		animatedpaned_set_child_visibility( animatedpane, revealed );
 		animatedpane->revealed = revealed;
 		animatedpane->is_animating = FALSE;
@@ -153,7 +161,7 @@ animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
 		gint position = animatedpane->start + 
 			t * (animatedpane->stop - animatedpane->start);
 
-        gtk_paned_set_position( GTK_PANED( animatedpane->paned ), position );
+        animatedpaned_set_child_position( animatedpane, position );
 
         return( G_SOURCE_CONTINUE );
     }
@@ -162,6 +170,10 @@ animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
 static void
 animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 {
+#ifdef DEBUG
+    printf( "animatedpaned_set_revealed: %d\n", revealed );
+#endif /* DEBUG */
+
 	if( animatedpane->revealed != revealed ) {
 		if( animatedpaned_enable_animations( animatedpane ) ) {
 			animatedpane->last_frame_time = -1;
@@ -179,8 +191,8 @@ animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 						gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
 			}
 
-			gtk_paned_set_position( GTK_PANED( animatedpane->paned ),
-					animatedpane->start );
+			animatedpaned_set_child_position( animatedpane,
+				animatedpane->start );
 
 			if( revealed )
 				animatedpaned_set_child_visibility( animatedpane, TRUE );
@@ -238,6 +250,9 @@ animatedpane_set_property( GObject *object,
 }
 #endif /*DEBUG*/
 
+	// no need to implement set_position, the notify callback from the paned
+	// will do it
+
 	if( prop_id == PROP_REVEALED ) 
 		animatedpaned_set_revealed( animatedpane, 
 			g_value_get_boolean( value ) );
@@ -246,6 +261,11 @@ animatedpane_set_property( GObject *object,
 			prop_names[prop_id], value );
 	else
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+
+	// if we just added the child, set the initial visibility
+	if( prop_id == PROP_END_CHILD ) 
+		animatedpaned_set_child_visibility( animatedpane, 
+			animatedpane->revealed );
 }
 
 static void
@@ -256,6 +276,8 @@ animatedpane_get_property( GObject *object,
 
 	if( prop_id == PROP_REVEALED ) 
 		g_value_set_boolean( value, animatedpane->revealed ); 
+	else if( prop_id == PROP_POSITION ) 
+		g_value_set_int( value, animatedpane->position ); 
 	else if( prop_id < PROP_REVEALED ) 
 		g_object_get_property( G_OBJECT( animatedpane->paned ), 
 				prop_names[prop_id], value );
@@ -302,8 +324,8 @@ animatedpane_init( Animatedpane *animatedpane )
 
 	animatedpane->position = INITIAL_PANED_POSITION;
 
-	// it'd be nice to create it in animatedpane.ui, but we need this
-	// pointer during builder 
+	// it'd be nice to create our gtkpaned in animatedpane.ui, but we need 
+	// this pointer during builder 
 	animatedpane->paned = gtk_paned_new( GTK_ORIENTATION_HORIZONTAL );
 	gtk_widget_set_parent( animatedpane->paned, GTK_WIDGET( animatedpane ) );
 
