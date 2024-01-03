@@ -1,5 +1,7 @@
 ## master
 
+- properties display [angstyloop]
+
 # 2.6.2, 28/10/23
 
 - better saveoptions sizing
