@@ -2,6 +2,7 @@
 
 <gresources>
   <gresource prefix="/org/libvips/vipsdisp">
+    <file preprocess="xml-stripblanks">animatedpane.ui</file>
     <file preprocess="xml-stripblanks">imagewindow.ui</file>
     <file>imagewindow.css</file>
     <file preprocess="xml-stripblanks">infobar.ui</file>

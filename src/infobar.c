@@ -363,7 +363,6 @@ infobar_init( Infobar *infobar )
 #endif /*DEBUG*/
 
 	gtk_widget_init_template( GTK_WIDGET( infobar ) );
-
 }
 
 #define BIND( field ) \
@@ -409,7 +408,6 @@ infobar_class_init( InfobarClass *class )
 			_( "Show the display control bar" ),
 			FALSE,
 			G_PARAM_READWRITE ) );
-
 }
 
 Infobar *

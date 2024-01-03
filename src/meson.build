@@ -13,6 +13,7 @@ resources = gnome.compile_resources(
 executable('vipsdisp', [
     marshal,
     resources,
+    'animatedpane.c',
     'displaybar.c',
     'gtkutil.c',
     'imagedisplay.c',

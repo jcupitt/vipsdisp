@@ -135,6 +135,7 @@ vipsdisp_app_startup( GApplication *app )
 	TSLIDER_TYPE;
 	INFOBAR_TYPE;
 	PROPERTIES_TYPE;
+	ANIMATEDPANE_TYPE;
 
 	g_action_map_add_action_entries( G_ACTION_MAP( app ),
 		app_entries, G_N_ELEMENTS( app_entries ),
