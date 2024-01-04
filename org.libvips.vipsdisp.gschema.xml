@@ -27,7 +27,15 @@
       <default>false</default>
       <summary>Show Properties menu</summary>
       <description>
-        If set, show the Properties menu.
+        If set, show the Properties pane.
+      </description>
+    </key>
+
+    <key type="i" name="properties-position">
+      <default>500</default>
+      <summary>Properties pane divider position</summary>
+      <description>
+        Position of the properties pane divider.
       </description>
     </key>
 

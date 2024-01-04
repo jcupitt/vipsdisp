@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -8,21 +8,16 @@
  */
 #define PANED_DURATION (0.5)
 
-/* The initial position of the GtkPaned separator. When revealed, the 
- * child needs to be visible even on the smallest displays. We don't want
- * users to just see the separator on the far right of the window, since it 
- * might not be obvious what it is.
- */
-#define INITIAL_PANED_POSITION (200)
-
 struct _Animatedpane
 {
 	GtkWidget parent_instance;
 
 	GtkWidget *paned;
 
-	// the state we expose via properties
+	// right hand pane is visible
 	gboolean revealed;
+
+	// distance of the divider from the RIGHT edge of the window
 	int position;
 
 	// animation state.
@@ -113,12 +108,18 @@ animatedpaned_set_child_visibility( Animatedpane *animatedpane,
 		gtk_widget_show( child );
 	else
 		gtk_widget_hide( child );
+
 }
 
 static void
 animatedpaned_set_child_position( Animatedpane *animatedpane, int position )
 {
-	gtk_paned_set_position( GTK_PANED( animatedpane->paned ), position );
+	// our position is distance from the right edge -- we must swap this
+	int widget_width = gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
+	int paned_position = widget_width - position;
+	
+	gtk_paned_set_position( GTK_PANED( animatedpane->paned ), 
+		paned_position );
 }
 
 /* From clutter-easing.c, based on Robert Penner's infamous easing equations,
@@ -144,9 +145,9 @@ animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
     gint64 dt = animatedpane->last_frame_time > 0 ?
         frame_time - animatedpane->last_frame_time :
         0;
+	animatedpane->last_frame_time = frame_time;
 
     animatedpane->elapsed += (double) dt / G_TIME_SPAN_SECOND;
-	animatedpane->last_frame_time = frame_time;
 
     t = ease_out_cubic( animatedpane->elapsed / PANED_DURATION );
 
@@ -189,16 +190,10 @@ animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 			animatedpane->elapsed = 0.0;
 			animatedpane->is_animating = TRUE;
 
-			if( revealed ) {
-				animatedpane->start = 
-						gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
-				animatedpane->stop = animatedpane->position;
-			}
-			else {
-				animatedpane->start = animatedpane->position;
-				animatedpane->stop = 
-						gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
-			}
+			animatedpane->start = animatedpane->position;
+			animatedpane->stop = 0;
+			if( revealed )
+				VIPS_SWAP( int, animatedpane->start, animatedpane->stop );
 
 			animatedpaned_set_child_position( animatedpane,
 				animatedpane->start );
@@ -208,10 +203,9 @@ animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 
 			gtk_widget_add_tick_callback( GTK_WIDGET( animatedpane ),
 				animatedpane_animate_tick, NULL, NULL );
-			}
-		else {
-			animatedpaned_set_child_visibility( animatedpane, revealed );
 		}
+		else 
+			animatedpaned_set_child_visibility( animatedpane, revealed );
 	}
 }
 
@@ -257,12 +251,14 @@ animatedpane_set_property( GObject *object,
 }
 #endif /*DEBUG*/
 
-	// no need to implement set_position, the notify callback from the paned
-	// will do it
-
 	if( prop_id == PROP_REVEALED ) 
 		animatedpaned_set_revealed( animatedpane, 
 			g_value_get_boolean( value ) );
+	else if( prop_id == PROP_POSITION ) {
+		animatedpane->position = g_value_get_int( value );
+		animatedpaned_set_child_position( animatedpane, 
+			animatedpane->position );
+	}
 	else if( prop_id < PROP_REVEALED ) 
 		g_object_set_property( G_OBJECT( animatedpane->paned ), 
 			prop_names[prop_id], value );
@@ -313,12 +309,18 @@ animatedpane_position_notify( GtkWidget *paned,
 	if( animatedpane->revealed &&
 		!animatedpane->is_animating ) {
 		// FIXME ... could get from pspec?
-		animatedpane->position = gtk_paned_get_position( GTK_PANED( paned ) );
+		int paned_position = gtk_paned_get_position( GTK_PANED( paned ) );
+
+		// our position is distance from the right edge -- we must swap this
+		int widget_width = gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
+		int position = widget_width - paned_position;
 
 #ifdef DEBUG
-		printf( "animatedpane_position_notify: new position %d\n", 
-				animatedpane->position );
+		printf( "animatedpane_position_notify: new position %d\n", position );
 #endif /* DEBUG */
+
+		if( animatedpane->position != position )
+			g_object_set( animatedpane, "position", position, NULL );
 	}
 }
 
@@ -329,7 +331,8 @@ animatedpane_init( Animatedpane *animatedpane )
 	printf( "animatedpane_init:\n" ); 
 #endif /*DEBUG*/
 
-	animatedpane->position = INITIAL_PANED_POSITION;
+	// distance of the divider from the RIGHT edge of the window
+	animatedpane->position = 500;
 
 	// it'd be nice to create our gtkpaned in animatedpane.ui, but we need 
 	// this pointer during builder 

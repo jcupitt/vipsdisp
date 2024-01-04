@@ -522,6 +522,7 @@ image_window_duplicate_action( GSimpleAction *action,
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties-position" );
 	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
 
 	/* We want to init the scroll position, but we can't do that until the
@@ -1585,6 +1586,18 @@ image_window_init( ImageWindow *win )
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
+	g_settings_bind( win->settings, "properties-position",
+		G_OBJECT( win->properties_pane ),
+		"position", 
+		G_SETTINGS_BIND_DEFAULT );
+
+	/* Initialise from settings.
+	 */
+	change_state( GTK_WIDGET( win ), "properties", 
+		g_settings_get_value( win->settings, "properties" ) );
+	change_state( GTK_WIDGET( win ), "properties-position", 
+		g_settings_get_value( win->settings, "properties-position" ) );
+
 	/* Initial menu state from settings.
 	 */
 	change_state( GTK_WIDGET( win ), "control", 
@@ -1758,7 +1771,7 @@ image_window_open( ImageWindow *win, GFile *file )
 	TileSource *tile_source;
 
 #ifdef DEBUG
-	puts( "image_window_open" );
+	printf( "image_window_open:\n" );
 #endif /* DEBUG */
 
 	path = g_file_get_path( file );
@@ -1768,11 +1781,6 @@ image_window_open( ImageWindow *win, GFile *file )
 		g_free( path );
 		return;
 	}
-
-	/* Re-initialize from settings.
-	 */
-	change_state( GTK_WIDGET( win ), "properties", 
-		g_settings_get_value( win->settings, "properties" ) );
 
 	image_window_set_tile_source( win, tile_source );
 

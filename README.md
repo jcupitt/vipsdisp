@@ -242,7 +242,9 @@ then check the build status here:
     and improve the default position ... should be the width of the 
     properties widget
 
-- on props hide, force kb focus to iamgedisplay
+- on props hide, force kb focus to imagedisplay?
+
+    how can we tell if a child of $widget has the focus?
 
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
