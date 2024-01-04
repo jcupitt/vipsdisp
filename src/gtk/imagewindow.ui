@@ -200,7 +200,7 @@
         </child>
 
         <child>
-          <object class="Animatedpane" id="paned">
+          <object class="Animatedpane" id="properties_pane">
             <property name="wide-handle">true</property>
             <property name="resize-start-child">false</property>
             <property name="shrink-start-child">true</property>

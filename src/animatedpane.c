@@ -21,14 +21,11 @@ struct _Animatedpane
 
 	GtkWidget *paned;
 
+	// the state we expose via properties
 	gboolean revealed;
-
-	/* Saved position of the GtkPaned separator.
-	 */
 	int position;
 
-	/* Animation state.
-	 */
+	// animation state.
 	double elapsed;
 	double last_frame_time;
 	gboolean is_animating;
@@ -124,13 +121,23 @@ animatedpaned_set_child_position( Animatedpane *animatedpane, int position )
 	gtk_paned_set_position( GTK_PANED( animatedpane->paned ), position );
 }
 
+/* From clutter-easing.c, based on Robert Penner's infamous easing equations,
+ * MIT license.
+ */
+static double
+ease_out_cubic( double t )
+{
+	double p = t - 1;
+
+	return( p * p * p + 1 );
+}
+
 static gboolean
 animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
     gpointer client_data )
 {
 	Animatedpane *animatedpane = ANIMATEDPANE( widget );
     gint64 frame_time = gdk_frame_clock_get_frame_time( frame_clock );
-	gboolean revealed = GPOINTER_TO_INT( client_data );
 
 	double t;
 
@@ -151,8 +158,8 @@ animatedpane_animate_tick( GtkWidget *widget, GdkFrameClock *frame_clock,
 	if( t >= 0.99 ) {
 		// all done
 		animatedpaned_set_child_position( animatedpane, animatedpane->stop );
-		animatedpaned_set_child_visibility( animatedpane, revealed );
-		animatedpane->revealed = revealed;
+		if( !animatedpane->revealed )
+			animatedpaned_set_child_visibility( animatedpane, FALSE );
 		animatedpane->is_animating = FALSE;
 
 		return( G_SOURCE_REMOVE );
@@ -175,6 +182,8 @@ animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 #endif /* DEBUG */
 
 	if( animatedpane->revealed != revealed ) {
+		animatedpane->revealed = revealed;
+
 		if( animatedpaned_enable_animations( animatedpane ) ) {
 			animatedpane->last_frame_time = -1;
 			animatedpane->elapsed = 0.0;
@@ -198,12 +207,10 @@ animatedpaned_set_revealed( Animatedpane *animatedpane, gboolean revealed )
 				animatedpaned_set_child_visibility( animatedpane, TRUE );
 
 			gtk_widget_add_tick_callback( GTK_WIDGET( animatedpane ),
-				animatedpane_animate_tick, GINT_TO_POINTER( revealed ),
-				NULL );
+				animatedpane_animate_tick, NULL, NULL );
 			}
 		else {
 			animatedpaned_set_child_visibility( animatedpane, revealed );
-			animatedpane->revealed = revealed;
 		}
 	}
 }

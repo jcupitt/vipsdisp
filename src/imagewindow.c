@@ -1,10 +1,6 @@
 /*
 #define DEBUG
-*/
-
-/*
-#define EXPERIMENTAL_PROPERTIES_EDIT
-*/
+ */
 
 #include "vipsdisp.h"
 
@@ -61,7 +57,7 @@ struct _ImageWindow
 	GtkWidget *imagedisplay;
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
-	GtkWidget *paned;
+	GtkWidget *properties_pane;
 	GtkWidget *properties;
 
 	/* Throttle progress bar updates to a few per second with this.
@@ -786,10 +782,10 @@ image_window_close_action( GSimpleAction *action,
 	gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
-/* From clutter-easing.c, based on Robert Penner's
- * infamous easing equations, MIT license.
+/* From clutter-easing.c, based on Robert Penner's infamous easing equations,
+ * MIT license.
  */
-double
+static double
 ease_out_cubic( double t )
 {
   double p = t - 1;
@@ -1456,7 +1452,7 @@ image_window_properties( GSimpleAction *action,
 	puts("image_window_properties");
 #endif /* DEBUG */
 
-	g_object_set( win->paned,
+	g_object_set( win->properties_pane,
 		"revealed", g_variant_get_boolean( state ),
 		NULL );
 
@@ -1585,7 +1581,7 @@ image_window_init( ImageWindow *win )
 		G_SETTINGS_BIND_DEFAULT );
 
 	g_settings_bind( win->settings, "properties",
-		G_OBJECT( win->paned ),
+		G_OBJECT( win->properties_pane ),
 		"revealed", 
 		G_SETTINGS_BIND_DEFAULT );
 
@@ -1636,7 +1632,7 @@ image_window_class_init( ImageWindowClass *class )
 	BIND( imagedisplay );
 	BIND( display_bar );
 	BIND( info_bar );
-	BIND( paned );
+	BIND( properties_pane );
 	BIND( properties );
 
 	gtk_widget_class_bind_template_callback( GTK_WIDGET_CLASS( class ),

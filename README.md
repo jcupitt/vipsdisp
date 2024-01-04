@@ -237,11 +237,12 @@ then check the build status here:
 
 ## TODO
 
-- save and restore properties setting and properties position
-  
-    seems a bit buggy right now
-
 - prop position should be distance from right edge, not left edge
+
+    and improve the default position ... should be the width of the 
+    properties widget
+
+- on props hide, force kb focus to iamgedisplay
 
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
