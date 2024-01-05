@@ -75,7 +75,8 @@ properties_add_row( Properties *p,
 	// can't set alignment in CSS for some reason
 	gtk_widget_set_halign( t, GTK_ALIGN_START );
 	gtk_label_set_selectable( GTK_LABEL( t ), TRUE );
-	gtk_widget_add_css_class( t, "properties-label" );
+	if( item )
+		gtk_widget_add_css_class( t, "properties-label" );
 	gtk_widget_add_css_class( t, p->row_number % 2 ? "odd" : "even" );
 	gtk_grid_attach( GTK_GRID( p->grid ), t, 0, p->row_number, 1, 1 );
 

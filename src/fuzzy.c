@@ -189,7 +189,6 @@ fuzzy_match( char **fields, const char *pattern )
 
 	GSList *matches = NULL;
 
-	printf( "fuzzy_match: pattern = %s\n", pattern );
 	for( char **p = fields; *p; p++ ) {
 		const char *field = *p;
 		Fuzzy *fuzzy = g_new( Fuzzy, 1 );
