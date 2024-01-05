@@ -1423,18 +1423,18 @@ image_window_properties( GSimpleAction *action,
 	GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	gboolean revealed = g_variant_get_boolean( state );
 
 #ifdef DEBUG
 	puts("image_window_properties");
 #endif /* DEBUG */
 
 	g_object_set( win->properties_pane,
-		"revealed", g_variant_get_boolean( state ),
+		"revealed", revealed,
 		NULL );
 
 	g_simple_action_set_state( action, state );
 }
-
 
 static GActionEntry image_window_entries[] = {
 	{ "magin", image_window_magin_action },
@@ -1469,6 +1469,23 @@ static GActionEntry image_window_entries[] = {
 
 	{ "reset", image_window_reset },
 };
+
+static void
+image_window_properties_leave( GtkEventControllerFocus *self, 
+		gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gboolean revealed;
+
+	g_object_get( win->properties_pane,
+		"revealed", &revealed,
+		NULL );
+
+	// if the props pane had the focus, and it's being hidden, we must refocus
+	if( !revealed )
+		gtk_widget_grab_focus( win->imagedisplay );
+}
 
 static void
 image_window_init( ImageWindow *win )
@@ -1545,6 +1562,14 @@ image_window_init( ImageWindow *win )
 	g_signal_connect( controller, "drag-update", 
 		G_CALLBACK( image_window_drag_update ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
+
+	/* We need to know if the props pane has the focus so we can refocus on
+	 * hide.
+	 */
+	controller = GTK_EVENT_CONTROLLER( gtk_event_controller_focus_new() );
+	g_signal_connect( controller, "leave", 
+		G_CALLBACK( image_window_properties_leave ), win );
+	gtk_widget_add_controller( win->properties, controller );
 
 	g_settings_bind( win->settings, "control",
 		G_OBJECT( win->display_bar ),

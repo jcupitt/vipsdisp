@@ -237,10 +237,6 @@ then check the build status here:
 
 ## TODO
 
-- on props hide, force kb focus to imagedisplay?
-
-    how can we tell if a child of $widget has the focus?
-
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
 
