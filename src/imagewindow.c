@@ -233,50 +233,6 @@ image_window_set_scale_position( ImageWindow *win,
 }
 
 static void
-image_window_set_scale_centre( ImageWindow *win, double scale )
-{
-	double current_scale = image_window_get_scale( win );
-
-	int window_left;
-	int window_top;
-	int window_width;
-	int window_height;
-
-	image_window_get_position( win,
-		&window_left, &window_top, &window_width, &window_height );
-
-	window_left /= current_scale;
-	window_top /= current_scale;
-	window_width /= current_scale;
-	window_height /= current_scale;
-
-	image_window_set_scale_position( win, 
-		scale,
-		window_left + window_width / 2, 
-		window_top + window_height / 2 );
-}
-
-void
-image_window_bestfit( ImageWindow *win )
-{
-#ifdef DEBUG
-	printf( "image_window_bestfit:\n" ); 
-#endif /*DEBUG*/
-
-	if( win->tile_source ) {
-		int widget_width = gtk_widget_get_width( win->imagedisplay );
-		int widget_height = gtk_widget_get_height( win->imagedisplay );
-		double hscale = (double) widget_width / 
-			win->tile_source->display_width;
-		double vscale = (double) widget_height / 
-			win->tile_source->display_height;
-		double scale = VIPS_MIN( hscale, vscale );
-
-		image_window_set_scale( win, scale * win->tile_source->zoom );
-	}
-}
-
-static void
 image_window_preeval( VipsImage *image, 
 	VipsProgress *progress, ImageWindow *win )
 {
@@ -439,350 +395,6 @@ image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
 	image_window_error_hide( win );
 }
 
-static void
-image_window_toggle_debug( ImageWindow *win )
-{
-	gboolean debug;
-
-	g_object_get( win->imagedisplay, 
-		"debug", &debug,
-		NULL );
-
-	g_object_set( win->imagedisplay, 
-		"debug", !debug,
-		NULL );
-}
-
-static void
-image_window_magin_action( GSimpleAction *action,
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	image_window_set_scale_centre( win,
-		SCALE_STEP * image_window_get_scale( win ) );
-}
-
-static void
-image_window_magout_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	image_window_set_scale_centre( win,
-		(1.0 / SCALE_STEP) * image_window_get_scale( win ) );
-}
-
-static void
-image_window_bestfit_action( GSimpleAction *action,
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	image_window_bestfit( win );
-}
-
-static void
-image_window_oneone_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	image_window_set_scale( win, 1.0 );
-}
-
-static void
-image_window_duplicate_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	VipsdispApp *app;
-	TileSource *tile_source;
-	ImageWindow *new;
-	int width, height;
-
-	g_object_get( win, "application", &app, NULL );
-	new = image_window_new( app ); 
-	gtk_window_present( GTK_WINDOW( new ) );
-
-	if( win->tile_source ) {
-		if( !(tile_source = 
-			tile_source_duplicate( win->tile_source )) ) {
-			image_window_error( new ); 
-			return;
-		}
-		image_window_set_tile_source( new, tile_source );
-		g_object_unref( tile_source );
-	}
-
-	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
-	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
-
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties-position" );
-	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
-
-	/* We want to init the scroll position, but we can't do that until the
-	 * adj range is set, and that won't happen until the image is loaded.
-	 *
-	 * Just copy the adj settings from the current window.
-	 */
-	copy_adj( 
-		gtk_scrolled_window_get_hadjustment( 
-			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
-		gtk_scrolled_window_get_hadjustment( 
-			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
-	copy_adj( 
-		gtk_scrolled_window_get_vadjustment( 
-			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
-		gtk_scrolled_window_get_vadjustment( 
-			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
-}
-
-#if GTK_CHECK_VERSION(4, 10, 0)
-static void
-image_window_on_file_open_cb( GObject* source_object,
-	GAsyncResult* res, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
-	GFile *file;
-
-	file = gtk_file_dialog_open_finish( dialog, res, NULL );
-	if( file ) {
-		image_window_error_hide( win );
-		image_window_open( win, file );
-		g_object_unref( file );
-	}
-}
-#else
-static void
-image_window_replace_response( GtkDialog *dialog, 
-	gint response_id, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	if( response_id == GTK_RESPONSE_ACCEPT ) {
-		GFile *file;
-
-		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-		image_window_error_hide( win ); 
-		image_window_open( win, file );
-		VIPS_UNREF( file ); 
-	}
-
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
-}
-#endif
-
-static void
-image_window_replace_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-#if GTK_CHECK_VERSION(4, 10, 0)
-	GtkFileDialog *dialog;
-	GFile *file;
-
-	dialog = gtk_file_dialog_new();
-	gtk_file_dialog_set_title( dialog, "Replace from file" );
-	gtk_file_dialog_set_accept_label( dialog, "Replace" );
-	gtk_file_dialog_set_modal( dialog, TRUE );
-
-	if( win->tile_source &&
-		(file = tile_source_get_file( win->tile_source )) ) {
-		gtk_file_dialog_set_initial_file( dialog, file );
-		g_object_unref( file );
-	}
-
-	gtk_file_dialog_open( dialog, GTK_WINDOW( win ), NULL,
-		&image_window_on_file_open_cb, win );
-#else
-	GtkWidget *dialog;
-	GFile *file;
-
-	dialog = gtk_file_chooser_dialog_new( "Replace from file",
-		GTK_WINDOW( win ) , 
-		GTK_FILE_CHOOSER_ACTION_OPEN,
-		"_Cancel", GTK_RESPONSE_CANCEL,
-		"_Replace", GTK_RESPONSE_ACCEPT,
-		NULL );
-	gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
-
-	if( win->tile_source &&
-		(file = tile_source_get_file( win->tile_source )) ) {
-		gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
-			file, NULL );
-		g_object_unref( file );
-	}
-
-	g_signal_connect( dialog, "response", 
-		G_CALLBACK( image_window_replace_response ), win );
-
-	gtk_widget_show( dialog );
-#endif
-}
-
-static void
-image_window_saveas_options_response( GtkDialog *dialog, 
-	gint response, gpointer user_data )
-{
-#if !GTK_CHECK_VERSION(4, 10, 0)
-	GtkWidget *file_chooser = GTK_WIDGET( user_data );
-#endif
-
-	// final save and everything worked OK, we can all pop down
-	if( response == GTK_RESPONSE_ACCEPT ) {
-		gtk_window_destroy( GTK_WINDOW( dialog ) );
-
-#if !GTK_CHECK_VERSION(4, 10, 0)
-		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
-#endif
-	}
-
-	// save options was cancelled, just pop that down
-	if( response == GTK_RESPONSE_CANCEL ) 
-		gtk_window_destroy( GTK_WINDOW( dialog ) );
-
-	// other return codes are intermediate stages of processing and we
-	// should do nothing
-}
-
-#if GTK_CHECK_VERSION(4, 10, 0)
-static void
-image_window_on_file_save_cb( GObject* source_object,
-	GAsyncResult* res, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
-	GFile *file;
-
-	file = gtk_file_dialog_save_finish( dialog, res, NULL );
-	if( file ) {
-		char *filename;
-		SaveOptions *options;
-
-		filename = g_file_get_path( file );
-		g_object_unref( file );
-
-		options = save_options_new( GTK_WINDOW( win ),
-			win->tile_source->image, filename );
-
-		g_free( filename );
-
-		if( !options ) {
-			image_window_error( win );
-			return;
-		}
-
-		g_signal_connect_object( options, "response",
-			G_CALLBACK( image_window_saveas_options_response ),
-			NULL, 0 );
-
-		gtk_window_present( GTK_WINDOW( options ) );
-	}
-}
-#else
-static void
-image_window_saveas_response( GtkDialog *dialog,
-	gint response, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	if( response == GTK_RESPONSE_ACCEPT ) {
-		GFile *file;
-		char *filename;
-		SaveOptions *options;
-
-		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-		filename = g_file_get_path( file );
-		VIPS_UNREF( file ); 
-
-		options = save_options_new( GTK_WINDOW( dialog ),
-			win->tile_source->image, filename );
-
-		g_free( filename ); 
-
-		if( !options ) {
-			image_window_error( win );
-			return;
-		}
-
-		g_signal_connect_object( options, "response", 
-			G_CALLBACK( image_window_saveas_options_response ), 
-			dialog, 0 );
-
-		gtk_window_present( GTK_WINDOW( options ) );
-	}
-
-	if( response == GTK_RESPONSE_CANCEL )
-		gtk_window_destroy( GTK_WINDOW( dialog ) );
-}
-#endif
-
-static void
-image_window_saveas_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	if( win->tile_source ) {
-#if GTK_CHECK_VERSION(4, 10, 0)
-		GtkFileDialog *dialog;
-		GFile *file;
-
-		dialog = gtk_file_dialog_new();
-		gtk_file_dialog_set_title( dialog, "Save file" );
-		gtk_file_dialog_set_modal( dialog, TRUE );
-
-		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_dialog_set_initial_file( dialog, file );
-			g_object_unref( file );
-		}
-
-		gtk_file_dialog_save( dialog, GTK_WINDOW( win ), NULL,
-			&image_window_on_file_save_cb, win );
-#else
-		GtkWidget *file_chooser;
-		GFile *file;
-
-		file_chooser = gtk_file_chooser_dialog_new( "Save file",
-			GTK_WINDOW( win ) , 
-			GTK_FILE_CHOOSER_ACTION_SAVE,
-			"_Cancel", GTK_RESPONSE_CANCEL,
-			"_Save", GTK_RESPONSE_ACCEPT,
-			NULL );
-
-		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
-
-		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_chooser_set_file( 
-				GTK_FILE_CHOOSER( file_chooser ), 
-				file, NULL );
-			g_object_unref( file );
-		}
-
-		g_signal_connect( file_chooser, "response", 
-			G_CALLBACK( image_window_saveas_response ), win );
-
-		gtk_widget_show( file_chooser );
-#endif /* GTK_CHECK_VERSION(4, 10, 0) */
-	}
-}
-
-static void
-image_window_close_action( GSimpleAction *action, 
-	GVariant *parameter, gpointer user_data )
-{
-	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
-
-	gtk_window_destroy( GTK_WINDOW( win ) );
-}
-
 /* From clutter-easing.c, based on Robert Penner's infamous easing equations,
  * MIT license.
  */
@@ -883,13 +495,376 @@ image_window_animate_scale_to( ImageWindow *win, double scale_target )
 static void
 image_window_animate_bestfit( ImageWindow *win )
 {
-	int widget_width = gtk_widget_get_width( win->imagedisplay );
-	int widget_height = gtk_widget_get_height( win->imagedisplay );
+	// size by whole image area, including the props pane
+	int widget_width = gtk_widget_get_width( win->properties_pane );
+	int widget_height = gtk_widget_get_height( win->properties_pane );
+
 	double hscale = (double) widget_width / win->tile_source->display_width;
 	double vscale = (double) widget_height / win->tile_source->display_height;
 	double scale = VIPS_MIN( hscale, vscale );
-
+	
 	image_window_animate_scale_to( win, scale * win->tile_source->zoom );
+}
+
+static void
+image_window_toggle_debug( ImageWindow *win )
+{
+	gboolean debug;
+
+	g_object_get( win->imagedisplay, 
+		"debug", &debug,
+		NULL );
+
+	g_object_set( win->imagedisplay, 
+		"debug", !debug,
+		NULL );
+}
+
+static void
+image_window_magin_action( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_animate_scale_to( win, 2 * image_window_get_scale( win ) );
+	image_window_start_animation( win );
+}
+
+static void
+image_window_magout_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_animate_scale_to( win, 0.5 * image_window_get_scale( win ) );
+	image_window_start_animation( win );
+}
+
+static void
+image_window_bestfit_action( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_animate_bestfit( win );
+	image_window_start_animation( win );
+}
+
+static void
+image_window_oneone_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	image_window_set_scale( win, 1.0 );
+}
+
+static void
+image_window_duplicate_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	VipsdispApp *app;
+	TileSource *tile_source;
+	ImageWindow *new;
+	int width, height;
+
+	g_object_get( win, "application", &app, NULL );
+	new = image_window_new( app ); 
+	gtk_window_present( GTK_WINDOW( new ) );
+
+	if( win->tile_source ) {
+		if( !(tile_source = 
+			tile_source_duplicate( win->tile_source )) ) {
+			image_window_error( new ); 
+			return;
+		}
+		image_window_set_tile_source( new, tile_source );
+		g_object_unref( tile_source );
+	}
+
+	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
+	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
+
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "control" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "info" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "properties-position" );
+	copy_state( GTK_WIDGET( new ), GTK_WIDGET( win ), "background" );
+
+	/* We want to init the scroll position, but we can't do that until the
+	 * adj range is set, and that won't happen until the image is loaded.
+	 *
+	 * Just copy the adj settings from the current window.
+	 */
+	copy_adj( 
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
+		gtk_scrolled_window_get_hadjustment( 
+			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
+	copy_adj( 
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( new->scrolled_window ) ),
+		gtk_scrolled_window_get_vadjustment( 
+			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
+}
+
+#if GTK_CHECK_VERSION(4, 10, 0)
+
+static void
+image_window_on_file_open_cb( GObject* source_object,
+	GAsyncResult* res, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
+	GFile *file;
+
+	file = gtk_file_dialog_open_finish( dialog, res, NULL );
+	if( file ) {
+		image_window_error_hide( win );
+		image_window_open( win, file );
+		g_object_unref( file );
+	}
+}
+
+#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
+
+static void
+image_window_replace_response( GtkDialog *dialog, 
+	gint response_id, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( response_id == GTK_RESPONSE_ACCEPT ) {
+		GFile *file;
+
+		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+		image_window_error_hide( win ); 
+		image_window_open( win, file );
+		VIPS_UNREF( file ); 
+	}
+
+	gtk_window_destroy( GTK_WINDOW( dialog ) );
+}
+
+#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
+
+static void
+image_window_replace_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+#if GTK_CHECK_VERSION(4, 10, 0)
+
+	GtkFileDialog *dialog;
+	GFile *file;
+
+	dialog = gtk_file_dialog_new();
+	gtk_file_dialog_set_title( dialog, "Replace from file" );
+	gtk_file_dialog_set_accept_label( dialog, "Replace" );
+	gtk_file_dialog_set_modal( dialog, TRUE );
+
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
+		gtk_file_dialog_set_initial_file( dialog, file );
+		g_object_unref( file );
+	}
+
+	gtk_file_dialog_open( dialog, GTK_WINDOW( win ), NULL,
+		&image_window_on_file_open_cb, win );
+
+#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
+
+	GtkWidget *dialog;
+	GFile *file;
+
+	dialog = gtk_file_chooser_dialog_new( "Replace from file",
+		GTK_WINDOW( win ) , 
+		GTK_FILE_CHOOSER_ACTION_OPEN,
+		"_Cancel", GTK_RESPONSE_CANCEL,
+		"_Replace", GTK_RESPONSE_ACCEPT,
+		NULL );
+	gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
+
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
+		gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
+			file, NULL );
+		g_object_unref( file );
+	}
+
+	g_signal_connect( dialog, "response", 
+		G_CALLBACK( image_window_replace_response ), win );
+
+	gtk_widget_show( dialog );
+
+#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
+}
+
+static void
+image_window_saveas_options_response( GtkDialog *dialog, 
+	gint response, gpointer user_data )
+{
+#if !GTK_CHECK_VERSION(4, 10, 0)
+	GtkWidget *file_chooser = GTK_WIDGET( user_data );
+#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
+
+	// final save and everything worked OK, we can all pop down
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+#if !GTK_CHECK_VERSION(4, 10, 0)
+		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
+#endif /*!GTK_CHECK_VERSION(4, 10, 0)*/
+	}
+
+	// save options was cancelled, just pop that down
+	if( response == GTK_RESPONSE_CANCEL ) 
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+
+	// other return codes are intermediate stages of processing and we
+	// should do nothing
+}
+
+#if GTK_CHECK_VERSION(4, 10, 0)
+
+static void
+image_window_on_file_save_cb( GObject* source_object,
+	GAsyncResult* res, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
+	GFile *file;
+
+	file = gtk_file_dialog_save_finish( dialog, res, NULL );
+	if( file ) {
+		char *filename;
+		SaveOptions *options;
+
+		filename = g_file_get_path( file );
+		g_object_unref( file );
+
+		options = save_options_new( GTK_WINDOW( win ),
+			win->tile_source->image, filename );
+
+		g_free( filename );
+
+		if( !options ) {
+			image_window_error( win );
+			return;
+		}
+
+		g_signal_connect_object( options, "response",
+			G_CALLBACK( image_window_saveas_options_response ),
+			NULL, 0 );
+
+		gtk_window_present( GTK_WINDOW( options ) );
+	}
+}
+
+#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
+
+static void
+image_window_saveas_response( GtkDialog *dialog,
+	gint response, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( response == GTK_RESPONSE_ACCEPT ) {
+		GFile *file;
+		char *filename;
+		SaveOptions *options;
+
+		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
+		filename = g_file_get_path( file );
+		VIPS_UNREF( file ); 
+
+		options = save_options_new( GTK_WINDOW( dialog ),
+			win->tile_source->image, filename );
+
+		g_free( filename ); 
+
+		if( !options ) {
+			image_window_error( win );
+			return;
+		}
+
+		g_signal_connect_object( options, "response", 
+			G_CALLBACK( image_window_saveas_options_response ), 
+			dialog, 0 );
+
+		gtk_window_present( GTK_WINDOW( options ) );
+	}
+
+	if( response == GTK_RESPONSE_CANCEL )
+		gtk_window_destroy( GTK_WINDOW( dialog ) );
+}
+
+#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
+
+static void
+image_window_saveas_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	if( win->tile_source ) {
+#if GTK_CHECK_VERSION(4, 10, 0)
+
+		GtkFileDialog *dialog;
+		GFile *file;
+
+		dialog = gtk_file_dialog_new();
+		gtk_file_dialog_set_title( dialog, "Save file" );
+		gtk_file_dialog_set_modal( dialog, TRUE );
+
+		if( (file = tile_source_get_file( win->tile_source )) ) {
+			gtk_file_dialog_set_initial_file( dialog, file );
+			g_object_unref( file );
+		}
+
+		gtk_file_dialog_save( dialog, GTK_WINDOW( win ), NULL,
+			&image_window_on_file_save_cb, win );
+
+#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
+
+		GtkWidget *file_chooser;
+		GFile *file;
+
+		file_chooser = gtk_file_chooser_dialog_new( "Save file",
+			GTK_WINDOW( win ) , 
+			GTK_FILE_CHOOSER_ACTION_SAVE,
+			"_Cancel", GTK_RESPONSE_CANCEL,
+			"_Save", GTK_RESPONSE_ACCEPT,
+			NULL );
+
+		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
+
+		if( (file = tile_source_get_file( win->tile_source )) ) {
+			gtk_file_chooser_set_file( 
+				GTK_FILE_CHOOSER( file_chooser ), 
+				file, NULL );
+			g_object_unref( file );
+		}
+
+		g_signal_connect( file_chooser, "response", 
+			G_CALLBACK( image_window_saveas_response ), win );
+
+		gtk_widget_show( file_chooser );
+
+#endif /* GTK_CHECK_VERSION(4, 10, 0) */
+	}
+}
+
+static void
+image_window_close_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = VIPSDISP_IMAGE_WINDOW( user_data );
+
+	gtk_window_destroy( GTK_WINDOW( win ) );
 }
 
 static struct {
@@ -1245,11 +1220,11 @@ image_window_find_scale( ImageWindow *win, VipsObject *context,
 
 	double min, max;
 
-
 	/* FIXME ... this should only look at visible tile_cache pixels ...
 	 * don't render any new pixels.
+	 *
+	 * Alternatively, run this in a BG thread.
 	 */
-
 	if( vips_extract_area( image, &t[0], 
 		left, top, width, height, NULL ) ||
 		vips_stats( t[0], &t[1], NULL ) )

@@ -237,11 +237,6 @@ then check the build status here:
 
 ## TODO
 
-- prop position should be distance from right edge, not left edge
-
-    and improve the default position ... should be the width of the 
-    properties widget
-
 - on props hide, force kb focus to imagedisplay?
 
     how can we tell if a child of $widget has the focus?

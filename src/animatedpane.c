@@ -1,6 +1,6 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -116,8 +116,10 @@ animatedpaned_set_child_position( Animatedpane *animatedpane, int position )
 {
 	// our position is distance from the right edge -- we must swap this
 	int widget_width = gtk_widget_get_width( GTK_WIDGET( animatedpane ) );
-	int paned_position = widget_width - position;
-	
+	// widget_width will be zero on startup and we want the thing to come in
+	// from the right, so we need a large value
+	int paned_position = widget_width == 0 ? 10000 : widget_width - position;
+
 	gtk_paned_set_position( GTK_PANED( animatedpane->paned ), 
 		paned_position );
 }
