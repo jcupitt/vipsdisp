@@ -12,6 +12,7 @@ struct _Properties
 
 	TileSource *tile_source;
 
+	GtkWidget *revealer;
 	GtkWidget *properties;
 	GtkWidget *search_entry;
 	GtkWidget *scrolled_window;
@@ -29,6 +30,7 @@ G_DEFINE_TYPE( Properties, properties, GTK_TYPE_WIDGET );
 
 enum {
 	PROP_TILE_SOURCE = 1,
+	PROP_REVEALED,
 
 	SIG_LAST
 };
@@ -40,6 +42,10 @@ properties_property_name( guint prop_id )
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
 		return( "TILE_SOURCE" );
+		break;
+
+	case PROP_REVEALED:
+		return( "REVEALED" );
 		break;
 
 	default:
@@ -100,7 +106,6 @@ properties_add_item( Properties *p, const char *field, GValue *value )
 	// can't set alignment in CSS for some reason
 	gtk_widget_set_halign( label, GTK_ALIGN_START );
 	gtk_label_set_selectable( GTK_LABEL( label ), TRUE );
-	gtk_label_set_ellipsize( GTK_LABEL( label ), PANGO_ELLIPSIZE_END );
 	properties_add_row( p, field, label );
 }
 
@@ -226,7 +231,7 @@ properties_search_changed( GtkWidget *search_entry, gpointer user_data )
 	}
 
 #ifdef DEBUG
-	printf( "properties_search_changed: pattern = "%s"\n", p->pattern );
+	printf( "properties_search_changed: pattern = %s\n", p->pattern );
 #endif
 
 	properties_refresh( p );
@@ -241,7 +246,7 @@ properties_dispose( GObject *p_ )
 	printf( "properties_dispose:\n" );
 #endif
 
-	VIPS_FREEF( gtk_widget_unparent, p->properties );
+	VIPS_FREEF( gtk_widget_unparent, p->revealer );
 	VIPS_FREE( p->pattern );
 
 	G_OBJECT_CLASS( properties_parent_class )->dispose( p_ );
@@ -270,25 +275,23 @@ properties_set_property( GObject *object, guint prop_id,
 			TILE_SOURCE( g_value_get_object( value ) ) );
 		break;
 
+	case PROP_REVEALED:
+		gboolean revealed = g_value_get_boolean( value );
+		gboolean current_revealed = 
+			gtk_revealer_get_reveal_child( GTK_REVEALER( p->revealer ) );
+
+		if( current_revealed != revealed ) {
+			gtk_revealer_set_reveal_child( GTK_REVEALER( p->revealer ), 
+					revealed );
+			g_object_notify_by_pspec( object, pspec );
+		}
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID( p, prop_id, pspec );
 	}
 }
 
-/* This function lets you read the custom properties "image-window" and
- * "revealed".
- *
- * @p_		gpointer (Properties *)	this
- *
- * @prop_id	This is the signal id, e.g. PROP_TILE_SOURCE, defined in the
- * 		enum above.
- *
- * @v		The current value of the property.
- *
- * @pspec	The param spec for the property corresponding to @prop_id.
- *
- * (GObject boilerplate)
- */
 static void
 properties_get_property( GObject *p_,
 	guint prop_id, GValue *value, GParamSpec *pspec )
@@ -298,6 +301,11 @@ properties_get_property( GObject *p_,
 	switch( prop_id ) {
 	case PROP_TILE_SOURCE:
 		g_value_set_object( value, p->tile_source );
+		break;
+
+	case PROP_REVEALED:
+		g_value_set_boolean( value, 
+			gtk_revealer_get_reveal_child( GTK_REVEALER( p->revealer ) ) );
 		break;
 
 	default:
@@ -358,6 +366,7 @@ properties_class_init( PropertiesClass *class )
 	gtk_widget_class_set_template_from_resource( widget_class,
 		APP_PATH "/properties.ui");
 
+	BIND( revealer );
 	BIND( properties );
 	BIND( search_entry );
 	BIND( scrolled_window );
@@ -371,4 +380,9 @@ properties_class_init( PropertiesClass *class )
 			_( "The tile source whose properties we display" ),
 			TILE_SOURCE_TYPE,
 			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_REVEALED,
+    	g_param_spec_boolean( "revealed", NULL, NULL,
+			TRUE,
+			G_PARAM_READWRITE | G_PARAM_EXPLICIT_NOTIFY ) );
 }

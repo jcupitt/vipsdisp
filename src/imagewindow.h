@@ -3,6 +3,8 @@
 
 #define IMAGE_WINDOW_TYPE (image_window_get_type())
 
+#define VIPSDISP_IMAGE_WINDOW IMAGE_WINDOW
+
 G_DECLARE_FINAL_TYPE( ImageWindow, image_window, 
 	VIPSDISP, IMAGE_WINDOW, GtkApplicationWindow )
 

@@ -165,6 +165,7 @@
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
+
         <child>
           <object class="GtkActionBar" id="progress_bar">
             <property name="revealed">false</property>
@@ -200,15 +201,10 @@
         </child>
 
         <child>
-          <object class="Animatedpane" id="properties_pane">
-            <property name="wide-handle">true</property>
-            <property name="resize-start-child">false</property>
-            <property name="shrink-start-child">true</property>
-            <property name="resize-end-child">false</property>
-            <property name="shrink-end-child">true</property>
+          <object class="GtkBox" id="main_box">
             <property name="orientation">horizontal</property>
 
-            <property name="start-child">
+	    <child>
               <object class="GtkScrolledWindow" id="scrolled_window">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
@@ -229,12 +225,14 @@
                   </object>
                 </child>
               </object>
-            </property>
+            </child>
 
-	    <property name="end-child">
+	    <child>
               <object class="Properties" id="properties">
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
               </object>
-            </property>
+            </child>
 
           </object>
         </child>

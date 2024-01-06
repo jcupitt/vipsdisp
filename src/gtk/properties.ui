@@ -1,31 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <template class="Properties" parent="GtkWidget">
-    <property name="hexpand">true</property>
+    <property name="hexpand">false</property>
     <property name="vexpand">true</property>
-    <property name="margin-start">10px</property>
-    <property name="margin-end">10px</property>
 
     <child>
-      <object class="GtkBox" id="properties">
-        <property name="orientation">vertical</property>
-        <property name="hexpand">true</property>
+      <object class="GtkRevealer" id="revealer">
+        <property name="transition-type">slide-right</property>
+        <property name="hexpand">false</property>
         <property name="vexpand">true</property>
 
         <child>
-          <object class="GtkSearchEntry" id="search_entry">
-            <property name="margin-top">10px</property>
-            <property name="margin-bottom">10px</property>
-            <property name="hexpand">true</property>
-            <property name="placeholder-text">Filter properties</property>
-          </object>
-        </child>
-
-        <child>
-          <object class="GtkScrolledWindow" id="scrolled_window">
-            <property name="hexpand">true</property>
+          <object class="GtkBox" id="properties">
+            <property name="margin-start">10px</property>
+            <property name="margin-end">10px</property>
+            <property name="orientation">vertical</property>
+            <property name="hexpand">false</property>
             <property name="vexpand">true</property>
-
+    
+            <child>
+              <object class="GtkSearchEntry" id="search_entry">
+                <property name="margin-top">10px</property>
+                <property name="margin-bottom">10px</property>
+                <property name="hexpand">true</property>
+                <property name="placeholder-text">Filter properties</property>
+              </object>
+            </child>
+    
+            <child>
+              <object class="GtkScrolledWindow" id="scrolled_window">
+                <property name="hexpand">true</property>
+                <property name="vexpand">true</property>
+                <property name="hscrollbar-policy">never</property>
+    
+              </object>
+            </child>
+    
           </object>
         </child>
 

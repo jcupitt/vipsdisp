@@ -35,7 +35,6 @@
 G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
 #include "gtkutil.h"
-#include "animatedpane.h"
 #include "tslider.h"
 #include "vipsdispapp.h"
 #include "vipsdispmarshal.h"
