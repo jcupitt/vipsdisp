@@ -1,5 +1,7 @@
 ## master
 
+# 2.6.3, 7/1/24
+
 - properties display [angstyloop]
 
 # 2.6.2, 28/10/23

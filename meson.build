@@ -1,6 +1,6 @@
 project(
   'vipsdisp', 'c',
-  version: '2.6.2',
+  version: '2.6.3',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
