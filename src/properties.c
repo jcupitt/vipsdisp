@@ -276,6 +276,7 @@ properties_set_property( GObject *object, guint prop_id,
 		break;
 
 	case PROP_REVEALED:
+{
 		gboolean revealed = g_value_get_boolean( value );
 		gboolean current_revealed = 
 			gtk_revealer_get_reveal_child( GTK_REVEALER( p->revealer ) );
@@ -285,6 +286,7 @@ properties_set_property( GObject *object, guint prop_id,
 					revealed );
 			g_object_notify_by_pspec( object, pspec );
 		}
+}
 		break;
 
 	default:

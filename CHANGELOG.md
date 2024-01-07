@@ -1,5 +1,9 @@
 ## master
 
+# 2.6.3a, 7/1/24
+
+- fix clang build
+
 # 2.6.3, 7/1/24
 
 - properties display [angstyloop]
