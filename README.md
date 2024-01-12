@@ -83,19 +83,19 @@ flatpak install flathub org.libvips.vipsdisp
 
 ## Build from source
 
-```
-$ cd vipsdisp
-$ meson setup build --prefix=~/vips
-$ cd build
-$ ninja
-$ ninja install
+```shell
+cd vipsdisp
+meson setup build --prefix=~/vips
+cd build
+ninja
+ninja install
 ```
 
 And to run:
 
-```
-$ export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-$ vipsdisp ~/pics/k2.jpg
+```shell
+export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
+vipsdisp ~/pics/k2.jpg
 ```
 
 ## Shortcuts
@@ -117,29 +117,6 @@ $ vipsdisp ~/pics/k2.jpg
 * ^D duplicate view
 * F11 fullscreen
 
-## Structure
-
-* `TileSource` wraps a `VipsImage` and can produce pyramid tiles on request.
-   It has controls for things like scale and falsecolour.
-
-* `TileCache` builds a sparse pyramid of tiles and keeps recents.
-
-* `Imagedisplay` is a `GtkDrawingArea` subclass that paints a `TileCache`. It
-  implements a scrollable interface. You can use this as an image view
-  widget in your own code. It takes a float scale factor for zoom and uses
-  that to fetch tiles of the right size from the `TileCache`.
-
-* `Imagewindow` is a GtkWindow that contains an `Imagedisplay` and 
-  adds a lot of navigation stuff. It uses the scolled
-  window `GtkAdjustment` to slide `Imagedisplay` around.
-
-* `SaveOptions` is the save-as dialog, and uses libvips introspection to
-  display the optional parameters of the selected saver.
-
-* `disp` is the `main()`, `VipsdispApp` is a `GtkApplication` subclass
-
-* The UI layout is in the `gtk/*.ui` xml.
-
 ## Version bump checklist
 
 Version needs updating in the following places:
@@ -149,7 +126,8 @@ Version needs updating in the following places:
 - **`meson.build`**
 
 - **`org.libvips.vipsdisp.metainfo.xml`** and some release notes and a date as
-  well.
+  well. Be exttremely careful with date formatting, and include leading zeros
+  on the day and month.
 
 - **`org.libvips.vipsdisp.json`** needs the version number as a git tag.
 
@@ -157,14 +135,14 @@ Version needs updating in the following places:
 
 Add the `flathub` repo:
 
-```
+```shell
 flatpak remote-add --if-not-exists \
   flathub https://flathub.org/repo/flathub.flatpakrepo
 ```
 
 Install the gtk4 SDK and runtime:
 
-```
+```shell
 flatpak install org.gnome.Sdk//44
 flatpak install org.gnome.Platform//44
 ```
@@ -173,32 +151,32 @@ Allow file. Recent security changes to git will cause submodule checkout
 to fail inside flatpak. If you get errors like `fatal: transport 'file'
 not allowed`, re-enable file transport with:
 
-```
+```shell
 git config --global protocol.file.allow always
 ```
 
 Build and try running it:
 
-```
+```shell
 flatpak-builder --force-clean --user --install build-dir org.libvips.vipsdisp.json
 flatpak run org.libvips.vipsdisp ~/pics/k2.jpg
 ```
 
 Force a complete redownload and rebuild (should only rarely be necessary) with:
 
-```
+```shell
 rm -rf .flatpak-builder
 ```
 
 Check the files that are in the flatpak you built with:
 
-```
+```shell
 ls build-dir/files
 ```
 
 Uninstall with:
 
-```
+```shell
 flatpak uninstall vipsdisp
 ```
 
@@ -214,26 +192,28 @@ flatpak uninstall vipsdisp
 
 Install the appdata checker:
 
-```
+```shell
 flatpak install flathub org.freedesktop.appstream-glib
 flatpak run org.freedesktop.appstream-glib validate org.libvips.vipsdisp.metainfo.xml
 ```
 
 Also:
 
-```
+```shell
 desktop-file-validate org.libvips.vipsdisp.desktop 
 ```
 
 ## Uploading to flathub
 
-Push to master on:
+Make a PR on:
 
         https://github.com/flathub/org.libvips.vipsdisp 
 
 then check the build status here:
 
         https://flathub.org/builds/#/apps/org.libvips.vipsdisp
+
+On success, merge to master.
 
 ## TODO
 
