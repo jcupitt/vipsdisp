@@ -1,7 +1,5 @@
 ## master
 
-- add drag n drop
-
 # 2.6.3a, 7/1/24
 
 - fix clang build
