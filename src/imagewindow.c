@@ -1504,46 +1504,6 @@ image_window_dnd_drop( GtkDropTarget *target,
 	return TRUE;
 }
 
-static GdkContentProvider *
-image_window_dnd_prepare( GtkDragSource *source,
-	double x, double y, gpointer user_data )
-{
-	ImageWindow *win = IMAGE_WINDOW( user_data );
-
-	printf( "image_window_dnd_prepare:\n" );
-
-	GFile *file = tile_source_get_file( win->tile_source );
-
-	/*
-	GdkPixbuf *pixbuf = my_widget_get_pixbuf (self);
-
-	return gdk_content_provider_new_union( (GdkContentProvider *[2]) {
-		gdk_content_provider_new_typed( G_TYPE_FILE, file ),
-		gdk_content_provider_new_typed( GDK_TYPE_PIXBUF, pixbuf ),
-    }, 2);
-	 */
-
-	printf( "image_window_dnd_prepare: implement pixbuf drag source\n" );
-
-	return gdk_content_provider_new_union( (GdkContentProvider *[1]) {
-		gdk_content_provider_new_typed( G_TYPE_FILE, file ),
-    }, 1);
-}
-
-static void
-image_window_dnd_drag_begin( GtkDragSource *source,
-	GdkDrag *drag, gpointer user_data )
-{
-	ImageWindow *win = IMAGE_WINDOW( user_data );
-
-	printf( "image_window_dnd_drag_begin:\n" );
-
-	printf( "image_window_dnd_drag_begin: make a thumbnail for dragging\n" );
-	GdkPaintable *paintable = gtk_widget_paintable_new( win->imagedisplay );
-	gtk_drag_source_set_icon( source, paintable, 0, 0 );
-	g_object_unref( paintable );
-}
-
 static void
 image_window_init( ImageWindow *win )
 {
@@ -1655,14 +1615,9 @@ image_window_init( ImageWindow *win )
         G_CALLBACK( image_window_dnd_drop ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
-	/* Drag out filenames and images.
+	/* We can't be a drag source, we use drag for pan. Copy/paste images out
+	 * instead.
 	 */
-	controller = GTK_EVENT_CONTROLLER( gtk_drag_source_new() );
-	g_signal_connect( controller, "prepare",
-        G_CALLBACK( image_window_dnd_prepare ), win );
-	g_signal_connect( controller, "drag-begin",
-        G_CALLBACK( image_window_dnd_drag_begin ), win );
-	gtk_widget_add_controller( win->imagedisplay, controller );
 
 	/* Initialise from settings.
 	 */
