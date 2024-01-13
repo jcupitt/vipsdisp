@@ -521,6 +521,49 @@ image_window_toggle_debug( ImageWindow *win )
 }
 
 static void
+image_window_copy_action( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	printf( "image_window_copy_action:\n" );
+	printf( "FIXME ... add image copy\n" );
+
+	if( win->tile_source ) {
+		GFile *file = tile_source_get_file( win->tile_source );
+		GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
+		gdk_clipboard_set( clipboard, G_TYPE_FILE, file );
+	}
+}
+
+static void
+image_window_paste_action( GSimpleAction *action,
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+	GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
+
+	GdkContentProvider *provider;
+
+	printf( "image_window_paste_action:\n" );
+	printf( "FIXME ... allow image paste\n" );
+
+	if( (provider = gdk_clipboard_get_content( clipboard )) ) { 
+		GValue value = { 0 };
+
+		g_value_init( &value, G_TYPE_FILE );
+
+		if( gdk_content_provider_get_value( provider, &value, NULL ) ) {
+			GFile *file = g_value_get_object( &value );
+			image_window_open( win, file );
+			g_object_unref( file );
+		}
+
+		g_value_unset( &value );
+	}
+}
+
+static void
 image_window_magin_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
@@ -1436,6 +1479,9 @@ image_window_properties( GSimpleAction *action,
 }
 
 static GActionEntry image_window_entries[] = {
+	{ "copy", image_window_copy_action },
+	{ "paste", image_window_paste_action },
+
 	{ "magin", image_window_magin_action },
 	{ "magout", image_window_magout_action },
 	{ "bestfit", image_window_bestfit_action },

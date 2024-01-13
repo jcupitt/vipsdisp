@@ -270,12 +270,11 @@ On success, merge to master.
 
 - zooming:
 
+    - zoom in menu item should ignore mouse position
+
     - better pinch zoom support
 
         we should take the coordinates of the pinch gesture into account
-
-    - zoom / zoom in menu item could step in by more, and animate the zoom as
-      well?
 
     - we could shrink tiles on zoom out (we only expand tiles now)
 

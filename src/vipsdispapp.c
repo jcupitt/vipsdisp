@@ -98,6 +98,8 @@ vipsdisp_app_startup( GApplication *app )
 		{ "app.quit", { "<Primary>q", NULL } },
 		{ "app.new", { "<Primary>n", NULL } },
 
+		{ "win.copy", { "<Primary>c", NULL } },
+		{ "win.paste", { "<Primary>v", NULL } },
 		{ "win.duplicate", { "<Primary>d", NULL } },
 		{ "win.close", { "<Primary>w", NULL } },
 		{ "win.replace", { "<Primary>o", NULL } },
