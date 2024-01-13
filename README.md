@@ -115,7 +115,10 @@ vipsdisp ~/pics/k2.jpg
 * ^O replace image
 * ^N new viewer
 * ^D duplicate view
+* ^C/^V copy paste of filenames
 * F11 fullscreen
+
+Additionally, the image window is a drop target for filenames.
 
 ## Version bump checklist
 
@@ -220,10 +223,12 @@ On success, merge to master.
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
 
-- allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
-  "load options" expander, and save should have "save options"
+- have a look at the new 4.14 `gtk_print_dialog_new()`
 
-- can we move "new_from_file" into a bg thread? the GUI will pause on huge
+- allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
+  "load options" expander
+
+- can we move `new_from_file` into a bg thread? the GUI will pause on huge
   SVGs on zoom change right now
 
     very difficult with the current structure -- we'd need to separate
@@ -284,7 +289,5 @@ On success, merge to master.
 - how should we handle images which include labels, macros, thumbnails?
 
     - load options? save options? 
-
-- flatpak build needs git master libvips
 
 - auto reload on file change, or support F5 for reload?
