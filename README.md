@@ -220,10 +220,16 @@ On success, merge to master.
 
 ## TODO
 
-- use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
-  or maybe shift-<, shift->? 
+- add paste of images from vipsdisp as GdkTexture
+
+- add drag/drop of textures 
+
+- auto reload on file change, or support F5 for reload?
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
+
+- use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
+  or maybe shift-<, shift->? 
 
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander
@@ -289,5 +295,3 @@ On success, merge to master.
 - how should we handle images which include labels, macros, thumbnails?
 
     - load options? save options? 
-
-- auto reload on file change, or support F5 for reload?

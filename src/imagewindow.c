@@ -331,20 +331,35 @@ image_window_cancel_clicked( GtkWidget *button, ImageWindow *win )
 }
 
 static void
-image_window_error( ImageWindow *win )
+image_window_set_error( ImageWindow *win, const char *message )
 {
 	char *err;
 	int i;
 
 	/* Remove any trailing \n.
 	 */
-	err = vips_error_buffer_copy();
+	err = g_strdup( message );
 	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
 		err[i - 1] = '\0';
 	gtk_label_set_text( GTK_LABEL( win->error_label ), err );
 	g_free( err );
 
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), TRUE );
+}
+
+static void
+image_window_error( ImageWindow *win )
+{
+	image_window_set_error( win, vips_error_buffer_copy() );
+}
+
+static void
+image_window_gerror( ImageWindow *win, GError **error )
+{
+	if( error && *error ) {
+		image_window_set_error( win, (*error)->message );
+		g_error_free( *error );
+	}
 }
 
 static void
@@ -537,29 +552,126 @@ image_window_copy_action( GSimpleAction *action,
 }
 
 static void
+image_new_from_texture_free( VipsImage *image, GBytes *bytes )
+{
+	g_bytes_unref( bytes );
+}
+
+static VipsImage *
+image_new_from_texture( GdkTexture *texture )
+{
+	GBytes *bytes = gdk_texture_save_to_tiff_bytes( texture );
+	if( (bytes = gdk_texture_save_to_tiff_bytes( texture )) ) {
+		gsize len;
+		gconstpointer data = g_bytes_get_data( bytes, &len );
+
+		VipsImage *image;
+		if( (image = vips_image_new_from_buffer( data, len, "", NULL )) ) {
+			g_signal_connect( image, "close", 
+				G_CALLBACK( image_new_from_texture_free ), bytes );
+			g_bytes_ref( bytes );
+
+			return( image );
+		}
+
+		VIPS_FREEF( g_bytes_unref, bytes );
+	}
+	else 
+		vips_error( "Convert to TIFF", 
+			_( "unable to convert texture to TIFF" ) );
+
+	return( NULL );
+}
+
+static void
+image_window_paste_action_ready( GObject *source_object, 
+	GAsyncResult *res, gpointer user_data )
+{
+	GdkClipboard *clipboard = GDK_CLIPBOARD( source_object );
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	const GValue *value;
+	GError *error = NULL;
+	value = gdk_clipboard_read_value_finish( clipboard, res, &error );
+	if( error ) 
+		image_window_gerror( win, &error );
+	else if( value ) {
+		if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
+			GFile *file = g_value_get_object( value );
+			image_window_open( win, file );
+		}
+		else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
+			const char *text = g_value_get_string( value );
+			GFile *file = g_file_new_for_path( text );
+
+			image_window_open( win, file );
+
+			VIPS_UNREF( file );
+		}
+		else if( G_VALUE_TYPE( value ) == GDK_TYPE_TEXTURE ) {
+			GdkTexture *texture = g_value_get_object( value );
+			VipsImage *image;
+			if( (image = image_new_from_texture( texture )) ) {
+				TileSource *tile_source;
+				if( (tile_source = tile_source_new_from_image( image )) ) {
+					image_window_set_tile_source( win, tile_source );
+
+					VIPS_UNREF( tile_source );
+				}
+
+				VIPS_UNREF( image );
+			}
+			else
+				image_window_error( win );
+		}
+	}
+}
+
+static void
 image_window_paste_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 	GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
 
-	GdkContentProvider *provider;
+	GdkContentFormats *formats = gdk_clipboard_get_formats( clipboard );
+	gsize n_types;
+	const GType *types = gdk_content_formats_get_gtypes( formats, &n_types );
 
-	printf( "image_window_paste_action:\n" );
-	printf( "FIXME ... allow image paste\n" );
+	/*
+	printf( "clipboard in %lu formats\n", n_types );
+	for( gsize i = 0; i < n_types; i++ ) 
+		printf( "%lu - %s\n", i, g_type_name( types[i] ) );
+	 */
 
-	if( (provider = gdk_clipboard_get_content( clipboard )) ) { 
-		GValue value = { 0 };
+	// GTypes we handle in paste ... these are in the order we try, so a GFile
+	// is preferred to a simple string
 
-		g_value_init( &value, G_TYPE_FILE );
+	// gnome file manager pastes as GFileList, GFile, gchararray
+	// print-screen button pastes as GdkTexture, GdkPixbuf
 
-		if( gdk_content_provider_get_value( provider, &value, NULL ) ) {
-			GFile *file = g_value_get_object( &value );
-			image_window_open( win, file );
-			g_object_unref( file );
-		}
+	GType supported_types[] = {
+		G_TYPE_FILE,
+		G_TYPE_STRING,
+		GDK_TYPE_TEXTURE,
+	};
 
-		g_value_unset( &value );
+	gboolean handled = FALSE;
+	for( gsize i = 0; i < n_types; i++ ) {
+		for( int j = 0; j < VIPS_NUMBER( supported_types ); j++ ) 
+			if( types[i] == supported_types[j] ) {
+				gdk_clipboard_read_value_async( clipboard,
+					supported_types[j],
+					G_PRIORITY_DEFAULT,
+					NULL,
+					image_window_paste_action_ready,
+					win );
+				handled = TRUE;
+				break;
+			}
+				
+		if( handled )
+			break;
 	}
 }
 

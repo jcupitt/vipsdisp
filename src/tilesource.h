@@ -225,6 +225,7 @@ typedef struct _TileSourceClass {
 GType tile_source_get_type( void );
 
 TileSource *tile_source_new_from_file( const char *filename );
+TileSource *tile_source_new_from_image( VipsImage *image );
 
 void tile_source_background_load( TileSource *tile_source );
 

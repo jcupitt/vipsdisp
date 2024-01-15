@@ -1,7 +1,8 @@
 ## master
 
-- add basic drag / drop of filenames
-- add basic copy / paste of filenames
+- add drag / drop of filenames
+- add copy / paste of filenames
+- add paste of textures
 
 # 2.6.3a, 7/1/24
 

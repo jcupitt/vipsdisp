@@ -1333,6 +1333,32 @@ tile_source_set_image( TileSource *tile_source, VipsImage *image )
 	return( 0 );
 }
 
+/* Pick a default display mode.
+ */
+static void
+tile_source_default_mode( TileSource *tile_source )
+{
+	TileSourceMode mode;
+
+	if( tile_source->type == TILE_SOURCE_TYPE_TOILET_ROLL &&
+		tile_source->n_pages > 1 ) {
+		if( tile_source->delay )
+			mode = TILE_SOURCE_MODE_ANIMATED;
+		else if( tile_source->all_mono )
+			mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
+		else
+			mode = TILE_SOURCE_MODE_MULTIPAGE;
+	}
+	else 
+		mode = TILE_SOURCE_MODE_MULTIPAGE;
+
+	g_object_set( tile_source, 
+		"mode", mode, 
+		NULL );
+}
+
+/* From a VipsImage, so no reopen is possible.
+ */
 TileSource *
 tile_source_new_from_image( VipsImage *image )
 {
@@ -1354,6 +1380,14 @@ tile_source_new_from_image( VipsImage *image )
 	/* image_region is used by the bg load thread.
 	 */
 	vips__region_no_ownership( tile_source->image_region );
+
+	tile_source_default_mode( tile_source );
+
+	/* FIXME ... should we support progress feedback? Probably not.
+	 */
+
+	// FIXME ... why do we need this extra ref?
+	g_object_ref( tile_source );
 
 	return( tile_source );
 }
@@ -1541,7 +1575,6 @@ tile_source_new_from_file( const char *filename )
 	const char *loader;
 	VipsImage *image;
 	VipsImage *x;
-	TileSourceMode mode;
 
 #ifdef DEBUG
 	printf( "tile_source_new_from_file: %s\n", filename );
@@ -1724,20 +1757,6 @@ tile_source_new_from_file( const char *filename )
 			tile_source->type = TILE_SOURCE_TYPE_MULTIPAGE;
 	}
 
-	/* Pick a default display mode.
-	 */
-	if( tile_source->type == TILE_SOURCE_TYPE_TOILET_ROLL &&
-		tile_source->n_pages > 1 ) {
-		if( tile_source->delay )
-			mode = TILE_SOURCE_MODE_ANIMATED;
-		else if( tile_source->all_mono )
-			mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
-		else
-			mode = TILE_SOURCE_MODE_MULTIPAGE;
-	}
-	else 
-		mode = TILE_SOURCE_MODE_MULTIPAGE;
-
 #ifdef DEBUG
 	printf( "tile_source_new_from_source: after sniff\n" );
 	tile_source_print( tile_source );
@@ -1758,9 +1777,7 @@ tile_source_new_from_file( const char *filename )
 	 */
 	vips__region_no_ownership( tile_source->image_region );
 
-	g_object_set( tile_source, 
-		"mode", mode, 
-		NULL );
+	tile_source_default_mode( tile_source );
 
 	/* We ref this tile_source so it won't die before the
 	 * background load is done. The matching unref is at the end
