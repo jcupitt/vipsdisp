@@ -44,6 +44,11 @@ struct _ImageWindow
 	double scale_start;
 	double scale_progress;
 
+	/* The current save and load directories.
+	 */
+	GFile *save_folder;
+	GFile *load_folder;
+
 	GtkWidget *right_click_menu;
 	GtkWidget *title;
 	GtkWidget *subtitle;
@@ -99,6 +104,8 @@ image_window_dispose( GObject *object )
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
+	VIPS_UNREF( win->save_folder );
+	VIPS_UNREF( win->load_folder );
 	VIPS_FREEF( gtk_widget_unparent, win->right_click_menu );
 	VIPS_FREEF( g_timer_destroy, win->progress_timer );
 
@@ -540,14 +547,17 @@ image_window_copy_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
+	GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
+
+	GFile *file;
 
 	printf( "image_window_copy_action:\n" );
 	printf( "FIXME ... add image copy\n" );
 
-	if( win->tile_source ) {
-		GFile *file = tile_source_get_file( win->tile_source );
-		GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
 		gdk_clipboard_set( clipboard, G_TYPE_FILE, file );
+		VIPS_UNREF( file );
 	}
 }
 
@@ -764,11 +774,17 @@ image_window_duplicate_action( GSimpleAction *action,
 			GTK_SCROLLED_WINDOW( win->scrolled_window ) ) );
 }
 
-#if GTK_CHECK_VERSION(4, 10, 0)
+static GFile *
+get_parent( GFile *file )
+{
+	GFile *parent = g_file_get_parent( file );
+
+	return parent ? parent : g_file_new_for_path( "/" );
+}
 
 static void
-image_window_on_file_open_cb( GObject* source_object,
-	GAsyncResult* res, gpointer user_data )
+image_window_replace_result( GObject *source_object,
+	GAsyncResult *res, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
@@ -776,41 +792,21 @@ image_window_on_file_open_cb( GObject* source_object,
 
 	file = gtk_file_dialog_open_finish( dialog, res, NULL );
 	if( file ) {
+		// note the directory for next time
+		VIPS_UNREF( win->load_folder );
+		win->load_folder = get_parent( file );
+
 		image_window_error_hide( win );
 		image_window_open( win, file );
 		g_object_unref( file );
 	}
 }
 
-#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
-
-static void
-image_window_replace_response( GtkDialog *dialog, 
-	gint response_id, gpointer user_data )
-{
-	ImageWindow *win = IMAGE_WINDOW( user_data );
-
-	if( response_id == GTK_RESPONSE_ACCEPT ) {
-		GFile *file;
-
-		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-		image_window_error_hide( win ); 
-		image_window_open( win, file );
-		VIPS_UNREF( file ); 
-	}
-
-	gtk_window_destroy( GTK_WINDOW( dialog ) );
-}
-
-#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
-
 static void
 image_window_replace_action( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
-
-#if GTK_CHECK_VERSION(4, 10, 0)
 
 	GtkFileDialog *dialog;
 	GFile *file;
@@ -825,64 +821,24 @@ image_window_replace_action( GSimpleAction *action,
 		gtk_file_dialog_set_initial_file( dialog, file );
 		g_object_unref( file );
 	}
+	else if( win->load_folder )
+		gtk_file_dialog_set_initial_folder( dialog, win->load_folder );
 
 	gtk_file_dialog_open( dialog, GTK_WINDOW( win ), NULL,
-		&image_window_on_file_open_cb, win );
-
-#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
-
-	GtkWidget *dialog;
-	GFile *file;
-
-	dialog = gtk_file_chooser_dialog_new( "Replace from file",
-		GTK_WINDOW( win ) , 
-		GTK_FILE_CHOOSER_ACTION_OPEN,
-		"_Cancel", GTK_RESPONSE_CANCEL,
-		"_Replace", GTK_RESPONSE_ACCEPT,
-		NULL );
-	gtk_window_set_modal( GTK_WINDOW( dialog ), TRUE );
-
-	if( win->tile_source &&
-		(file = tile_source_get_file( win->tile_source )) ) {
-		gtk_file_chooser_set_file( GTK_FILE_CHOOSER( dialog ), 
-			file, NULL );
-		g_object_unref( file );
-	}
-
-	g_signal_connect( dialog, "response", 
-		G_CALLBACK( image_window_replace_response ), win );
-
-	gtk_widget_show( dialog );
-
-#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
+		image_window_replace_result, win );
 }
 
 static void
 image_window_saveas_options_response( GtkDialog *dialog, 
 	gint response, gpointer user_data )
 {
-#if !GTK_CHECK_VERSION(4, 10, 0)
-	GtkWidget *file_chooser = GTK_WIDGET( user_data );
-#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
-
-	// final save and everything worked OK, we can all pop down
-	if( response == GTK_RESPONSE_ACCEPT ) {
-		gtk_window_destroy( GTK_WINDOW( dialog ) );
-
-#if !GTK_CHECK_VERSION(4, 10, 0)
-		gtk_window_destroy( GTK_WINDOW( file_chooser ) );
-#endif /*!GTK_CHECK_VERSION(4, 10, 0)*/
-	}
-
-	// save options was cancelled, just pop that down
-	if( response == GTK_RESPONSE_CANCEL ) 
+	if( response == GTK_RESPONSE_ACCEPT ||
+		response == GTK_RESPONSE_CANCEL ) 
 		gtk_window_destroy( GTK_WINDOW( dialog ) );
 
 	// other return codes are intermediate stages of processing and we
 	// should do nothing
 }
-
-#if GTK_CHECK_VERSION(4, 10, 0)
 
 static void
 image_window_on_file_save_cb( GObject* source_object,
@@ -896,6 +852,10 @@ image_window_on_file_save_cb( GObject* source_object,
 	if( file ) {
 		char *filename;
 		SaveOptions *options;
+
+		// note the save directory for next time
+		VIPS_UNREF( win->save_folder );
+		win->save_folder = get_parent( file );
 
 		filename = g_file_get_path( file );
 		g_object_unref( file );
@@ -918,46 +878,6 @@ image_window_on_file_save_cb( GObject* source_object,
 	}
 }
 
-#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
-
-static void
-image_window_saveas_response( GtkDialog *dialog,
-	gint response, gpointer user_data )
-{
-	ImageWindow *win = IMAGE_WINDOW( user_data );
-
-	if( response == GTK_RESPONSE_ACCEPT ) {
-		GFile *file;
-		char *filename;
-		SaveOptions *options;
-
-		file = gtk_file_chooser_get_file( GTK_FILE_CHOOSER( dialog ) );
-		filename = g_file_get_path( file );
-		VIPS_UNREF( file ); 
-
-		options = save_options_new( GTK_WINDOW( dialog ),
-			win->tile_source->image, filename );
-
-		g_free( filename ); 
-
-		if( !options ) {
-			image_window_error( win );
-			return;
-		}
-
-		g_signal_connect_object( options, "response", 
-			G_CALLBACK( image_window_saveas_options_response ), 
-			dialog, 0 );
-
-		gtk_window_present( GTK_WINDOW( options ) );
-	}
-
-	if( response == GTK_RESPONSE_CANCEL )
-		gtk_window_destroy( GTK_WINDOW( dialog ) );
-}
-
-#endif /*GTK_CHECK_VERSION(4, 10, 0)*/
-
 static void
 image_window_saveas_action( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
@@ -965,8 +885,6 @@ image_window_saveas_action( GSimpleAction *action,
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
 	if( win->tile_source ) {
-#if GTK_CHECK_VERSION(4, 10, 0)
-
 		GtkFileDialog *dialog;
 		GFile *file;
 
@@ -978,37 +896,11 @@ image_window_saveas_action( GSimpleAction *action,
 			gtk_file_dialog_set_initial_file( dialog, file );
 			g_object_unref( file );
 		}
+		else if( win->save_folder )
+			gtk_file_dialog_set_initial_folder( dialog, win->save_folder );
 
 		gtk_file_dialog_save( dialog, GTK_WINDOW( win ), NULL,
 			&image_window_on_file_save_cb, win );
-
-#else /*!GTK_CHECK_VERSION(4, 10, 0)*/
-
-		GtkWidget *file_chooser;
-		GFile *file;
-
-		file_chooser = gtk_file_chooser_dialog_new( "Save file",
-			GTK_WINDOW( win ) , 
-			GTK_FILE_CHOOSER_ACTION_SAVE,
-			"_Cancel", GTK_RESPONSE_CANCEL,
-			"_Save", GTK_RESPONSE_ACCEPT,
-			NULL );
-
-		gtk_window_set_modal( GTK_WINDOW( file_chooser ), true );
-
-		if( (file = tile_source_get_file( win->tile_source )) ) {
-			gtk_file_chooser_set_file( 
-				GTK_FILE_CHOOSER( file_chooser ), 
-				file, NULL );
-			g_object_unref( file );
-		}
-
-		g_signal_connect( file_chooser, "response", 
-			G_CALLBACK( image_window_saveas_response ), win );
-
-		gtk_widget_show( file_chooser );
-
-#endif /* GTK_CHECK_VERSION(4, 10, 0) */
 	}
 }
 

@@ -3,7 +3,6 @@
 
   <template class="SaveOptions" parent="GtkDialog">
     <property name="title" translatable="yes">Save options</property>
-    <property name="can-focus">True</property>
     <property name="modal">True</property>
 
     <style>
@@ -84,6 +83,7 @@
 
     <child type="action">
       <object class="GtkButton" id="ok_button">
+        <property name="can-focus">True</property>
         <property name="use-underline">1</property>
         <property name="label" translatable="yes">_Save</property>
       </object>

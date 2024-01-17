@@ -20,6 +20,7 @@ struct _SaveOptions
 	GtkWidget *progress_cancel;
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
+	GtkWidget *ok_button;
 
 	// hash property names to the widget for that property ... we fetch 
 	// values from here when we make the saver
@@ -161,8 +162,7 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 		}
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		gboolean value = 
-			gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
+		gboolean value = gtk_check_button_get_active( GTK_CHECK_BUTTON( t ) );
 
 		g_object_set( options->save_operation, 
 			name, value,
@@ -205,8 +205,7 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_INT64( pspec ) ) {
-		gint64 value = 
-			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+		gint64 value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( options->save_operation,
 			name, value,
@@ -220,16 +219,14 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
-		guint64 value = 
-			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+		guint64 value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( options->save_operation,
 			name, value,
 			NULL );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
-		gdouble value = 
-			gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+		gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 		g_object_set( options->save_operation,
 			name, value,
@@ -237,14 +234,14 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 	}
 	else if( G_IS_PARAM_SPEC_BOXED( pspec ) ) {
 		if( g_type_is_a( otype, VIPS_TYPE_ARRAY_INT ) ) {
-			int value;
+			int value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
 			VipsArrayInt *array;
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
 			 * TODO handle arrays with two or more elements
 			 */
-			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 			array = vips_array_int_newv( 1, value );
 
 			g_object_set( options->save_operation,
@@ -254,9 +251,9 @@ save_options_fetch_option( SaveOptions *options, GParamSpec *pspec )
 			vips_area_unref( VIPS_AREA( array ) );
 		}
 		else if( g_type_is_a( otype, VIPS_TYPE_ARRAY_DOUBLE ) ) {
-			gdouble value;
+			gdouble value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
+
 			VipsArrayDouble *array;
-			value = gtk_spin_button_get_value( GTK_SPIN_BUTTON( t ) );
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
@@ -300,8 +297,7 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
 
 	if( response == GTK_RESPONSE_OK ) {
 		vips_argument_map( VIPS_OBJECT( options->save_operation ),
-			save_options_response_map_fn,
-			options, NULL );
+			save_options_response_map_fn, options, NULL );
 
 		// this will trigger the save and loop while we write ... the
 		// UI will stay live thanks to event processing in the eval
@@ -311,8 +307,7 @@ save_options_response( GtkWidget *dialog, int response, void *user_data )
 		else 
 			// everything worked, we can post success back to
 			// our caller
-			gtk_dialog_response( GTK_DIALOG( dialog ), 
-				GTK_RESPONSE_ACCEPT );
+			gtk_dialog_response( GTK_DIALOG( dialog ), GTK_RESPONSE_ACCEPT );
 	}
 }
 
@@ -362,6 +357,7 @@ save_options_class_init( SaveOptionsClass *class )
 	BIND( error_bar );
 	BIND( error_label );
 	BIND( options_grid );
+	BIND( ok_button );
 }
 
 /* This function is used by:
@@ -397,8 +393,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		t = gtk_entry_new_with_buffer( buffer );
 	}
 	else if( G_IS_PARAM_SPEC_BOOLEAN( pspec ) ) {
-		GParamSpecBoolean *pspec_boolean = 
-			G_PARAM_SPEC_BOOLEAN( pspec );
+		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN( pspec );
 
 		t = gtk_check_button_new();
 		gtk_check_button_set_active( GTK_CHECK_BUTTON( t ),
@@ -407,12 +402,10 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 	else if( G_IS_PARAM_SPEC_ENUM( pspec ) ) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM( pspec );
 		int n_values = pspec_enum->enum_class->n_values - 1;
-		const char **nicknames = 
-			VIPS_ARRAY( NULL, n_values + 1, const char * );
+		const char **nicknames = VIPS_ARRAY( NULL, n_values + 1, const char * );
 
 		for( int i = 0; i < n_values; ++i )
-			nicknames[i] =
-				pspec_enum->enum_class->values[i].value_nick;
+			nicknames[i] = pspec_enum->enum_class->values[i].value_nick;
 		nicknames[n_values] = NULL;
 
 		t = gtk_drop_down_new_from_strings( nicknames );
@@ -456,7 +449,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		t = gtk_spin_button_new_with_range( pspec_int64->minimum,
 			pspec_int64->maximum, 1 );
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(gint64)pspec_int64->default_value );
+			(gint64) pspec_int64->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_INT( pspec )) {
 		GParamSpecInt *pspec_int = G_PARAM_SPEC_INT( pspec );
@@ -464,7 +457,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		t = gtk_spin_button_new_with_range( pspec_int->minimum,
 			pspec_int->maximum, 1 );
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(int)pspec_int->default_value );
+			(int) pspec_int->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_UINT64( pspec ) ) {
 		GParamSpecUInt64 *pspec_uint64 = G_PARAM_SPEC_UINT64( pspec );
@@ -472,7 +465,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
 		t = gtk_spin_button_new_with_range( pspec_uint64->minimum,
 			pspec_uint64->maximum, 1 );
 		gtk_spin_button_set_value( GTK_SPIN_BUTTON( t ),
-			(guint64)pspec_uint64->default_value );
+			(guint64) pspec_uint64->default_value );
 	}
 	else if( G_IS_PARAM_SPEC_DOUBLE( pspec ) ) {
 		GParamSpecDouble *pspec_double = G_PARAM_SPEC_DOUBLE( pspec );
@@ -537,8 +530,7 @@ save_options_add_option( SaveOptions *options, GParamSpec *pspec, int *row )
     gtk_widget_set_valign( label, GTK_ALIGN_START );
 	gtk_widget_set_tooltip_text( GTK_WIDGET( label ),
 		g_param_spec_get_blurb( pspec ) );
-	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 
-		0, *row, 1, 1 );
+	gtk_grid_attach( GTK_GRID( options->options_grid ), label, 0, *row, 1, 1 );
 
 	*row += 1;
 }
@@ -616,6 +608,8 @@ save_options_new( GtkWindow *parent_window,
 		vips_argument_map( VIPS_OBJECT( options->save_operation ),
 			save_options_add_options_fn, options, &row );
 	}
+
+	gtk_widget_grab_focus( options->ok_button ); 
 
 	return( options );
 }

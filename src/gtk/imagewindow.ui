@@ -187,6 +187,7 @@
             <property name="revealed">false</property>
             <child>
               <object class="GtkLabel" id="error_label">
+                <property name="ellipsize">middle</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
