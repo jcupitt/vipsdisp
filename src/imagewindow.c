@@ -542,22 +542,61 @@ image_window_toggle_debug( ImageWindow *win )
 		NULL );
 }
 
+static GdkTexture *
+texture_new_from_image( VipsImage *image )
+{
+	GdkTexture *texture;
+
+	// don't convert huge images to textures, we'll kill the machine
+	if( (gint64) image->Xsize * image->Ysize > 5000 * 5000 ) {
+		vips_error( "Convert to texture", 
+			_( "Image too large to convert to texture" ) );
+		return( NULL );
+	}
+
+	void *buf;
+   	size_t len;
+	if( vips_tiffsave_buffer( image, &buf, &len, NULL ) )
+		return( NULL );
+
+	GBytes *bytes = g_bytes_new_take( buf, len );
+	GError *error = NULL;
+	texture = gdk_texture_new_from_bytes( bytes, &error );
+	g_bytes_unref( bytes );
+	if( !texture ) {
+		vips_error( "Convert to texture", "%s", error->message );
+		g_error_free( error );
+	}
+
+	return( texture );
+}
+
 static void
 image_window_copy_action( GSimpleAction *action,
 	GVariant *parameter, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
-	GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
 
-	GFile *file;
+	if( win->tile_source ) {
+		GdkClipboard *clipboard = gtk_widget_get_clipboard( GTK_WIDGET( win ) );
 
-	printf( "image_window_copy_action:\n" );
-	printf( "FIXME ... add image copy\n" );
+		GFile *file;
+		VipsImage *image;
 
-	if( win->tile_source &&
-		(file = tile_source_get_file( win->tile_source )) ) {
-		gdk_clipboard_set( clipboard, G_TYPE_FILE, file );
-		VIPS_UNREF( file );
+		if( (file = tile_source_get_file( win->tile_source )) ) {
+			gdk_clipboard_set( clipboard, G_TYPE_FILE, file );
+			VIPS_UNREF( file );
+		}
+		else if( (image = tile_source_get_image( win->tile_source )) ) {
+			GdkTexture *texture;
+
+			if( (texture = texture_new_from_image( image )) ) {
+				gdk_clipboard_set( clipboard, GDK_TYPE_TEXTURE, texture );
+				VIPS_UNREF( texture );
+			}
+			else
+				image_window_error( win );
+        }
 	}
 }
 

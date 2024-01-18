@@ -221,9 +221,7 @@ On success, merge to master.
 
 ## TODO
 
-- add copy of images from vipsdisp as GdkTexture
-
-- add drag/drop of textures 
+- add drop of textures? 
 
 - auto reload on file change, or support F5 for reload?
 
