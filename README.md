@@ -113,9 +113,10 @@ vipsdisp ~/pics/k2.jpg
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
 * ^O replace image
+* ^S save image
 * ^N new viewer
 * ^D duplicate view
-* ^C/^V copy paste of filenames
+* ^C/^V copy paste of filenames and textures
 * F11 fullscreen
 
 Additionally, the image window is a drop target for filenames.
@@ -220,7 +221,7 @@ On success, merge to master.
 
 ## TODO
 
-- add paste of images from vipsdisp as GdkTexture
+- add copy of images from vipsdisp as GdkTexture
 
 - add drag/drop of textures 
 

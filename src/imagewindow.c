@@ -1567,6 +1567,10 @@ image_window_init( ImageWindow *win )
 	win->last_progress_time = -1;
 	win->scale_rate = 1.0;
 	win->settings = g_settings_new( APPLICATION_ID );
+	char *cwd = g_get_current_dir();
+	win->save_folder = g_file_new_for_path( cwd );
+	win->load_folder = g_file_new_for_path( cwd );
+	g_free( cwd );
 
 	gtk_widget_init_template( GTK_WIDGET( win ) );
 
