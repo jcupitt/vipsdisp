@@ -39,6 +39,10 @@
         <attribute name='action'>win.duplicate</attribute>
       </item>
       <item>
+        <attribute name='label' translatable='yes'>Reload image</attribute>
+        <attribute name='action'>win.reload</attribute>
+      </item>
+      <item>
         <attribute name='label' translatable='yes'>Replace image ...</attribute>
         <attribute name='action'>win.replace</attribute>
       </item>

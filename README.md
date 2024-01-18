@@ -221,10 +221,6 @@ On success, merge to master.
 
 ## TODO
 
-- add drop of textures? 
-
-- auto reload on file change, or support F5 for reload?
-
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"

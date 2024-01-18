@@ -104,6 +104,7 @@ vipsdisp_app_startup( GApplication *app )
 		{ "win.close", { "<Primary>w", NULL } },
 		{ "win.replace", { "<Primary>o", NULL } },
 		{ "win.saveas", { "<Primary>s", NULL } },
+		{ "win.reload", { "F5", NULL } },
 		{ "win.prev", { "<primary>comma", NULL } },
 		{ "win.next", { "<primary>period", NULL } },
 		{ "win.fullscreen", { "F11", NULL } },

@@ -633,6 +633,46 @@ image_new_from_texture( GdkTexture *texture )
 }
 
 static void
+image_window_set_from_value( ImageWindow *win, const GValue *value )
+{
+	if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
+		GFile *file = g_value_get_object( value );
+
+		image_window_open( win, file );
+
+		VIPS_UNREF( file );
+	}
+	else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
+		const char *text = g_value_get_string( value );
+		GFile *file = g_file_new_for_path( text );
+
+		image_window_open( win, file );
+
+		VIPS_UNREF( file );
+	}
+	else if( G_VALUE_TYPE( value ) == GDK_TYPE_TEXTURE ) {
+		GdkTexture *texture = g_value_get_object( value );
+
+		VipsImage *image;
+		if( (image = image_new_from_texture( texture )) ) {
+			TileSource *tile_source;
+
+			if( (tile_source = tile_source_new_from_image( image )) ) {
+				image_window_set_tile_source( win, tile_source );
+
+				VIPS_UNREF( tile_source );
+			}
+
+			VIPS_UNREF( image );
+		}
+		else
+			image_window_error( win );
+
+		VIPS_UNREF( texture );
+	}
+}
+
+static void
 image_window_paste_action_ready( GObject *source_object, 
 	GAsyncResult *res, gpointer user_data )
 {
@@ -644,36 +684,8 @@ image_window_paste_action_ready( GObject *source_object,
 	value = gdk_clipboard_read_value_finish( clipboard, res, &error );
 	if( error ) 
 		image_window_gerror( win, &error );
-	else if( value ) {
-		if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
-			GFile *file = g_value_get_object( value );
-			image_window_open( win, file );
-		}
-		else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
-			const char *text = g_value_get_string( value );
-			GFile *file = g_file_new_for_path( text );
-
-			image_window_open( win, file );
-
-			VIPS_UNREF( file );
-		}
-		else if( G_VALUE_TYPE( value ) == GDK_TYPE_TEXTURE ) {
-			GdkTexture *texture = g_value_get_object( value );
-			VipsImage *image;
-			if( (image = image_new_from_texture( texture )) ) {
-				TileSource *tile_source;
-				if( (tile_source = tile_source_new_from_image( image )) ) {
-					image_window_set_tile_source( win, tile_source );
-
-					VIPS_UNREF( tile_source );
-				}
-
-				VIPS_UNREF( image );
-			}
-			else
-				image_window_error( win );
-		}
-	}
+	else if( value ) 
+		image_window_set_from_value( win, value );
 }
 
 static void
@@ -761,6 +773,21 @@ image_window_oneone_action( GSimpleAction *action,
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
 	image_window_set_scale( win, 1.0 );
+}
+
+static void
+image_window_reload_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	GFile *file;
+
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
+		image_window_open( win, file );
+		VIPS_UNREF( file );
+	}
 }
 
 static void
@@ -1530,6 +1557,7 @@ static GActionEntry image_window_entries[] = {
 	{ "bestfit", image_window_bestfit_action },
 	{ "oneone", image_window_oneone_action },
 
+	{ "reload", image_window_reload_action },
 	{ "duplicate", image_window_duplicate_action },
 	{ "replace", image_window_replace_action },
 	{ "saveas", image_window_saveas_action },
@@ -1581,14 +1609,7 @@ image_window_dnd_drop( GtkDropTarget *target,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	printf( "image_window_dnd_drop:\n" );
-
-	if( G_VALUE_HOLDS( value, G_TYPE_FILE ) )
-		image_window_open( win, g_value_get_object( value ));
-	else if( G_VALUE_HOLDS( value, GDK_TYPE_PIXBUF ) )
-		printf( "image_window_drop: implement GDK_TYPE_PIXBUF load\n" );
-	else
-		return FALSE;
+	image_window_set_from_value( win, value );
 
 	return TRUE;
 }
@@ -1702,7 +1723,7 @@ image_window_init( ImageWindow *win )
 			G_TYPE_INVALID, GDK_ACTION_COPY ) );
 	gtk_drop_target_set_gtypes( GTK_DROP_TARGET( controller ), (GType [2]) {
 		G_TYPE_FILE,
-		GDK_TYPE_PIXBUF,
+		GDK_TYPE_TEXTURE,
 	}, 2);
 	g_signal_connect( controller, "drop",
         G_CALLBACK( image_window_dnd_drop ), win );
@@ -1866,8 +1887,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
 	/* Initial state.
 	 */
-	tile_source->active = 
-		g_settings_get_boolean( win->settings, "control" );
+	tile_source->active = g_settings_get_boolean( win->settings, "control" );
 
 	/* Everything is set up ... start loading the image.
 	 */
@@ -1891,24 +1911,31 @@ void
 image_window_open( ImageWindow *win, GFile *file )
 {
 	char *path;
-	TileSource *tile_source;
 
 #ifdef DEBUG
 	printf( "image_window_open:\n" );
 #endif /* DEBUG */
 
-	path = g_file_get_path( file );
+	if( (path = g_file_get_path( file )) &&
+	 	path ) {
+		VipsImage *image;
+		TileSource *tile_source;
 
-	if( !(tile_source = tile_source_new_from_file( path )) ) {
-		image_window_error( win ); 
+		// force revalidation of this image ... this will knock any old load of
+		// this image out of cache
+		if( (image = vips_image_new_from_file( path, 
+				"revalidate", TRUE, NULL )) )
+			VIPS_UNREF( image );
+
+		if( (tile_source = tile_source_new_from_file( path )) ) {
+			image_window_set_tile_source( win, tile_source );
+			g_object_unref( tile_source );
+		}
+		else
+			image_window_error( win ); 
+
 		g_free( path );
-		return;
 	}
-
-	image_window_set_tile_source( win, tile_source );
-
-	g_object_unref( tile_source );
-	g_free( path );
 }
 
 void
