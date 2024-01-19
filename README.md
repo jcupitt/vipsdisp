@@ -279,8 +279,6 @@ On success, merge to master.
 
 - zooming:
 
-    - zoom in menu item should ignore mouse position
-
     - better pinch zoom support
 
         we should take the coordinates of the pinch gesture into account

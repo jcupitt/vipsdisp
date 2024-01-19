@@ -44,6 +44,11 @@ struct _ImageWindow
 	double scale_start;
 	double scale_progress;
 
+	/* TRUE to zoom on the mouse position, otherwise we use the centre of the
+	 * window.
+	 */
+	gboolean zoom_on_mouse;
+
 	/* The current save and load directories.
 	 */
 	GFile *save_folder;
@@ -448,7 +453,15 @@ image_window_tick( GtkWidget *widget,
 	double y_image;
 	double new_scale;
 
-	image_window_get_mouse_position( win, &x_image, &y_image );
+	if( win->zoom_on_mouse )
+		image_window_get_mouse_position( win, &x_image, &y_image );
+	else {
+		int centre_x = gtk_widget_get_width( win->imagedisplay ) / 2;
+		int centre_y = gtk_widget_get_height( win->imagedisplay ) / 2;
+
+		imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
+			centre_x, centre_y, &x_image, &y_image );
+	}
 
 #ifdef DEBUG
 	printf( "image_window_tick: dt = %g\n", dt );
@@ -513,6 +526,7 @@ image_window_animate_scale_to( ImageWindow *win, double scale_target )
 	win->scale_target = scale_target;
 	win->scale_start = image_window_get_scale( win );
 	win->scale_progress = 0.0;
+	win->zoom_on_mouse = FALSE;
 }
 
 static void
@@ -1016,12 +1030,14 @@ image_window_key_pressed( GtkEventControllerKey *self,
 	switch( keyval ) {
 	case GDK_KEY_plus:
 	case GDK_KEY_i:
+		win->zoom_on_mouse = TRUE;
 		win->scale_rate = 1.5 * SCALE_STEP;
 		handled = TRUE;
 		break;
 
 	case GDK_KEY_o:
 	case GDK_KEY_minus:
+		win->zoom_on_mouse = TRUE;
 		win->scale_rate = 0.2 / SCALE_STEP;
 		handled = TRUE;
 		break;
