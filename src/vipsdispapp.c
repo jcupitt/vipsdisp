@@ -109,6 +109,7 @@ vipsdisp_app_startup( GApplication *app )
 		{ "win.next", { "<primary>period", NULL } },
 		{ "win.fullscreen", { "F11", NULL } },
 		{ "win.properties", { "<Alt>Return", NULL } },
+		{ "win.print", { "<primary>p", NULL } },
 	};
 
 	G_APPLICATION_CLASS( vipsdisp_app_parent_class )->startup( app );

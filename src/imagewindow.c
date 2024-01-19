@@ -972,6 +972,85 @@ image_window_saveas_action( GSimpleAction *action,
 }
 
 static void
+image_window_print_file_ready( GObject *source_object, 
+	GAsyncResult *res, gpointer user_data )
+{
+	GtkPrintDialog *dialog = GTK_PRINT_DIALOG( source_object );
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+	GError *error = NULL;
+
+	printf( "image_window_print_file_ready:\n" );
+
+	if( !gtk_print_dialog_print_file_finish( dialog, res, &error ) )
+		image_window_gerror( win, &error );
+}
+
+static void
+image_window_print_ready( GObject *source_object, 
+	GAsyncResult *res, gpointer user_data )
+{
+	GtkPrintDialog *dialog = GTK_PRINT_DIALOG( source_object );
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+	GError *error = NULL;
+
+	GtkPrintSetup *setup;
+	GFile *file;
+
+	printf( "image_window_print_ready:\n" );
+
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
+		if( (setup = gtk_print_dialog_setup_finish( dialog, res, &error )) ) {
+			gtk_print_dialog_print_file( dialog,
+				GTK_WINDOW( win ), 
+				setup,
+				file,
+				NULL, 
+				image_window_print_file_ready,
+				win );
+		}
+		else
+			image_window_gerror( win, &error );
+
+		VIPS_UNREF( file );
+	}
+}
+
+static void
+image_window_print_action( GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	GFile *file;
+
+	printf( "image_window_print_action:\n" );
+
+	if( win->tile_source &&
+		(file = tile_source_get_file( win->tile_source )) ) {
+		GtkPrintDialog *dialog = gtk_print_dialog_new();
+
+		char *name = g_file_get_parse_name( file );
+		char *title = g_strdup_printf("Print \"%s\"", name );
+		gtk_print_dialog_set_title( dialog, title );
+		g_free( name );
+		g_free( title );
+
+		gtk_print_dialog_setup( dialog, 
+			GTK_WINDOW( win ),
+			NULL, 
+			image_window_print_ready,
+			win );
+	}
+	else {
+		// we'd need to implement print texture I guess
+		vips_error( "Print", "%s", 
+			_( "Print of non-file based images not implemented" ) );
+		image_window_error( win );
+	}
+}
+
+static void
 image_window_close_action( GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data )
 {
@@ -1562,6 +1641,9 @@ static GActionEntry image_window_entries[] = {
 	{ "duplicate", image_window_duplicate_action },
 	{ "replace", image_window_replace_action },
 	{ "saveas", image_window_saveas_action },
+
+	{ "print", image_window_print_action },
+
 	{ "close", image_window_close_action },
 
 	{ "fullscreen", image_window_toggle, NULL, "false", 
