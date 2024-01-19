@@ -223,6 +223,9 @@ On success, merge to master.
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 
+    works and is in branch add-print-dialog, but it needs 4.14, and the new
+    print API is still unstable
+
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
 
