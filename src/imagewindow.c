@@ -357,7 +357,8 @@ image_window_set_error( ImageWindow *win, const char *message )
 static void
 image_window_error( ImageWindow *win )
 {
-	image_window_set_error( win, vips_error_buffer_copy() );
+	image_window_set_error( win, vips_error_buffer() );
+	vips_error_clear();
 }
 
 static void
@@ -1926,6 +1927,8 @@ image_window_open( ImageWindow *win, GFile *file )
 		if( (image = vips_image_new_from_file( path, 
 				"revalidate", TRUE, NULL )) )
 			VIPS_UNREF( image );
+		else
+			image_window_error( win ); 
 
 		if( (tile_source = tile_source_new_from_file( path )) ) {
 			image_window_set_tile_source( win, tile_source );

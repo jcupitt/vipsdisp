@@ -61,6 +61,7 @@ save_options_error( SaveOptions *options )
 	/* Remove any trailing \n.
 	 */
 	err = vips_error_buffer_copy();
+	vips_error_clear();
 	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
 		err[i - 1] = '\0';
 	gtk_label_set_text( GTK_LABEL( options->error_label ), err );
