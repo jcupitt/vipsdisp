@@ -44,10 +44,16 @@ struct _ImageWindow
 	double scale_start;
 	double scale_progress;
 
-	/* TRUE to zoom on the mouse position, otherwise we use the centre of the
-	 * window.
+	/* During zoom, keep this pixel (in image coordinates) at the same
+	 * position on the screen.
 	 */
-	gboolean zoom_on_mouse;
+	double scale_x;
+	double scale_y;
+
+	/* TRUE for an eased zoom (eg. magin), FALSE for a continuous zoom (eg.
+	 * 'i').
+	 */
+	gboolean eased;
 
 	/* The current save and load directories.
 	 */
@@ -224,7 +230,7 @@ image_window_set_scale_position( ImageWindow *win,
 
 	/* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
 	 */
-	imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
+	imagedisplay_image_to_gtk( IMAGEDISPLAY( win->imagedisplay ), 
 		x_image, y_image, &old_x, &old_y ); 
 
 	image_window_set_scale( win, scale );
@@ -233,7 +239,7 @@ image_window_set_scale_position( ImageWindow *win,
 	 * then to keep the point in the same position we must translate by 
 	 * the difference.
 	 */
-	imagedisplay_image_to_gtk( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+	imagedisplay_image_to_gtk( IMAGEDISPLAY( win->imagedisplay ),
 		x_image, y_image, &new_x, &new_y );
 
 	/* Add 0.5 since we (in effect) cast to int here and we want round to
@@ -449,19 +455,7 @@ image_window_tick( GtkWidget *widget,
 		1.0 / G_TIME_SPAN_SECOND;
 	double scale = image_window_get_scale( win );
 
-	double x_image;
-	double y_image;
 	double new_scale;
-
-	if( win->zoom_on_mouse )
-		image_window_get_mouse_position( win, &x_image, &y_image );
-	else {
-		int centre_x = gtk_widget_get_width( win->imagedisplay ) / 2;
-		int centre_y = gtk_widget_get_height( win->imagedisplay ) / 2;
-
-		imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
-			centre_x, centre_y, &x_image, &y_image );
-	}
 
 #ifdef DEBUG
 	printf( "image_window_tick: dt = %g\n", dt );
@@ -469,12 +463,8 @@ image_window_tick( GtkWidget *widget,
 
 	new_scale = scale;
 
-	// i/o/etc. continuous zoom
-	if( win->scale_rate != 1.0 )
-		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
-
-	// 0/1/etc. discrete zoom
-	if( win->scale_target != 0 ) {
+	if( win->eased ) {
+		// 0/1/etc. discrete zoom
 		win->scale_progress += dt;
 
 		// 0-1 progress in zoom animation
@@ -490,8 +480,16 @@ image_window_tick( GtkWidget *widget,
 			image_window_stop_animation( win );
 		}
 	}
+	else {
+		// i/o/etc. continuous zoom
+		new_scale = (dt * (win->scale_rate - 1.0) + 1.0) * scale;
 
-	image_window_set_scale_position( win, new_scale, x_image, y_image );
+		if( win->scale_rate == 1.0 )
+			image_window_stop_animation( win );
+	}
+
+	image_window_set_scale_position( win, 
+		new_scale, win->scale_x, win->scale_y );
 
 	win->last_frame_time = frame_time;
 
@@ -520,17 +518,36 @@ image_window_stop_animation( ImageWindow *win )
 }
 
 static void
-image_window_animate_scale_to( ImageWindow *win, double scale_target )
+image_window_scale_to_eased( ImageWindow *win, double scale_target )
 {
-	win->scale_rate = 1.0;
+	int widget_width = gtk_widget_get_width( win->imagedisplay );
+	int widget_height = gtk_widget_get_height( win->imagedisplay );
+
+	win->eased = TRUE;
 	win->scale_target = scale_target;
 	win->scale_start = image_window_get_scale( win );
 	win->scale_progress = 0.0;
-	win->zoom_on_mouse = FALSE;
+	imagedisplay_gtk_to_image( IMAGEDISPLAY( win->imagedisplay ), 
+		widget_width / 2, widget_height / 2, 
+		&win->scale_x, &win->scale_y );
+
+	image_window_start_animation( win );
 }
 
 static void
-image_window_animate_bestfit( ImageWindow *win )
+image_window_scale_continuous( ImageWindow *win, 
+	double scale_rate, double scale_x, double scale_y )
+{
+	win->eased = FALSE;
+	win->scale_rate = scale_rate;
+	win->scale_x = scale_x;
+	win->scale_y = scale_y;
+
+	image_window_start_animation( win );
+}
+
+static void
+image_window_bestfit( ImageWindow *win )
 {
 	// size by whole image area, including the props pane
 	int widget_width = gtk_widget_get_width( win->main_box );
@@ -539,8 +556,20 @@ image_window_animate_bestfit( ImageWindow *win )
 	double hscale = (double) widget_width / win->tile_source->display_width;
 	double vscale = (double) widget_height / win->tile_source->display_height;
 	double scale = VIPS_MIN( hscale, vscale );
-	
-	image_window_animate_scale_to( win, scale * win->tile_source->zoom );
+
+	image_window_scale_to_eased( win, scale * win->tile_source->zoom );
+}
+
+static void
+image_window_magin( ImageWindow *win )
+{
+	image_window_scale_to_eased( win, 2 * image_window_get_scale( win ) );
+}
+
+static void
+image_window_magout( ImageWindow *win )
+{
+	image_window_scale_to_eased( win, 0.5 * image_window_get_scale( win ) );
 }
 
 static void
@@ -714,11 +743,11 @@ image_window_paste_action( GSimpleAction *action,
 	gsize n_types;
 	const GType *types = gdk_content_formats_get_gtypes( formats, &n_types );
 
-	/*
+#ifdef DEBUG
 	printf( "clipboard in %lu formats\n", n_types );
 	for( gsize i = 0; i < n_types; i++ ) 
 		printf( "%lu - %s\n", i, g_type_name( types[i] ) );
-	 */
+#endif /*DEBUG*/
 
 	// GTypes we handle in paste ... these are in the order we try, so a GFile
 	// is preferred to a simple string
@@ -757,8 +786,7 @@ image_window_magin_action( GSimpleAction *action,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	image_window_animate_scale_to( win, 2 * image_window_get_scale( win ) );
-	image_window_start_animation( win );
+	image_window_magin( win );
 }
 
 static void
@@ -767,8 +795,7 @@ image_window_magout_action( GSimpleAction *action,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	image_window_animate_scale_to( win, 0.5 * image_window_get_scale( win ) );
-	image_window_start_animation( win );
+	image_window_magout( win );
 }
 
 static void
@@ -777,8 +804,7 @@ image_window_bestfit_action( GSimpleAction *action,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	image_window_animate_bestfit( win );
-	image_window_start_animation( win );
+	image_window_bestfit( win );
 }
 
 static void
@@ -787,7 +813,7 @@ image_window_oneone_action( GSimpleAction *action,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	image_window_set_scale( win, 1.0 );
+	image_window_scale_to_eased( win, 1.0 );
 }
 
 static void
@@ -1018,6 +1044,8 @@ image_window_key_pressed( GtkEventControllerKey *self,
 		GTK_SCROLLED_WINDOW( win->scrolled_window );
 
 	gboolean handled;
+	double scale_x;
+	double scale_y;
 	gboolean ret;
 
 #ifdef DEBUG
@@ -1029,16 +1057,31 @@ image_window_key_pressed( GtkEventControllerKey *self,
 
 	switch( keyval ) {
 	case GDK_KEY_plus:
+		image_window_magin( win );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_minus:
+		image_window_magout( win );
+		handled = TRUE;
+		break;
+
+	case GDK_KEY_0:
+		image_window_bestfit( win );
+		handled = TRUE;
+		break;
+
 	case GDK_KEY_i:
-		win->zoom_on_mouse = TRUE;
-		win->scale_rate = 1.5 * SCALE_STEP;
+		image_window_get_mouse_position( win, &scale_x, &scale_y );
+		image_window_scale_continuous( win, 1.5 * SCALE_STEP,
+			scale_x, scale_y );
 		handled = TRUE;
 		break;
 
 	case GDK_KEY_o:
-	case GDK_KEY_minus:
-		win->zoom_on_mouse = TRUE;
-		win->scale_rate = 0.2 / SCALE_STEP;
+		image_window_get_mouse_position( win, &scale_x, &scale_y );
+		image_window_scale_continuous( win, 0.2 * SCALE_STEP,
+			scale_x, scale_y );
 		handled = TRUE;
 		break;
 
@@ -1094,13 +1137,9 @@ image_window_key_pressed( GtkEventControllerKey *self,
 		handled = TRUE;
 		break;
 
-	case GDK_KEY_0:
-		image_window_animate_bestfit( win );
-		handled = TRUE;
-		break;
-
 	case GDK_KEY_d:
 		image_window_toggle_debug( win );
+		handled = TRUE;
 		break;
 
 	default:
@@ -1118,15 +1157,12 @@ image_window_key_pressed( GtkEventControllerKey *self,
 				if( state & GDK_CONTROL_MASK )
 					scale = 1.0 / scale;
 
-				image_window_animate_scale_to( win, scale );
+				image_window_scale_to_eased( win, scale );
 
 				handled = TRUE;
 				break;
 			}
 	}
-
-	if( handled )
-		image_window_start_animation( win );
 
 	return( handled );
 }
@@ -1142,10 +1178,8 @@ image_window_key_released( GtkEventControllerKey *self,
 	handled = FALSE;
 
 	switch( keyval ) {
-	case GDK_KEY_plus:
 	case GDK_KEY_i:
 	case GDK_KEY_o:
-	case GDK_KEY_minus:
 		win->scale_rate = 1.0;
 		handled = TRUE;
 		break;
@@ -1181,6 +1215,10 @@ image_window_scroll( GtkEventControllerMotion *self,
 	double x_image;
 	double y_image;
 
+#ifdef DEBUG
+	printf( "image_window_scroll: dx = %g, dy = %g\n", dx, dy );
+#endif /*DEBUG*/
+
 	image_window_get_mouse_position( win, &x_image, &y_image );
 
 	if( dy < 0 ) 
@@ -1195,6 +1233,7 @@ image_window_scroll( GtkEventControllerMotion *self,
 	return( TRUE );
 }
 
+/*
 static void
 image_window_scale_begin( GtkGesture* self, 
 	GdkEventSequence* sequence, gpointer user_data )
@@ -1207,7 +1246,7 @@ image_window_scale_begin( GtkGesture* self,
 	win->last_scale = image_window_get_scale( win );
 	gtk_gesture_get_bounding_box_center( self, &finger_cx, &finger_cy );
 
-	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ),
+	imagedisplay_gtk_to_image( IMAGEDISPLAY( win->imagedisplay ),
 		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
 }
 
@@ -1220,6 +1259,7 @@ image_window_scale_changed( GtkGestureZoom *self,
 	image_window_set_scale_position( win, 
 		scale * win->last_scale, win->scale_cx, win->scale_cy );
 }
+ */
 
 static void
 image_window_drag_begin( GtkEventControllerMotion *self,
@@ -1231,6 +1271,11 @@ image_window_drag_begin( GtkEventControllerMotion *self,
 	int window_top;
 	int window_width;
 	int window_height;
+
+#ifdef DEBUG
+	printf( "image_window_drag_begin: start_x = %g, start_y = %g\n",
+		 start_x, start_y );
+#endif /*DEBUG*/
 
 	image_window_get_position( win, 
 		&window_left, &window_top, &window_width, &window_height );
@@ -1244,6 +1289,11 @@ image_window_drag_update( GtkEventControllerMotion *self,
 	gdouble offset_x, gdouble offset_y, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+#ifdef DEBUG
+	printf( "image_window_drag_update: offset_x = %g, offset_y = %g\n",
+		 offset_x, offset_y );
+#endif /*DEBUG*/
 
 	image_window_set_position( win, 
 		win->drag_start_x - offset_x,
@@ -1695,12 +1745,16 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_scroll ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
+	/* We'd need to implement more of the pinch zoom interfac e to make this
+	 * useful. At the momemnt this just causes wonky behaviour on trackpads.
+	 *
 	controller = GTK_EVENT_CONTROLLER( gtk_gesture_zoom_new() );
 	g_signal_connect( controller, "begin",
 		G_CALLBACK( image_window_scale_begin ), win );
 	g_signal_connect( controller, "scale-changed",
 		G_CALLBACK( image_window_scale_changed ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
+	 */
 
 	/* And drag to pan.
 	 */
@@ -1762,7 +1816,7 @@ image_window_init( ImageWindow *win )
 	change_state( GTK_WIDGET( win ), "info", 
 		g_settings_get_value( win->settings, "info" ) );
 
-	// some kind of gtk bug? hepand on properties can't be set from .ui or in
+	// some kind of gtk bug? hexpand on properties can't be set from .ui or in
 	// properties.c, but must be set after adding to a parent
 	g_object_set( win->properties, "hexpand", FALSE, NULL );
 }
@@ -1961,7 +2015,7 @@ void
 image_window_get_mouse_position( ImageWindow *win, 
 	double *x_image, double *y_image )
 {
-	imagedisplay_gtk_to_image( VIPSDISP_IMAGEDISPLAY( win->imagedisplay ), 
+	imagedisplay_gtk_to_image( IMAGEDISPLAY( win->imagedisplay ), 
 		win->last_x_gtk, win->last_y_gtk, x_image, y_image );
 }
 

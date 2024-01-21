@@ -2,6 +2,7 @@
 #define __IMAGE_DISPLAY_H
 
 #define IMAGEDISPLAY_TYPE (imagedisplay_get_type())
+#define IMAGEDISPLAY VIPSDISP_IMAGEDISPLAY
 
 G_DECLARE_FINAL_TYPE( Imagedisplay, imagedisplay, 
 	VIPSDISP, IMAGEDISPLAY, GtkDrawingArea )
