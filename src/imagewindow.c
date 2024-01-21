@@ -1233,7 +1233,8 @@ image_window_scroll( GtkEventControllerMotion *self,
 	return( TRUE );
 }
 
-/*
+/* See commments below.
+ *
 static void
 image_window_scale_begin( GtkGesture* self, 
 	GdkEventSequence* sequence, gpointer user_data )
@@ -1745,8 +1746,9 @@ image_window_init( ImageWindow *win )
 		G_CALLBACK( image_window_scroll ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
 
-	/* We'd need to implement more of the pinch zoom interfac e to make this
-	 * useful. At the momemnt this just causes wonky behaviour on trackpads.
+	/* We'd need to implement more of the pinch zoom interface to make this
+	 * useful. At the moment this just causes wonky behaviour on multitouch 
+	 * trackpads.
 	 *
 	controller = GTK_EVENT_CONTROLLER( gtk_gesture_zoom_new() );
 	g_signal_connect( controller, "begin",

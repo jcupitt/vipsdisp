@@ -291,3 +291,11 @@ On success, merge to master.
 - how should we handle images which include labels, macros, thumbnails?
 
     - load options? save options? 
+
+    - display images in properties? perhaps a thumbnail? set
+      attach-associated?
+
+      appear as eg.:
+
+        openslide.associated.thumbnail    1024x732 uchar, 4 bands, srgb
+
