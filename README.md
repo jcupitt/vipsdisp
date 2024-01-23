@@ -229,6 +229,14 @@ On success, merge to master.
 - use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
   or maybe shift-<, shift->? 
 
+  add paste G_TYPE_FILE_LIST, replace with many-file select, drag many files
+
+  on next_image, kill tile loading on prev somehow
+
+  don't we cache loaded images? you'd think we would
+
+- imagewindow should respect animation setting
+
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander
 
@@ -282,6 +290,8 @@ On success, merge to master.
     - better pinch zoom support
 
         we should take the coordinates of the pinch gesture into account
+
+        can test this now I have a multitouch trackpad
 
     - we could shrink tiles on zoom out (we only expand tiles now)
 

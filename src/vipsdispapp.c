@@ -105,8 +105,10 @@ vipsdisp_app_startup( GApplication *app )
 		{ "win.replace", { "<Primary>o", NULL } },
 		{ "win.saveas", { "<Primary>s", NULL } },
 		{ "win.reload", { "F5", NULL } },
-		{ "win.prev", { "<primary>comma", NULL } },
-		{ "win.next", { "<primary>period", NULL } },
+		{ "win.prev", { "<Primary>comma", NULL } },
+		{ "win.next", { "<Primary>period", NULL } },
+		{ "win.prev_image", { "<Alt>Left", NULL } },
+		{ "win.next_image", { "<Alt>Right", NULL } },
 		{ "win.fullscreen", { "F11", NULL } },
 		{ "win.properties", { "<Alt>Return", NULL } },
 	};
@@ -153,14 +155,10 @@ static void
 vipsdisp_app_open( GApplication *app, 
 	GFile **files, int n_files, const char *hint )
 {
-	int i;
+	ImageWindow *win = image_window_new( VIPSDISP_APP( app ) );
 
-	for( i = 0; i < n_files; i++ ) {
-		ImageWindow *win = image_window_new( VIPSDISP_APP( app ) );
-
-		image_window_open( win, files[i] );
-		gtk_window_present( GTK_WINDOW( win ) );
-	}
+	image_window_open_gfiles( win, files, n_files );
+	gtk_window_present( GTK_WINDOW( win ) );
 }
 
 static void

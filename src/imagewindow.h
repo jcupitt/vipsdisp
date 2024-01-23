@@ -9,7 +9,9 @@ G_DECLARE_FINAL_TYPE( ImageWindow, image_window,
 	VIPSDISP, IMAGE_WINDOW, GtkApplicationWindow )
 
 ImageWindow *image_window_new( VipsdispApp *app );
-void image_window_open( ImageWindow *win, GFile *file );
+void image_window_open_files( ImageWindow *win, char **files, int n_files );
+void image_window_open_gfiles( ImageWindow *win, GFile **gfiles, int n_files );
+void image_window_open_image( ImageWindow *win, VipsImage *image );
 double image_window_get_scale( ImageWindow *win );
 TileSource *image_window_get_tile_source( ImageWindow *win );
 void image_window_set_tile_source( ImageWindow *win, TileSource *tile_source );

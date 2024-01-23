@@ -358,35 +358,17 @@ tile_source_display_image( TileSource *tile_source, VipsImage **mask_out )
 		VipsImage **t = (VipsImage **) 
 			vips_object_local_array( VIPS_OBJECT( context ), 7 );
 
-		/* So image will be unreffed when we unref context.
-		 */
+		// so it's unreffed when we unref context
 		t[0] = image;
-		x = t[0];
 
-		if( x->Coding == VIPS_CODING_LABQ ) {
-			if( vips_LabQ2Lab( x, &t[1], NULL ) ) {
-				VIPS_UNREF( context );
-				return( NULL );
-			}
-			x = t[1];
-		}
-
-		if( x->Coding == VIPS_CODING_RAD ) {
-			if( vips_rad2float( x, &t[2], NULL ) ) {
-				VIPS_UNREF( context );
-				return( NULL );
-			}
-			x = t[2];
-		}
-
-		if( vips_hist_norm( x, &t[3], NULL ) ||
+		if( vips_image_decode( t[0], &t[1] ) ||
+			vips_hist_norm( t[1], &t[3], NULL ) ||
 			vips_hist_plot( t[3], &t[4], NULL ) ) {
 			VIPS_UNREF( context );
 			return( NULL );
 		}
-		x = t[4];
 
-		image = x;
+		image = t[4];
 		g_object_ref( image ); 
 		VIPS_UNREF( context );
 	}
@@ -515,6 +497,15 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 	image = in;
 	g_object_ref( image ); 
+
+	/* Coded images won't unalpha correctly.
+	 */
+	if( vips_image_decode( image, &x ) ) {
+		VIPS_UNREF( image );
+		return( NULL ); 
+	}
+	VIPS_UNREF( image );
+	image = x;
 
 	/* The image interpretation might be crazy (eg. a mono image tagged as
 	 * srgb) and that'll mess up our rules for display.
@@ -1291,7 +1282,7 @@ tile_source_print( TileSource *tile_source )
 
 /* Sniff basic image properties.
  */
-int
+static int
 tile_source_set_image( TileSource *tile_source, VipsImage *image )
 {
 #ifdef DEBUG
@@ -1577,8 +1568,8 @@ tile_source_new_from_file( const char *filename )
 	VipsImage *x;
 
 #ifdef DEBUG
-	printf( "tile_source_new_from_file: %s\n", filename );
 #endif /*DEBUG*/
+	printf( "tile_source_new_from_file: %s\n", filename );
 
 	tile_source->filename = g_strdup( filename ); 
 

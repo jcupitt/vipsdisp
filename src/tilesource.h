@@ -235,7 +235,6 @@ const char *tile_source_get_path( TileSource *tile_source );
 GFile *tile_source_get_file( TileSource *tile_source );
 
 VipsImage *tile_source_get_image( TileSource *tile_source );
-int tile_source_set_image( TileSource *tile_source, VipsImage *image );
 VipsImage *tile_source_get_base_image( TileSource *tile_source );
 gboolean tile_source_get_pixel( TileSource *tile_source, 
 	int image_x, int image_y, double **vector, int *n );

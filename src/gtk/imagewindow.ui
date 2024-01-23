@@ -46,6 +46,14 @@
         <attribute name='label' translatable='yes'>Replace image ...</attribute>
         <attribute name='action'>win.replace</attribute>
       </item>
+      <item>
+        <attribute name='label' translatable='yes'>Next image</attribute>
+        <attribute name='action'>win.next_image</attribute>
+      </item>
+      <item>
+        <attribute name='label' translatable='yes'>Previous image</attribute>
+        <attribute name='action'>win.prev_image</attribute>
+      </item>
     </section>
 
     <section>

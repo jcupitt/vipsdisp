@@ -19,6 +19,12 @@ struct _ImageWindow
 	TileSource *tile_source;
 	TileCache *tile_cache;
 
+	/* The set of filenames we cycle through.
+	 */
+	char **files;
+	int n_files;
+	int current_file;
+
 	/* Last known mouse position, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
 	 */
@@ -101,6 +107,175 @@ enum {
 static guint image_window_signals[SIG_LAST] = { 0 };
 
 static void
+image_window_files_free( ImageWindow *win )
+{
+	if( win->files ) {
+		for( int i = 0; i < win->n_files; i++ ) 
+			VIPS_FREE( win->files[i] );
+		VIPS_FREE( win->files );
+	}
+	win->n_files = 0;
+	win->current_file = 0;
+}
+
+static void
+image_window_set_error( ImageWindow *win, const char *message )
+{
+	char *err;
+	int i;
+
+	/* Remove any trailing \n.
+	 */
+	err = g_strdup( message );
+	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
+		err[i - 1] = '\0';
+	gtk_label_set_text( GTK_LABEL( win->error_label ), err );
+	g_free( err );
+
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), TRUE );
+}
+
+static void
+image_window_error( ImageWindow *win )
+{
+	image_window_set_error( win, vips_error_buffer() );
+	vips_error_clear();
+}
+
+static void
+image_window_gerror( ImageWindow *win, GError **error )
+{
+	if( error && *error ) {
+		image_window_set_error( win, (*error)->message );
+		g_error_free( *error );
+	}
+}
+
+static void
+image_window_error_hide( ImageWindow *win )
+{
+	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
+}
+
+static int
+sort_filenames( const void *a, const void *b )
+{
+	const char *f1 = (const char *) a;
+	const char *f2 = (const char *) b;
+
+	return( g_strcasecmp( f1, f2 ) );
+}
+
+static void
+image_window_files_set_dirname( ImageWindow *win, char *dirname )
+{
+	GError *error = NULL;
+
+	GDir *dir;
+	GSList *files;
+	const char *filename;
+	int i;
+	GSList *p;
+
+	dir = g_dir_open( dirname, 0, &error );
+	if( !dir ) {
+		image_window_gerror( win, &error );
+		return;
+	}
+
+	files = NULL;
+	while( (filename = g_dir_read_name( dir )) ) {
+		char *path;
+
+		// ignore dotfiles
+		if( vips_isprefix( ".", filename ) )
+			continue;
+
+		path = g_build_path( "/", dirname, filename, NULL );
+
+		// ignore directories
+		if( g_file_test( path, G_FILE_TEST_IS_DIR ) ) {
+			g_free( path );
+			continue;
+		}
+
+		files = g_slist_prepend( files, path );
+	}
+
+	g_dir_close( dir );
+
+	files = g_slist_sort( files, (GCompareFunc) sort_filenames );
+
+	image_window_files_free( win );
+	win->n_files = g_slist_length( files );
+	win->files = VIPS_ARRAY( NULL, win->n_files, char * );
+	for( i = 0, p = files; i < win->n_files; i++, p = p->next ) 
+		win->files[i] = (char *) p->data;
+
+	g_slist_free( files );
+}
+
+static void
+image_window_files_set( ImageWindow *win, char **files, int n_files )
+{
+	if( n_files == 0 || !files )
+		image_window_files_free( win );
+	else if( n_files == 1 ) {
+		char *dirname = g_path_get_dirname( files[0] );
+
+		image_window_files_set_dirname( win, dirname );
+
+		for( int i = 0; i < win->n_files; i++ )
+			// haha this won't work for many cases
+			if( strcmp( win->files[i], files[0] ) == 0 ) {
+				win->current_file = i;
+				break;
+			}
+
+		g_free( dirname );
+	}
+	else {
+		image_window_files_free( win );
+
+		win->n_files = n_files;
+		win->files = VIPS_ARRAY( NULL, n_files, char * );
+		for( int i = 0; i < win->n_files; i++ ) 
+			win->files[i] = g_strdup( files[i] );
+
+		win->current_file = 0;
+	}
+}
+
+static void
+image_window_open_current_file( ImageWindow *win )
+{
+	if( !win->files )
+		image_window_set_tile_source( win, NULL );
+	else {
+		char *filename = win->files[win->current_file];
+
+		TileSource *tile_source;
+
+		/* FIXME ... we only want to revaluidate if eg. the timestamp has 
+		 * changed, or perhaps on F5?
+		VipsImage *image;
+		if( (image = vips_image_new_from_file( filename, 
+				"revalidate", TRUE, NULL )) )
+			VIPS_UNREF( image );
+		else
+			image_window_error( win ); 
+		 */
+
+		if( (tile_source = tile_source_new_from_file( filename )) ) {
+			image_window_set_tile_source( win, tile_source );
+			g_object_unref( tile_source );
+		}
+		else
+			image_window_error( win ); 
+	}
+}
+
+static void
 image_window_dispose( GObject *object )
 {
 	ImageWindow *win = IMAGE_WINDOW( object );
@@ -119,6 +294,7 @@ image_window_dispose( GObject *object )
 	VIPS_UNREF( win->load_folder );
 	VIPS_FREEF( gtk_widget_unparent, win->right_click_menu );
 	VIPS_FREEF( g_timer_destroy, win->progress_timer );
+	image_window_files_free( win );
 
 	G_OBJECT_CLASS( image_window_parent_class )->dispose( object );
 }
@@ -346,45 +522,6 @@ image_window_cancel_clicked( GtkWidget *button, ImageWindow *win )
 	if( win->tile_source &&
 		(image = tile_source_get_image( win->tile_source )) ) 
 		vips_image_set_kill( image, TRUE );
-}
-
-static void
-image_window_set_error( ImageWindow *win, const char *message )
-{
-	char *err;
-	int i;
-
-	/* Remove any trailing \n.
-	 */
-	err = g_strdup( message );
-	for( i = strlen( err ); i > 0 && err[i - 1] == '\n'; i-- )
-		err[i - 1] = '\0';
-	gtk_label_set_text( GTK_LABEL( win->error_label ), err );
-	g_free( err );
-
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), TRUE );
-}
-
-static void
-image_window_error( ImageWindow *win )
-{
-	image_window_set_error( win, vips_error_buffer() );
-	vips_error_clear();
-}
-
-static void
-image_window_gerror( ImageWindow *win, GError **error )
-{
-	if( error && *error ) {
-		image_window_set_error( win, (*error)->message );
-		g_error_free( *error );
-	}
-}
-
-static void
-image_window_error_hide( ImageWindow *win )
-{
-	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
 }
 
 static void
@@ -631,7 +768,7 @@ image_window_copy_action( GSimpleAction *action,
 			gdk_clipboard_set( clipboard, G_TYPE_FILE, file );
 			VIPS_UNREF( file );
 		}
-		else if( (image = tile_source_get_image( win->tile_source )) ) {
+		else if( (image = tile_source_get_base_image( win->tile_source )) ) {
 			GdkTexture *texture;
 
 			if( (texture = texture_new_from_image( image )) ) {
@@ -682,31 +819,21 @@ image_window_set_from_value( ImageWindow *win, const GValue *value )
 	if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
 		GFile *file = g_value_get_object( value );
 
-		image_window_open( win, file );
+		image_window_open_gfiles( win, &file, 1 );
 
 		VIPS_UNREF( file );
 	}
 	else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
 		const char *text = g_value_get_string( value );
-		GFile *file = g_file_new_for_path( text );
 
-		image_window_open( win, file );
-
-		VIPS_UNREF( file );
+		image_window_open_files( win, (char **) &text, 1 );
 	}
 	else if( G_VALUE_TYPE( value ) == GDK_TYPE_TEXTURE ) {
 		GdkTexture *texture = g_value_get_object( value );
 
 		VipsImage *image;
 		if( (image = image_new_from_texture( texture )) ) {
-			TileSource *tile_source;
-
-			if( (tile_source = tile_source_new_from_image( image )) ) {
-				image_window_set_tile_source( win, tile_source );
-
-				VIPS_UNREF( tile_source );
-			}
-
+			image_window_open_image( win, image );
 			VIPS_UNREF( image );
 		}
 		else
@@ -826,7 +953,7 @@ image_window_reload_action( GSimpleAction *action,
 
 	if( win->tile_source &&
 		(file = tile_source_get_file( win->tile_source )) ) {
-		image_window_open( win, file );
+		image_window_open_gfiles( win, &file, 1 );
 		VIPS_UNREF( file );
 	}
 }
@@ -855,6 +982,12 @@ image_window_duplicate_action( GSimpleAction *action,
 		image_window_set_tile_source( new, tile_source );
 		g_object_unref( tile_source );
 	}
+
+	new->n_files = win->n_files;
+	new->files = VIPS_ARRAY( NULL, win->n_files, char * );
+	for( int i = 0; i < win->n_files; i++ ) 
+		new->files[i] = g_strdup( win->files[i] );
+	new->current_file = win->current_file;
 
 	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
 	gtk_window_set_default_size( GTK_WINDOW( new ), width, height );
@@ -895,6 +1028,7 @@ image_window_replace_result( GObject *source_object,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
+
 	GFile *file;
 
 	file = gtk_file_dialog_open_finish( dialog, res, NULL );
@@ -904,7 +1038,7 @@ image_window_replace_result( GObject *source_object,
 		win->load_folder = get_parent( file );
 
 		image_window_error_hide( win );
-		image_window_open( win, file );
+		image_window_open_gfiles( win, &file, 1 );
 		g_object_unref( file );
 	}
 }
@@ -968,7 +1102,7 @@ image_window_on_file_save_cb( GObject* source_object,
 		g_object_unref( file );
 
 		options = save_options_new( GTK_WINDOW( win ),
-			win->tile_source->image, filename );
+			tile_source_get_base_image( win->tile_source ), filename );
 
 		g_free( filename );
 
@@ -1361,6 +1495,31 @@ image_window_info( GSimpleAction *action,
 }
 
 static void
+image_window_next_image( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	if( win->n_files > 0 ) {
+		win->current_file = (win->current_file + 1) % win->n_files;
+		image_window_open_current_file( win );
+	}
+}
+
+static void
+image_window_prev_image( GSimpleAction *action, 
+	GVariant *state, gpointer user_data )
+{
+	ImageWindow *win = IMAGE_WINDOW( user_data );
+
+	if( win->n_files > 0 ) {
+		win->current_file = (win->current_file + win->n_files - 1) % 
+			win->n_files;
+		image_window_open_current_file( win );
+	}
+}
+
+static void
 image_window_next( GSimpleAction *action, GVariant *state, gpointer user_data )
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
@@ -1640,6 +1799,9 @@ static GActionEntry image_window_entries[] = {
 	{ "properties", image_window_toggle, NULL, "false",
 		image_window_properties },
 
+	{ "next_image", image_window_next_image },
+	{ "prev_image", image_window_prev_image },
+
 	{ "next", image_window_next },
 	{ "prev", image_window_prev },
 	{ "scale", image_window_scale },
@@ -1900,6 +2062,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
+	image_window_error_hide( win );
 
 	win->tile_source = tile_source;
 	g_object_ref( tile_source );
@@ -1949,7 +2112,7 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 				vips_enum_nick( VIPS_TYPE_INTERPRETATION,
 					image->Type ) );
 		else
-			vips_buf_appendf( &buf, ", %s",
+			vips_buf_appendf( &buf, "%s",
 				vips_enum_nick( VIPS_TYPE_CODING,
 					vips_image_get_coding( image ) ) );
 		vips_buf_appendf( &buf, ", %g x %g p/mm",
@@ -1981,35 +2144,39 @@ GSettings *image_window_get_settings( ImageWindow *win )
 }
 
 void
-image_window_open( ImageWindow *win, GFile *file )
+image_window_open_files( ImageWindow *win, char **files, int n_files )
 {
-	char *path;
+	image_window_files_set( win, files, n_files );
+	image_window_open_current_file( win );
+}
 
-#ifdef DEBUG
-	printf( "image_window_open:\n" );
-#endif /* DEBUG */
+void
+image_window_open_gfiles( ImageWindow *win, GFile **gfiles, int n_files )
+{
+	char **files;
 
-	if( (path = g_file_get_path( file )) &&
-	 	path ) {
-		VipsImage *image;
-		TileSource *tile_source;
+	files = VIPS_ARRAY( NULL, n_files, char * );
+	for( int i = 0; i < n_files; i++ )
+		files[i] = g_file_get_path( gfiles[i] );
 
-		// force revalidation of this image ... this will knock any old load of
-		// this image out of cache
-		if( (image = vips_image_new_from_file( path, 
-				"revalidate", TRUE, NULL )) )
-			VIPS_UNREF( image );
-		else
-			image_window_error( win ); 
+	image_window_open_files( win, files, n_files );
 
-		if( (tile_source = tile_source_new_from_file( path )) ) {
-			image_window_set_tile_source( win, tile_source );
-			g_object_unref( tile_source );
-		}
-		else
-			image_window_error( win ); 
+	for( int i = 0; i < n_files; i++ ) 
+		VIPS_FREE( files[i] );
+	VIPS_FREE( files );
+}
 
-		g_free( path );
+void
+image_window_open_image( ImageWindow *win, VipsImage *image )
+{
+	TileSource *tile_source;
+
+	if( (tile_source = tile_source_new_from_image( image )) ) {
+		// no longer have a file backed image
+		image_window_files_free( win );
+		image_window_set_tile_source( win, tile_source );
+
+		VIPS_UNREF( tile_source );
 	}
 }
 
