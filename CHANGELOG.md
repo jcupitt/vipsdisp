@@ -1,9 +1,9 @@
 ## master
 
-- add drag/drop and copy/paste of filenames and textures
+- add next image / previous image
+- add drag/drop and copy/paste of files, file lists, textures and strings
 - add "reload"
 - better event handling in imagewindow
-- add next image / previous image
 
 # 2.6.3a, 7/1/24
 

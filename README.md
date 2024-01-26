@@ -221,21 +221,23 @@ On success, merge to master.
 
 ## TODO
 
-- have a look at the new 4.14 `gtk_print_dialog_new()`
+- "vipsdisp k69.jpg" with the file not existing shows another random file in
+  the same directory ... should show an error
 
-    works and is in branch add-print-dialog, but it needs 4.14, and the new
-    print API is still unstable
-
-- use eg. alt-left, alt-right to flip between images in "vipsdisp a.jpg b.jpg"
-  or maybe shift-<, shift->? 
-
-  add paste G_TYPE_FILE_LIST, replace with many-file select, drag many files
+  have current_image == -1 meaning no currently loaded file from list
 
   on next_image, kill tile loading on prev somehow
 
   don't we cache loaded images? you'd think we would
 
 - imagewindow should respect animation setting
+
+
+
+- have a look at the new 4.14 `gtk_print_dialog_new()`
+
+    works and is in branch add-print-dialog, but it needs 4.14, and the new
+    print API is still unstable
 
 - allow eg. "vipsdisp x.svg[scale=10]", the load dialog should have a
   "load options" expander

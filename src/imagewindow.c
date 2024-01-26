@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -106,14 +106,22 @@ enum {
 
 static guint image_window_signals[SIG_LAST] = { 0 };
 
+/* GTypes we handle in copy/paste and drag/drop paste ... these are in the 
+ * order we try, so a GFile is preferred to a simple string.
+ *
+ * gnome file manager pastes as GdkFileList, GFile, gchararray
+ * print-screen button pastes as GdkTexture, GdkPixbuf
+ *
+ * Created in _class_init(), since some of these types are only defined at
+ * runtime.
+ */
+static GType *image_window_supported_types;
+static int image_window_n_supported_types;
+
 static void
 image_window_files_free( ImageWindow *win )
 {
-	if( win->files ) {
-		for( int i = 0; i < win->n_files; i++ ) 
-			VIPS_FREE( win->files[i] );
-		VIPS_FREE( win->files );
-	}
+	VIPS_FREEF( g_strfreev, win->files ); 
 	win->n_files = 0;
 	win->current_file = 0;
 }
@@ -167,6 +175,41 @@ sort_filenames( const void *a, const void *b )
 }
 
 static void
+image_window_files_set_list_gfiles( ImageWindow *win, GSList *files )
+{
+	GSList *p;
+	int i;
+
+	image_window_files_free( win );
+
+	win->n_files = g_slist_length( files );
+	win->files = VIPS_ARRAY( NULL, win->n_files + 1, char * );
+	for( i = 0, p = files; i < win->n_files; i++, p = p->next ) {
+		GFile *file = (GFile *) p->data;
+
+		win->files[i] = g_file_get_path( file );
+	}
+}
+
+static void
+image_window_files_set_list( ImageWindow *win, GSList *files )
+{
+	GSList *p;
+	int i;
+
+	image_window_files_free( win );
+
+	win->n_files = g_slist_length( files );
+	win->files = VIPS_ARRAY( NULL, win->n_files + 1, char * );
+	for( i = 0, p = files; i < win->n_files; i++, p = p->next )
+		win->files[i] = g_strdup( (char *) p->data );
+
+#ifdef DEBUG
+	printf( "image_window_files_set_list: %d files\n", win->n_files );
+#endif /*DEBUG*/
+}
+
+static void
 image_window_files_set_dirname( ImageWindow *win, char *dirname )
 {
 	GError *error = NULL;
@@ -174,8 +217,10 @@ image_window_files_set_dirname( ImageWindow *win, char *dirname )
 	GDir *dir;
 	GSList *files;
 	const char *filename;
-	int i;
-	GSList *p;
+
+#ifdef DEBUG
+	printf( "image_window_files_set_dirname:\n" );
+#endif /*DEBUG*/
 
 	dir = g_dir_open( dirname, 0, &error );
 	if( !dir ) {
@@ -199,20 +244,19 @@ image_window_files_set_dirname( ImageWindow *win, char *dirname )
 			continue;
 		}
 
+		// could possibly ignore files that we can't open, but the magick
+		// loader can take many seconds to ping some files, unfortunately
+
 		files = g_slist_prepend( files, path );
 	}
 
 	g_dir_close( dir );
 
 	files = g_slist_sort( files, (GCompareFunc) sort_filenames );
+	
+	image_window_files_set_list( win, files );
 
-	image_window_files_free( win );
-	win->n_files = g_slist_length( files );
-	win->files = VIPS_ARRAY( NULL, win->n_files, char * );
-	for( i = 0, p = files; i < win->n_files; i++, p = p->next ) 
-		win->files[i] = (char *) p->data;
-
-	g_slist_free( files );
+	g_slist_free_full( g_steal_pointer( &files ), g_free );
 }
 
 static void
@@ -238,7 +282,7 @@ image_window_files_set( ImageWindow *win, char **files, int n_files )
 		image_window_files_free( win );
 
 		win->n_files = n_files;
-		win->files = VIPS_ARRAY( NULL, n_files, char * );
+		win->files = VIPS_ARRAY( NULL, n_files + 1, char * );
 		for( int i = 0; i < win->n_files; i++ ) 
 			win->files[i] = g_strdup( files[i] );
 
@@ -401,7 +445,8 @@ image_window_set_scale_position( ImageWindow *win,
 	int left, top, width, height;
 
 #ifdef DEBUG
-	printf( "image_window_set_scale_position: %g %g %g\n", scale, x, y );
+	printf( "image_window_set_scale_position: %g %g %g\n", 
+		scale, x_image, y_image );
 #endif /*DEBUG*/ 
 
 	/* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
@@ -816,12 +861,18 @@ image_new_from_texture( GdkTexture *texture )
 static void
 image_window_set_from_value( ImageWindow *win, const GValue *value )
 {
-	if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
+	if( G_VALUE_TYPE( value ) == GDK_TYPE_FILE_LIST ) {
+		GdkFileList *file_list = g_value_get_boxed( value );
+		GSList *files = gdk_file_list_get_files( file_list );
+
+		image_window_open_list_gfiles( win, files );
+
+		g_slist_free( files );
+	}
+	else if( G_VALUE_TYPE( value ) == G_TYPE_FILE ) {
 		GFile *file = g_value_get_object( value );
 
 		image_window_open_gfiles( win, &file, 1 );
-
-		VIPS_UNREF( file );
 	}
 	else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
 		const char *text = g_value_get_string( value );
@@ -838,8 +889,6 @@ image_window_set_from_value( ImageWindow *win, const GValue *value )
 		}
 		else
 			image_window_error( win );
-
-		VIPS_UNREF( texture );
 	}
 }
 
@@ -871,29 +920,17 @@ image_window_paste_action( GSimpleAction *action,
 	const GType *types = gdk_content_formats_get_gtypes( formats, &n_types );
 
 #ifdef DEBUG
+#endif /*DEBUG*/
 	printf( "clipboard in %lu formats\n", n_types );
 	for( gsize i = 0; i < n_types; i++ ) 
 		printf( "%lu - %s\n", i, g_type_name( types[i] ) );
-#endif /*DEBUG*/
-
-	// GTypes we handle in paste ... these are in the order we try, so a GFile
-	// is preferred to a simple string
-
-	// gnome file manager pastes as GFileList, GFile, gchararray
-	// print-screen button pastes as GdkTexture, GdkPixbuf
-
-	GType supported_types[] = {
-		G_TYPE_FILE,
-		G_TYPE_STRING,
-		GDK_TYPE_TEXTURE,
-	};
 
 	gboolean handled = FALSE;
 	for( gsize i = 0; i < n_types; i++ ) {
-		for( int j = 0; j < VIPS_NUMBER( supported_types ); j++ ) 
-			if( types[i] == supported_types[j] ) {
+		for( int j = 0; j < image_window_n_supported_types; j++ ) 
+			if( types[i] == image_window_supported_types[j] ) {
 				gdk_clipboard_read_value_async( clipboard,
-					supported_types[j],
+					image_window_supported_types[j],
 					G_PRIORITY_DEFAULT,
 					NULL,
 					image_window_paste_action_ready,
@@ -984,9 +1021,7 @@ image_window_duplicate_action( GSimpleAction *action,
 	}
 
 	new->n_files = win->n_files;
-	new->files = VIPS_ARRAY( NULL, win->n_files, char * );
-	for( int i = 0; i < win->n_files; i++ ) 
-		new->files[i] = g_strdup( win->files[i] );
+	new->files = g_strdupv( win->files );
 	new->current_file = win->current_file;
 
 	gtk_window_get_default_size( GTK_WINDOW( win ), &width, &height );
@@ -1954,12 +1989,11 @@ image_window_init( ImageWindow *win )
 
 	/* We are a drop target for filenames and images.
 	 */
-	controller = GTK_EVENT_CONTROLLER( gtk_drop_target_new( 
-			G_TYPE_INVALID, GDK_ACTION_COPY ) );
-	gtk_drop_target_set_gtypes( GTK_DROP_TARGET( controller ), (GType [2]) {
-		G_TYPE_FILE,
-		GDK_TYPE_TEXTURE,
-	}, 2);
+	controller = GTK_EVENT_CONTROLLER( 
+		gtk_drop_target_new( G_TYPE_INVALID, GDK_ACTION_COPY ) );
+	gtk_drop_target_set_gtypes( GTK_DROP_TARGET( controller ), 
+		image_window_supported_types, 
+		image_window_n_supported_types );
 	g_signal_connect( controller, "drop",
         G_CALLBACK( image_window_dnd_drop ), win );
 	gtk_widget_add_controller( win->imagedisplay, controller );
@@ -2046,6 +2080,18 @@ image_window_class_init( ImageWindowClass *class )
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0 ); 
 
+	GType supported_types[] = {
+		GDK_TYPE_FILE_LIST,
+		G_TYPE_FILE,
+		GDK_TYPE_TEXTURE,
+		G_TYPE_STRING,
+	};
+
+	image_window_n_supported_types = VIPS_NUMBER( supported_types );
+	image_window_supported_types = 
+		VIPS_ARRAY( NULL, image_window_n_supported_types + 1, GType );
+	for( int i = 0; i < image_window_n_supported_types; i++ )
+		image_window_supported_types[i] = supported_types[i];
 }
 
 ImageWindow *
@@ -2146,29 +2192,50 @@ GSettings *image_window_get_settings( ImageWindow *win )
 void
 image_window_open_files( ImageWindow *win, char **files, int n_files )
 {
+#ifdef DEBUG
+	printf( "image_window_open_files:\n" );
+#endif /*DEBUG*/
+
 	image_window_files_set( win, files, n_files );
+	image_window_open_current_file( win );
+}
+
+void
+image_window_open_list_gfiles( ImageWindow *win, GSList *gfiles )
+{
+#ifdef DEBUG
+	printf( "image_window_open_list_gfiles:\n" );
+#endif /*DEBUG*/
+
+	image_window_files_set_list_gfiles( win, gfiles );
 	image_window_open_current_file( win );
 }
 
 void
 image_window_open_gfiles( ImageWindow *win, GFile **gfiles, int n_files )
 {
+#ifdef DEBUG
+	printf( "image_window_open_gfiles:\n" );
+#endif /*DEBUG*/
+
 	char **files;
 
-	files = VIPS_ARRAY( NULL, n_files, char * );
+	files = VIPS_ARRAY( NULL, n_files + 1, char * );
 	for( int i = 0; i < n_files; i++ )
 		files[i] = g_file_get_path( gfiles[i] );
 
 	image_window_open_files( win, files, n_files );
 
-	for( int i = 0; i < n_files; i++ ) 
-		VIPS_FREE( files[i] );
-	VIPS_FREE( files );
+	g_strfreev( files );
 }
 
 void
 image_window_open_image( ImageWindow *win, VipsImage *image )
 {
+#ifdef DEBUG
+	printf( "image_window_open_image:\n" );
+#endif /*DEBUG*/
+
 	TileSource *tile_source;
 
 	if( (tile_source = tile_source_new_from_image( image )) ) {

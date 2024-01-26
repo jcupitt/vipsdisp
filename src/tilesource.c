@@ -1568,8 +1568,8 @@ tile_source_new_from_file( const char *filename )
 	VipsImage *x;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "tile_source_new_from_file: %s\n", filename );
+#endif /*DEBUG*/
 
 	tile_source->filename = g_strdup( filename ); 
 
