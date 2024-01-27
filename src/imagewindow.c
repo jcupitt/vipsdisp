@@ -1,6 +1,6 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -132,6 +132,10 @@ image_window_set_error( ImageWindow *win, const char *message )
 	char *err;
 	int i;
 
+#ifdef DEBUG
+	printf( "image_window_set_error: %s\n", message );
+#endif /*DEBUG*/
+
 	/* Remove any trailing \n.
 	 */
 	err = g_strdup( message );
@@ -162,16 +166,11 @@ image_window_gerror( ImageWindow *win, GError **error )
 static void
 image_window_error_hide( ImageWindow *win )
 {
+#ifdef DEBUG
+	printf( "image_window_error_hide:\n" );
+#endif /*DEBUG*/
+
 	gtk_info_bar_set_revealed( GTK_INFO_BAR( win->error_bar ), FALSE );
-}
-
-static int
-sort_filenames( const void *a, const void *b )
-{
-	const char *f1 = (const char *) a;
-	const char *f2 = (const char *) b;
-
-	return( g_strcasecmp( f1, f2 ) );
 }
 
 static void
@@ -189,6 +188,15 @@ image_window_files_set_list_gfiles( ImageWindow *win, GSList *files )
 
 		win->files[i] = g_file_get_path( file );
 	}
+}
+
+static int
+sort_filenames( const void *a, const void *b )
+{
+	const char *f1 = (const char *) a;
+	const char *f2 = (const char *) b;
+
+	return( g_strcasecmp( f1, f2 ) );
 }
 
 static void
@@ -210,8 +218,11 @@ image_window_files_set_list( ImageWindow *win, GSList *files )
 }
 
 static void
-image_window_files_set_dirname( ImageWindow *win, char *dirname )
+image_window_files_set_path( ImageWindow *win, char *path )
 {
+	char *dirname = g_path_get_dirname( path );
+	GFile *file = g_file_new_for_path( path );
+
 	GError *error = NULL;
 
 	GDir *dir;
@@ -219,68 +230,71 @@ image_window_files_set_dirname( ImageWindow *win, char *dirname )
 	const char *filename;
 
 #ifdef DEBUG
-	printf( "image_window_files_set_dirname:\n" );
+	printf( "image_window_files_set_path:\n" );
 #endif /*DEBUG*/
 
 	dir = g_dir_open( dirname, 0, &error );
 	if( !dir ) {
 		image_window_gerror( win, &error );
+		VIPS_FREE( dirname );
+		VIPS_UNREF( file );
 		return;
 	}
 
 	files = NULL;
+	// always add the passed-in file, even if it doesn't exist
+	files = g_slist_prepend( files, g_strdup( path ) );
+
 	while( (filename = g_dir_read_name( dir )) ) {
-		char *path;
+		char *path = g_build_path( "/", dirname, filename, NULL );
+		GFile *this_file = g_file_new_for_path( path );
 
-		// ignore dotfiles
-		if( vips_isprefix( ".", filename ) )
-			continue;
+		// - never add the the passed-in filename (we add it above)
+		// - avoid directories and dotfiles
+		if( !g_file_equal( file, this_file ) &&
+			!vips_isprefix( ".", filename ) &&
+			!g_file_test( path, G_FILE_TEST_IS_DIR ) )
+			files = g_slist_prepend( files, g_strdup( path ) );
 
-		path = g_build_path( "/", dirname, filename, NULL );
-
-		// ignore directories
-		if( g_file_test( path, G_FILE_TEST_IS_DIR ) ) {
-			g_free( path );
-			continue;
-		}
-
-		// could possibly ignore files that we can't open, but the magick
-		// loader can take many seconds to ping some files, unfortunately
-
-		files = g_slist_prepend( files, path );
+		VIPS_UNREF( this_file );
+		VIPS_FREE( path );
 	}
 
-	g_dir_close( dir );
+	VIPS_FREEF( g_dir_close, dir );
+	VIPS_FREE( dirname );
 
 	files = g_slist_sort( files, (GCompareFunc) sort_filenames );
-	
+
 	image_window_files_set_list( win, files );
 
 	g_slist_free_full( g_steal_pointer( &files ), g_free );
+
+	printf( "path = %s\n", path );
+	for( int i = 0; i < win->n_files; i++ ) {
+		printf( "files[%d] = %s\n", i, win->files[i] );
+		GFile *file2 = g_file_new_for_path( win->files[i] );
+
+		if( g_file_equal( file, file2 ) ) {
+			printf( "image_window_files_set_path: set current_file = %d\n", i );
+			win->current_file = i;
+			VIPS_UNREF( file2 );
+			break;
+		}
+
+		VIPS_UNREF( file2 );
+	}
+
+	VIPS_UNREF( file );
 }
 
 static void
 image_window_files_set( ImageWindow *win, char **files, int n_files )
 {
-	if( n_files == 0 || !files )
-		image_window_files_free( win );
-	else if( n_files == 1 ) {
-		char *dirname = g_path_get_dirname( files[0] );
+	image_window_files_free( win );
 
-		image_window_files_set_dirname( win, dirname );
-
-		for( int i = 0; i < win->n_files; i++ )
-			// haha this won't work for many cases
-			if( strcmp( win->files[i], files[0] ) == 0 ) {
-				win->current_file = i;
-				break;
-			}
-
-		g_free( dirname );
-	}
-	else {
-		image_window_files_free( win );
-
+	if( n_files == 1 )
+		image_window_files_set_path( win, files[0] );
+	else if( n_files > 1 ) {
 		win->n_files = n_files;
 		win->files = VIPS_ARRAY( NULL, n_files + 1, char * );
 		for( int i = 0; i < win->n_files; i++ ) 
@@ -300,7 +314,7 @@ image_window_open_current_file( ImageWindow *win )
 
 		TileSource *tile_source;
 
-		/* FIXME ... we only want to revaluidate if eg. the timestamp has 
+		/* FIXME ... we only want to revalidate if eg. the timestamp has 
 		 * changed, or perhaps on F5?
 		VipsImage *image;
 		if( (image = vips_image_new_from_file( filename, 
@@ -309,6 +323,8 @@ image_window_open_current_file( ImageWindow *win )
 		else
 			image_window_error( win ); 
 		 */
+
+		image_window_error_hide( win );
 
 		if( (tile_source = tile_source_new_from_file( filename )) ) {
 			image_window_set_tile_source( win, tile_source );
@@ -2124,72 +2140,74 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );
-	image_window_error_hide( win );
 
-	win->tile_source = tile_source;
-	g_object_ref( tile_source );
+	if( tile_source ) { 
+		win->tile_source = tile_source;
+		g_object_ref( tile_source );
 
-	g_object_set( win->properties,
-		"tile-source", win->tile_source,
-		NULL );
+		g_object_set( win->properties,
+			"tile-source", win->tile_source,
+			NULL );
 
-	win->tile_cache = tile_cache_new( win->tile_source );
+		win->tile_cache = tile_cache_new( win->tile_source );
 
-	g_object_set( win->imagedisplay,
-		"tile-cache", win->tile_cache,
-		NULL );
+		g_object_set( win->imagedisplay,
+			"tile-cache", win->tile_cache,
+			NULL );
 
-	g_signal_connect_object( win->tile_source, "preeval", 
-		G_CALLBACK( image_window_preeval ), win, 0 );
-	g_signal_connect_object( win->tile_source, "eval", 
-		G_CALLBACK( image_window_eval ), win, 0 );
-	g_signal_connect_object( win->tile_source, "posteval", 
-		G_CALLBACK( image_window_posteval ), win, 0 );
+		g_signal_connect_object( win->tile_source, "preeval", 
+			G_CALLBACK( image_window_preeval ), win, 0 );
+		g_signal_connect_object( win->tile_source, "eval", 
+			G_CALLBACK( image_window_eval ), win, 0 );
+		g_signal_connect_object( win->tile_source, "posteval", 
+			G_CALLBACK( image_window_posteval ), win, 0 );
 
-	g_signal_connect_object( win->tile_source, "changed", 
-		G_CALLBACK( image_window_tile_source_changed ), win, 0 );
+		g_signal_connect_object( win->tile_source, "changed", 
+			G_CALLBACK( image_window_tile_source_changed ), win, 0 );
 
-	if( !(title = (char *) tile_source_get_path( tile_source )) ) 
-		title = "Untitled";
-	gtk_label_set_text( GTK_LABEL( win->title ), title );
+		if( !(title = (char *) tile_source_get_path( tile_source )) ) 
+			title = "Untitled";
+		gtk_label_set_text( GTK_LABEL( win->title ), title );
 
-	if( (image = tile_source_get_base_image( tile_source )) ) {
-		char str[256];
-		VipsBuf buf = VIPS_BUF_STATIC( str );
+		if( (image = tile_source_get_base_image( tile_source )) ) {
+			char str[256];
+			VipsBuf buf = VIPS_BUF_STATIC( str );
 
-		vips_buf_appendf( &buf, "%dx%d, ", 
-			image->Xsize, image->Ysize );
-		if( tile_source->n_pages > 1 )
-			vips_buf_appendf( &buf, "%d pages, ", 
-				tile_source->n_pages );
-		if( vips_image_get_coding( image ) == VIPS_CODING_NONE ) 
-			vips_buf_appendf( &buf,
-				g_dngettext( GETTEXT_PACKAGE,
-					" %s, %d band, %s",
-					" %s, %d bands, %s",
-					image->Bands ),
-				vips_enum_nick( VIPS_TYPE_BAND_FORMAT,
-					image->BandFmt ),
-				vips_image_get_bands( image ),
-				vips_enum_nick( VIPS_TYPE_INTERPRETATION,
-					image->Type ) );
-		else
-			vips_buf_appendf( &buf, "%s",
-				vips_enum_nick( VIPS_TYPE_CODING,
-					vips_image_get_coding( image ) ) );
-		vips_buf_appendf( &buf, ", %g x %g p/mm",
-			image->Xres, image->Yres );
-		gtk_label_set_text( GTK_LABEL( win->subtitle ), 
-			vips_buf_all( &buf ) );
+			vips_buf_appendf( &buf, "%dx%d, ", 
+				image->Xsize, image->Ysize );
+			if( tile_source->n_pages > 1 )
+				vips_buf_appendf( &buf, "%d pages, ", 
+					tile_source->n_pages );
+			if( vips_image_get_coding( image ) == VIPS_CODING_NONE ) 
+				vips_buf_appendf( &buf,
+					g_dngettext( GETTEXT_PACKAGE,
+						" %s, %d band, %s",
+						" %s, %d bands, %s",
+						image->Bands ),
+					vips_enum_nick( VIPS_TYPE_BAND_FORMAT,
+						image->BandFmt ),
+					vips_image_get_bands( image ),
+					vips_enum_nick( VIPS_TYPE_INTERPRETATION,
+						image->Type ) );
+			else
+				vips_buf_appendf( &buf, "%s",
+					vips_enum_nick( VIPS_TYPE_CODING,
+						vips_image_get_coding( image ) ) );
+			vips_buf_appendf( &buf, ", %g x %g p/mm",
+				image->Xres, image->Yres );
+			gtk_label_set_text( GTK_LABEL( win->subtitle ), 
+				vips_buf_all( &buf ) );
+		}
+
+		/* Initial state.
+		 */
+		tile_source->active = 
+			g_settings_get_boolean( win->settings, "control" );
+
+		/* Everything is set up ... start loading the image.
+		 */
+		tile_source_background_load( tile_source );
 	}
-
-	/* Initial state.
-	 */
-	tile_source->active = g_settings_get_boolean( win->settings, "control" );
-
-	/* Everything is set up ... start loading the image.
-	 */
-	tile_source_background_load( tile_source );
 
 	image_window_changed( win );
 }

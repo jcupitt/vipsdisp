@@ -74,17 +74,19 @@ static void
 displaybar_image_window_changed( ImageWindow *win, 
 	Displaybar *displaybar )
 {
-	TileSource *tile_source = image_window_get_tile_source( win );
+	TileSource *tile_source;
 
-	g_signal_connect_object( tile_source, "changed", 
-		G_CALLBACK( displaybar_tile_source_changed ), 
-		displaybar, 0 );
-	g_signal_connect_object( tile_source, "tiles-changed", 
-		G_CALLBACK( displaybar_tile_source_changed ), 
-		displaybar, 0 );
-	g_signal_connect_object( tile_source, "page-changed",
-		G_CALLBACK( displaybar_page_changed ), 
-		displaybar, 0 );
+	if( (tile_source = image_window_get_tile_source( win )) ) { 
+		g_signal_connect_object( tile_source, "changed", 
+			G_CALLBACK( displaybar_tile_source_changed ), 
+			displaybar, 0 );
+		g_signal_connect_object( tile_source, "tiles-changed", 
+			G_CALLBACK( displaybar_tile_source_changed ), 
+			displaybar, 0 );
+		g_signal_connect_object( tile_source, "page-changed",
+			G_CALLBACK( displaybar_page_changed ), 
+			displaybar, 0 );
+	}
 }
 
 static void

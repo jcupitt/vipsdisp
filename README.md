@@ -221,19 +221,17 @@ On success, merge to master.
 
 ## TODO
 
-- "vipsdisp k69.jpg" with the file not existing shows another random file in
-  the same directory ... should show an error
+- chomp leading and trailing whitespace from string copy/paste?
 
-  have current_image == -1 meaning no currently loaded file from list?
+- on next_image, kill tile loading on prev somehow
 
-  on next_image, kill tile loading on prev somehow
+- don't we cache loaded images? you'd think we would
 
-  don't we cache loaded images? you'd think we would
+- imagewindow should respect gtk animation setting for zoom etc.
+
+- use a revealer for next/prev image transition? would look nice
 
 
-
-
-- imagewindow should respect animation setting
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 

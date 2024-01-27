@@ -282,15 +282,16 @@ infobar_status_changed( ImageWindow *win, Infobar *infobar )
 static void
 infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
 {
-	TileSource *tile_source = image_window_get_tile_source( win );
+	TileSource *tile_source;
 
-	g_signal_connect_object( tile_source, "changed", 
-		G_CALLBACK( infobar_tile_source_changed ), 
-		infobar, 0 );
-
-	g_signal_connect_object( tile_source, "page-changed", 
-		G_CALLBACK( infobar_status_changed ), 
-		infobar, 0 );
+	if( (tile_source = image_window_get_tile_source( win )) ) {
+		g_signal_connect_object( tile_source, "changed", 
+			G_CALLBACK( infobar_tile_source_changed ), 
+			infobar, 0 );
+		g_signal_connect_object( tile_source, "page-changed", 
+			G_CALLBACK( infobar_status_changed ), 
+			infobar, 0 );
+	}
 }
 
 static void
