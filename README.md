@@ -221,11 +221,9 @@ On success, merge to master.
 
 ## TODO
 
-- chomp leading and trailing whitespace from string copy/paste?
-
 - on next_image, kill tile loading on prev somehow
 
-- don't we cache loaded images? you'd think we would
+- don't we cache loaded images? you'd think we could
 
 - imagewindow should respect gtk animation setting for zoom etc.
 

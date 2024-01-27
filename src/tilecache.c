@@ -545,8 +545,7 @@ tile_cache_get( TileCache *tile_cache, VipsRect *tile_rect, int z )
 			tile_rect->left >> z, tile_rect->top >> z, z )) )
 			return;
 
-		tile_cache->tiles[z] = 
-			g_slist_prepend( tile_cache->tiles[z], tile );
+		tile_cache->tiles[z] = g_slist_prepend( tile_cache->tiles[z], tile );
 	}
 
 	if( !tile->valid ) {

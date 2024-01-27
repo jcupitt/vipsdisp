@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -269,13 +269,10 @@ image_window_files_set_path( ImageWindow *win, char *path )
 
 	g_slist_free_full( g_steal_pointer( &files ), g_free );
 
-	printf( "path = %s\n", path );
 	for( int i = 0; i < win->n_files; i++ ) {
-		printf( "files[%d] = %s\n", i, win->files[i] );
 		GFile *file2 = g_file_new_for_path( win->files[i] );
 
 		if( g_file_equal( file, file2 ) ) {
-			printf( "image_window_files_set_path: set current_file = %d\n", i );
 			win->current_file = i;
 			VIPS_UNREF( file2 );
 			break;
@@ -311,6 +308,10 @@ image_window_open_current_file( ImageWindow *win )
 		image_window_set_tile_source( win, NULL );
 	else {
 		char *filename = win->files[win->current_file];
+
+#ifdef DEBUG
+		printf( "image_window_open_current_file: %s:\n", filename );
+#endif /* DEBUG */
 
 		TileSource *tile_source;
 
@@ -891,9 +892,15 @@ image_window_set_from_value( ImageWindow *win, const GValue *value )
 		image_window_open_gfiles( win, &file, 1 );
 	}
 	else if( G_VALUE_TYPE( value ) == G_TYPE_STRING ) {
-		const char *text = g_value_get_string( value );
+		char *text;
+
+		// remove leading and trailing whitespace
+		// modifies the string in place, so we must dup
+		text = g_strstrip( g_strdup( g_value_get_string( value ) ) );
 
 		image_window_open_files( win, (char **) &text, 1 );
+
+		VIPS_FREE( text );
 	}
 	else if( G_VALUE_TYPE( value ) == GDK_TYPE_TEXTURE ) {
 		GdkTexture *texture = g_value_get_object( value );
@@ -1832,7 +1839,7 @@ image_window_properties( GSimpleAction *action,
 	gboolean revealed = g_variant_get_boolean( state );
 
 #ifdef DEBUG
-	puts("image_window_properties");
+	printf( "image_window_properties:\n" );
 #endif /* DEBUG */
 
 	g_object_set( win->properties,
@@ -2137,6 +2144,11 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 {
 	VipsImage *image;
 	char *title;
+
+	/* Try to shut down any current evaluation.
+	 */
+	if( win->tile_source )
+		tile_source_kill( win->tile_source );
 
 	VIPS_UNREF( win->tile_source );
 	VIPS_UNREF( win->tile_cache );

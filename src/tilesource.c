@@ -1807,6 +1807,9 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
 	     tile->region->valid.left, tile->region->valid.top ); 
 #endif /*DEBUG_VERBOSE*/
 
+	if( tile_source->kill )
+		return( 0 );
+
 	/* Change z if necessary.
 	 */
 	if( tile_source->current_z != tile->z ||
@@ -1815,8 +1818,7 @@ tile_source_fill_tile( TileSource *tile_source, Tile *tile )
 		tile_source_update_display( tile_source );
 	}
 
-	if( vips_region_prepare( tile_source->mask_region, 
-		&tile->region->valid ) )
+	if( vips_region_prepare( tile_source->mask_region, &tile->region->valid ) )
 		return( -1 );
 
 	/* tile is within a single tile, so we only need to test the first byte
@@ -1955,4 +1957,17 @@ tile_source_duplicate( TileSource *tile_source )
 		NULL );
 
 	return( new_tile_source );
+}
+
+void
+tile_source_kill( TileSource *tile_source )
+{
+	tile_source->kill = TRUE;
+
+	if( tile_source->display )
+		vips_image_set_kill( tile_source->display, TRUE );
+	if( tile_source->mask )
+		vips_image_set_kill( tile_source->mask, TRUE );
+	if( tile_source->rgb )
+		vips_image_set_kill( tile_source->rgb, TRUE );
 }
