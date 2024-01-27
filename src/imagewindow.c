@@ -1064,17 +1064,33 @@ image_window_replace_result( GObject *source_object,
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 	GtkFileDialog *dialog = GTK_FILE_DIALOG( source_object );
 
-	GFile *file;
+	GListModel *list;
 
-	file = gtk_file_dialog_open_finish( dialog, res, NULL );
-	if( file ) {
-		// note the directory for next time
-		VIPS_UNREF( win->load_folder );
-		win->load_folder = get_parent( file );
+	list = gtk_file_dialog_open_multiple_finish( dialog, res, NULL );
+	if( list ) {
+		if( g_list_model_get_item_type( list ) == G_TYPE_FILE ) {
+			int n_files = g_list_model_get_n_items( list );
+			GFile **files = VIPS_ARRAY( NULL, n_files + 1, GFile * );
+			for( int i = 0; i < n_files; i++ ) 
+				files[i] = G_FILE( g_list_model_get_object( list, i ) );
 
-		image_window_error_hide( win );
-		image_window_open_gfiles( win, &file, 1 );
-		g_object_unref( file );
+			// update the default load directory
+			VIPS_UNREF( win->load_folder );
+			if( n_files > 0 ) {
+				GFile *file = G_FILE( g_list_model_get_object( list, 0 ) );
+				win->load_folder = get_parent( file );
+				VIPS_UNREF( file );
+			}
+
+			image_window_error_hide( win );
+			image_window_open_gfiles( win, files, n_files );
+
+			for( int i = 0; i < n_files; i++ ) 
+				VIPS_UNREF( files[i] );
+			VIPS_FREE( files );
+		}
+
+		VIPS_UNREF( list );
 	}
 }
 
@@ -1100,7 +1116,7 @@ image_window_replace_action( GSimpleAction *action,
 	else if( win->load_folder )
 		gtk_file_dialog_set_initial_folder( dialog, win->load_folder );
 
-	gtk_file_dialog_open( dialog, GTK_WINDOW( win ), NULL,
+	gtk_file_dialog_open_multiple( dialog, GTK_WINDOW( win ), NULL,
 		image_window_replace_result, win );
 }
 

@@ -224,15 +224,16 @@ On success, merge to master.
 - "vipsdisp k69.jpg" with the file not existing shows another random file in
   the same directory ... should show an error
 
-  have current_image == -1 meaning no currently loaded file from list
+  have current_image == -1 meaning no currently loaded file from list?
 
   on next_image, kill tile loading on prev somehow
 
   don't we cache loaded images? you'd think we would
 
+
+
+
 - imagewindow should respect animation setting
-
-
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 
