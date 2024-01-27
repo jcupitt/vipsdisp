@@ -199,3 +199,15 @@ block_scroll( GtkWidget *widget )
 		"scroll", G_CALLBACK( block_scroll_cb ), NULL );
     gtk_widget_add_controller( widget, controller );
 }
+
+gboolean
+widget_should_animate( GtkWidget *widget )
+{
+	gboolean enable_animations;
+
+	g_object_get( gtk_widget_get_settings( widget ), 
+		"gtk-enable-animations", &enable_animations, 
+		NULL );
+
+	return( enable_animations );
+}

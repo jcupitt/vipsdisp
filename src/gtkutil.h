@@ -14,3 +14,5 @@ void copy_state( GtkWidget *to, GtkWidget *from, const char *name );
 void process_events( void );
 
 void block_scroll( GtkWidget *widget );
+
+gboolean widget_should_animate( GtkWidget *widget );

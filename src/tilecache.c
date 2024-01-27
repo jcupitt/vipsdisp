@@ -246,6 +246,8 @@ tile_cache_class_init( TileCacheClass *class )
 static void
 tile_cache_build_pyramid( TileCache *tile_cache )
 {
+	TileSource *tile_source = tile_cache->tile_source;
+
 	int n_levels;
 	int level_width;
 	int level_height;
@@ -260,8 +262,8 @@ tile_cache_build_pyramid( TileCache *tile_cache )
 	/* How many levels? Keep shrinking until we get down to one tile on
 	 * one axis.
 	 */
-	level_width = tile_cache->tile_source->display_width;
-	level_height = tile_cache->tile_source->display_height;
+	level_width = tile_source->display_width;
+	level_height = tile_source->display_height;
 	n_levels = 1;
 	for(;;) {
 		if( level_width <= TILE_SIZE ||
@@ -276,20 +278,20 @@ tile_cache_build_pyramid( TileCache *tile_cache )
 	tile_cache->n_levels = n_levels;
 
 	tile_cache->levels = VIPS_ARRAY( NULL, n_levels, VipsImage * );
-	level_width = tile_cache->tile_source->display_width;
-	level_height = tile_cache->tile_source->display_height;
+	level_width = tile_source->display_width;
+	level_height = tile_source->display_height;
 	for( i = 0; i < n_levels; i++ ) {
 		tile_cache->levels[i] = vips_image_new();
 
 		vips_image_init_fields( tile_cache->levels[i],
 			level_width,
 			level_height,
-			tile_cache->tile_source->rgb->Bands,
-			tile_cache->tile_source->rgb->BandFmt,
-			tile_cache->tile_source->rgb->Coding,
-			tile_cache->tile_source->rgb->Type,
-			tile_cache->tile_source->rgb->Xres,
-			tile_cache->tile_source->rgb->Yres );
+			tile_source->rgb->Bands,
+			tile_source->rgb->BandFmt,
+			tile_source->rgb->Coding,
+			tile_source->rgb->Type,
+			tile_source->rgb->Xres,
+			tile_source->rgb->Yres );
 
 		level_width >>= 1;
 		level_height >>= 1;

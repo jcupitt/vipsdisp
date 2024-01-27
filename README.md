@@ -221,13 +221,13 @@ On success, merge to master.
 
 ## TODO
 
-- on next_image, kill tile loading on prev somehow
-
-- don't we cache loaded images? you'd think we could
-
-- imagewindow should respect gtk animation setting for zoom etc.
+- pass revalidate down to `new_from_file` on F5
 
 - use a revealer for next/prev image transition? would look nice
+
+- if `tile_source_rgb_image()` fails, lots of stuff crashes, try eg. `omg.v`
+  (one band dpcomplex fourier)
+
 
 
 

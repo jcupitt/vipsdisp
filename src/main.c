@@ -28,6 +28,11 @@ main( int argc, char **argv )
 	g_setenv( "G_DEBUG", "fatal-warnings", FALSE );
 #endif /*DEBUG*/
 
+	/* Magickload will lock up on eg. AVI files.
+	 */
+	printf( "blocking VipsForeignLoadMagick\n" );
+	vips_operation_block_set( "VipsForeignLoadMagick", TRUE );
+
 	app = vipsdisp_app_new();
 
 	status = g_application_run( G_APPLICATION( app ), argc, argv );

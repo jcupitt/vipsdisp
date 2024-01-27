@@ -1,6 +1,6 @@
 /*
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -88,6 +88,8 @@ struct _ImageWindow
 	double last_progress_time;
 
 	gint64 last_frame_time;
+
+	gboolean should_animate;
 
 	GSettings *settings;
 
@@ -310,8 +312,8 @@ image_window_open_current_file( ImageWindow *win )
 		char *filename = win->files[win->current_file];
 
 #ifdef DEBUG
-		printf( "image_window_open_current_file: %s:\n", filename );
 #endif /* DEBUG */
+		printf( "image_window_open_current_file: %s:\n", filename );
 
 		TileSource *tile_source;
 
@@ -666,8 +668,11 @@ image_window_tick( GtkWidget *widget,
 		// 0/1/etc. discrete zoom
 		win->scale_progress += dt;
 
+		double duration = win->should_animate ? 
+			SCALE_DURATION : win->scale_progress;
+
 		// 0-1 progress in zoom animation
-		double t = ease_out_cubic( win->scale_progress / SCALE_DURATION );
+		double t = ease_out_cubic( win->scale_progress / duration );
 
 		// so current scale must be
 		new_scale = win->scale_start + 
@@ -2056,6 +2061,14 @@ image_window_init( ImageWindow *win )
 	// some kind of gtk bug? hexpand on properties can't be set from .ui or in
 	// properties.c, but must be set after adding to a parent
 	g_object_set( win->properties, "hexpand", FALSE, NULL );
+
+	/* Uncomment to test animation disable
+	g_object_set( gtk_widget_get_settings( GTK_WIDGET( win ) ),
+		"gtk-enable-animations", FALSE, NULL );
+	 */
+
+	// read the gtk animation setting preference
+	win->should_animate = widget_should_animate( GTK_WIDGET( win ) );
 }
 
 static void
