@@ -221,13 +221,27 @@ On success, merge to master.
 
 ## TODO
 
+- some races still in fast image switch ... do we need to ref tilesource from
+  tilecache?
+
+    maybe 
+
+        - make imagedisplay have the only tilecache, and tilecache has a ref
+          to the tilesource it was built for
+
+            no other uses of tilecache anywhere? is this right?
+
+        - imagewindow sets "background" on imagedisplay, not tilecache, and 
+          imagedisplay passes the setting down to tilecache
+
+        - imagewindow just has a tilesource, and it can be NULL
+
+        - imagedisplay is set a tilesource and makes a new tilecache when it
+          changes
+
 - pass revalidate down to `new_from_file` on F5
 
 - use a revealer for next/prev image transition? would look nice
-
-- if `tile_source_rgb_image()` fails, lots of stuff crashes, try eg. `omg.v`
-  (one band dpcomplex fourier)
-
 
 
 
