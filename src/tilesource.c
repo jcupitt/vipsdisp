@@ -582,7 +582,8 @@ tile_source_rgb_image( TileSource *tile_source, VipsImage *in )
 
 	/* Force to uint8 sRGB.
 	 */
-	if( image->Type != VIPS_INTERPRETATION_sRGB ) {
+	if( image->Type != VIPS_INTERPRETATION_sRGB &&
+		vips_colourspace_issupported( image ) ) {
 		if( vips_colourspace( image, &x, VIPS_INTERPRETATION_sRGB, 
 			NULL ) ) {
 			VIPS_UNREF( image );
