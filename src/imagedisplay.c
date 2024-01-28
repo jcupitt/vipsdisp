@@ -8,9 +8,9 @@
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
-	/* The tilecache whose output we display.
+	/* The tilesource we display.
 	 */
-	TileCache *tile_cache;
+	TileSource *tile_source;
 
 	/* We implement a scrollable interface.
 	 */
@@ -18,6 +18,10 @@ struct _Imagedisplay {
 	GtkAdjustment *vadj;
 	guint hscroll_policy;
 	guint vscroll_policy;
+
+	/* Generate and cache tiles with this.
+	 */
+	TileCache *tile_cache;
 
 	/* image_rect is the bounds of image space .. 0,0 to image->Xsize,
 	 * image->Ysize
@@ -60,7 +64,7 @@ G_DEFINE_TYPE_WITH_CODE( Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 enum {
 	/* Set the tile_cache we display.
 	 */
-	PROP_TILE_CACHE = 1,
+	PROP_TILE_SOURCE = 1,
 
 	/* The props we implement for the scrollable interface.
 	 */
@@ -71,6 +75,7 @@ enum {
 
 	/* Control transform with this.
 	 */
+	PROP_BACKGROUND,
 	PROP_SCALE,
 	PROP_X,
 	PROP_Y,
@@ -92,6 +97,7 @@ imagedisplay_dispose( GObject *object )
 #endif /*DEBUG*/
 
 	VIPS_UNREF( imagedisplay->tile_cache );
+	VIPS_UNREF( imagedisplay->tile_source );
 
 	G_OBJECT_CLASS( imagedisplay_parent_class )->dispose( object );
 }
@@ -336,26 +342,30 @@ imagedisplay_tile_cache_area_changed( TileCache *tile_cache,
 }
 
 static void
-imagedisplay_set_tile_cache( Imagedisplay *imagedisplay,
-	TileCache *tile_cache )
+imagedisplay_set_tile_source( Imagedisplay *imagedisplay,
+	TileSource *tile_source )
 {
 	VIPS_UNREF( imagedisplay->tile_cache );
-	imagedisplay->tile_cache = tile_cache;
-	g_object_ref( imagedisplay->tile_cache );
+	VIPS_UNREF( imagedisplay->tile_source );
 
-	g_signal_connect_object( tile_cache, "changed",
+	imagedisplay->tile_source = tile_source;
+	g_object_ref( imagedisplay->tile_source );
+
+	imagedisplay->tile_cache = tile_cache_new( imagedisplay->tile_source );
+
+	g_signal_connect_object( imagedisplay->tile_cache, "changed",
 		G_CALLBACK( imagedisplay_tile_cache_changed ),
 		imagedisplay, 0 );
-	g_signal_connect_object( tile_cache, "tiles-changed",
+	g_signal_connect_object( imagedisplay->tile_cache, "tiles-changed",
 		G_CALLBACK( imagedisplay_tile_cache_tiles_changed ),
 		imagedisplay, 0 );
-	g_signal_connect_object( tile_cache, "area-changed",
+	g_signal_connect_object( imagedisplay->tile_cache, "area-changed",
 		G_CALLBACK( imagedisplay_tile_cache_area_changed ),
 		imagedisplay, 0 );
 
 	/* Do initial change to init.
 	 */
-	imagedisplay_tile_cache_changed( tile_cache, imagedisplay );
+	imagedisplay_tile_cache_changed( imagedisplay->tile_cache, imagedisplay );
 }
 
 static void
@@ -405,9 +415,16 @@ imagedisplay_set_property( GObject *object,
 		}
 		break;
 
-	case PROP_TILE_CACHE:
-		imagedisplay_set_tile_cache( imagedisplay,
+	case PROP_TILE_SOURCE:
+		imagedisplay_set_tile_source( imagedisplay,
 			g_value_get_object( value ) );
+		break;
+
+	case PROP_BACKGROUND:
+		if( imagedisplay->tile_cache )
+			g_object_set( imagedisplay->tile_cache,
+				"background", g_value_get_int( value ),
+				NULL );
 		break;
 
 	case PROP_SCALE:
@@ -469,8 +486,14 @@ imagedisplay_get_property( GObject *object,
 		g_value_set_enum( value, imagedisplay->vscroll_policy );
 		break;
 
-	case PROP_TILE_CACHE:
-		g_value_set_object( value, imagedisplay->tile_cache );
+	case PROP_TILE_SOURCE:
+		g_value_set_object( value, imagedisplay->tile_source );
+		break;
+
+	case PROP_BACKGROUND:
+		if( imagedisplay->tile_cache )
+			g_object_get_property( G_OBJECT( imagedisplay->tile_cache ),
+				"background", value );
 		break;
 
 	case PROP_SCALE:
@@ -622,11 +645,19 @@ imagedisplay_class_init( ImagedisplayClass *class )
 
 	widget_class->snapshot = imagedisplay_snapshot;
 
-	g_object_class_install_property( gobject_class, PROP_TILE_CACHE,
-		g_param_spec_object( "tile-cache",
-			_( "Tile cache" ),
-			_( "The tile cache to be displayed" ),
-			TILE_CACHE_TYPE,
+	g_object_class_install_property( gobject_class, PROP_TILE_SOURCE,
+		g_param_spec_object( "tile-source",
+			_( "Tile source" ),
+			_( "The tile source to be displayed" ),
+			TILE_SOURCE_TYPE,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_BACKGROUND,
+		g_param_spec_int( "background",
+			_( "Background" ),
+			_( "Background mode" ),
+			0, TILE_CACHE_BACKGROUND_LAST - 1, 
+			TILE_CACHE_BACKGROUND_CHECKERBOARD,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_install_property( gobject_class, PROP_SCALE,
@@ -668,7 +699,7 @@ imagedisplay_class_init( ImagedisplayClass *class )
 }
 
 Imagedisplay *
-imagedisplay_new( TileCache *tile_cache )
+imagedisplay_new( TileSource *tile_source )
 {
 	Imagedisplay *imagedisplay;
 
@@ -677,7 +708,7 @@ imagedisplay_new( TileCache *tile_cache )
 #endif /*DEBUG*/
 
 	imagedisplay = g_object_new( imagedisplay_get_type(),
-		"tile-cache", tile_cache,
+		"tile-source", tile_source,
 		NULL );
 
 	return( imagedisplay );

@@ -12,6 +12,6 @@ void imagedisplay_image_to_gtk( Imagedisplay *imagedisplay,
 void imagedisplay_gtk_to_image( Imagedisplay *imagedisplay, 
 	double x_gtk, double y_gtk, double *x_image, double *y_image );
 
-Imagedisplay *imagedisplay_new( TileCache *tile_cache ); 
+Imagedisplay *imagedisplay_new( TileSource *tile_source ); 
 
 #endif /* __IMAGE_DISPLAY_H */

@@ -17,7 +17,6 @@ struct _ImageWindow
 	GtkApplicationWindow parent;
 
 	TileSource *tile_source;
-	TileCache *tile_cache;
 
 	/* The set of filenames we cycle through.
 	 */
@@ -352,7 +351,6 @@ image_window_dispose( GObject *object )
 		GTK_STYLE_PROVIDER( win->css_provider ) );
 
 	VIPS_UNREF( win->tile_source );
-	VIPS_UNREF( win->tile_cache );
 	VIPS_UNREF( win->save_folder );
 	VIPS_UNREF( win->load_folder );
 	VIPS_FREEF( gtk_widget_unparent, win->right_click_menu );
@@ -1807,10 +1805,9 @@ image_window_background( GSimpleAction *action,
 	TileCacheBackground background = 
 		background_to_enum( g_variant_get_string( state, NULL ) );
 
-	if( win->tile_cache ) 
-		g_object_set( win->tile_cache,
-			"background", background,
-			NULL );
+	g_object_set( win->imagedisplay,
+		"background", background,
+		NULL );
 
 	g_simple_action_set_state( action, state );
 }
@@ -1830,10 +1827,9 @@ image_window_reset( GSimpleAction *action,
 			"offset", 0.0,
 			NULL );
 
-	if( win->tile_cache ) 
-		g_object_set( win->tile_cache,
-			"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
-			NULL );
+	g_object_set( win->imagedisplay,
+		"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
+		NULL );
 }
 
 static void
@@ -2164,9 +2160,8 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 		tile_source_kill( win->tile_source );
 
 	VIPS_UNREF( win->tile_source );
-	VIPS_UNREF( win->tile_cache );
 
-	if( tile_source ) { 
+	if( tile_source ) {
 		win->tile_source = tile_source;
 		g_object_ref( tile_source );
 
@@ -2174,10 +2169,8 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 			"tile-source", win->tile_source,
 			NULL );
 
-		win->tile_cache = tile_cache_new( win->tile_source );
-
 		g_object_set( win->imagedisplay,
-			"tile-cache", win->tile_cache,
+			"tile-source", win->tile_source,
 			NULL );
 
 		g_signal_connect_object( win->tile_source, "preeval", 
