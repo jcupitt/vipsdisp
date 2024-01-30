@@ -385,15 +385,13 @@ image_window_dispose( GObject *object )
 static void
 image_window_status_changed( ImageWindow *win )
 {
-	g_signal_emit( win, 
-		image_window_signals[SIG_STATUS_CHANGED], 0 );
+	g_signal_emit( win, image_window_signals[SIG_STATUS_CHANGED], 0 );
 }
 
 static void
 image_window_changed( ImageWindow *win )
 {
-	g_signal_emit( win,
-		image_window_signals[SIG_CHANGED], 0 );
+	g_signal_emit( win, image_window_signals[SIG_CHANGED], 0 );
 }
 
 static void
@@ -446,10 +444,6 @@ image_window_set_scale( ImageWindow *win, double scale )
 	g_object_set( win->imagedisplay, 
 		"scale", scale,
 		NULL );
-
-	if( win->tile_source &&
-		win->tile_source->loaded )
-		image_window_status_changed( win );
 }
 
 double
@@ -645,9 +639,17 @@ image_window_tile_source_changed( TileSource *tile_source, ImageWindow *win )
 }
 
 static void
-image_window_error_response( GtkWidget *button, int response, ImageWindow *win )
+image_window_error_response( GtkWidget *button, int response, 
+	ImageWindow *win )
 {
 	image_window_error_hide( win );
+}
+
+static void
+image_window_imagedisplay_changed( Imagedisplay *imagedisplay, 
+	ImageWindow *win )
+{
+	image_window_status_changed( win );
 }
 
 /* From clutter-easing.c, based on Robert Penner's infamous easing equations,
@@ -1969,6 +1971,9 @@ image_window_init( ImageWindow *win )
 
 	g_signal_connect_object( win->error_bar, "response", 
 		G_CALLBACK( image_window_error_response ), win, 0 );
+
+	g_signal_connect_object( win->imagedisplay, "changed", 
+		G_CALLBACK( image_window_imagedisplay_changed ), win, 0 );
 
 	g_action_map_add_action_entries( G_ACTION_MAP( win ),
 		image_window_entries, G_N_ELEMENTS( image_window_entries ),

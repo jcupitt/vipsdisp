@@ -222,7 +222,7 @@ infobar_update_pixel( Infobar *infobar )
 	}
 }
 
-void
+static void
 infobar_status_update( Infobar *infobar )
 {
 	double scale = image_window_get_scale( infobar->win );
@@ -239,16 +239,15 @@ infobar_status_update( Infobar *infobar )
 	image_window_get_mouse_position( infobar->win, &image_x, &image_y );
 
 	vips_buf_appendf( &buf, "%d", (int) image_x ); 
-	gtk_label_set_text( GTK_LABEL( infobar->x ), 
-		vips_buf_all( &buf ) ); 
+	gtk_label_set_text( GTK_LABEL( infobar->x ), vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
 	vips_buf_appendf( &buf, "%d", (int) image_y ); 
-	gtk_label_set_text( GTK_LABEL( infobar->y ), 
-		vips_buf_all( &buf ) ); 
+	gtk_label_set_text( GTK_LABEL( infobar->y ), vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
-	vips_buf_appendf( &buf, "Magnification %d%%", (int) (scale * 100) );
+	vips_buf_appendf( &buf, "Magnification %d%%", 
+		(int) VIPS_RINT( scale * 100 ) );
 	gtk_label_set_text( GTK_LABEL( infobar->mag ), vips_buf_all( &buf ) ); 
 
 	// queue bg update of pixel value

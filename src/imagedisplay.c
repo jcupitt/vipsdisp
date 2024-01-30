@@ -88,8 +88,14 @@ enum {
 	 */
 	PROP_DEBUG,
 
+};
+
+enum {
+	SIG_CHANGED,			/* x/y/scale has changed */
 	SIG_LAST
 };
+
+static guint imagedisplay_signals[SIG_LAST] = { 0 };
 
 static void
 imagedisplay_dispose( GObject *object )
@@ -104,6 +110,12 @@ imagedisplay_dispose( GObject *object )
 	VIPS_UNREF( imagedisplay->tile_source );
 
 	G_OBJECT_CLASS( imagedisplay_parent_class )->dispose( object );
+}
+
+static void
+imagedisplay_changed( Imagedisplay *imagedisplay )
+{
+	g_signal_emit( imagedisplay, imagedisplay_signals[SIG_CHANGED], 0 );
 }
 
 static void
@@ -129,6 +141,8 @@ imagedisplay_set_transform( Imagedisplay *imagedisplay,
 	imagedisplay->scale = scale;
 	imagedisplay->x = x;
 	imagedisplay->y = y;
+
+	imagedisplay_changed( imagedisplay );
 }
 
 static void
@@ -713,6 +727,14 @@ imagedisplay_class_init( ImagedisplayClass *class )
 		PROP_HSCROLL_POLICY, "hscroll-policy" );
 	g_object_class_override_property( gobject_class,
 		PROP_VSCROLL_POLICY, "vscroll-policy" );
+
+	imagedisplay_signals[SIG_CHANGED] = g_signal_new( "changed",
+		G_TYPE_FROM_CLASS( class ),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0 ); 
 }
 
 Imagedisplay *

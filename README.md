@@ -221,10 +221,6 @@ On success, merge to master.
 
 ## TODO
 
-- need initial infobar update on window create
-
-    mag seems to change unexpectedly sometimes?
-
 - some races still in fast image switch?
 
     maybe a bad file in pics? seems fine with just jpg images
@@ -238,6 +234,8 @@ On success, merge to master.
     could do slideshow
 
 - live with it for a bit, then make v2.7
+
+- maybe a snap as well? they are pretty easy
 
 
 
