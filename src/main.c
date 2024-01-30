@@ -30,7 +30,7 @@ main( int argc, char **argv )
 
 	/* Magickload will lock up on eg. AVI files.
 	 */
-	printf( "blocking VipsForeignLoadMagick\n" );
+	printf( "vipsdisp.main: blocking VipsForeignLoadMagick\n" );
 	vips_operation_block_set( "VipsForeignLoadMagick", TRUE );
 
 	app = vipsdisp_app_new();

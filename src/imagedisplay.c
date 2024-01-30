@@ -80,6 +80,10 @@ enum {
 	PROP_X,
 	PROP_Y,
 
+	/* Set this to force shrink-to-fit on next layout.
+	 */
+	PROP_BESTFIT,
+
 	/* Draw snapshot in debug mode.
 	 */
 	PROP_DEBUG,
@@ -298,8 +302,6 @@ imagedisplay_tile_cache_changed( TileCache *tile_cache,
 	printf( "imagedisplay_tile_cache_changed:\n" );
 #endif /*DEBUG*/
 
-	imagedisplay->bestfit = TRUE;
-
 	imagedisplay->image_rect.width =
 		tile_cache->tile_source->display_width;
 	imagedisplay->image_rect.height =
@@ -452,6 +454,10 @@ imagedisplay_set_property( GObject *object,
 		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
 		break;
 
+	case PROP_BESTFIT:
+		imagedisplay->bestfit = g_value_get_boolean( value );
+		break;
+
 	case PROP_DEBUG:
 		imagedisplay->debug = g_value_get_boolean( value );
 		gtk_widget_queue_draw( GTK_WIDGET( imagedisplay ) );
@@ -506,6 +512,10 @@ imagedisplay_get_property( GObject *object,
 
 	case PROP_Y:
 		g_value_set_double( value, imagedisplay->y );
+		break;
+
+	case PROP_BESTFIT:
+		g_value_set_boolean( value, imagedisplay->bestfit );
 		break;
 
 	case PROP_DEBUG:
@@ -679,6 +689,13 @@ imagedisplay_class_init( ImagedisplayClass *class )
 			_( "y" ),
 			_( "Vertical position of viewport" ),
 			-VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
+			G_PARAM_READWRITE ) );
+
+	g_object_class_install_property( gobject_class, PROP_BESTFIT,
+		g_param_spec_boolean( "bestfit",
+			_( "Best fit" ),
+			_( "Set to force best fit on nest layout" ),
+			FALSE,
 			G_PARAM_READWRITE ) );
 
 	g_object_class_install_property( gobject_class, PROP_DEBUG,

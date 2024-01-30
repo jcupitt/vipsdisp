@@ -57,7 +57,7 @@
 
         <child type="end">
           <object class="GtkLabel" id="mag">
-            <property name="label">Magnification 1:1</property>
+            <property name="label">Magnification 100%</property>
             <property name="xalign">1</property>
             <property name="yalign">0</property>
           </object>

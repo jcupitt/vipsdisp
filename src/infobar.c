@@ -248,13 +248,8 @@ infobar_status_update( Infobar *infobar )
 		vips_buf_all( &buf ) ); 
 	vips_buf_rewind( &buf ); 
 
-	vips_buf_appendf( &buf, "Magnification " );
-	if( scale >= 1.0 )
-		vips_buf_appendf( &buf, "%d:1", (int) scale );
-	else
-		vips_buf_appendf( &buf, "1:%d", (int) (1.0 / scale) );
-	gtk_label_set_text( GTK_LABEL( infobar->mag ), 
-		vips_buf_all( &buf ) ); 
+	vips_buf_appendf( &buf, "Magnification %d%%", (int) (scale * 100) );
+	gtk_label_set_text( GTK_LABEL( infobar->mag ), vips_buf_all( &buf ) ); 
 
 	// queue bg update of pixel value
 	infobar_update_pixel( infobar );

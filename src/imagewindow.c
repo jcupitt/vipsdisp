@@ -286,6 +286,25 @@ image_window_files_set_path( ImageWindow *win, char *path )
 }
 
 static void
+image_window_reset_view( ImageWindow *win )
+{
+	g_object_set( win->imagedisplay, "bestfit", TRUE, NULL );
+
+	if( win->tile_source )
+		g_object_set( win->tile_source,
+			"falsecolour", FALSE,
+			"log", FALSE,
+			"icc", FALSE,
+			"scale", 1.0,
+			"offset", 0.0,
+			NULL );
+
+	g_object_set( win->imagedisplay,
+		"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
+		NULL );
+}
+
+static void
 image_window_files_set( ImageWindow *win, char **files, int n_files )
 {
 	image_window_files_free( win );
@@ -300,6 +319,9 @@ image_window_files_set( ImageWindow *win, char **files, int n_files )
 
 		win->current_file = 0;
 	}
+
+	// a new set of files to view ... reset the view
+	image_window_reset_view( win );
 }
 
 static void
@@ -311,8 +333,8 @@ image_window_open_current_file( ImageWindow *win )
 		char *filename = win->files[win->current_file];
 
 #ifdef DEBUG
-#endif /* DEBUG */
 		printf( "image_window_open_current_file: %s:\n", filename );
+#endif /*DEBUG*/
 
 		TileSource *tile_source;
 
@@ -1818,18 +1840,7 @@ image_window_reset( GSimpleAction *action,
 {
 	ImageWindow *win = IMAGE_WINDOW( user_data );
 
-	if( win->tile_source )
-		g_object_set( win->tile_source,
-			"falsecolour", FALSE,
-			"log", FALSE,
-			"icc", FALSE,
-			"scale", 1.0,
-			"offset", 0.0,
-			NULL );
-
-	g_object_set( win->imagedisplay,
-		"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
-		NULL );
+	image_window_reset_view( win );
 }
 
 static void
@@ -1841,7 +1852,7 @@ image_window_properties( GSimpleAction *action,
 
 #ifdef DEBUG
 	printf( "image_window_properties:\n" );
-#endif /* DEBUG */
+#endif /*DEBUG*/
 
 	g_object_set( win->properties,
 		"revealed", revealed,
@@ -1926,7 +1937,7 @@ image_window_init( ImageWindow *win )
 
 #ifdef DEBUG
 	puts("image_window_init");
-#endif /* DEBUG */
+#endif /*DEBUG*/
 
 	win->progress_timer = g_timer_new();
 	win->last_progress_time = -1;
@@ -2148,11 +2159,41 @@ image_window_new( VipsdispApp *app )
 	return( g_object_new( IMAGE_WINDOW_TYPE, "application", app, NULL ) );
 }
 
+static void
+copy_value( GObject *to, GObject *from, const char *name )
+{
+	GValue value = { 0 };
+
+	g_object_get_property( from, name, &value );
+	g_object_set_property( to, name, &value );
+	g_value_unset( &value );
+}
+
 void
 image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 {
 	VipsImage *image;
 	char *title;
+
+	// copy over any visualisation settings from the old tile_source
+	if( tile_source && win->tile_source ) {
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "mode" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "scale" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "offset" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "page" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "falsecolour" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "log" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "icc" );
+		copy_value( G_OBJECT( tile_source ), 
+				G_OBJECT( win->tile_source ), "active" );
+	}
 
 	/* Try to shut down any current evaluation.
 	 */

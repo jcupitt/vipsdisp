@@ -5,6 +5,7 @@
 - add "reload"
 - better event handling in imagewindow
 - add multifile load
+- keep view settings on next/prev image
 
 # 2.6.3a, 7/1/24
 
