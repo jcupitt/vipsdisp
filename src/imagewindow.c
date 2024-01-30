@@ -970,10 +970,10 @@ image_window_paste_action( GSimpleAction *action,
 	const GType *types = gdk_content_formats_get_gtypes( formats, &n_types );
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf( "clipboard in %lu formats\n", n_types );
 	for( gsize i = 0; i < n_types; i++ ) 
 		printf( "%lu - %s\n", i, g_type_name( types[i] ) );
+#endif /*DEBUG*/
 
 	gboolean handled = FALSE;
 	for( gsize i = 0; i < n_types; i++ ) {
