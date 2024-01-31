@@ -235,8 +235,6 @@ On success, merge to master.
 
 - live with it for a bit, then make v2.7
 
-- maybe a snap as well? they are pretty easy
-
 
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`

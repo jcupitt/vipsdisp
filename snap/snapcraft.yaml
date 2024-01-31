@@ -1,0 +1,70 @@
+# this sort-of works, but core22 is based on ubuntui 22.04-lts, and is too
+# old for vipsdisp ... specifically, we need gtk-4.10 or later
+#
+# additionally, "snapcraft" won't work with docker installed, which is
+# very annoying
+
+name: vipsdisp
+base: core22
+icon: org.libvips.vipsdisp.png
+version: '2.7'
+summary: Image viewer
+description: |
+  vipsdisp can display huge (many, many GB) images quickly and without 
+  using much memory.
+
+  As well as the usual PNG, JPG, TIF, PDF, SVG, WEBP, JP2K, JXL and GIF,
+  it supports many scientific and technical image formats, including SVS,
+  MRXS, OpenEXR, FITS, Matlab, NIfTI, Analyze, PFM, etc.
+
+  vipsdisp supports pixel types from 1 bit mono to 128-bit double precision
+  complex, you can convert image formats, and it has a range of useful
+  visualisation options and display modes.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+apps:
+  vipsdisp:
+    command: desktop-launch vipsdisp
+    desktop: org.libvips.vipsdisp.desktop
+    plugs: [home, gsettings]
+
+parts:
+  libvips-part:
+    source: https://github.com/libvips/libvips
+    source-branch: master
+    source-type: git
+    plugin: meson
+    build-packages:
+        -    meson
+        -    ninja-build
+        -    libglib2.0-dev
+        -    libfftw3-dev
+        -    libexpat1-dev
+        -    libxml2-dev
+        -    libjpeg-turbo8-dev
+        -    libtiff5-dev
+        -    libopenslide-dev
+        -    libopenexr-dev
+        -    libcfitsio-dev
+        -    libmatio-dev
+        -    libpoppler-dev
+        -    librsvg2-dev
+        -    libmagickcore-6.q16-dev
+        -    libexif-dev
+        -    libcgif-dev
+        -    libarchive-dev
+        -    liblcms2-dev
+        -    libpng-dev
+        -    libhwy-dev
+        -    libwebp-dev
+
+  vipsdisp-part:
+    source: https://github.com/jcupitt/vipsdisp
+    source-branch: master
+    source-type: git
+    plugin: meson
+    build-packages:
+        -    libgtk-4-dev
+    after: [libvips-part]
