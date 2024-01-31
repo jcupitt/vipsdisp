@@ -2183,13 +2183,9 @@ image_window_set_tile_source( ImageWindow *win, TileSource *tile_source )
 	// copy over any visualisation settings from the old tile_source
 	if( tile_source && win->tile_source ) {
 		copy_value( G_OBJECT( tile_source ), 
-				G_OBJECT( win->tile_source ), "mode" );
-		copy_value( G_OBJECT( tile_source ), 
 				G_OBJECT( win->tile_source ), "scale" );
 		copy_value( G_OBJECT( tile_source ), 
 				G_OBJECT( win->tile_source ), "offset" );
-		copy_value( G_OBJECT( tile_source ), 
-				G_OBJECT( win->tile_source ), "page" );
 		copy_value( G_OBJECT( tile_source ), 
 				G_OBJECT( win->tile_source ), "falsecolour" );
 		copy_value( G_OBJECT( tile_source ), 
