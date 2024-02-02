@@ -1620,6 +1620,27 @@ tile_source_new_from_file( const char *filename )
 			tile_source->level_height[level] =
 				get_int( image, name, 0 );
 		}
+
+		/* Some openslide images don't have levels on x2 boundaries. SVS and
+		 * images derived from SVS (eg. converted to DICOM) for example are
+		 * in x4, and they also have a final thumbnail or overview image 
+		 * which is not on any boundary at all.
+		 *
+		 * Check the levels and only use the ones which are on power of two
+		 * boundaries.
+		 */
+		for( level = 1; level < level_count; level++ ) {
+			double downsample = (double) tile_source->level_width[0] / 
+				tile_source->level_width[level];
+			double power = log( downsample ) / log( 2 );
+
+			if( fabs( power - floor( power ) ) > 0.01 ) {
+				// too far away from a power of two, ignore any remaining
+				// frames
+				tile_source->level_count = level;
+				break;
+			}
+		}
 	}
 
 	if( vips_isprefix( "svg", tile_source->loader ) ) {
