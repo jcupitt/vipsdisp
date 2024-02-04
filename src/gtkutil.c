@@ -56,17 +56,17 @@ get_geditable_double(GtkWidget *text, double *out)
 	t = strtod(txt, &end);
 	if (end == txt) {
 		g_free(txt);
-		return (FALSE);
+		return FALSE;
 	}
 	if (strspn(end, WHITESPACE) != strlen(end)) {
 		g_free(txt);
-		return (FALSE);
+		return FALSE;
 	}
 	g_free(txt);
 
 	*out = t;
 
-	return (TRUE);
+	return TRUE;
 }
 
 /* Build a GtkEntry, with a widget width specified in characters.
@@ -80,7 +80,7 @@ build_entry(int nchars)
 	// FIXME
 	// gtk_entry_set_width_chars( GTK_ENTRY( entry ), nchars );
 
-	return (entry);
+	return entry;
 }
 
 /* Set the tooltip on a widget.
@@ -138,9 +138,9 @@ get_state(GtkWidget *widget, const char *name)
 
 	action = g_action_map_lookup_action(G_ACTION_MAP(widget), name);
 	if (!action)
-		return (NULL);
+		return NULL;
 
-	return (g_action_get_state(action));
+	return g_action_get_state(action);
 }
 
 void
@@ -210,5 +210,5 @@ widget_should_animate(GtkWidget *widget)
 		"gtk-enable-animations", &enable_animations,
 		NULL);
 
-	return (enable_animations);
+	return enable_animations;
 }

@@ -47,7 +47,7 @@ tile_class_init(TileClass *class)
 int
 tile_get_time(void)
 {
-	return (tile_ticks);
+	return tile_ticks;
 }
 
 /* Update the timestamp on a tile.
@@ -83,7 +83,7 @@ tile_new(VipsImage *level, int left, int top, int z)
 	vips_rect_intersectrect(&image_bounds, &tile_bounds, &tile_bounds);
 	if (vips_region_buffer(tile->region, &tile_bounds)) {
 		VIPS_UNREF(tile);
-		return (NULL);
+		return NULL;
 	}
 
 	/* Tile bounds in level 0 coordinates.
@@ -95,7 +95,7 @@ tile_new(VipsImage *level, int left, int top, int z)
 
 	tile_touch(tile);
 
-	return (tile);
+	return tile;
 }
 
 /* NULL means pixels have not arrived from libvips yet.
@@ -145,7 +145,7 @@ tile_get_texture(Tile *tile)
 		tile->texture = gdk_texture_new_for_pixbuf(tile->pixbuf);
 	}
 
-	return (tile->texture);
+	return tile->texture;
 }
 
 /* The pixels in the region have changed. We must regenerate the texture on

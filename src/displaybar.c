@@ -306,5 +306,5 @@ displaybar_new(ImageWindow *win)
 		"image-window", win,
 		NULL);
 
-	return (displaybar);
+	return displaybar;
 }

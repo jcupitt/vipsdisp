@@ -141,7 +141,7 @@ tile_cache_texture(TileCacheBackground background)
 
 	g_object_unref(pixbuf);
 
-	return (texture);
+	return texture;
 }
 
 static void
@@ -374,7 +374,7 @@ tile_cache_sort_lru(const void *a, const void *b)
 	Tile *t1 = TILE(a);
 	Tile *t2 = TILE(b);
 
-	return (t1->time - t2->time);
+	return t1->time - t2->time;
 }
 
 static void
@@ -521,10 +521,10 @@ tile_cache_find(TileCache *tile_cache, VipsRect *tile_rect, int z)
 		tile = TILE(p->data);
 
 		if (vips_rect_overlapsrect(&tile->bounds, tile_rect))
-			return (tile);
+			return tile;
 	}
 
-	return (NULL);
+	return NULL;
 }
 
 /* Fetch a single tile. If we have this tile already, refresh if there are new
@@ -733,7 +733,7 @@ tile_cache_new(TileSource *tile_source)
 	 * Wait for "changed".
 	 */
 
-	return (tile_cache);
+	return tile_cache;
 }
 
 static void

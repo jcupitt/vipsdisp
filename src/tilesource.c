@@ -179,7 +179,7 @@ tile_source_open(TileSource *tile_source, int level)
 		 */
 		image = vips_image_new_from_file(tile_source->filename, NULL);
 
-	return (image);
+	return image;
 }
 
 /* Run by the main GUI thread when a notify comes in from libvips that a tile
@@ -202,7 +202,7 @@ tile_source_render_notify_idle(void *user_data)
 	 */
 	g_free(update);
 
-	return (FALSE);
+	return FALSE;
 }
 
 /* Come here from the vips_sink_screen() background thread when a tile has been
@@ -260,7 +260,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 #endif /*DEBUG*/
 
 		if (!(image = tile_source_open(tile_source, level)))
-			return (NULL);
+			return NULL;
 	}
 	else if (tile_source->type == TILE_SOURCE_TYPE_MULTIPAGE) {
 #ifdef DEBUG
@@ -270,7 +270,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 
 		if (!(image = tile_source_open(tile_source,
 				  tile_source->page)))
-			return (NULL);
+			return NULL;
 	}
 	else {
 		image = tile_source->image;
@@ -294,7 +294,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 				0, tile_source->page * page_height,
 				page_width, page_height, NULL)) {
 			VIPS_UNREF(image);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -326,12 +326,12 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 					NULL)) {
 				VIPS_UNREF(context);
 				VIPS_UNREF(image);
-				return (NULL);
+				return NULL;
 			}
 		if (vips_bandjoin(t, &x, n_pages, NULL)) {
 			VIPS_UNREF(context);
 			VIPS_UNREF(image);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		VIPS_UNREF(context);
@@ -361,7 +361,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 			vips_hist_norm(t[1], &t[3], NULL) ||
 			vips_hist_plot(t[3], &t[4], NULL)) {
 			VIPS_UNREF(context);
-			return (NULL);
+			return NULL;
 		}
 
 		image = t[4];
@@ -379,7 +379,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 
 		if (vips_subsample(image, &x, subsample, subsample, NULL)) {
 			VIPS_UNREF(image);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -410,7 +410,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		VIPS_UNREF(x);
 		VIPS_UNREF(mask);
 		VIPS_UNREF(image);
-		return (NULL);
+		return NULL;
 	}
 	VIPS_UNREF(image);
 	image = x;
@@ -419,7 +419,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 
 	*mask_out = mask;
 
-	return (image);
+	return image;
 }
 
 static VipsImage *
@@ -440,12 +440,12 @@ tile_source_image_log(VipsImage *image)
 		// add 0.5 to get round to nearest
 		vips_linear1(t[2], &x, scale, 0.5, NULL)) {
 		g_object_unref(context);
-		return (NULL);
+		return NULL;
 	}
 	VIPS_UNREF(context);
 	image = x;
 
-	return (image);
+	return image;
 }
 
 static int
@@ -498,7 +498,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	 */
 	if (vips_image_decode(image, &x)) {
 		VIPS_UNREF(image);
-		return (NULL);
+		return NULL;
 	}
 	VIPS_UNREF(image);
 	image = x;
@@ -516,13 +516,13 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	if (image->Bands > n_bands) {
 		if (vips_extract_band(image, &x, 0, "n", n_bands, NULL)) {
 			VIPS_UNREF(image);
-			return (NULL);
+			return NULL;
 		}
 
 		// just use the first alpha
 		if (vips_extract_band(image, &alpha, n_bands, "n", 1, NULL)) {
 			VIPS_UNREF(image);
-			return (NULL);
+			return NULL;
 		}
 
 		VIPS_UNREF(image);
@@ -543,7 +543,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 			if (!(x = tile_source_image_log(image))) {
 				VIPS_UNREF(image);
 				VIPS_UNREF(alpha);
-				return (NULL);
+				return NULL;
 			}
 			VIPS_UNREF(image);
 			image = x;
@@ -556,7 +556,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 					NULL)) {
 				VIPS_UNREF(image);
 				VIPS_UNREF(alpha);
-				return (NULL);
+				return NULL;
 			}
 			VIPS_UNREF(image);
 			image = x;
@@ -570,7 +570,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		if (vips_icc_transform(image, &x, "srgb", NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -584,7 +584,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 				NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -594,7 +594,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		if (vips_cast(image, &x, VIPS_FORMAT_UCHAR, NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -607,7 +607,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		if (vips_falsecolour(image, &x, NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(image);
 		image = x;
@@ -618,7 +618,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		if (vips_cast(alpha, &x, image->BandFmt, NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 		VIPS_UNREF(alpha);
 		alpha = x;
@@ -626,7 +626,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		if (vips_bandjoin2(image, alpha, &x, NULL)) {
 			VIPS_UNREF(image);
 			VIPS_UNREF(alpha);
-			return (NULL);
+			return NULL;
 		}
 
 		VIPS_UNREF(image);
@@ -634,7 +634,7 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		image = x;
 	}
 
-	return (image);
+	return image;
 }
 
 /* Rebuild just the second half of the image pipeline, eg. after a change to
@@ -649,7 +649,7 @@ tile_source_update_rgb(TileSource *tile_source)
 		if (!(rgb = tile_source_rgb_image(tile_source,
 				  tile_source->display))) {
 			printf("tile_source_rgb_image failed!\n");
-			return (-1);
+			return -1;
 		}
 		VIPS_UNREF(tile_source->rgb);
 		tile_source->rgb = rgb;
@@ -658,7 +658,7 @@ tile_source_update_rgb(TileSource *tile_source)
 		tile_source->rgb_region = vips_region_new(tile_source->rgb);
 	}
 
-	return (0);
+	return 0;
 }
 
 /* Rebuild the entire display pipeline eg. after a page flip, or if current_z
@@ -678,13 +678,13 @@ tile_source_update_display(TileSource *tile_source)
 	 */
 	if (!tile_source->loaded ||
 		!tile_source->image)
-		return (0);
+		return 0;
 
 	if (!(display = tile_source_display_image(tile_source, &mask))) {
 #ifdef DEBUG
 		printf("tile_source_update_display: build failed\n");
 #endif /*DEBUG*/
-		return (-1);
+		return -1;
 	}
 
 	VIPS_UNREF(tile_source->display);
@@ -696,9 +696,9 @@ tile_source_update_display(TileSource *tile_source)
 	tile_source->mask_region = vips_region_new(tile_source->mask);
 
 	if (tile_source_update_rgb(tile_source))
-		return (-1);
+		return -1;
 
-	return (0);
+	return 0;
 }
 
 #ifdef DEBUG
@@ -707,43 +707,43 @@ tile_source_property_name(guint prop_id)
 {
 	switch (prop_id) {
 	case PROP_MODE:
-		return ("MODE");
+		return "MODE";
 		break;
 
 	case PROP_SCALE:
-		return ("SCALE");
+		return "SCALE";
 		break;
 
 	case PROP_OFFSET:
-		return ("OFFSET");
+		return "OFFSET";
 		break;
 
 	case PROP_PAGE:
-		return ("PAGE");
+		return "PAGE";
 		break;
 
 	case PROP_FALSECOLOUR:
-		return ("FALSECOLOUR");
+		return "FALSECOLOUR";
 		break;
 
 	case PROP_LOG:
-		return ("LOG");
+		return "LOG";
 		break;
 
 	case PROP_ICC:
-		return ("ICC");
+		return "ICC";
 		break;
 
 	case PROP_ACTIVE:
-		return ("ACTIVE");
+		return "ACTIVE";
 		break;
 
 	case PROP_LOADED:
-		return ("LOADED");
+		return "LOADED";
 		break;
 
 	default:
-		return ("<unknown>");
+		return "<unknown>";
 	}
 }
 #endif /*DEBUG*/
@@ -790,7 +790,7 @@ tile_source_page_flip(void *user_data)
 			NULL);
 	}
 
-	return (FALSE);
+	return FALSE;
 }
 
 static void
@@ -1046,7 +1046,7 @@ tile_source_background_load_done_idle(void *user_data)
 	 */
 	g_object_unref(tile_source);
 
-	return (FALSE);
+	return FALSE;
 }
 
 /* This runs for the background load threadpool.
@@ -1217,13 +1217,13 @@ type_name(TileSourceType type)
 {
 	switch (type) {
 	case TILE_SOURCE_TYPE_PAGE_PYRAMID:
-		return ("pyramid");
+		return "pyramid";
 	case TILE_SOURCE_TYPE_TOILET_ROLL:
-		return ("toilet-roll");
+		return "toilet-roll";
 	case TILE_SOURCE_TYPE_MULTIPAGE:
-		return ("multipage");
+		return "multipage";
 	default:
-		return ("<unknown>");
+		return "<unknown>";
 	}
 }
 
@@ -1232,15 +1232,15 @@ mode_name(TileSourceMode mode)
 {
 	switch (mode) {
 	case TILE_SOURCE_MODE_TOILET_ROLL:
-		return ("toilet-roll");
+		return "toilet-roll";
 	case TILE_SOURCE_MODE_MULTIPAGE:
-		return ("multipage");
+		return "multipage";
 	case TILE_SOURCE_MODE_ANIMATED:
-		return ("animated");
+		return "animated";
 	case TILE_SOURCE_MODE_PAGES_AS_BANDS:
-		return ("pages-as-bands");
+		return "pages-as-bands";
 	default:
-		return ("<unknown>");
+		return "<unknown>";
 	}
 }
 
@@ -1306,7 +1306,7 @@ tile_source_set_image(TileSource *tile_source, VipsImage *image)
 
 		if (vips_image_get_array_int(image, "delay",
 				&delay, &n_delay))
-			return (-1);
+			return -1;
 
 		tile_source->delay = g_new(int, n_delay);
 		memcpy(tile_source->delay, delay, n_delay * sizeof(int));
@@ -1317,7 +1317,7 @@ tile_source_set_image(TileSource *tile_source, VipsImage *image)
 	tile_source_print(tile_source);
 #endif /*DEBUG*/
 
-	return (0);
+	return 0;
 }
 
 /* Pick a default display mode.
@@ -1357,7 +1357,7 @@ tile_source_new_from_image(VipsImage *image)
 
 	if (tile_source_set_image(tile_source, image)) {
 		VIPS_UNREF(tile_source);
-		return (NULL);
+		return NULL;
 	}
 
 	tile_source->image = image;
@@ -1376,7 +1376,7 @@ tile_source_new_from_image(VipsImage *image)
 	// FIXME ... why do we need this extra ref?
 	g_object_ref(tile_source);
 
-	return (tile_source);
+	return tile_source;
 }
 
 /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
@@ -1549,9 +1549,9 @@ get_int(VipsImage *image, const char *field, int default_value)
 
 	if (vips_image_get_typeof(image, field) &&
 		!vips_image_get_string(image, field, &str))
-		return (atoi(str));
+		return atoi(str);
 
-	return (default_value);
+	return default_value;
 }
 
 TileSource *
@@ -1571,7 +1571,7 @@ tile_source_new_from_file(const char *filename)
 
 	if (!(loader = vips_foreign_find_load(filename))) {
 		VIPS_UNREF(tile_source);
-		return (NULL);
+		return NULL;
 	}
 
 	/* vips_foreign_find_load() gives us eg.
@@ -1584,13 +1584,13 @@ tile_source_new_from_file(const char *filename)
 	 */
 	if (!(image = vips_image_new_from_file(filename, NULL))) {
 		VIPS_UNREF(tile_source);
-		return (NULL);
+		return NULL;
 	}
 
 	if (tile_source_set_image(tile_source, image)) {
 		VIPS_UNREF(image);
 		VIPS_UNREF(tile_source);
-		return (NULL);
+		return NULL;
 	}
 
 	/* For openslide, we can read out the level structure directly.
@@ -1774,7 +1774,7 @@ tile_source_new_from_file(const char *filename)
 	 */
 	if (!(image = tile_source_open(tile_source, 0))) {
 		VIPS_UNREF(tile_source);
-		return (NULL);
+		return NULL;
 	}
 	g_assert(!tile_source->image);
 	g_assert(!tile_source->image_region);
@@ -1802,7 +1802,7 @@ tile_source_new_from_file(const char *filename)
 
 	tile_source_attach_progress(tile_source);
 
-	return (tile_source);
+	return tile_source;
 }
 
 /* Call this some time after tile_source_new_from_file() or
@@ -1825,7 +1825,7 @@ tile_source_fill_tile(TileSource *tile_source, Tile *tile)
 #endif /*DEBUG_VERBOSE*/
 
 	if (tile_source->kill)
-		return (0);
+		return 0;
 
 	/* Change z if necessary.
 	 */
@@ -1836,7 +1836,7 @@ tile_source_fill_tile(TileSource *tile_source, Tile *tile)
 	}
 
 	if (vips_region_prepare(tile_source->mask_region, &tile->region->valid))
-		return (-1);
+		return -1;
 
 	/* tile is within a single tile, so we only need to test the first byte
 	 * of the mask.
@@ -1855,7 +1855,7 @@ tile_source_fill_tile(TileSource *tile_source, Tile *tile)
 			&tile->region->valid,
 			tile->region->valid.left,
 			tile->region->valid.top))
-		return (-1);
+		return -1;
 
 	/* Do we have new, valid pixels? Update the texture. We need to do
 	 * this now since the data in the region may change later.
@@ -1865,13 +1865,13 @@ tile_source_fill_tile(TileSource *tile_source, Tile *tile)
 		tile_get_texture(tile);
 	}
 
-	return (0);
+	return 0;
 }
 
 const char *
 tile_source_get_path(TileSource *tile_source)
 {
-	return (tile_source->filename);
+	return tile_source->filename;
 }
 
 GFile *
@@ -1880,9 +1880,9 @@ tile_source_get_file(TileSource *tile_source)
 	const char *path;
 
 	if ((path = tile_source_get_path(tile_source)))
-		return (g_file_new_for_path(path));
+		return g_file_new_for_path(path);
 
-	return (NULL);
+	return NULL;
 }
 
 /* The image as used to generate the display, so including page extraction and
@@ -1891,7 +1891,7 @@ tile_source_get_file(TileSource *tile_source)
 VipsImage *
 tile_source_get_image(TileSource *tile_source)
 {
-	return (tile_source->image);
+	return tile_source->image;
 }
 
 /* The base image is the plain open, so no scaling or page extraction.
@@ -1899,7 +1899,7 @@ tile_source_get_image(TileSource *tile_source)
 VipsImage *
 tile_source_get_base_image(TileSource *tile_source)
 {
-	return (tile_source->base);
+	return tile_source->base;
 }
 
 gboolean
@@ -1908,7 +1908,7 @@ tile_source_get_pixel(TileSource *tile_source, int image_x, int image_y,
 {
 	if (!tile_source->loaded ||
 		!tile_source->image)
-		return (FALSE);
+		return FALSE;
 
 	/* x and y are in base image coordinates, so we need to scale by the
 	 * current z.
@@ -1922,16 +1922,16 @@ tile_source_get_pixel(TileSource *tile_source, int image_x, int image_y,
 		image_y < 0 ||
 		image_x >= tile_source->display->Xsize ||
 		image_y >= tile_source->display->Ysize)
-		return (FALSE);
+		return FALSE;
 
 	/* The ->display image is cached in a sink screen, so this will be
 	 * reasonably quick, even for things like svg and pdf.
 	 */
 	if (vips_getpoint(tile_source->display,
 			vector, n, image_x, image_y, NULL))
-		return (FALSE);
+		return FALSE;
 
-	return (TRUE);
+	return TRUE;
 }
 
 TileSource *
@@ -1947,9 +1947,8 @@ tile_source_duplicate(TileSource *tile_source)
 	gboolean icc;
 	gboolean active;
 
-	if (!(new_tile_source =
-				tile_source_new_from_file(tile_source->filename)))
-		return (NULL);
+	if (!(new_tile_source = tile_source_new_from_file(tile_source->filename)))
+		return NULL;
 
 	g_object_get(tile_source,
 		"mode", &mode,
@@ -1973,7 +1972,7 @@ tile_source_duplicate(TileSource *tile_source)
 		"active", active,
 		NULL);
 
-	return (new_tile_source);
+	return new_tile_source;
 }
 
 void

@@ -40,15 +40,15 @@ properties_property_name(guint prop_id)
 {
 	switch (prop_id) {
 	case PROP_TILE_SOURCE:
-		return ("TILE_SOURCE");
+		return "TILE_SOURCE";
 		break;
 
 	case PROP_REVEALED:
-		return ("REVEALED");
+		return "REVEALED";
 		break;
 
 	default:
-		return ("<unknown>");
+		return "<unknown>";
 	}
 }
 #endif /*DEBUG*/
@@ -116,7 +116,7 @@ properties_refresh_add_item_cb(VipsImage *image,
 
 	properties_add_item(p, field, value);
 
-	return (NULL);
+	return NULL;
 }
 
 static void *
@@ -128,7 +128,7 @@ properties_refresh_add_item_match_cb(VipsImage *image,
 	if (g_strrstr(field, p->pattern))
 		properties_add_item(p, field, value);
 
-	return (NULL);
+	return NULL;
 }
 
 static void

@@ -40,9 +40,9 @@ vipsdisp_app_win(VipsdispApp *app)
 	GList *windows = gtk_application_get_windows(GTK_APPLICATION(app));
 
 	if (windows)
-		return (VIPSDISP_IMAGE_WINDOW(windows->data));
+		return VIPSDISP_IMAGE_WINDOW(windows->data);
 	else
-		return (NULL);
+		return NULL;
 }
 
 static void
@@ -189,10 +189,10 @@ vipsdisp_app_class_init(VipsdispAppClass *class)
 VipsdispApp *
 vipsdisp_app_new(void)
 {
-	return (g_object_new(VIPSDISP_APP_TYPE,
+	return g_object_new(VIPSDISP_APP_TYPE,
 		"application-id", APPLICATION_ID,
 		"flags", G_APPLICATION_HANDLES_OPEN,
 		"inactivity-timeout", 3000,
 		"register-session", TRUE,
-		NULL));
+		NULL);
 }

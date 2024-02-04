@@ -175,7 +175,7 @@ imagedisplay_set_adjustment(Imagedisplay *imagedisplay,
 
 	if (new_adjustment &&
 		*adjustment_slot == new_adjustment)
-		return (FALSE);
+		return FALSE;
 
 	if (*adjustment_slot) {
 		g_signal_handlers_disconnect_by_func(*adjustment_slot,
@@ -191,7 +191,7 @@ imagedisplay_set_adjustment(Imagedisplay *imagedisplay,
 		G_CALLBACK(imagedisplay_adjustment_changed), imagedisplay);
 	*adjustment_slot = g_object_ref_sink(new_adjustment);
 
-	return (TRUE);
+	return TRUE;
 }
 
 static void
@@ -749,7 +749,7 @@ imagedisplay_new(TileSource *tile_source)
 		"tile-source", tile_source,
 		NULL);
 
-	return (imagedisplay);
+	return imagedisplay;
 }
 
 /* image	level0 image coordinates ... this is the coordinate space we

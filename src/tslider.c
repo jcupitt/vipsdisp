@@ -59,7 +59,7 @@ tslider_value_to_slider(Tslider *tslider, double value)
 
 	/* Map back to main range.
 	 */
-	return (nvalue);
+	return nvalue;
 }
 
 /* Map a slider position to a value.
@@ -84,7 +84,7 @@ tslider_slider_to_value(Tslider *tslider, double value)
 
 	/* Map back to main range.
 	 */
-	return (nvalue);
+	return nvalue;
 }
 
 /* from/to/value have changed ... update the widgets.
@@ -253,7 +253,7 @@ tslider_text_changed_cb(GtkWidget *widget, Tslider *tslider)
 static double
 tslider_conversion_id(double from, double to, double value)
 {
-	return (value);
+	return value;
 }
 
 static void
@@ -359,7 +359,7 @@ tslider_new(void)
 
 	tslider = g_object_new(TSLIDER_TYPE, NULL);
 
-	return (tslider);
+	return tslider;
 }
 
 void
@@ -385,7 +385,7 @@ tslider_log_value_to_slider(double from, double to, double value)
 
 	const double nvalue = pow(value, 1.0 / a);
 
-	return (nvalue);
+	return nvalue;
 }
 
 double
@@ -401,5 +401,5 @@ tslider_log_slider_to_value(double from, double to, double value)
 
 	const double nvalue = pow(value, a);
 
-	return (nvalue);
+	return nvalue;
 }

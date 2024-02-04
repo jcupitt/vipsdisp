@@ -196,7 +196,7 @@ sort_filenames(const void *a, const void *b)
 	const char *f1 = (const char *) a;
 	const char *f2 = (const char *) b;
 
-	return (g_strcasecmp(f1, f2));
+	return g_strcasecmp(f1, f2);
 }
 
 static void
@@ -462,7 +462,7 @@ image_window_get_scale(ImageWindow *win)
 	printf("image_window_get_scale: %g\n", scale);
 #endif /*DEBUG*/
 
-	return (scale);
+	return scale;
 }
 
 /* Set a new mag, keeping the pixel at x/y in the image at the same position
@@ -538,7 +538,7 @@ image_window_eval_idle(void *user_data)
 
 	g_free(update);
 
-	return (FALSE);
+	return FALSE;
 }
 
 static void
@@ -659,7 +659,7 @@ ease_out_cubic(double t)
 {
 	double p = t - 1;
 
-	return (p * p * p + 1);
+	return p * p * p + 1;
 }
 
 static void image_window_stop_animation(ImageWindow *win);
@@ -716,7 +716,7 @@ image_window_tick(GtkWidget *widget,
 
 	win->last_frame_time = frame_time;
 
-	return (G_SOURCE_CONTINUE);
+	return G_SOURCE_CONTINUE;
 }
 
 static void
@@ -818,13 +818,13 @@ texture_new_from_image(VipsImage *image)
 	if ((gint64) image->Xsize * image->Ysize > 5000 * 5000) {
 		vips_error("Convert to texture",
 			_("Image too large to convert to texture"));
-		return (NULL);
+		return NULL;
 	}
 
 	void *buf;
 	size_t len;
 	if (vips_tiffsave_buffer(image, &buf, &len, NULL))
-		return (NULL);
+		return NULL;
 
 	GBytes *bytes = g_bytes_new_take(buf, len);
 	GError *error = NULL;
@@ -835,7 +835,7 @@ texture_new_from_image(VipsImage *image)
 		g_error_free(error);
 	}
 
-	return (texture);
+	return texture;
 }
 
 static void
@@ -887,7 +887,7 @@ image_new_from_texture(GdkTexture *texture)
 				G_CALLBACK(image_new_from_texture_free), bytes);
 			g_bytes_ref(bytes);
 
-			return (image);
+			return image;
 		}
 
 		VIPS_FREEF(g_bytes_unref, bytes);
@@ -896,7 +896,7 @@ image_new_from_texture(GdkTexture *texture)
 		vips_error("Convert to TIFF",
 			_("unable to convert texture to TIFF"));
 
-	return (NULL);
+	return NULL;
 }
 
 static void
@@ -1396,7 +1396,7 @@ image_window_key_pressed(GtkEventControllerKey *self,
 			}
 	}
 
-	return (handled);
+	return handled;
 }
 
 static gboolean
@@ -1423,7 +1423,7 @@ image_window_key_released(GtkEventControllerKey *self,
 	if (handled)
 		image_window_stop_animation(win);
 
-	return (handled);
+	return handled;
 }
 
 static void
@@ -1462,7 +1462,7 @@ image_window_scroll(GtkEventControllerMotion *self,
 			(1.0 / SCALE_STEP) * image_window_get_scale(win),
 			x_image, y_image);
 
-	return (TRUE);
+	return TRUE;
 }
 
 /* See commments below.
@@ -1665,19 +1665,19 @@ image_window_find_scale(ImageWindow *win, VipsObject *context,
 	if (vips_extract_area(image, &t[0],
 			left, top, width, height, NULL) ||
 		vips_stats(t[0], &t[1], NULL))
-		return (-1);
+		return -1;
 
 	min = *VIPS_MATRIX(t[1], 0, 0);
 	max = *VIPS_MATRIX(t[1], 1, 0);
 	if (max == min) {
 		vips_error("Find scale", _("Min and max are equal"));
-		return (-1);
+		return -1;
 	}
 
 	*scale = 255.0 / (max - min);
 	*offset = -(min * *scale) + 0.5;
 
-	return (0);
+	return 0;
 }
 
 static void
@@ -1815,7 +1815,7 @@ background_to_enum(const char *str)
 	else
 		background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
 
-	return (background);
+	return background;
 }
 
 static void
@@ -2158,7 +2158,7 @@ image_window_class_init(ImageWindowClass *class)
 ImageWindow *
 image_window_new(VipsdispApp *app)
 {
-	return (g_object_new(IMAGE_WINDOW_TYPE, "application", app, NULL));
+	return g_object_new(IMAGE_WINDOW_TYPE, "application", app, NULL);
 }
 
 static void
@@ -2272,13 +2272,13 @@ image_window_set_tile_source(ImageWindow *win, TileSource *tile_source)
 TileSource *
 image_window_get_tile_source(ImageWindow *win)
 {
-	return (win->tile_source);
+	return win->tile_source;
 }
 
 GSettings *
 image_window_get_settings(ImageWindow *win)
 {
-	return (win->settings);
+	return win->settings;
 }
 
 void

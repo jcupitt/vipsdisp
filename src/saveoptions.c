@@ -610,5 +610,5 @@ save_options_new(GtkWindow *parent_window,
 
 	gtk_widget_grab_focus(options->ok_button);
 
-	return (options);
+	return options;
 }

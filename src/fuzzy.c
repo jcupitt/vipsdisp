@@ -163,7 +163,7 @@ glev(guint n1, const gchar s1[n1],
 		}
 	}
 
-	return (v[y - 1]);
+	return v[y - 1];
 }
 
 static int
@@ -172,7 +172,7 @@ fuzzy_match_sort(const void *client1, const void *client2)
 	const Fuzzy *a = (const Fuzzy *) client1;
 	const Fuzzy *b = (const Fuzzy *) client2;
 
-	return (a->distance - b->distance);
+	return a->distance - b->distance;
 }
 
 /* Search a NULL-terminated array of strings for fuzzy matches to a search
@@ -204,5 +204,5 @@ fuzzy_match(char **fields, const char *pattern)
 
 	g_free(v);
 
-	return (matches);
+	return matches;
 }

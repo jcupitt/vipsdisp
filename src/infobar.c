@@ -179,7 +179,7 @@ infobar_update_pixel_cb(void *a)
 
 	infobar_update_free(update);
 
-	return (FALSE);
+	return FALSE;
 }
 
 // runs in a bg thread
@@ -417,5 +417,5 @@ infobar_new(ImageWindow *win)
 		"image-window", win,
 		NULL);
 
-	return (infobar);
+	return infobar;
 }

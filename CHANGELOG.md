@@ -6,6 +6,8 @@
 - better event handling in imagewindow
 - add multifile load
 - keep view settings on next/prev image
+- use clang-format
+- move to gnome SDK v45
 
 # 2.6.3a, 7/1/24
 
