@@ -7,14 +7,12 @@
 G_BEGIN_DECLS
 
 /* VOID: POINTER, INT (vipsdispmarshal.list:25) */
-extern
-void vipsdisp_VOID__POINTER_INT (GClosure     *closure,
-                                 GValue       *return_value,
-                                 guint         n_param_values,
-                                 const GValue *param_values,
-                                 gpointer      invocation_hint,
-                                 gpointer      marshal_data);
-
+extern void vipsdisp_VOID__POINTER_INT(GClosure *closure,
+	GValue *return_value,
+	guint n_param_values,
+	const GValue *param_values,
+	gpointer invocation_hint,
+	gpointer marshal_data);
 
 G_END_DECLS
 

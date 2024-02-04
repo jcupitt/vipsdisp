@@ -21,9 +21,9 @@
  * entry is the LEVENSHTEIN DISTANCE between the prefix of @s1 of size y-1 and
  * the prefix of @s2 of size x-1.
  *
- * This implementation uses only a single @v column, updating it in place, 
- * since only the elements at (x-1, y-1) and (x, y-1) are needed to compute 
- * the element at (x, y). When the three costs defined by this dynamic 
+ * This implementation uses only a single @v column, updating it in place,
+ * since only the elements at (x-1, y-1) and (x, y-1) are needed to compute
+ * the element at (x, y). When the three costs defined by this dynamic
  * algorithm are equal to 1, this is expressed by the recursion relation:
  *
  *	k = (s1[y-1] == s2[x-2] ? 0 : 1)
@@ -66,7 +66,7 @@
  *
  * SYMBOLS
  *
- * @v:	Column vector. Reused and updated in place. The @t1 and @t0 values 
+ * @v:	Column vector. Reused and updated in place. The @t1 and @t0 values
  *  keep track of the most recent and second most recent diagonal values.
  * @x:	Row Index.
  * @y:	Column Index.
@@ -109,9 +109,9 @@
  * substitutions away from any position. There is 0 cost for inserting
  * characters to shift the smaller pattern toward the end in order to almost
  * match with a substring near the end of the longer string.
- * 
- * This is ideal for the use case in the Properties widget (the only use 
- * case), where it is used to suggest inexact matches as a user types, 
+ *
+ * This is ideal for the use case in the Properties widget (the only use
+ * case), where it is used to suggest inexact matches as a user types,
  * whenever no exact matches are available for the current search pattern.
  *
  * The point is to be forgiving. The costs are not high for deletion and
@@ -127,21 +127,22 @@
 #define DEL_COST 1
 #define SUB_COST 1
 
-#define LOWER(C) (ignore_case ? g_ascii_tolower( C ) : (C))
+#define LOWER(C) (ignore_case ? g_ascii_tolower(C) : (C))
 
 static guint
-glev( guint n1, const gchar s1[n1], 
-	guint n2, const gchar s2[n2], 
-	guint v[n1 + 1], gboolean ignore_case ) {
+glev(guint n1, const gchar s1[n1],
+	guint n2, const gchar s2[n2],
+	guint v[n1 + 1], gboolean ignore_case)
+{
 	guint x, y, t0, t1, k;
 
 	// Initialize the column.
-	for( y = 1; y <= n1; y++ )
+	for (y = 1; y <= n1; y++)
 		v[y] = y;
 
 	// Ignore and don't even bother to initialize the first column. Walk
 	// through columns after the first.
-	for ( x = 1; x <= n2; x++ ) {
+	for (x = 1; x <= n2; x++) {
 		// The first row (ignoring the first entry) is just the column
 		// indices from 1 to n2.
 		v[0] = x;
@@ -152,26 +153,26 @@ glev( guint n1, const gchar s1[n1],
 		// in memory at a time, and it can be operated on in
 		// place, as long as temporary variables @t0 and @t1 are used
 		// to keep track of the last diagonal when @v is updated.
-		for ( y = 1, t1 = x - 1; y <= n1; y++ ) {
+		for (y = 1, t1 = x - 1; y <= n1; y++) {
 			t0 = v[y];
 
-			k = LOWER( s1[y - 1] ) == LOWER( s2[x - 1] ) ? 0 : SUB_COST;
+			k = LOWER(s1[y - 1]) == LOWER(s2[x - 1]) ? 0 : SUB_COST;
 
-			v[y] = MIN3( v[y] + INS_COST, v[y - 1] + DEL_COST, t1 + k );
+			v[y] = MIN3(v[y] + INS_COST, v[y - 1] + DEL_COST, t1 + k);
 			t1 = t0;
 		}
 	}
 
-	return( v[y - 1] );
+	return (v[y - 1]);
 }
 
 static int
-fuzzy_match_sort( const void *client1, const void *client2 )
+fuzzy_match_sort(const void *client1, const void *client2)
 {
 	const Fuzzy *a = (const Fuzzy *) client1;
 	const Fuzzy *b = (const Fuzzy *) client2;
 
-	return( a->distance - b->distance );
+	return (a->distance - b->distance);
 }
 
 /* Search a NULL-terminated array of strings for fuzzy matches to a search
@@ -180,28 +181,28 @@ fuzzy_match_sort( const void *client1, const void *client2 )
  * Free the result with g_slist_free_full (g_steal_pointer (&fuzzy), g_free)
  */
 GSList *
-fuzzy_match( char **fields, const char *pattern )
+fuzzy_match(char **fields, const char *pattern)
 {
-	int n_pattern = strlen( pattern );
+	int n_pattern = strlen(pattern);
 
 	// the int array we use to compute distance
-	guint *v = VIPS_ARRAY( NULL, n_pattern + 1, guint );
+	guint *v = VIPS_ARRAY(NULL, n_pattern + 1, guint);
 
 	GSList *matches = NULL;
 
-	for( char **p = fields; *p; p++ ) {
+	for (char **p = fields; *p; p++) {
 		const char *field = *p;
-		Fuzzy *fuzzy = g_new( Fuzzy, 1 );
+		Fuzzy *fuzzy = g_new(Fuzzy, 1);
 
 		fuzzy->field = field;
-		fuzzy->distance = 
-			glev( n_pattern, pattern, strlen( field ), field, v, TRUE );
-		matches = g_slist_append( matches, fuzzy );
+		fuzzy->distance =
+			glev(n_pattern, pattern, strlen(field), field, v, TRUE);
+		matches = g_slist_append(matches, fuzzy);
 	}
 
-	matches = g_slist_sort( matches, fuzzy_match_sort );
+	matches = g_slist_sort(matches, fuzzy_match_sort);
 
-	g_free( v );
+	g_free(v);
 
-	return( matches );
+	return (matches);
 }

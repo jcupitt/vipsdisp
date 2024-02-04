@@ -11,16 +11,16 @@ typedef enum _TileCacheBackground {
 } TileCacheBackground;
 
 #define TILE_CACHE_TYPE (tile_cache_get_type())
-#define TILE_CACHE( obj ) \
-	(G_TYPE_CHECK_INSTANCE_CAST( (obj), TYPE_TILE_CACHE, TileCache ))
-#define TILE_CACHE_CLASS( klass ) \
-	(G_TYPE_CHECK_CLASS_CAST( (klass), TYPE_TILE_CACHE, TileCacheClass))
-#define IS_TILE_CACHE( obj ) \
-	(G_TYPE_CHECK_INSTANCE_TYPE( (obj), TYPE_TILE_CACHE ))
-#define IS_TILE_CACHE_CLASS( klass ) \
-	(G_TYPE_CHECK_CLASS_TYPE( (klass), TYPE_TILE_CACHE ))
-#define TILE_CACHE_GET_CLASS( obj ) \
-	(G_TYPE_INSTANCE_GET_CLASS( (obj), TYPE_TILE_CACHE, TileCacheClass ))
+#define TILE_CACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST((obj), TYPE_TILE_CACHE, TileCache))
+#define TILE_CACHE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_CAST((klass), TYPE_TILE_CACHE, TileCacheClass))
+#define IS_TILE_CACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE((obj), TYPE_TILE_CACHE))
+#define IS_TILE_CACHE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_TYPE((klass), TYPE_TILE_CACHE))
+#define TILE_CACHE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS((obj), TYPE_TILE_CACHE, TileCacheClass))
 
 typedef struct _TileCache {
 	GObject parent_instance;
@@ -66,15 +66,15 @@ typedef struct _TileCacheClass {
 
 } TileCacheClass;
 
-GType tile_cache_get_type( void );
+GType tile_cache_get_type(void);
 
-TileCache *tile_cache_new( TileSource *tile_source );
+TileCache *tile_cache_new(TileSource *tile_source);
 
 /* Render the tiles to a snapshot.
  */
-void tile_cache_snapshot( TileCache *tile_cache, GtkSnapshot *snapshot, 
+void tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
 	double scale, double x, double y,
 	VipsRect *paint_rect,
-	gboolean debug );
+	gboolean debug);
 
 #endif /*__TILE_CACHE_H*/

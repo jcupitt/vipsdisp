@@ -24,7 +24,7 @@ struct _Infobar {
 	gboolean updating;
 };
 
-G_DEFINE_TYPE( Infobar, infobar, GTK_TYPE_WIDGET );
+G_DEFINE_TYPE(Infobar, infobar, GTK_TYPE_WIDGET);
 
 enum {
 	PROP_IMAGE_WINDOW = 1,
@@ -34,18 +34,18 @@ enum {
 };
 
 static void
-infobar_dispose( GObject *object )
+infobar_dispose(GObject *object)
 {
 	Infobar *infobar = (Infobar *) object;
 
 #ifdef DEBUG
-	printf( "infobar_dispose:\n" ); 
+	printf("infobar_dispose:\n");
 #endif /*DEBUG*/
 
-	VIPS_FREEF( gtk_widget_unparent, infobar->action_bar );
-	VIPS_FREEF( g_slist_free, infobar->value_widgets );
+	VIPS_FREEF(gtk_widget_unparent, infobar->action_bar);
+	VIPS_FREEF(g_slist_free, infobar->value_widgets);
 
-	G_OBJECT_CLASS( infobar_parent_class )->dispose( object );
+	G_OBJECT_CLASS(infobar_parent_class)->dispose(object);
 }
 
 /* For each format, the label width we need, in characters.
@@ -57,17 +57,17 @@ static const int infobar_label_width[] = {
 	6,	/* short */
 	8,	/* uint */
 	9,	/* int */
-	10,	/* float */
-	18,	/* complex */
-	10,	/* double */
-	18,	/* double complex */
+	10, /* float */
+	18, /* complex */
+	10, /* double */
+	18, /* double complex */
 };
 
 /* TileSource has a new image. We need a new number of band elements and
  * dimensions.
  */
 static void
-infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar ) 
+infobar_tile_source_changed(TileSource *tile_source, Infobar *infobar)
 {
 	VipsImage *image = tile_source->display;
 
@@ -80,19 +80,19 @@ infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar )
 	int i;
 
 #ifdef DEBUG
-	printf( "infobar_tile_source_changed:\n" ); 
+	printf("infobar_tile_source_changed:\n");
 #endif /*DEBUG*/
 
 	/* Remove all existing children of infobar->values.
 	 */
-	for( p = infobar->value_widgets; p; p = p->next ) {
-		GtkWidget *label = GTK_WIDGET( p->data );
+	for (p = infobar->value_widgets; p; p = p->next) {
+		GtkWidget *label = GTK_WIDGET(p->data);
 
-		gtk_box_remove( GTK_BOX( infobar->values ), label );
+		gtk_box_remove(GTK_BOX(infobar->values), label);
 	}
-	VIPS_FREEF( g_slist_free, infobar->value_widgets ); 
+	VIPS_FREEF(g_slist_free, infobar->value_widgets);
 
-	switch( image->Coding ) { 
+	switch (image->Coding) {
 	case VIPS_CODING_LABQ:
 	case VIPS_CODING_RAD:
 		format = VIPS_FORMAT_FLOAT;
@@ -108,36 +108,36 @@ infobar_tile_source_changed( TileSource *tile_source, Infobar *infobar )
 
 	label_width = infobar_label_width[format];
 	max_children = 40 / label_width;
-	n_children = VIPS_MIN( bands, max_children );
+	n_children = VIPS_MIN(bands, max_children);
 
 	/* Add a new set of labels.
 	 */
-	for( i = 0; i < n_children; i++ ) {
+	for (i = 0; i < n_children; i++) {
 		GtkWidget *label;
 
-		label = gtk_label_new( "123" );
-		gtk_label_set_width_chars( GTK_LABEL( label ), label_width );
-		gtk_label_set_xalign( GTK_LABEL( label ), 1.0 );
-		gtk_box_append( GTK_BOX( infobar->values ), label ); 
-		infobar->value_widgets = 
-			g_slist_append( infobar->value_widgets, label );
+		label = gtk_label_new("123");
+		gtk_label_set_width_chars(GTK_LABEL(label), label_width);
+		gtk_label_set_xalign(GTK_LABEL(label), 1.0);
+		gtk_box_append(GTK_BOX(infobar->values), label);
+		infobar->value_widgets =
+			g_slist_append(infobar->value_widgets, label);
 	}
 }
 
-static void 
-infobar_status_value_set_array( Infobar *infobar, double *d )
+static void
+infobar_status_value_set_array(Infobar *infobar, double *d)
 {
 	int i;
 	GSList *q;
 
-	for( i = 0, q = infobar->value_widgets; q; q = q->next, i++ ) {
-		GtkWidget *label = GTK_WIDGET( q->data );
+	for (i = 0, q = infobar->value_widgets; q; q = q->next, i++) {
+		GtkWidget *label = GTK_WIDGET(q->data);
 
 		char str[64];
-		VipsBuf buf = VIPS_BUF_STATIC( str );
+		VipsBuf buf = VIPS_BUF_STATIC(str);
 
-		vips_buf_appendf( &buf, "%g", d[i] );
-		gtk_label_set_text( GTK_LABEL( label ), vips_buf_all( &buf ) );
+		vips_buf_appendf(&buf, "%g", d[i]);
+		gtk_label_set_text(GTK_LABEL(label), vips_buf_all(&buf));
 	}
 }
 
@@ -158,265 +158,264 @@ typedef struct _PixelUpdate {
 } PixelUpdate;
 
 static void
-infobar_update_free( PixelUpdate *update )
+infobar_update_free(PixelUpdate *update)
 {
 	update->infobar->updating = FALSE;
 
-	VIPS_UNREF( update->infobar );
-	VIPS_UNREF( update->tile_source );
-	VIPS_FREE( update->vector );
-	VIPS_FREE( update );
+	VIPS_UNREF(update->infobar);
+	VIPS_UNREF(update->tile_source);
+	VIPS_FREE(update->vector);
+	VIPS_FREE(update);
 }
 
 // runs back in the main thread again ... update the screen
 static gboolean
-infobar_update_pixel_cb( void *a )
+infobar_update_pixel_cb(void *a)
 {
 	PixelUpdate *update = (PixelUpdate *) a;
 
-	if( update->result )
-		infobar_status_value_set_array( update->infobar, update->vector );
+	if (update->result)
+		infobar_status_value_set_array(update->infobar, update->vector);
 
-	infobar_update_free( update );
+	infobar_update_free(update);
 
-	return( FALSE );
+	return (FALSE);
 }
 
 // runs in a bg thread
 static void
-infobar_get_pixel( void *a, void *b )
+infobar_get_pixel(void *a, void *b)
 {
 	PixelUpdate *update = (PixelUpdate *) a;
 
-	update->result = tile_source_get_pixel( update->tile_source, 
-		update->image_x, update->image_y, &update->vector, &update->n ); 
+	update->result = tile_source_get_pixel(update->tile_source,
+		update->image_x, update->image_y, &update->vector, &update->n);
 
-	g_idle_add( infobar_update_pixel_cb, update );
+	g_idle_add(infobar_update_pixel_cb, update);
 }
 
 // fetch the mouse position pixel and update the screen in a bg thread
 static void
-infobar_update_pixel( Infobar *infobar )
+infobar_update_pixel(Infobar *infobar)
 {
-	if( !infobar->updating ) {
+	if (!infobar->updating) {
 		ImageWindow *win = infobar->win;
-		PixelUpdate *update = g_new0( PixelUpdate, 1 );
+		PixelUpdate *update = g_new0(PixelUpdate, 1);
 
 		double x_image;
 		double y_image;
 
 		update->infobar = infobar;
-		update->tile_source = image_window_get_tile_source( win );
-		image_window_get_mouse_position( infobar->win, &x_image, &y_image );
+		update->tile_source = image_window_get_tile_source(win);
+		image_window_get_mouse_position(infobar->win, &x_image, &y_image);
 		update->image_x = (int) x_image;
 		update->image_y = (int) y_image;
 		infobar->updating = TRUE;
 
 		// must stay valid until we are done
-		g_object_ref( update->infobar );
-		g_object_ref( update->tile_source );
+		g_object_ref(update->infobar);
+		g_object_ref(update->tile_source);
 
-		if( vips_thread_execute( "pixel", infobar_get_pixel, update ) )
+		if (vips_thread_execute("pixel", infobar_get_pixel, update))
 			// if we can't run a bg task, we must free the update
-			infobar_update_free( update );
+			infobar_update_free(update);
 	}
 }
 
 static void
-infobar_status_update( Infobar *infobar )
+infobar_status_update(Infobar *infobar)
 {
-	double scale = image_window_get_scale( infobar->win );
+	double scale = image_window_get_scale(infobar->win);
 
 	char str[64];
-	VipsBuf buf = VIPS_BUF_STATIC( str );
+	VipsBuf buf = VIPS_BUF_STATIC(str);
 	double image_x;
 	double image_y;
 
 #ifdef DEBUG
-	printf( "infobar_status_update:\n" ); 
+	printf("infobar_status_update:\n");
 #endif /*DEBUG*/
 
-	image_window_get_mouse_position( infobar->win, &image_x, &image_y );
+	image_window_get_mouse_position(infobar->win, &image_x, &image_y);
 
-	vips_buf_appendf( &buf, "%d", (int) image_x ); 
-	gtk_label_set_text( GTK_LABEL( infobar->x ), vips_buf_all( &buf ) ); 
-	vips_buf_rewind( &buf ); 
+	vips_buf_appendf(&buf, "%d", (int) image_x);
+	gtk_label_set_text(GTK_LABEL(infobar->x), vips_buf_all(&buf));
+	vips_buf_rewind(&buf);
 
-	vips_buf_appendf( &buf, "%d", (int) image_y ); 
-	gtk_label_set_text( GTK_LABEL( infobar->y ), vips_buf_all( &buf ) ); 
-	vips_buf_rewind( &buf ); 
+	vips_buf_appendf(&buf, "%d", (int) image_y);
+	gtk_label_set_text(GTK_LABEL(infobar->y), vips_buf_all(&buf));
+	vips_buf_rewind(&buf);
 
-	vips_buf_appendf( &buf, "Magnification %d%%", 
-		(int) VIPS_RINT( scale * 100 ) );
-	gtk_label_set_text( GTK_LABEL( infobar->mag ), vips_buf_all( &buf ) ); 
+	vips_buf_appendf(&buf, "Magnification %d%%",
+		(int) VIPS_RINT(scale * 100));
+	gtk_label_set_text(GTK_LABEL(infobar->mag), vips_buf_all(&buf));
 
 	// queue bg update of pixel value
-	infobar_update_pixel( infobar );
+	infobar_update_pixel(infobar);
 }
 
 static void
-infobar_status_changed( ImageWindow *win, Infobar *infobar ) 
+infobar_status_changed(ImageWindow *win, Infobar *infobar)
 {
-	if( !gtk_action_bar_get_revealed( 
-		GTK_ACTION_BAR( infobar->action_bar ) ) )
+	if (!gtk_action_bar_get_revealed(
+			GTK_ACTION_BAR(infobar->action_bar)))
 		return;
 
-	if( !image_window_get_tile_source( infobar->win ) )
+	if (!image_window_get_tile_source(infobar->win))
 		return;
 
 #ifdef DEBUG
-	printf( "infobar_status_changed:\n" ); 
+	printf("infobar_status_changed:\n");
 #endif /*DEBUG*/
 
-	infobar_status_update( infobar );
+	infobar_status_update(infobar);
 }
 
 /* Imagewindow has a new tile_source.
  */
 static void
-infobar_image_window_changed( ImageWindow *win, Infobar *infobar )
+infobar_image_window_changed(ImageWindow *win, Infobar *infobar)
 {
 	TileSource *tile_source;
 
-	if( (tile_source = image_window_get_tile_source( win )) ) {
-		g_signal_connect_object( tile_source, "changed", 
-			G_CALLBACK( infobar_tile_source_changed ), 
-			infobar, 0 );
-		g_signal_connect_object( tile_source, "page-changed", 
-			G_CALLBACK( infobar_status_changed ), 
-			infobar, 0 );
+	if ((tile_source = image_window_get_tile_source(win))) {
+		g_signal_connect_object(tile_source, "changed",
+			G_CALLBACK(infobar_tile_source_changed),
+			infobar, 0);
+		g_signal_connect_object(tile_source, "page-changed",
+			G_CALLBACK(infobar_status_changed),
+			infobar, 0);
 	}
 }
 
 static void
-infobar_set_image_window( Infobar *infobar, ImageWindow *win )
+infobar_set_image_window(Infobar *infobar, ImageWindow *win)
 {
 	/* No need to ref ... win holds a ref to us.
 	 */
 	infobar->win = win;
 
-	g_signal_connect_object( win, "changed", 
-		G_CALLBACK( infobar_image_window_changed ), 
-		infobar, 0 );
+	g_signal_connect_object(win, "changed",
+		G_CALLBACK(infobar_image_window_changed),
+		infobar, 0);
 
-	g_signal_connect_object( win, "status-changed", 
-		G_CALLBACK( infobar_status_changed ), 
-		infobar, 0 );
+	g_signal_connect_object(win, "status-changed",
+		G_CALLBACK(infobar_status_changed),
+		infobar, 0);
 }
 
 static void
-infobar_set_property( GObject *object, 
-	guint prop_id, const GValue *value, GParamSpec *pspec )
+infobar_set_property(GObject *object,
+	guint prop_id, const GValue *value, GParamSpec *pspec)
 {
 	Infobar *infobar = (Infobar *) object;
 
-	switch( prop_id ) {
+	switch (prop_id) {
 	case PROP_IMAGE_WINDOW:
-		infobar_set_image_window( infobar, 
-			VIPSDISP_IMAGE_WINDOW( g_value_get_object( value ) ) );
+		infobar_set_image_window(infobar,
+			VIPSDISP_IMAGE_WINDOW(g_value_get_object(value)));
 		break;
 
 	case PROP_REVEALED:
-		gtk_action_bar_set_revealed( 
-			GTK_ACTION_BAR( infobar->action_bar ), 
-			g_value_get_boolean( value ) );
+		gtk_action_bar_set_revealed(
+			GTK_ACTION_BAR(infobar->action_bar),
+			g_value_get_boolean(value));
 		break;
 
 	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
 	}
 }
 
 static void
-infobar_get_property( GObject *object, 
-	guint prop_id, GValue *value, GParamSpec *pspec )
+infobar_get_property(GObject *object,
+	guint prop_id, GValue *value, GParamSpec *pspec)
 {
 	Infobar *infobar = (Infobar *) object;
 
-	switch( prop_id ) {
+	switch (prop_id) {
 	case PROP_IMAGE_WINDOW:
-		g_value_set_object( value, infobar->win );
+		g_value_set_object(value, infobar->win);
 		break;
 
 	case PROP_REVEALED:
-		g_value_set_boolean( value, gtk_action_bar_get_revealed( 
-			GTK_ACTION_BAR( infobar->action_bar ) ) ); 
+		g_value_set_boolean(value, gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)));
 		break;
 
 	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID( object, prop_id, pspec );
+		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
 	}
 }
 
 static void
-infobar_init( Infobar *infobar )
+infobar_init(Infobar *infobar)
 {
 #ifdef DEBUG
-	printf( "infobar_init:\n" ); 
+	printf("infobar_init:\n");
 #endif /*DEBUG*/
 
-	gtk_widget_init_template( GTK_WIDGET( infobar ) );
+	gtk_widget_init_template(GTK_WIDGET(infobar));
 }
 
-#define BIND( field ) \
-	gtk_widget_class_bind_template_child( GTK_WIDGET_CLASS( class ), \
-		Infobar, field );
+#define BIND(field) \
+	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
+		Infobar, field);
 
 static void
-infobar_class_init( InfobarClass *class )
+infobar_class_init(InfobarClass *class)
 {
-	GObjectClass *gobject_class = G_OBJECT_CLASS( class );
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS( class );
+	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
+	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
-	printf( "infobar_class_init:\n" ); 
+	printf("infobar_class_init:\n");
 #endif /*DEBUG*/
 
-	G_OBJECT_CLASS( class )->dispose = infobar_dispose;
+	G_OBJECT_CLASS(class)->dispose = infobar_dispose;
 
-	gtk_widget_class_set_layout_manager_type( widget_class, 
-		GTK_TYPE_BIN_LAYOUT );
-	gtk_widget_class_set_template_from_resource( GTK_WIDGET_CLASS( class ),
+	gtk_widget_class_set_layout_manager_type(widget_class,
+		GTK_TYPE_BIN_LAYOUT);
+	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
 		APP_PATH "/infobar.ui");
 
-	BIND( action_bar );
-	BIND( x );
-	BIND( y );
-	BIND( values );
-	BIND( mag );
+	BIND(action_bar);
+	BIND(x);
+	BIND(y);
+	BIND(values);
+	BIND(mag);
 
 	gobject_class->set_property = infobar_set_property;
 	gobject_class->get_property = infobar_get_property;
 
-	g_object_class_install_property( gobject_class, PROP_IMAGE_WINDOW,
-		g_param_spec_object( "image-window",
-			_( "Image window" ),
-			_( "The image window we display" ),
+	g_object_class_install_property(gobject_class, PROP_IMAGE_WINDOW,
+		g_param_spec_object("image-window",
+			_("Image window"),
+			_("The image window we display"),
 			IMAGE_WINDOW_TYPE,
-			G_PARAM_READWRITE ) );
+			G_PARAM_READWRITE));
 
-	g_object_class_install_property( gobject_class, PROP_REVEALED,
-		g_param_spec_boolean( "revealed",
-			_( "revealed" ),
-			_( "Show the display control bar" ),
+	g_object_class_install_property(gobject_class, PROP_REVEALED,
+		g_param_spec_boolean("revealed",
+			_("revealed"),
+			_("Show the display control bar"),
 			FALSE,
-			G_PARAM_READWRITE ) );
+			G_PARAM_READWRITE));
 }
 
 Infobar *
-infobar_new( ImageWindow *win ) 
+infobar_new(ImageWindow *win)
 {
 	Infobar *infobar;
 
 #ifdef DEBUG
-	printf( "infobar_new:\n" ); 
+	printf("infobar_new:\n");
 #endif /*DEBUG*/
 
-	infobar = g_object_new( infobar_get_type(), 
+	infobar = g_object_new(infobar_get_type(),
 		"image-window", win,
-		NULL );
+		NULL);
 
-	return( infobar ); 
+	return (infobar);
 }

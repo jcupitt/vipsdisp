@@ -24,10 +24,9 @@
  */
 #define TILE_SIZE (256)
 
-/* Cache size -- enough for two 4k displays. 
+/* Cache size -- enough for two 4k displays.
  */
 #define MAX_TILES (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
-
 
 /* We use various gtk4 features (GtkInfoBar, GtkDialog) which are going away
  * in gtk5.

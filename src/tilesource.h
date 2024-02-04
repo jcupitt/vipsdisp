@@ -2,16 +2,16 @@
 #define __TILE_SOURCE_H
 
 #define TILE_SOURCE_TYPE (tile_source_get_type())
-#define TILE_SOURCE( obj ) \
-	(G_TYPE_CHECK_INSTANCE_CAST( (obj), TILE_SOURCE_TYPE, TileSource ))
-#define TILE_SOURCE_CLASS( klass ) \
-	(G_TYPE_CHECK_CLASS_CAST( (klass), TILE_SOURCE_TYPE, TileSourceClass))
-#define IS_TILE_SOURCE( obj ) \
-	(G_TYPE_CHECK_INSTANCE_TYPE( (obj), TILE_SOURCE_TYPE ))
-#define IS_TILE_SOURCE_CLASS( klass ) \
-	(G_TYPE_CHECK_CLASS_TYPE( (klass), TILE_SOURCE_TYPE ))
-#define TILE_SOURCE_GET_CLASS( obj ) \
-	(G_TYPE_INSTANCE_GET_CLASS( (obj), TILE_SOURCE_TYPE, TileSourceClass ))
+#define TILE_SOURCE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST((obj), TILE_SOURCE_TYPE, TileSource))
+#define TILE_SOURCE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_CAST((klass), TILE_SOURCE_TYPE, TileSourceClass))
+#define IS_TILE_SOURCE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE((obj), TILE_SOURCE_TYPE))
+#define IS_TILE_SOURCE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_TYPE((klass), TILE_SOURCE_TYPE))
+#define TILE_SOURCE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS((obj), TILE_SOURCE_TYPE, TileSourceClass))
 
 /* The three basic types of image we support.
  *
@@ -51,7 +51,7 @@ typedef enum _TileSourceType {
  *	Behaviour depends on TileSourceImage:
  *
  *	TILE_SOURCE_TYPE_PAGE_PYRAMID
- *		
+ *
  *		Disable page controls. No crop. Reload on mag change.
  *
  *	TILE_SOURCE_TYPE_TOILET_ROLL
@@ -88,7 +88,7 @@ typedef enum _TileSourceMode {
 typedef struct _TileSource {
 	GObject parent_instance;
 
-	/* The loader and the file we have loaded from. We may need to reload 
+	/* The loader and the file we have loaded from. We may need to reload
 	 * on a zoom or page change.
 	 *
 	 * We can't use a VipsSource since they are not cached and we'd get
@@ -200,49 +200,49 @@ typedef struct _TileSourceClass {
 
 	/* Signal image load.
 	 */
-	void (*preeval)( TileSource *tile_source, VipsProgress *progress );
-	void (*eval)( TileSource *tile_source, VipsProgress *progress );
-	void (*posteval)( TileSource *tile_source, VipsProgress *progress );
+	void (*preeval)(TileSource *tile_source, VipsProgress *progress);
+	void (*eval)(TileSource *tile_source, VipsProgress *progress);
+	void (*posteval)(TileSource *tile_source, VipsProgress *progress);
 
 	/* Everything has changed, so image geometry and pixels. Perhaps a
 	 * new page in a multi-page TIFF where pages change in size.
 	 */
-	void (*changed)( TileSource *tile_source );
+	void (*changed)(TileSource *tile_source);
 
 	/* All tiles have changed, but image geometry has not. Falsecolour,
 	 * page flip in a GIF, etc.
 	 */
-	void (*tiles_changed)( TileSource *tile_source );
+	void (*tiles_changed)(TileSource *tile_source);
 
 	/* A set of tiles on a certain level have new pixels now that a
 	 * background render has completed.
 	 */
-	void (*area_changed)( TileSource *tile_source, VipsRect *area, int z );
+	void (*area_changed)(TileSource *tile_source, VipsRect *area, int z);
 
 	/* The page has changed. Just for updating the page number display.
 	 */
-	void (*page_changed)( TileSource *tile_source );
+	void (*page_changed)(TileSource *tile_source);
 
 } TileSourceClass;
 
-GType tile_source_get_type( void );
+GType tile_source_get_type(void);
 
-TileSource *tile_source_new_from_file( const char *filename );
-TileSource *tile_source_new_from_image( VipsImage *image );
+TileSource *tile_source_new_from_file(const char *filename);
+TileSource *tile_source_new_from_image(VipsImage *image);
 
-void tile_source_background_load( TileSource *tile_source );
+void tile_source_background_load(TileSource *tile_source);
 
-int tile_source_fill_tile( TileSource *tile_source, Tile *tile );
+int tile_source_fill_tile(TileSource *tile_source, Tile *tile);
 
-const char *tile_source_get_path( TileSource *tile_source );
-GFile *tile_source_get_file( TileSource *tile_source );
+const char *tile_source_get_path(TileSource *tile_source);
+GFile *tile_source_get_file(TileSource *tile_source);
 
-VipsImage *tile_source_get_image( TileSource *tile_source );
-VipsImage *tile_source_get_base_image( TileSource *tile_source );
-gboolean tile_source_get_pixel( TileSource *tile_source, 
-	int image_x, int image_y, double **vector, int *n );
-TileSource *tile_source_duplicate( TileSource *tile_source );
-void tile_source_changed( TileSource *tile_source );
-void tile_source_kill( TileSource *tile_source );
+VipsImage *tile_source_get_image(TileSource *tile_source);
+VipsImage *tile_source_get_base_image(TileSource *tile_source);
+gboolean tile_source_get_pixel(TileSource *tile_source,
+	int image_x, int image_y, double **vector, int *n);
+TileSource *tile_source_duplicate(TileSource *tile_source);
+void tile_source_changed(TileSource *tile_source);
+void tile_source_kill(TileSource *tile_source);
 
 #endif /*__TILE_SOURCE_H*/
