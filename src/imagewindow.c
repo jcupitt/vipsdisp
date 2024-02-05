@@ -1746,13 +1746,6 @@ image_window_falsecolour(GSimpleAction *action,
 }
 
 static void
-image_window_radio(GSimpleAction *action,
-	GVariant *parameter, gpointer user_data)
-{
-	g_action_change_state(G_ACTION(action), parameter);
-}
-
-static void
 image_window_mode(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
@@ -1857,14 +1850,10 @@ static GActionEntry image_window_entries[] = {
 	{ "saveas", image_window_saveas_action },
 	{ "close", image_window_close_action },
 
-	{ "fullscreen", action_toggle, NULL, "false",
-		image_window_fullscreen },
-	{ "control", action_toggle, NULL, "false",
-		image_window_control },
-	{ "info", action_toggle, NULL, "false",
-		image_window_info },
-	{ "properties", action_toggle, NULL, "false",
-		image_window_properties },
+	{ "fullscreen", action_toggle, NULL, "false", image_window_fullscreen },
+	{ "control", action_toggle, NULL, "false", image_window_control },
+	{ "info", action_toggle, NULL, "false", image_window_info },
+	{ "properties", action_toggle, NULL, "false", image_window_properties },
 
 	{ "next_image", image_window_next_image },
 	{ "prev_image", image_window_prev_image },
@@ -1875,9 +1864,8 @@ static GActionEntry image_window_entries[] = {
 	{ "log", action_toggle, NULL, "false", image_window_log },
 	{ "icc", action_toggle, NULL, "false", image_window_icc },
 	{ "falsecolour", action_toggle, NULL, "false", image_window_falsecolour },
-	{ "mode", image_window_radio, "s", "'multipage'", image_window_mode },
-	{ "background", image_window_radio, "s",
-		"'checkerboard'", image_window_background },
+	{ "mode", action_radio, "s", "'multipage'", image_window_mode },
+	{ "background", action_radio, "s", "'checkerboard'", image_window_background },
 
 	{ "reset", image_window_reset },
 };

@@ -223,3 +223,9 @@ action_toggle(GSimpleAction *action, GVariant *parameter, gpointer user_data)
 		g_variant_new_boolean(!g_variant_get_boolean(state)));
 	g_variant_unref(state);
 }
+
+void
+action_radio(GSimpleAction *action, GVariant *parameter, gpointer user_data)
+{
+	g_action_change_state(G_ACTION(action), parameter);
+}
