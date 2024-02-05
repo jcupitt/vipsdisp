@@ -39,5 +39,5 @@ main(int argc, char **argv)
 
 	vips_shutdown();
 
-	return (status);
+	return status;
 }
