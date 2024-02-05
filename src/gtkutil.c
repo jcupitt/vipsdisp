@@ -212,3 +212,14 @@ widget_should_animate(GtkWidget *widget)
 
 	return enable_animations;
 }
+
+void
+action_toggle(GSimpleAction *action, GVariant *parameter, gpointer user_data)
+{
+	GVariant *state;
+
+	state = g_action_get_state(G_ACTION(action));
+	g_action_change_state(G_ACTION(action),
+		g_variant_new_boolean(!g_variant_get_boolean(state)));
+	g_variant_unref(state);
+}

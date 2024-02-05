@@ -16,7 +16,7 @@ vipsdisp_app_activate(GApplication *app)
 {
 	ImageWindow *win;
 
-	win = image_window_new(VIPSDISP_APP(app));
+	win = image_window_new(APP(app));
 	gtk_window_present(GTK_WINDOW(win));
 }
 
@@ -40,7 +40,7 @@ vipsdisp_app_win(VipsdispApp *app)
 	GList *windows = gtk_application_get_windows(GTK_APPLICATION(app));
 
 	if (windows)
-		return VIPSDISP_IMAGE_WINDOW(windows->data);
+		return IMAGE_WINDOW(windows->data);
 	else
 		return NULL;
 }
@@ -49,7 +49,7 @@ static void
 vipsdisp_app_about_activated(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	VipsdispApp *app = VIPSDISP_APP(user_data);
+	VipsdispApp *app = APP(user_data);
 	ImageWindow *win = vipsdisp_app_win(app);
 
 	static const char *authors[] = {
@@ -153,7 +153,7 @@ static void
 vipsdisp_app_open(GApplication *app,
 	GFile **files, int n_files, const char *hint)
 {
-	ImageWindow *win = image_window_new(VIPSDISP_APP(app));
+	ImageWindow *win = image_window_new(APP(app));
 
 	image_window_open_gfiles(win, files, n_files);
 	gtk_window_present(GTK_WINDOW(win));
@@ -171,7 +171,7 @@ vipsdisp_app_shutdown(GApplication *app)
 	/* Force down all our windows ... this will not happen automatically
 	 * on _quit().
 	 */
-	while ((win = vipsdisp_app_win(VIPSDISP_APP(app))))
+	while ((win = vipsdisp_app_win(APP(app))))
 		gtk_window_destroy(GTK_WINDOW(win));
 
 	G_APPLICATION_CLASS(vipsdisp_app_parent_class)->shutdown(app);
@@ -189,7 +189,7 @@ vipsdisp_app_class_init(VipsdispAppClass *class)
 VipsdispApp *
 vipsdisp_app_new(void)
 {
-	return g_object_new(VIPSDISP_APP_TYPE,
+	return g_object_new(APP_TYPE,
 		"application-id", APPLICATION_ID,
 		"flags", G_APPLICATION_HANDLES_OPEN,
 		"inactivity-timeout", 3000,

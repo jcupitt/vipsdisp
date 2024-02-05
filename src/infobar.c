@@ -313,7 +313,7 @@ infobar_set_property(GObject *object,
 	switch (prop_id) {
 	case PROP_IMAGE_WINDOW:
 		infobar_set_image_window(infobar,
-			VIPSDISP_IMAGE_WINDOW(g_value_get_object(value)));
+			IMAGE_WINDOW(g_value_get_object(value)));
 		break;
 
 	case PROP_REVEALED:

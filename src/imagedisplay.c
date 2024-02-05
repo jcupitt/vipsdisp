@@ -549,7 +549,7 @@ imagedisplay_get_property(GObject *object,
 static void
 imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 {
-	Imagedisplay *imagedisplay = VIPSDISP_IMAGEDISPLAY(widget);
+	Imagedisplay *imagedisplay = IMAGEDISPLAY(widget);
 
 #ifdef DEBUG
 	printf("imagedisplay_snapshot:\n");

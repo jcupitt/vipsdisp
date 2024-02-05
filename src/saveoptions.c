@@ -40,7 +40,7 @@ G_DEFINE_TYPE(SaveOptions, save_options, GTK_TYPE_DIALOG);
 static void
 save_options_dispose(GObject *object)
 {
-	SaveOptions *options = VIPSDISP_SAVE_OPTIONS(object);
+	SaveOptions *options = SAVE_OPTIONS(object);
 
 	VIPS_UNREF(options->image);
 	VIPS_UNREF(options->save_operation);
@@ -292,7 +292,7 @@ save_options_response_map_fn(VipsObject *operation,
 static void
 save_options_response(GtkWidget *dialog, int response, void *user_data)
 {
-	SaveOptions *options = VIPSDISP_SAVE_OPTIONS(dialog);
+	SaveOptions *options = SAVE_OPTIONS(dialog);
 
 	if (response == GTK_RESPONSE_OK) {
 		vips_argument_map(VIPS_OBJECT(options->save_operation),

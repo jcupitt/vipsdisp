@@ -3,6 +3,8 @@
 
 #define SAVE_OPTIONS_TYPE (save_options_get_type())
 
+#define SAVE_OPTIONS VIPSDISP_SAVE_OPTIONS
+
 G_DECLARE_FINAL_TYPE(SaveOptions, save_options,
 	VIPSDISP, SAVE_OPTIONS, GtkDialog);
 

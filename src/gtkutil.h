@@ -16,3 +16,6 @@ void process_events(void);
 void block_scroll(GtkWidget *widget);
 
 gboolean widget_should_animate(GtkWidget *widget);
+
+void action_toggle(GSimpleAction *action, 
+	GVariant *parameter, gpointer user_data);
