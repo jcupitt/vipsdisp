@@ -233,6 +233,9 @@ On success, merge to master.
 
     could do slideshow
 
+    use gtkstack to have several imagedisplay on top of each other, and a
+    revealer to flip between them
+
 - live with it for a bit, then make v2.7
 
 

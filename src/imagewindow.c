@@ -90,8 +90,6 @@ struct _ImageWindow {
 	gboolean should_animate;
 
 	GSettings *settings;
-
-	GtkCssProvider *css_provider;
 };
 
 G_DEFINE_TYPE(ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW);
@@ -366,10 +364,6 @@ image_window_dispose(GObject *object)
 #ifdef DEBUG
 	printf("image_window_dispose:\n");
 #endif /*DEBUG*/
-
-	gtk_style_context_remove_provider_for_display(
-		gdk_display_get_default(),
-		GTK_STYLE_PROVIDER(win->css_provider));
 
 	VIPS_UNREF(win->tile_source);
 	VIPS_UNREF(win->save_folder);
@@ -1935,13 +1929,6 @@ image_window_init(ImageWindow *win)
 	g_free(cwd);
 
 	gtk_widget_init_template(GTK_WIDGET(win));
-
-	win->css_provider = gtk_css_provider_new();
-	gtk_css_provider_load_from_resource(win->css_provider,
-		APP_PATH "/imagewindow.css");
-	gtk_style_context_add_provider_for_display(gdk_display_get_default(),
-		GTK_STYLE_PROVIDER(win->css_provider),
-		GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
 	g_object_set(win->display_bar,
 		"image-window", win,
