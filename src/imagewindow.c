@@ -194,7 +194,7 @@ sort_filenames(const void *a, const void *b)
 	const char *f1 = (const char *) a;
 	const char *f2 = (const char *) b;
 
-	return g_strcasecmp(f1, f2);
+	return g_ascii_strcasecmp(f1, f2);
 }
 
 static void
