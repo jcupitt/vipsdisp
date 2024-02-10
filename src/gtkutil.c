@@ -1,3 +1,5 @@
+// gtk utility funcs
+
 #include "vipsdisp.h"
 
 /* Set a GtkEditable.
@@ -27,8 +29,7 @@ set_gentryv(GtkWidget *edit, const char *fmt, va_list ap)
 
 	gtk_editable_delete_text(GTK_EDITABLE(edit), 0, -1);
 	position = 0;
-	gtk_editable_insert_text(GTK_EDITABLE(edit),
-		buf, strlen(buf), &position);
+	gtk_editable_insert_text(GTK_EDITABLE(edit), buf, strlen(buf), &position);
 }
 
 /* Set a GtkEditable.
@@ -48,21 +49,16 @@ set_gentry(GtkWidget *edit, const char *fmt, ...)
 gboolean
 get_geditable_double(GtkWidget *text, double *out)
 {
-	char *txt;
+	g_autofree char *txt = gtk_editable_get_chars(GTK_EDITABLE(text), 0, -1);
+
 	char *end;
 	double t;
 
-	txt = gtk_editable_get_chars(GTK_EDITABLE(text), 0, -1);
 	t = strtod(txt, &end);
-	if (end == txt) {
-		g_free(txt);
+	if (end == txt)
 		return FALSE;
-	}
-	if (strspn(end, WHITESPACE) != strlen(end)) {
-		g_free(txt);
+	if (strspn(end, WHITESPACE) != strlen(end))
 		return FALSE;
-	}
-	g_free(txt);
 
 	*out = t;
 
@@ -146,12 +142,10 @@ get_state(GtkWidget *widget, const char *name)
 void
 copy_state(GtkWidget *to, GtkWidget *from, const char *name)
 {
-	GVariant *state;
+	g_autoptr(GVariant) state = get_state(from, name);
 
-	if ((state = get_state(from, name))) {
+	if (state)
 		change_state(to, name, state);
-		g_variant_unref(state);
-	}
 }
 
 /* A 'safe' way to run a few events.
@@ -216,12 +210,10 @@ widget_should_animate(GtkWidget *widget)
 void
 action_toggle(GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
-	GVariant *state;
+	g_autoptr(GVariant) state = g_action_get_state(G_ACTION(action));
 
-	state = g_action_get_state(G_ACTION(action));
 	g_action_change_state(G_ACTION(action),
 		g_variant_new_boolean(!g_variant_get_boolean(state)));
-	g_variant_unref(state);
 }
 
 void
