@@ -53,17 +53,15 @@ save_options_dispose(GObject *object)
 static void
 save_options_error(SaveOptions *options)
 {
-	char *err;
 	int i;
 
 	/* Remove any trailing \n.
 	 */
-	err = vips_error_buffer_copy();
+	g_autofree char *err = vips_error_buffer_copy();
 	vips_error_clear();
 	for (i = strlen(err); i > 0 && err[i - 1] == '\n'; i--)
 		err[i - 1] = '\0';
 	gtk_label_set_text(GTK_LABEL(options->error_label), err);
-	g_free(err);
 
 	gtk_info_bar_set_revealed(GTK_INFO_BAR(options->error_bar), TRUE);
 }
@@ -85,8 +83,7 @@ static void
 save_options_preeval(VipsImage *image,
 	VipsProgress *progress, SaveOptions *options)
 {
-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar),
-		TRUE);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar), TRUE);
 }
 
 static void
@@ -126,8 +123,7 @@ static void
 save_options_posteval(VipsImage *image,
 	VipsProgress *progress, SaveOptions *options)
 {
-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar),
-		FALSE);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar), FALSE);
 }
 
 static void
@@ -252,19 +248,16 @@ save_options_fetch_option(SaveOptions *options, GParamSpec *pspec)
 		else if (g_type_is_a(otype, VIPS_TYPE_ARRAY_DOUBLE)) {
 			gdouble value = gtk_spin_button_get_value(GTK_SPIN_BUTTON(t));
 
-			VipsArrayDouble *array;
+			g_autoptr(VipsArrayDouble) array = vips_array_double_newv(1, value);
 
 			/* For now just pretend every array-type parameter has
 			 * one element.
 			 *
 			 * TODO handle arrays with two or more elements
 			 */
-			array = vips_array_double_newv(1, value);
 			g_object_set(options->save_operation,
 				name, array,
 				NULL);
-
-			vips_area_unref(VIPS_AREA(array));
 		}
 	}
 }
@@ -401,7 +394,8 @@ save_options_add_option(SaveOptions *options, GParamSpec *pspec, int *row)
 	else if (G_IS_PARAM_SPEC_ENUM(pspec)) {
 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM(pspec);
 		int n_values = pspec_enum->enum_class->n_values - 1;
-		const char **nicknames = VIPS_ARRAY(NULL, n_values + 1, const char *);
+		g_autofree const char **nicknames =
+			VIPS_ARRAY(NULL, n_values + 1, const char *);
 
 		for (int i = 0; i < n_values; ++i)
 			nicknames[i] = pspec_enum->enum_class->values[i].value_nick;
@@ -410,8 +404,6 @@ save_options_add_option(SaveOptions *options, GParamSpec *pspec, int *row)
 		t = gtk_drop_down_new_from_strings(nicknames);
 		gtk_drop_down_set_selected(GTK_DROP_DOWN(t),
 			pspec_enum->default_value);
-
-		g_free(nicknames);
 	}
 	else if (G_IS_PARAM_SPEC_FLAGS(pspec)) {
 		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS(pspec);
@@ -567,16 +559,14 @@ save_options_new(GtkWindow *parent_window,
 	const char *saver;
 	SaveOptions *options;
 
-	char *base = g_path_get_basename(filename);
-	char *title = g_strdup_printf("Save image to \"%s\"", base);
+	g_autofree char *base = g_path_get_basename(filename);
+	g_autofree char *title = g_strdup_printf("Save image to \"%s\"", base);
 	options = g_object_new(SAVE_OPTIONS_TYPE,
 		// we have to set this here, not in the ui file, for some reason
 		"use-header-bar", true,
 		"transient-for", parent_window,
 		"title", title,
 		NULL);
-	g_free(title);
-	g_free(base);
 
 	options->image = image;
 	g_object_ref(image);

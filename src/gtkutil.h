@@ -21,3 +21,10 @@ void action_toggle(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data);
 void action_radio(GSimpleAction *action, 
 	GVariant *parameter, gpointer user_data);
+
+void VipsArrayDouble_unref(VipsArrayDouble *array);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsImage, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsObject, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsArrayDouble, VipsArrayDouble_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(cairo_t, cairo_destroy)

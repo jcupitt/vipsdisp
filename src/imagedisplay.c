@@ -5,6 +5,10 @@
 #define DEBUG
  */
 
+// the focus colour we paint
+// FIXME ... we should somehow get this from the theme, I'm not sure how
+#define BORDER ((GdkRGBA){ 0.4, 0.4, 0.6, 1 })
+
 struct _Imagedisplay {
 	GtkDrawingArea parent_instance;
 
@@ -155,8 +159,7 @@ imagedisplay_adjustment_changed(GtkAdjustment *adjustment,
 		double top = gtk_adjustment_get_value(imagedisplay->vadj);
 
 #ifdef DEBUG
-		printf("imagedisplay_adjustment_changed: %g x %g\n",
-			left, top);
+		printf("imagedisplay_adjustment_changed: %g x %g\n", left, top);
 #endif /*DEBUG*/
 
 		imagedisplay_set_transform(imagedisplay,
@@ -184,8 +187,7 @@ imagedisplay_set_adjustment(Imagedisplay *imagedisplay,
 	}
 
 	if (!new_adjustment)
-		new_adjustment =
-			gtk_adjustment_new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+		new_adjustment = gtk_adjustment_new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
 	g_signal_connect(new_adjustment, "value-changed",
 		G_CALLBACK(imagedisplay_adjustment_changed), imagedisplay);
@@ -320,11 +322,8 @@ imagedisplay_tile_cache_changed(TileCache *tile_cache,
 	printf("imagedisplay_tile_cache_changed:\n");
 #endif /*DEBUG*/
 
-	imagedisplay->image_rect.width =
-		tile_cache->tile_source->display_width;
-	imagedisplay->image_rect.height =
-		tile_cache->tile_source->display_height;
-
+	imagedisplay->image_rect.width = tile_cache->tile_source->display_width;
+	imagedisplay->image_rect.height = tile_cache->tile_source->display_height;
 	imagedisplay_layout(imagedisplay);
 
 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
@@ -558,7 +557,9 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	/* Clip to the widget area, or we may paint over the display control
 	 * bar.
 	 */
-	gtk_snapshot_push_clip(snapshot, &GRAPHENE_RECT_INIT(0, 0, gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
+	gtk_snapshot_push_clip(snapshot,
+		&GRAPHENE_RECT_INIT(0, 0,
+			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
 
 	if (imagedisplay->tile_cache &&
 		imagedisplay->tile_cache->tiles)
@@ -573,8 +574,6 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	 * the focus rect ourselves.
 	 */
 	if (gtk_widget_has_focus(widget)) {
-#define BORDER ((GdkRGBA){ 0.4, 0.4, 0.6, 1 })
-
 		GskRoundedRect outline;
 
 		gsk_rounded_rect_init_from_rect(&outline,

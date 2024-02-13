@@ -225,6 +225,8 @@ typedef struct _TileSourceClass {
 
 } TileSourceClass;
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(TileSource, g_object_unref)
+
 GType tile_source_get_type(void);
 
 TileSource *tile_source_new_from_file(const char *filename);

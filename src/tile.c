@@ -64,7 +64,7 @@ tile_touch(Tile *tile)
 Tile *
 tile_new(VipsImage *level, int left, int top, int z)
 {
-	Tile *tile = g_object_new(TYPE_TILE, NULL);
+	g_autoptr(Tile) tile = g_object_new(TYPE_TILE, NULL);
 
 	VipsRect tile_bounds;
 	VipsRect image_bounds;
@@ -81,10 +81,8 @@ tile_new(VipsImage *level, int left, int top, int z)
 	tile_bounds.width = TILE_SIZE;
 	tile_bounds.height = TILE_SIZE;
 	vips_rect_intersectrect(&image_bounds, &tile_bounds, &tile_bounds);
-	if (vips_region_buffer(tile->region, &tile_bounds)) {
-		VIPS_UNREF(tile);
+	if (vips_region_buffer(tile->region, &tile_bounds))
 		return NULL;
-	}
 
 	/* Tile bounds in level 0 coordinates.
 	 */
@@ -95,7 +93,7 @@ tile_new(VipsImage *level, int left, int top, int z)
 
 	tile_touch(tile);
 
-	return tile;
+	return g_steal_pointer(&tile);
 }
 
 /* NULL means pixels have not arrived from libvips yet.

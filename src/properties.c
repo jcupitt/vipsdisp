@@ -150,7 +150,7 @@ properties_refresh(Properties *p)
 			properties_add_row(p, "", NULL);
 			properties_add_row(p, "Did you mean ...", NULL);
 
-			char **fields = vips_image_get_fields(image);
+			g_auto(GStrv) fields = vips_image_get_fields(image);
 			GSList *matches = fuzzy_match(fields, p->pattern);
 			int n_displayed;
 
@@ -161,11 +161,10 @@ properties_refresh(Properties *p)
 				// don't show fields we have already displayed in the
 				// main search area
 				if (!g_strrstr(fuzzy->field, p->pattern)) {
-					GValue value = { 0 };
+					g_auto(GValue) value = { 0 };
 
 					vips_image_get(image, fuzzy->field, &value);
 					properties_add_item(p, fuzzy->field, &value);
-					g_value_unset(&value);
 
 					if (n_displayed++ > NUM_INEXACT_MATCHES)
 						break;
@@ -173,7 +172,6 @@ properties_refresh(Properties *p)
 			}
 
 			g_slist_free_full(g_steal_pointer(&matches), g_free);
-			VIPS_FREEF(g_strfreev, fields);
 		}
 		else
 			vips_image_map(image, properties_refresh_add_item_cb, p);
@@ -259,12 +257,11 @@ properties_set_property(GObject *object, guint prop_id,
 
 #ifdef DEBUG
 	{
-		char *str;
+		g_autofree char *str = g_strdup_value_contents(value);
 
 		str = g_strdup_value_contents(value);
 		printf("properties_set_property: %s %s\n",
 			properties_property_name(prop_id), str);
-		g_free(str);
 	}
 #endif /*DEBUG*/
 
@@ -280,8 +277,7 @@ properties_set_property(GObject *object, guint prop_id,
 			gtk_revealer_get_reveal_child(GTK_REVEALER(p->revealer));
 
 		if (current_revealed != revealed) {
-			gtk_revealer_set_reveal_child(GTK_REVEALER(p->revealer),
-				revealed);
+			gtk_revealer_set_reveal_child(GTK_REVEALER(p->revealer), revealed);
 			g_object_notify_by_pspec(object, pspec);
 		}
 	} break;
@@ -313,12 +309,9 @@ properties_get_property(GObject *p_,
 
 #ifdef DEBUG
 	{
-		char *str;
-
-		str = g_strdup_value_contents(value);
+		g_autofree char *str = g_strdup_value_contents(value);
 		printf("properties_get_property: %s %s\n",
 			properties_property_name(prop_id), str);
-		g_free(str);
 	}
 #endif /*DEBUG*/
 }

@@ -257,11 +257,8 @@ infobar_status_update(Infobar *infobar)
 static void
 infobar_status_changed(ImageWindow *win, Infobar *infobar)
 {
-	if (!gtk_action_bar_get_revealed(
-			GTK_ACTION_BAR(infobar->action_bar)))
-		return;
-
-	if (!image_window_get_tile_source(infobar->win))
+	if (!gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)) ||
+		!image_window_get_tile_source(infobar->win))
 		return;
 
 #ifdef DEBUG
@@ -333,6 +330,7 @@ infobar_get_property(GObject *object,
 	guint prop_id, GValue *value, GParamSpec *pspec)
 {
 	Infobar *infobar = (Infobar *) object;
+	GtkActionBar *action_bar = GTK_ACTION_BAR(infobar->action_bar);
 
 	switch (prop_id) {
 	case PROP_IMAGE_WINDOW:
@@ -340,7 +338,7 @@ infobar_get_property(GObject *object,
 		break;
 
 	case PROP_REVEALED:
-		g_value_set_boolean(value, gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)));
+		g_value_set_boolean(value, gtk_action_bar_get_revealed(action_bar));
 		break;
 
 	default:

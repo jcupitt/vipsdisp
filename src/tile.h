@@ -59,6 +59,8 @@ typedef struct _TileClass {
 
 } TileClass;
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Tile, g_object_unref)
+
 GType tile_get_type(void);
 
 /* Get the current time.

@@ -6,7 +6,8 @@
 
 /* Minimum value of three values.
  */
-#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
+#define MIN3(a, b, c) \
+	((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
 /* LEVENSHTEIN DISTANCE
  *
@@ -186,13 +187,13 @@ fuzzy_match(char **fields, const char *pattern)
 	int n_pattern = strlen(pattern);
 
 	// the int array we use to compute distance
-	guint *v = VIPS_ARRAY(NULL, n_pattern + 1, guint);
+	g_autofree guint *v = VIPS_ARRAY(NULL, n_pattern + 1, guint);
 
 	GSList *matches = NULL;
 
 	for (char **p = fields; *p; p++) {
-		const char *field = *p;
 		Fuzzy *fuzzy = g_new(Fuzzy, 1);
+		const char *field = *p;
 
 		fuzzy->field = field;
 		fuzzy->distance =
@@ -201,8 +202,6 @@ fuzzy_match(char **fields, const char *pattern)
 	}
 
 	matches = g_slist_sort(matches, fuzzy_match_sort);
-
-	g_free(v);
 
 	return matches;
 }

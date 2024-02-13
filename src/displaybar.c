@@ -130,6 +130,7 @@ displaybar_get_property(GObject *object,
 	guint prop_id, GValue *value, GParamSpec *pspec)
 {
 	Displaybar *displaybar = (Displaybar *) object;
+	GtkActionBar *action_bar = GTK_ACTION_BAR(displaybar->action_bar);
 
 	switch (prop_id) {
 	case PROP_IMAGE_WINDOW:
@@ -137,7 +138,7 @@ displaybar_get_property(GObject *object,
 		break;
 
 	case PROP_REVEALED:
-		g_value_set_boolean(value, gtk_action_bar_get_revealed(GTK_ACTION_BAR(displaybar->action_bar)));
+		g_value_set_boolean(value, gtk_action_bar_get_revealed(action_bar));
 		break;
 
 	default:
@@ -164,8 +165,7 @@ static void
 displaybar_page_value_changed(GtkSpinButton *spin_button,
 	Displaybar *displaybar)
 {
-	TileSource *tile_source =
-		image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
 	int new_page = gtk_spin_button_get_value_as_int(spin_button);
 
 #ifdef DEBUG

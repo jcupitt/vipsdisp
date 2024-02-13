@@ -102,13 +102,9 @@ tile_cache_checkerboard_destroy_notify(guchar *pixels, gpointer data)
 static GdkTexture *
 tile_cache_texture(TileCacheBackground background)
 {
-	VipsPel *data;
-	GdkPixbuf *pixbuf;
-	GdkTexture *texture;
 	int x, y, z;
 
-	data = g_malloc(TILE_SIZE * TILE_SIZE * 3);
-
+	VipsPel *data = g_malloc(TILE_SIZE * TILE_SIZE * 3);
 	for (y = 0; y < TILE_SIZE; y++)
 		for (x = 0; x < TILE_SIZE; x++)
 			for (z = 0; z < 3; z++) {
@@ -132,24 +128,20 @@ tile_cache_texture(TileCacheBackground background)
 				data[y * TILE_SIZE * 3 + x * 3 + z] = v;
 			}
 
-	pixbuf = gdk_pixbuf_new_from_data(data, GDK_COLORSPACE_RGB,
+	g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_data(data,
+		GDK_COLORSPACE_RGB,
 		FALSE, 8,
 		TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
 		tile_cache_checkerboard_destroy_notify, NULL);
 
-	texture = gdk_texture_new_for_pixbuf(pixbuf);
-
-	g_object_unref(pixbuf);
-
-	return texture;
+	return gdk_texture_new_for_pixbuf(pixbuf);
 }
 
 static void
 tile_cache_init(TileCache *tile_cache)
 {
 	tile_cache->background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
-	tile_cache->background_texture =
-		tile_cache_texture(tile_cache->background);
+	tile_cache->background_texture = tile_cache_texture(tile_cache->background);
 }
 
 static void
@@ -390,7 +382,7 @@ tile_cache_free_oldest(TileCache *tile_cache, int z)
 			tile_cache_sort_lru);
 
 		for (i = 0; i < n_to_free; i++) {
-			Tile *tile = TILE(tile_cache->free[z]->data);
+			g_autoptr(Tile) tile = TILE(tile_cache->free[z]->data);
 
 			g_assert(g_slist_find(tile_cache->tiles[z], tile));
 
@@ -400,7 +392,6 @@ tile_cache_free_oldest(TileCache *tile_cache, int z)
 				g_slist_remove(tile_cache->visible[z], tile);
 			tile_cache->free[z] =
 				g_slist_remove(tile_cache->free[z], tile);
-			VIPS_UNREF(tile);
 		}
 	}
 }
@@ -649,7 +640,7 @@ tile_cache_fetch_area(TileCache *tile_cache, VipsRect *viewport, int z)
 	}
 }
 
-/* Eevetrything has changed, eg. page turn and the image geometry has changed.
+/* Everything has changed, eg. page turn and the image geometry has changed.
  */
 static void
 tile_cache_source_changed(TileSource *tile_source, TileCache *tile_cache)
@@ -763,11 +754,10 @@ tile_cache_draw_bounds(GtkSnapshot *snapshot,
 	 */
 	if (bounds->size.width < 32000 &&
 		bounds->size.height < 32000) {
-		cairo_t *cr;
 		char str[256];
 		VipsBuf buf = VIPS_BUF_STATIC(str);
 
-		cr = gtk_snapshot_append_cairo(snapshot, bounds);
+		g_autoptr(cairo_t) cr = gtk_snapshot_append_cairo(snapshot, bounds);
 
 		cairo_set_source_rgb(cr, 0, 1, 0);
 		cairo_set_font_size(cr, 12);
@@ -783,8 +773,6 @@ tile_cache_draw_bounds(GtkSnapshot *snapshot,
 		vips_buf_rewind(&buf);
 		vips_buf_appendf(&buf, "%d", tile->time);
 		cairo_show_text(cr, vips_buf_all(&buf));
-
-		cairo_destroy(cr);
 	}
 }
 
@@ -900,10 +888,8 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
 #if GTK_CHECK_VERSION(4, 10, 0)
 			// add a margin along the right and bottom to prevent black seams
 			// at tile joins
-			bounds.origin.x = tile->bounds.left * scale -
-				x + paint_rect->left;
-			bounds.origin.y = tile->bounds.top * scale -
-				y + paint_rect->top;
+			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
+			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
 			bounds.size.width = tile->bounds.width * scale + 2;
 			bounds.size.height = tile->bounds.height * scale + 2;
 
@@ -912,10 +898,8 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
 				GSK_SCALING_FILTER_NEAREST,
 				&bounds);
 #else
-			bounds.origin.x = tile->bounds.left * scale -
-				x + paint_rect->left;
-			bounds.origin.y = tile->bounds.top * scale -
-				y + paint_rect->top;
+			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
+			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
 			bounds.size.width = tile->bounds.width * scale + 0.5;
 			bounds.size.height = tile->bounds.height * scale + 0.5;
 
@@ -927,8 +911,7 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
 			 * tile pointer and age.
 			 */
 			if (debug)
-				tile_cache_draw_bounds(snapshot,
-					tile, &bounds);
+				tile_cache_draw_bounds(snapshot, tile, &bounds);
 		}
 	}
 

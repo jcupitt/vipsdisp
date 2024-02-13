@@ -66,6 +66,8 @@ typedef struct _TileCacheClass {
 
 } TileCacheClass;
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(TileCache, g_object_unref)
+
 GType tile_cache_get_type(void);
 
 TileCache *tile_cache_new(TileSource *tile_source);

@@ -195,8 +195,7 @@ tile_source_render_notify_idle(void *user_data)
 	 * pipeline.
 	 */
 	if (update->image == tile_source->display)
-		tile_source_area_changed(tile_source,
-			&update->rect, update->z);
+		tile_source_area_changed(tile_source, &update->rect, update->z);
 
 	/* The update that's just for this one event needs freeing.
 	 */
@@ -232,13 +231,13 @@ tile_source_render_notify(VipsImage *image, VipsRect *rect, void *client)
 static VipsImage *
 tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 {
-	VipsImage *image;
 	VipsImage *x;
 	VipsImage *mask;
 	TileSourceUpdate *update;
 
 	g_assert(mask_out);
 
+	g_autoptr(VipsImage) image = NULL;
 	if (tile_source->level_count) {
 		/* There's a pyramid ... compute the size of image we need,
 		 * then find the layer which is one larger.
@@ -268,8 +267,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 			tile_source->page);
 #endif /*DEBUG*/
 
-		if (!(image = tile_source_open(tile_source,
-				  tile_source->page)))
+		if (!(image = tile_source_open(tile_source, tile_source->page)))
 			return NULL;
 	}
 	else {
@@ -292,10 +290,8 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 
 		if (vips_crop(image, &x,
 				0, tile_source->page * page_height,
-				page_width, page_height, NULL)) {
-			VIPS_UNREF(image);
+				page_width, page_height, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
@@ -313,7 +309,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		// more than 3 for the info bar
 		int n_pages = VIPS_MIN(10, tile_source->n_pages);
 
-		VipsObject *context = VIPS_OBJECT(vips_image_new());
+		g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
 		VipsImage **t = (VipsImage **)
 			vips_object_local_array(context, n_pages);
 
@@ -323,18 +319,11 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		for (page = 0; page < n_pages; page++)
 			if (vips_crop(image, &t[page],
 					0, page * page_height, page_width, page_height,
-					NULL)) {
-				VIPS_UNREF(context);
-				VIPS_UNREF(image);
+					NULL))
 				return NULL;
-			}
-		if (vips_bandjoin(t, &x, n_pages, NULL)) {
-			VIPS_UNREF(context);
-			VIPS_UNREF(image);
+		if (vips_bandjoin(t, &x, n_pages, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
-		VIPS_UNREF(context);
 		image = x;
 
 		/* Pick an interpretation ... one of the RGB types, if we
@@ -350,23 +339,19 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 	 */
 	if (image->Type == VIPS_INTERPRETATION_HISTOGRAM &&
 		(image->Xsize == 1 || image->Ysize == 1)) {
-		VipsImage *context = vips_image_new();
-		VipsImage **t = (VipsImage **)
-			vips_object_local_array(VIPS_OBJECT(context), 7);
+		g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
+		VipsImage **t = (VipsImage **) vips_object_local_array(context, 7);
 
 		// so it's unreffed when we unref context
 		t[0] = image;
 
 		if (vips_image_decode(t[0], &t[1]) ||
 			vips_hist_norm(t[1], &t[3], NULL) ||
-			vips_hist_plot(t[3], &t[4], NULL)) {
-			VIPS_UNREF(context);
+			vips_hist_plot(t[3], &t[4], NULL))
 			return NULL;
-		}
 
 		image = t[4];
 		g_object_ref(image);
-		VIPS_UNREF(context);
 	}
 
 	if (tile_source->current_z > 0) {
@@ -377,10 +362,8 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		int subsample = image->Xsize /
 			(tile_source->display_width >> tile_source->current_z);
 
-		if (vips_subsample(image, &x, subsample, subsample, NULL)) {
-			VIPS_UNREF(image);
+		if (vips_subsample(image, &x, subsample, subsample, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
@@ -409,7 +392,6 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 			tile_source_render_notify, update)) {
 		VIPS_UNREF(x);
 		VIPS_UNREF(mask);
-		VIPS_UNREF(image);
 		return NULL;
 	}
 	VIPS_UNREF(image);
@@ -419,7 +401,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 
 	*mask_out = mask;
 
-	return image;
+	return g_steal_pointer(&image);
 }
 
 static VipsImage *
@@ -428,9 +410,8 @@ tile_source_image_log(VipsImage *image)
 	static const double power = 0.25;
 	const double scale = 255.0 / log10(1.0 + pow(255.0, power));
 
-	VipsImage *context = vips_image_new();
-	VipsImage **t = (VipsImage **)
-		vips_object_local_array(VIPS_OBJECT(context), 7);
+	g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
+	VipsImage **t = (VipsImage **) vips_object_local_array(context, 7);
 
 	VipsImage *x;
 
@@ -439,10 +420,8 @@ tile_source_image_log(VipsImage *image)
 		vips_log10(t[1], &t[2], NULL) ||
 		// add 0.5 to get round to nearest
 		vips_linear1(t[2], &x, scale, 0.5, NULL)) {
-		g_object_unref(context);
 		return NULL;
 	}
-	VIPS_UNREF(context);
 	image = x;
 
 	return image;
@@ -486,20 +465,16 @@ tile_source_n_colour(VipsImage *image)
 static VipsImage *
 tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 {
-	VipsImage *image;
 	VipsImage *x;
 	int n_bands;
-	VipsImage *alpha;
 
-	image = in;
+	g_autoptr(VipsImage) image = in;
 	g_object_ref(image);
 
 	/* Coded images won't unalpha correctly.
 	 */
-	if (vips_image_decode(image, &x)) {
-		VIPS_UNREF(image);
+	if (vips_image_decode(image, &x))
 		return NULL;
-	}
 	VIPS_UNREF(image);
 	image = x;
 
@@ -511,19 +486,15 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	/* We don't want vis controls to touch alpha ... remove and reattach at
 	 * the end.
 	 */
-	alpha = NULL;
+	g_autoptr(VipsImage) alpha = NULL;
 	n_bands = tile_source_n_colour(image);
 	if (image->Bands > n_bands) {
-		if (vips_extract_band(image, &x, 0, "n", n_bands, NULL)) {
-			VIPS_UNREF(image);
+		if (vips_extract_band(image, &x, 0, "n", n_bands, NULL))
 			return NULL;
-		}
 
 		// just use the first alpha
-		if (vips_extract_band(image, &alpha, n_bands, "n", 1, NULL)) {
-			VIPS_UNREF(image);
+		if (vips_extract_band(image, &alpha, n_bands, "n", 1, NULL))
 			return NULL;
-		}
 
 		VIPS_UNREF(image);
 		image = x;
@@ -540,11 +511,8 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 			image->Type == VIPS_INTERPRETATION_FOURIER)) {
 		if (tile_source->log ||
 			image->Type == VIPS_INTERPRETATION_FOURIER) {
-			if (!(x = tile_source_image_log(image))) {
-				VIPS_UNREF(image);
-				VIPS_UNREF(alpha);
+			if (!(x = tile_source_image_log(image)))
 				return NULL;
-			}
 			VIPS_UNREF(image);
 			image = x;
 		}
@@ -553,11 +521,8 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 			tile_source->offset != 0.0) {
 			if (vips_linear1(image, &x,
 					tile_source->scale, tile_source->offset,
-					NULL)) {
-				VIPS_UNREF(image);
-				VIPS_UNREF(alpha);
+					NULL))
 				return NULL;
-			}
 			VIPS_UNREF(image);
 			image = x;
 		}
@@ -567,11 +532,8 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	 */
 	if (tile_source->active &&
 		tile_source->icc) {
-		if (vips_icc_transform(image, &x, "srgb", NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+		if (vips_icc_transform(image, &x, "srgb", NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
@@ -581,21 +543,15 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	if (image->Type != VIPS_INTERPRETATION_sRGB &&
 		vips_colourspace_issupported(image)) {
 		if (vips_colourspace(image, &x, VIPS_INTERPRETATION_sRGB,
-				NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+				NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
 
 	if (image->BandFmt != VIPS_FORMAT_UCHAR) {
-		if (vips_cast(image, &x, VIPS_FORMAT_UCHAR, NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+		if (vips_cast(image, &x, VIPS_FORMAT_UCHAR, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
@@ -604,37 +560,26 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	 */
 	if (tile_source->active &&
 		tile_source->falsecolour) {
-		if (vips_falsecolour(image, &x, NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+		if (vips_falsecolour(image, &x, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(image);
 		image = x;
 	}
 
 	// reattach alpha
 	if (alpha) {
-		if (vips_cast(alpha, &x, image->BandFmt, NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+		if (vips_cast(alpha, &x, image->BandFmt, NULL))
 			return NULL;
-		}
 		VIPS_UNREF(alpha);
 		alpha = x;
 
-		if (vips_bandjoin2(image, alpha, &x, NULL)) {
-			VIPS_UNREF(image);
-			VIPS_UNREF(alpha);
+		if (vips_bandjoin2(image, alpha, &x, NULL))
 			return NULL;
-		}
-
 		VIPS_UNREF(image);
-		VIPS_UNREF(alpha);
 		image = x;
 	}
 
-	return image;
+	return g_steal_pointer(&image);
 }
 
 /* Rebuild just the second half of the image pipeline, eg. after a change to
@@ -805,12 +750,9 @@ tile_source_set_property(GObject *object,
 
 #ifdef DEBUG
 	{
-		char *str;
-
-		str = g_strdup_value_contents(value);
+		g_autofree char *str = g_strdup_value_contents(value);
 		printf("tile_source_set_property: %s %s\n",
 			tile_source_property_name(prop_id), str);
-		g_free(str);
 	}
 #endif /*DEBUG*/
 
@@ -824,8 +766,7 @@ tile_source_set_property(GObject *object,
 			tile_source->display_width = tile_source->width;
 			tile_source->display_height = tile_source->height;
 			if (tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL)
-				tile_source->display_height *=
-					tile_source->n_pages;
+				tile_source->display_height *= tile_source->n_pages;
 
 			tile_source_update_display(tile_source);
 
@@ -834,8 +775,7 @@ tile_source_set_property(GObject *object,
 			/* In animation mode, create the page flip timeout.
 			 */
 			if (tile_source->page_flip_id)
-				VIPS_FREEF(g_source_remove,
-					tile_source->page_flip_id);
+				VIPS_FREEF(g_source_remove, tile_source->page_flip_id);
 			if (tile_source->mode == TILE_SOURCE_MODE_ANIMATED &&
 				tile_source->n_pages > 1)
 				tile_source->page_flip_id = g_timeout_add(100,
@@ -850,7 +790,6 @@ tile_source_set_property(GObject *object,
 			tile_source->scale != d) {
 			tile_source->scale = d;
 			tile_source_update_rgb(tile_source);
-
 			tile_source_tiles_changed(tile_source);
 		}
 		break;
@@ -862,7 +801,6 @@ tile_source_set_property(GObject *object,
 			tile_source->offset != d) {
 			tile_source->offset = d;
 			tile_source_update_rgb(tile_source);
-
 			tile_source_tiles_changed(tile_source);
 		}
 		break;
@@ -902,7 +840,6 @@ tile_source_set_property(GObject *object,
 		if (tile_source->log != b) {
 			tile_source->log = b;
 			tile_source_update_rgb(tile_source);
-
 			tile_source_tiles_changed(tile_source);
 		}
 		break;
@@ -912,7 +849,6 @@ tile_source_set_property(GObject *object,
 		if (tile_source->icc != b) {
 			tile_source->icc = b;
 			tile_source_update_rgb(tile_source);
-
 			tile_source_tiles_changed(tile_source);
 		}
 		break;
@@ -922,7 +858,6 @@ tile_source_set_property(GObject *object,
 		if (tile_source->active != b) {
 			tile_source->active = b;
 			tile_source_update_rgb(tile_source);
-
 			tile_source_tiles_changed(tile_source);
 		}
 		break;
@@ -932,7 +867,6 @@ tile_source_set_property(GObject *object,
 		if (tile_source->loaded != b) {
 			tile_source->loaded = b;
 			tile_source_update_display(tile_source);
-
 			tile_source_changed(tile_source);
 		}
 		break;
@@ -993,12 +927,9 @@ tile_source_get_property(GObject *object,
 
 #ifdef DEBUG
 	{
-		char *str;
-
-		str = g_strdup_value_contents(value);
+		g_autofree char *str = g_strdup_value_contents(value);
 		printf("tile_source_get_property: %s %s\n",
 			tile_source_property_name(prop_id), str);
-		g_free(str);
 	}
 #endif /*DEBUG*/
 }
@@ -1349,16 +1280,14 @@ tile_source_default_mode(TileSource *tile_source)
 TileSource *
 tile_source_new_from_image(VipsImage *image)
 {
-	TileSource *tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
+	g_autoptr(TileSource) tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
 
 	/* Only call this once.
 	 */
 	g_assert(!tile_source->image);
 
-	if (tile_source_set_image(tile_source, image)) {
-		VIPS_UNREF(tile_source);
+	if (tile_source_set_image(tile_source, image))
 		return NULL;
-	}
 
 	tile_source->image = image;
 	g_object_ref(image);
@@ -1376,7 +1305,7 @@ tile_source_new_from_image(VipsImage *image)
 	// FIXME ... why do we need this extra ref?
 	g_object_ref(tile_source);
 
-	return tile_source;
+	return g_steal_pointer(&tile_source);
 }
 
 /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
@@ -1391,7 +1320,6 @@ tile_source_get_pyramid_subifd(TileSource *tile_source)
 #endif /*DEBUG*/
 
 	for (i = 0; i < tile_source->n_subifds; i++) {
-		VipsImage *level;
 		int level_width;
 		int level_height;
 		int expected_level_width;
@@ -1402,11 +1330,11 @@ tile_source_get_pyramid_subifd(TileSource *tile_source)
 		if (i >= MAX_LEVELS)
 			break;
 
-		if (!(level = tile_source_open(tile_source, i)))
+		g_autoptr(VipsImage) level = tile_source_open(tile_source, i);
+		if (!level)
 			return;
 		level_width = level->Xsize;
 		level_height = level->Ysize;
-		VIPS_UNREF(level);
 
 		expected_level_width = tile_source->width / (1 << i);
 		expected_level_height = tile_source->height / (1 << i);
@@ -1451,7 +1379,6 @@ tile_source_get_pyramid_page(TileSource *tile_source)
 		return;
 
 	for (i = 0; i < tile_source->n_pages; i++) {
-		VipsImage *level;
 		int level_width;
 		int level_height;
 		int expected_level_width;
@@ -1462,11 +1389,11 @@ tile_source_get_pyramid_page(TileSource *tile_source)
 		if (i >= MAX_LEVELS)
 			break;
 
-		if (!(level = tile_source_open(tile_source, i)))
+		g_autoptr(VipsImage) level = tile_source_open(tile_source, i);
+		if (!level)
 			return;
 		level_width = level->Xsize;
 		level_height = level->Ysize;
-		VIPS_UNREF(level);
 
 		expected_level_width = tile_source->width / (1 << i);
 		expected_level_height = tile_source->height / (1 << i);
@@ -1557,11 +1484,9 @@ get_int(VipsImage *image, const char *field, int default_value)
 TileSource *
 tile_source_new_from_file(const char *filename)
 {
-	TileSource *tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
+	g_autoptr(TileSource) tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
 
 	const char *loader;
-	VipsImage *image;
-	VipsImage *x;
 
 #ifdef DEBUG
 	printf("tile_source_new_from_file: %s\n", filename);
@@ -1569,10 +1494,8 @@ tile_source_new_from_file(const char *filename)
 
 	tile_source->filename = g_strdup(filename);
 
-	if (!(loader = vips_foreign_find_load(filename))) {
-		VIPS_UNREF(tile_source);
+	if (!(loader = vips_foreign_find_load(filename)))
 		return NULL;
-	}
 
 	/* vips_foreign_find_load() gives us eg.
 	 * "VipsForeignLoadNsgifFile", but we need "gifload", the
@@ -1582,16 +1505,11 @@ tile_source_new_from_file(const char *filename)
 
 	/* A very basic open to fetch image properties.
 	 */
-	if (!(image = vips_image_new_from_file(filename, NULL))) {
-		VIPS_UNREF(tile_source);
+	g_autoptr(VipsImage) image = vips_image_new_from_file(filename, NULL);
+	if (!image)
 		return NULL;
-	}
-
-	if (tile_source_set_image(tile_source, image)) {
-		VIPS_UNREF(image);
-		VIPS_UNREF(tile_source);
+	if (tile_source_set_image(tile_source, image))
 		return NULL;
-	}
 
 	/* For openslide, we can read out the level structure directly.
 	 */
@@ -1606,14 +1524,10 @@ tile_source_new_from_file(const char *filename)
 		for (level = 0; level < level_count; level++) {
 			char name[256];
 
-			vips_snprintf(name, 256,
-				"openslide.level[%d].width", level);
-			tile_source->level_width[level] =
-				get_int(image, name, 0);
-			vips_snprintf(name, 256,
-				"openslide.level[%d].height", level);
-			tile_source->level_height[level] =
-				get_int(image, name, 0);
+			vips_snprintf(name, 256, "openslide.level[%d].width", level);
+			tile_source->level_width[level] = get_int(image, name, 0);
+			vips_snprintf(name, 256, "openslide.level[%d].height", level);
+			tile_source->level_height[level] = get_int(image, name, 0);
 		}
 
 		/* Some openslide images don't have levels on x2 boundaries. SVS and
@@ -1656,12 +1570,11 @@ tile_source_new_from_file(const char *filename)
 
 		/* Apply the zoom and build the pyramid.
 		 */
-		x = vips_image_new_from_file(filename,
+		g_autoptr(VipsImage) x = vips_image_new_from_file(filename,
 			"scale", tile_source->zoom,
 			NULL);
 		tile_source->width = x->Xsize;
 		tile_source->height = x->Ysize;
-		VIPS_UNREF(x);
 
 		/* Fake the pyramid geometry. No sense going smaller than
 		 * a tile.
@@ -1680,8 +1593,6 @@ tile_source_new_from_file(const char *filename)
 		}
 	}
 
-	VIPS_UNREF(image);
-
 	/* Can we open in toilet-roll mode? We need to test that n_pages and
 	 * page_size are sane too.
 	 */
@@ -1694,7 +1605,7 @@ tile_source_new_from_file(const char *filename)
 	 */
 	tile_source->type = TILE_SOURCE_TYPE_TOILET_ROLL;
 	vips_error_freeze();
-	x = tile_source_open(tile_source, 0);
+	g_autoptr(VipsImage) x = tile_source_open(tile_source, 0);
 	vips_error_thaw();
 	if (x) {
 		/* Toilet-roll mode worked. Check sanity of page height,
@@ -1717,8 +1628,6 @@ tile_source_new_from_file(const char *filename)
 			/* Everything looks good.
 			 */
 			tile_source->pages_same_size = TRUE;
-
-		VIPS_UNREF(x);
 	}
 
 	/* Back to plain multipage for the rest of the sniff period. For
@@ -1772,10 +1681,8 @@ tile_source_new_from_file(const char *filename)
 
 	/* And now we can reopen in the correct mode.
 	 */
-	if (!(image = tile_source_open(tile_source, 0))) {
-		VIPS_UNREF(tile_source);
+	if (!(image = tile_source_open(tile_source, 0)))
 		return NULL;
-	}
 	g_assert(!tile_source->image);
 	g_assert(!tile_source->image_region);
 	tile_source->image = image;
@@ -1802,7 +1709,7 @@ tile_source_new_from_file(const char *filename)
 
 	tile_source_attach_progress(tile_source);
 
-	return tile_source;
+	return g_steal_pointer(&tile_source);
 }
 
 /* Call this some time after tile_source_new_from_file() or
@@ -1877,12 +1784,9 @@ tile_source_get_path(TileSource *tile_source)
 GFile *
 tile_source_get_file(TileSource *tile_source)
 {
-	const char *path;
+	const char *path = tile_source_get_path(tile_source);
 
-	if ((path = tile_source_get_path(tile_source)))
-		return g_file_new_for_path(path);
-
-	return NULL;
+	return path ? g_file_new_for_path(path) : NULL;
 }
 
 /* The image as used to generate the display, so including page extraction and
@@ -1927,8 +1831,7 @@ tile_source_get_pixel(TileSource *tile_source, int image_x, int image_y,
 	/* The ->display image is cached in a sink screen, so this will be
 	 * reasonably quick, even for things like svg and pdf.
 	 */
-	if (vips_getpoint(tile_source->display,
-			vector, n, image_x, image_y, NULL))
+	if (vips_getpoint(tile_source->display, vector, n, image_x, image_y, NULL))
 		return FALSE;
 
 	return TRUE;

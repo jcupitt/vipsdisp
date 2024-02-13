@@ -148,8 +148,7 @@ tslider_changed(Tslider *tslider)
 	printf("tslider_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider),
-		tslider_signals[CHANGED], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[CHANGED], 0);
 }
 
 /* Activated!
@@ -161,8 +160,7 @@ tslider_activate(Tslider *tslider)
 	printf("tslider_activate\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider),
-		tslider_signals[ACTIVATE], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[ACTIVATE], 0);
 }
 
 /* Just the slider changed.
@@ -174,8 +172,7 @@ tslider_slider_changed(Tslider *tslider)
 	printf("tslider_slider_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider),
-		tslider_signals[SLIDER_CHANGED], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[SLIDER_CHANGED], 0);
 }
 
 /* Text has been touched.
@@ -187,8 +184,7 @@ tslider_text_changed(Tslider *tslider)
 	printf("tslider_text_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider),
-		tslider_signals[TEXT_CHANGED], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[TEXT_CHANGED], 0);
 }
 
 /* Enter in entry widget
