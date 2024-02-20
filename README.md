@@ -77,9 +77,15 @@ flatpak install flathub org.libvips.vipsdisp
   you set file save options. It can write things like DeepZoom pyramids, PFM,
   OpenEXR, and so on.
 
+* Select Properties (alt-Enter) to see image metadata. It can display large
+  amounts of metadata (useful for eg. DICOM) with filtering.
+
+* Use alt-Left and alt-Right to move between the set of images being
+  displayed, handy for bnrowising a directory of images.
+
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
   and nicely animated. The image is rendered with the GPU, so display ought to
-  be fast.
+  be quick.
 
 ## Build from source
 
@@ -108,7 +114,8 @@ vipsdisp ~/pics/k2.jpg
 * 0 for best fit
 * d, to toggle debug rendering mode
 * i, + / o, - to zoom in and out
-* ctrl-<, ctrl->. prev page, next page
+* ctrl-< / ctrl->. prev page, next page
+* alt-Left / alt-Right. prev image, next image
 * Mouse drag to pan
 * Mousewheel to zoom
 * Mousewheel + shift/ctrl to pan
@@ -116,10 +123,12 @@ vipsdisp ~/pics/k2.jpg
 * ^S save image
 * ^N new viewer
 * ^D duplicate view
-* ^C/^V copy paste of filenames and textures
+* alt-Enter toggle properties
+* ^C / ^V copy paste of filenames, lists of filenames and textures
 * F11 fullscreen
 
-Additionally, the image window is a drop target for filenames.
+Additionally, you can drag and drop filenames, lists of filenames and
+textures.
 
 ## Version bump checklist
 
