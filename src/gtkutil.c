@@ -221,9 +221,3 @@ action_radio(GSimpleAction *action, GVariant *parameter, gpointer user_data)
 {
 	g_action_change_state(G_ACTION(action), parameter);
 }
-
-void
-VipsArrayDouble_unref(VipsArrayDouble *array)
-{
-	vips_area_unref(VIPS_AREA(array));
-}

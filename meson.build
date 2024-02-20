@@ -38,7 +38,7 @@ configure_file(
 )
 
 # need vips_thread_execute()
-vips_dep = dependency('vips', version: '>=8.15')
+vips_dep = dependency('vips', version: '>=8.16')
 glib_dep = dependency('glib-2.0')
 gtk_dep = dependency('gtk4')
 m_dep = cc.find_library('m')
