@@ -81,7 +81,7 @@ flatpak install flathub org.libvips.vipsdisp
   amounts of metadata (useful for eg. DICOM) with filtering.
 
 * Use alt-Left and alt-Right to move between the set of images being
-  displayed, handy for bnrowising a directory of images.
+  displayed, handy for browsing a directory of images.
 
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
   and nicely animated. The image is rendered with the GPU, so display ought to
