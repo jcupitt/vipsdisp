@@ -1,7 +1,7 @@
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -45,12 +45,13 @@ tile_source_dispose(GObject *object)
 	TileSource *tile_source = TILE_SOURCE(object);
 
 #ifdef DEBUG
-	printf("tile_source_dispose:\n");
 #endif /*DEBUG*/
+	printf("tile_source_dispose: %s\n", tile_source->filename);
 
 	VIPS_FREEF(g_source_remove, tile_source->page_flip_id);
 
 	VIPS_FREE(tile_source->filename);
+
 	VIPS_UNREF(tile_source->base);
 	VIPS_UNREF(tile_source->image);
 	VIPS_UNREF(tile_source->image_region);
@@ -68,29 +69,26 @@ tile_source_dispose(GObject *object)
 void
 tile_source_changed(TileSource *tile_source)
 {
-	g_signal_emit(tile_source,
-		tile_source_signals[SIG_CHANGED], 0);
+	g_signal_emit(tile_source, tile_source_signals[SIG_CHANGED], 0);
 }
 
 static void
 tile_source_tiles_changed(TileSource *tile_source)
 {
-	g_signal_emit(tile_source,
-		tile_source_signals[SIG_TILES_CHANGED], 0);
+	g_signal_emit(tile_source, tile_source_signals[SIG_TILES_CHANGED], 0);
 }
 
 static void
 tile_source_area_changed(TileSource *tile_source, VipsRect *dirty, int z)
 {
-	g_signal_emit(tile_source,
+	g_signal_emit(tile_source, 
 		tile_source_signals[SIG_AREA_CHANGED], 0, dirty, z);
 }
 
 static void
 tile_source_page_changed(TileSource *tile_source)
 {
-	g_signal_emit(tile_source,
-		tile_source_signals[SIG_PAGE_CHANGED], 0);
+	g_signal_emit(tile_source, tile_source_signals[SIG_PAGE_CHANGED], 0);
 }
 
 typedef struct _TileSourceUpdate {
@@ -254,8 +252,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		level = VIPS_CLIP(0, i - 1, tile_source->level_count - 1);
 
 #ifdef DEBUG
-		printf("tile_source_display_image: loading level %d\n",
-			level);
+		printf("tile_source_display_image: loading level %d\n", level);
 #endif /*DEBUG*/
 
 		if (!(image = tile_source_open(tile_source, level)))
@@ -330,9 +327,11 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
 		 * can.
 		 */
 		if (image->Bands < 3)
-			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? VIPS_INTERPRETATION_GREY16 : VIPS_INTERPRETATION_B_W;
+			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? 
+				VIPS_INTERPRETATION_GREY16 : VIPS_INTERPRETATION_B_W;
 		else
-			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? VIPS_INTERPRETATION_RGB16 : VIPS_INTERPRETATION_sRGB;
+			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? 
+				VIPS_INTERPRETATION_RGB16 : VIPS_INTERPRETATION_sRGB;
 	}
 
 	/* Histogram type ... plot the histogram.
@@ -591,8 +590,7 @@ tile_source_update_rgb(TileSource *tile_source)
 	if (tile_source->display) {
 		VipsImage *rgb;
 
-		if (!(rgb = tile_source_rgb_image(tile_source,
-				  tile_source->display))) {
+		if (!(rgb = tile_source_rgb_image(tile_source, tile_source->display))) {
 			printf("tile_source_rgb_image failed!\n");
 			return -1;
 		}
@@ -966,8 +964,8 @@ tile_source_background_load_done_idle(void *user_data)
 	TileSource *tile_source = (TileSource *) user_data;
 
 #ifdef DEBUG
-	printf("tile_source_background_load_done_cb:\n");
 #endif /*DEBUG*/
+	printf("tile_source_background_load_done_cb: ... unreffing\n");
 
 	/* You can now fetch pixels.
 	 */
@@ -988,8 +986,8 @@ tile_source_background_load_worker(void *data, void *user_data)
 	TileSource *tile_source = (TileSource *) data;
 
 #ifdef DEBUG
-	printf("tile_source_background_load_worker: starting ..\n");
 #endif /*DEBUG*/
+	printf("tile_source_background_load_worker: starting ...\n");
 
 	g_assert(tile_source->image_region);
 
@@ -998,8 +996,8 @@ tile_source_background_load_worker(void *data, void *user_data)
 	g_idle_add(tile_source_background_load_done_idle, tile_source);
 
 #ifdef DEBUG
-	printf("tile_source_background_load_worker: .. done\n");
 #endif /*DEBUG*/
+	printf("tile_source_background_load_worker: ... done\n");
 }
 
 static void
@@ -1301,9 +1299,6 @@ tile_source_new_from_image(VipsImage *image)
 
 	/* FIXME ... should we support progress feedback? Probably not.
 	 */
-
-	// FIXME ... why do we need this extra ref?
-	g_object_ref(tile_source);
 
 	return g_steal_pointer(&tile_source);
 }
@@ -1694,19 +1689,6 @@ tile_source_new_from_file(const char *filename)
 
 	tile_source_default_mode(tile_source);
 
-	/* We ref this tile_source so it won't die before the
-	 * background load is done. The matching unref is at the end
-	 * of bg load.
-	 */
-	g_object_ref(tile_source);
-
-	/* This will be set TRUE again at the end of the background
-	 * load. This will trigger tile_source_update_display() for us.
-	 */
-	g_object_set(tile_source,
-		"loaded", FALSE,
-		NULL);
-
 	tile_source_attach_progress(tile_source);
 
 	return g_steal_pointer(&tile_source);
@@ -1719,6 +1701,19 @@ tile_source_new_from_file(const char *filename)
 void
 tile_source_background_load(TileSource *tile_source)
 {
+	/* This will be set TRUE again at the end of the background
+	 * load, in turn that will trigger tile_source_update_display() for us.
+	 */
+	g_object_set(tile_source,
+		"loaded", FALSE,
+		NULL);
+
+	/* We ref this tile_source so it won't die before the
+	 * background load is done. The matching unref is at the end
+	 * of bg load.
+	 */
+	g_object_ref(tile_source);
+
 	g_thread_pool_push(tile_source_background_load_pool,
 		tile_source, NULL);
 }

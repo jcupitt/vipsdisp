@@ -315,8 +315,8 @@ image_window_open_current_file(ImageWindow *win)
 		char *filename = win->files[win->current_file];
 
 #ifdef DEBUG
-		printf("image_window_open_current_file: %s:\n", filename);
 #endif /*DEBUG*/
+		printf("image_window_open_current_file: %s:\n", filename);
 
 		/* FIXME ... we only want to revalidate if eg. the timestamp has
 		 * changed, or perhaps on F5?
@@ -645,9 +645,9 @@ image_window_tick(GtkWidget *widget,
 	ImageWindow *win = IMAGE_WINDOW(user_data);
 
 	gint64 frame_time = gdk_frame_clock_get_frame_time(frame_clock);
-	double dt = win->last_frame_time > 0 ? (double) (frame_time - win->last_frame_time) /
-			G_TIME_SPAN_SECOND
-										 : 1.0 / G_TIME_SPAN_SECOND;
+	double dt = win->last_frame_time > 0 ? 
+		(double) (frame_time - win->last_frame_time) / G_TIME_SPAN_SECOND : 
+		1.0 / G_TIME_SPAN_SECOND;
 	double scale = image_window_get_scale(win);
 
 	double new_scale;
@@ -662,7 +662,8 @@ image_window_tick(GtkWidget *widget,
 		// 0/1/etc. discrete zoom
 		win->scale_progress += dt;
 
-		double duration = win->should_animate ? SCALE_DURATION : win->scale_progress;
+		double duration = win->should_animate ? 
+			SCALE_DURATION : win->scale_progress;
 
 		// 0-1 progress in zoom animation
 		double t = ease_out_cubic(win->scale_progress / duration);
@@ -697,8 +698,7 @@ image_window_start_animation(ImageWindow *win)
 {
 	if (!win->tick_handler) {
 		win->last_frame_time = -1;
-		win->tick_handler = gtk_widget_add_tick_callback(
-			GTK_WIDGET(win),
+		win->tick_handler = gtk_widget_add_tick_callback(GTK_WIDGET(win),
 			image_window_tick, win, NULL);
 	}
 }
@@ -707,8 +707,7 @@ static void
 image_window_stop_animation(ImageWindow *win)
 {
 	if (win->tick_handler) {
-		gtk_widget_remove_tick_callback(GTK_WIDGET(win),
-			win->tick_handler);
+		gtk_widget_remove_tick_callback(GTK_WIDGET(win), win->tick_handler);
 		win->tick_handler = 0;
 	}
 }
@@ -1811,7 +1810,8 @@ static GActionEntry image_window_entries[] = {
 	{ "icc", action_toggle, NULL, "false", image_window_icc },
 	{ "falsecolour", action_toggle, NULL, "false", image_window_falsecolour },
 	{ "mode", action_radio, "s", "'multipage'", image_window_mode },
-	{ "background", action_radio, "s", "'checkerboard'", image_window_background },
+	{ "background", action_radio, "s", "'checkerboard'", 
+		image_window_background },
 
 	{ "reset", image_window_reset },
 };
@@ -2085,20 +2085,17 @@ image_window_set_tile_source(ImageWindow *win, TileSource *tile_source)
 	VipsImage *image;
 	char *title;
 
+	g_assert(IS_TILE_SOURCE(tile_source));
+
 	// copy over any visualisation settings from the old tile_source
 	if (tile_source && win->tile_source) {
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "scale");
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "offset");
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "falsecolour");
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "log");
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "icc");
-		copy_value(G_OBJECT(tile_source),
-			G_OBJECT(win->tile_source), "active");
+		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "scale");
+		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "offset");
+		copy_value(G_OBJECT(tile_source), 
+				G_OBJECT(win->tile_source), "falsecolour");
+		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "log");
+		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "icc");
+		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "active");
 	}
 
 	/* Try to shut down any current evaluation.
@@ -2138,36 +2135,29 @@ image_window_set_tile_source(ImageWindow *win, TileSource *tile_source)
 			char str[256];
 			VipsBuf buf = VIPS_BUF_STATIC(str);
 
-			vips_buf_appendf(&buf, "%dx%d, ",
-				image->Xsize, image->Ysize);
+			vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
 			if (tile_source->n_pages > 1)
-				vips_buf_appendf(&buf, "%d pages, ",
-					tile_source->n_pages);
+				vips_buf_appendf(&buf, "%d pages, ", tile_source->n_pages);
 			if (vips_image_get_coding(image) == VIPS_CODING_NONE)
 				vips_buf_appendf(&buf,
 					g_dngettext(GETTEXT_PACKAGE,
 						" %s, %d band, %s",
 						" %s, %d bands, %s",
 						image->Bands),
-					vips_enum_nick(VIPS_TYPE_BAND_FORMAT,
-						image->BandFmt),
+					vips_enum_nick(VIPS_TYPE_BAND_FORMAT, image->BandFmt),
 					vips_image_get_bands(image),
-					vips_enum_nick(VIPS_TYPE_INTERPRETATION,
-						image->Type));
+					vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
 			else
 				vips_buf_appendf(&buf, "%s",
 					vips_enum_nick(VIPS_TYPE_CODING,
 						vips_image_get_coding(image)));
-			vips_buf_appendf(&buf, ", %g x %g p/mm",
-				image->Xres, image->Yres);
-			gtk_label_set_text(GTK_LABEL(win->subtitle),
-				vips_buf_all(&buf));
+			vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
+			gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
 		}
 
 		/* Initial state.
 		 */
-		tile_source->active =
-			g_settings_get_boolean(win->settings, "control");
+		tile_source->active = g_settings_get_boolean(win->settings, "control");
 
 		/* Everything is set up ... start loading the image.
 		 */
