@@ -1,7 +1,7 @@
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
@@ -151,11 +151,15 @@ tile_source_open(TileSource *tile_source, int level)
 				NULL);
 	}
 	else if (vips_isprefix("jp2k", tile_source->loader)) {
-		/* These only have a "page" param.
+		/* These only have a "page" param, so we must fail for toilet roll
+		 * mode.
 		 */
-		image = vips_image_new_from_file(tile_source->filename,
-			"page", level,
-			NULL);
+		if (all_pages)
+			image = NULL;
+		else 
+			image = vips_image_new_from_file(tile_source->filename,
+				"page", level,
+				NULL);
 	}
 	else if (vips_isprefix("pdf", tile_source->loader) ||
 		vips_isprefix("webp", tile_source->loader) ||

@@ -230,10 +230,6 @@ On success, merge to master.
 
 ## TODO
 
-- jp2 is not being detected as a pyramid correctly
-
-    vipsdisp ~/pics/x.jp2
-
 - support many page images where the pages differ in size, eg. the audi PDF
 
     try:
