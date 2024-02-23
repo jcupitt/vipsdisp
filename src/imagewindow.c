@@ -1562,7 +1562,7 @@ image_window_prev_image(GSimpleAction *action,
 
 	// if there's a background load active, then do nothing
 	// we want to prevent many bg loads queueing up
-	if (!image_window_loading(win))
+	if (image_window_loading(win))
 		return;
 
 	if (win->n_files > 0) {
