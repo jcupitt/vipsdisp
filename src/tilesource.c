@@ -971,7 +971,8 @@ tile_source_background_load_done_idle(void *user_data)
 	 */
 	g_object_set(tile_source, "loaded", TRUE, NULL);
 
-	/* Drop the ref that kept this tile_source alive during load.
+	/* Drop the ref that kept this tile_source alive during load, see
+	 * tile_source_background_load().
 	 */
 	g_object_unref(tile_source);
 
@@ -1710,7 +1711,7 @@ tile_source_background_load(TileSource *tile_source)
 
 	/* We ref this tile_source so it won't die before the
 	 * background load is done. The matching unref is at the end
-	 * of bg load.
+	 * of bg load in tile_source_background_load_done_idle().
 	 */
 	g_object_ref(tile_source);
 

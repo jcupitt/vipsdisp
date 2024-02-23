@@ -1,6 +1,6 @@
 /*
-#define DEBUG
  */
+#define DEBUG
 
 #include "vipsdisp.h"
 
