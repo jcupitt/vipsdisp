@@ -1,0 +1,1751 @@
+diff --git a/src/displaybar.c b/src/displaybar.c
+index 6201470..5168250 100644
+--- a/src/displaybar.c
++++ b/src/displaybar.c
+@@ -130,7 +130,6 @@ displaybar_get_property(GObject *object,
+ 	guint prop_id, GValue *value, GParamSpec *pspec)
+ {
+ 	Displaybar *displaybar = (Displaybar *) object;
+-	GtkActionBar *action_bar = GTK_ACTION_BAR(displaybar->action_bar);
+ 
+ 	switch (prop_id) {
+ 	case PROP_IMAGE_WINDOW:
+@@ -138,7 +137,7 @@ displaybar_get_property(GObject *object,
+ 		break;
+ 
+ 	case PROP_REVEALED:
+-		g_value_set_boolean(value, gtk_action_bar_get_revealed(action_bar));
++		g_value_set_boolean(value, gtk_action_bar_get_revealed(GTK_ACTION_BAR(displaybar->action_bar)));
+ 		break;
+ 
+ 	default:
+@@ -165,7 +164,8 @@ static void
+ displaybar_page_value_changed(GtkSpinButton *spin_button,
+ 	Displaybar *displaybar)
+ {
+-	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
++	TileSource *tile_source =
++		image_window_get_tile_source(displaybar->win);
+ 	int new_page = gtk_spin_button_get_value_as_int(spin_button);
+ 
+ #ifdef DEBUG
+diff --git a/src/fuzzy.c b/src/fuzzy.c
+index 50cc6dd..ab5180a 100644
+--- a/src/fuzzy.c
++++ b/src/fuzzy.c
+@@ -6,8 +6,7 @@
+ 
+ /* Minimum value of three values.
+  */
+-#define MIN3(a, b, c) \
+-	((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
++#define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
+ 
+ /* LEVENSHTEIN DISTANCE
+  *
+@@ -187,13 +186,13 @@ fuzzy_match(char **fields, const char *pattern)
+ 	int n_pattern = strlen(pattern);
+ 
+ 	// the int array we use to compute distance
+-	g_autofree guint *v = VIPS_ARRAY(NULL, n_pattern + 1, guint);
++	guint *v = VIPS_ARRAY(NULL, n_pattern + 1, guint);
+ 
+ 	GSList *matches = NULL;
+ 
+ 	for (char **p = fields; *p; p++) {
+-		Fuzzy *fuzzy = g_new(Fuzzy, 1);
+ 		const char *field = *p;
++		Fuzzy *fuzzy = g_new(Fuzzy, 1);
+ 
+ 		fuzzy->field = field;
+ 		fuzzy->distance =
+@@ -203,5 +202,7 @@ fuzzy_match(char **fields, const char *pattern)
+ 
+ 	matches = g_slist_sort(matches, fuzzy_match_sort);
+ 
++	g_free(v);
++
+ 	return matches;
+ }
+diff --git a/src/gtkutil.c b/src/gtkutil.c
+index 755706a..6a669de 100644
+--- a/src/gtkutil.c
++++ b/src/gtkutil.c
+@@ -221,9 +221,3 @@ action_radio(GSimpleAction *action, GVariant *parameter, gpointer user_data)
+ {
+ 	g_action_change_state(G_ACTION(action), parameter);
+ }
+-
+-void
+-VipsArrayDouble_unref(VipsArrayDouble *array)
+-{
+-	vips_area_unref(VIPS_AREA(array));
+-}
+diff --git a/src/gtkutil.h b/src/gtkutil.h
+index 19fe794..cfc27c8 100644
+--- a/src/gtkutil.h
++++ b/src/gtkutil.h
+@@ -21,10 +21,3 @@ void action_toggle(GSimpleAction *action,
+ 	GVariant *parameter, gpointer user_data);
+ void action_radio(GSimpleAction *action, 
+ 	GVariant *parameter, gpointer user_data);
+-
+-void VipsArrayDouble_unref(VipsArrayDouble *array);
+-
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsImage, g_object_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsObject, g_object_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsArrayDouble, VipsArrayDouble_unref)
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(cairo_t, cairo_destroy)
+diff --git a/src/imagedisplay.c b/src/imagedisplay.c
+index c2e564d..dae8992 100644
+--- a/src/imagedisplay.c
++++ b/src/imagedisplay.c
+@@ -5,10 +5,6 @@
+ #define DEBUG
+  */
+ 
+-// the focus colour we paint
+-// FIXME ... we should somehow get this from the theme, I'm not sure how
+-#define BORDER ((GdkRGBA){ 0.4, 0.4, 0.6, 1 })
+-
+ struct _Imagedisplay {
+ 	GtkDrawingArea parent_instance;
+ 
+@@ -159,7 +155,8 @@ imagedisplay_adjustment_changed(GtkAdjustment *adjustment,
+ 		double top = gtk_adjustment_get_value(imagedisplay->vadj);
+ 
+ #ifdef DEBUG
+-		printf("imagedisplay_adjustment_changed: %g x %g\n", left, top);
++		printf("imagedisplay_adjustment_changed: %g x %g\n",
++			left, top);
+ #endif /*DEBUG*/
+ 
+ 		imagedisplay_set_transform(imagedisplay,
+@@ -187,7 +184,8 @@ imagedisplay_set_adjustment(Imagedisplay *imagedisplay,
+ 	}
+ 
+ 	if (!new_adjustment)
+-		new_adjustment = gtk_adjustment_new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
++		new_adjustment =
++			gtk_adjustment_new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+ 
+ 	g_signal_connect(new_adjustment, "value-changed",
+ 		G_CALLBACK(imagedisplay_adjustment_changed), imagedisplay);
+@@ -322,8 +320,11 @@ imagedisplay_tile_cache_changed(TileCache *tile_cache,
+ 	printf("imagedisplay_tile_cache_changed:\n");
+ #endif /*DEBUG*/
+ 
+-	imagedisplay->image_rect.width = tile_cache->tile_source->display_width;
+-	imagedisplay->image_rect.height = tile_cache->tile_source->display_height;
++	imagedisplay->image_rect.width =
++		tile_cache->tile_source->display_width;
++	imagedisplay->image_rect.height =
++		tile_cache->tile_source->display_height;
++
+ 	imagedisplay_layout(imagedisplay);
+ 
+ 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
+@@ -557,9 +558,7 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
+ 	/* Clip to the widget area, or we may paint over the display control
+ 	 * bar.
+ 	 */
+-	gtk_snapshot_push_clip(snapshot,
+-		&GRAPHENE_RECT_INIT(0, 0,
+-			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
++	gtk_snapshot_push_clip(snapshot, &GRAPHENE_RECT_INIT(0, 0, gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
+ 
+ 	if (imagedisplay->tile_cache &&
+ 		imagedisplay->tile_cache->tiles)
+@@ -574,6 +573,8 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
+ 	 * the focus rect ourselves.
+ 	 */
+ 	if (gtk_widget_has_focus(widget)) {
++#define BORDER ((GdkRGBA){ 0.4, 0.4, 0.6, 1 })
++
+ 		GskRoundedRect outline;
+ 
+ 		gsk_rounded_rect_init_from_rect(&outline,
+diff --git a/src/imagewindow.c b/src/imagewindow.c
+index 427ccf6..23da0c5 100644
+--- a/src/imagewindow.c
++++ b/src/imagewindow.c
+@@ -127,6 +127,7 @@ image_window_files_free(ImageWindow *win)
+ static void
+ image_window_set_error(ImageWindow *win, const char *message)
+ {
++	char *err;
+ 	int i;
+ 
+ #ifdef DEBUG
+@@ -135,10 +136,11 @@ image_window_set_error(ImageWindow *win, const char *message)
+ 
+ 	/* Remove any trailing \n.
+ 	 */
+-	g_autofree char *err = g_strdup(message);
++	err = g_strdup(message);
+ 	for (i = strlen(err); i > 0 && err[i - 1] == '\n'; i--)
+ 		err[i - 1] = '\0';
+ 	gtk_label_set_text(GTK_LABEL(win->error_label), err);
++	g_free(err);
+ 
+ 	gtk_info_bar_set_revealed(GTK_INFO_BAR(win->error_bar), TRUE);
+ }
+@@ -216,55 +218,68 @@ image_window_files_set_list(ImageWindow *win, GSList *files)
+ static void
+ image_window_files_set_path(ImageWindow *win, char *path)
+ {
+-	g_autofree char *dirname = g_path_get_dirname(path);
+-	g_autoptr(GFile) file = g_file_new_for_path(path);
++	char *dirname = g_path_get_dirname(path);
++	GFile *file = g_file_new_for_path(path);
+ 
+ 	GError *error = NULL;
+ 
++	GDir *dir;
++	GSList *files;
+ 	const char *filename;
+ 
+ #ifdef DEBUG
+ 	printf("image_window_files_set_path:\n");
+ #endif /*DEBUG*/
+ 
+-	g_autoptr(GDir) dir = g_dir_open(dirname, 0, &error);
++	dir = g_dir_open(dirname, 0, &error);
+ 	if (!dir) {
+ 		image_window_gerror(win, &error);
++		VIPS_FREE(dirname);
++		VIPS_UNREF(file);
+ 		return;
+ 	}
+ 
+-	GSList *files = NULL;
+-
++	files = NULL;
+ 	// always add the passed-in file, even if it doesn't exist
+ 	files = g_slist_prepend(files, g_strdup(path));
+ 
+ 	while ((filename = g_dir_read_name(dir))) {
+-		g_autofree char *path = g_build_path("/", dirname, filename, NULL);
+-		g_autoptr(GFile) this_file = g_file_new_for_path(path);
++		char *path = g_build_path("/", dirname, filename, NULL);
++		GFile *this_file = g_file_new_for_path(path);
+ 
+ 		// - never add the the passed-in filename (we add it above)
+ 		// - avoid directories and dotfiles
+ 		if (!g_file_equal(file, this_file) &&
+ 			!vips_isprefix(".", filename) &&
+ 			!g_file_test(path, G_FILE_TEST_IS_DIR))
+-			files = g_slist_prepend(files, g_steal_pointer(&path));
++			files = g_slist_prepend(files, g_strdup(path));
++
++		VIPS_UNREF(this_file);
++		VIPS_FREE(path);
+ 	}
+ 
++	VIPS_FREEF(g_dir_close, dir);
++	VIPS_FREE(dirname);
++
+ 	files = g_slist_sort(files, (GCompareFunc) sort_filenames);
+ 
+ 	image_window_files_set_list(win, files);
+ 
+-	// it's be great to use g_autoslist(), but I don't see how :(
+ 	g_slist_free_full(g_steal_pointer(&files), g_free);
+ 
+ 	for (int i = 0; i < win->n_files; i++) {
+-		g_autoptr(GFile) file2 = g_file_new_for_path(win->files[i]);
++		GFile *file2 = g_file_new_for_path(win->files[i]);
+ 
+ 		if (g_file_equal(file, file2)) {
+ 			win->current_file = i;
++			VIPS_UNREF(file2);
+ 			break;
+ 		}
++
++		VIPS_UNREF(file2);
+ 	}
++
++	VIPS_UNREF(file);
+ }
+ 
+ static void
+@@ -318,6 +333,8 @@ image_window_open_current_file(ImageWindow *win)
+ 		printf("image_window_open_current_file: %s:\n", filename);
+ #endif /*DEBUG*/
+ 
++		TileSource *tile_source;
++
+ 		/* FIXME ... we only want to revalidate if eg. the timestamp has
+ 		 * changed, or perhaps on F5?
+ 		VipsImage *image;
+@@ -330,9 +347,10 @@ image_window_open_current_file(ImageWindow *win)
+ 
+ 		image_window_error_hide(win);
+ 
+-		g_autoptr(TileSource) tile_source = tile_source_new_from_file(filename);
+-		if (tile_source)
++		if ((tile_source = tile_source_new_from_file(filename))) {
+ 			image_window_set_tile_source(win, tile_source);
++			g_object_unref(tile_source);
++		}
+ 		else
+ 			image_window_error(win);
+ 	}
+@@ -483,7 +501,8 @@ static void
+ image_window_preeval(VipsImage *image,
+ 	VipsProgress *progress, ImageWindow *win)
+ {
+-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), TRUE);
++	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar),
++		TRUE);
+ }
+ 
+ typedef struct _EvalUpdate {
+@@ -562,7 +581,8 @@ static void
+ image_window_posteval(VipsImage *image,
+ 	VipsProgress *progress, ImageWindow *win)
+ {
+-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), FALSE);
++	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar),
++		FALSE);
+ }
+ 
+ static void
+@@ -685,7 +705,8 @@ image_window_tick(GtkWidget *widget,
+ 			image_window_stop_animation(win);
+ 	}
+ 
+-	image_window_set_scale_position(win, new_scale, win->scale_x, win->scale_y);
++	image_window_set_scale_position(win,
++		new_scale, win->scale_x, win->scale_y);
+ 
+ 	win->last_frame_time = frame_time;
+ 
+@@ -799,9 +820,10 @@ texture_new_from_image(VipsImage *image)
+ 	if (vips_tiffsave_buffer(image, &buf, &len, NULL))
+ 		return NULL;
+ 
+-	g_autoptr(GBytes) bytes = g_bytes_new_take(buf, len);
++	GBytes *bytes = g_bytes_new_take(buf, len);
+ 	GError *error = NULL;
+ 	texture = gdk_texture_new_from_bytes(bytes, &error);
++	g_bytes_unref(bytes);
+ 	if (!texture) {
+ 		vips_error("Convert to texture", "%s", error->message);
+ 		g_error_free(error);
+@@ -818,17 +840,21 @@ image_window_copy_action(GSimpleAction *action,
+ 
+ 	if (win->tile_source) {
+ 		GdkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win));
+-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+ 
++		GFile *file;
+ 		VipsImage *image;
+ 
+-		if (file)
++		if ((file = tile_source_get_file(win->tile_source))) {
+ 			gdk_clipboard_set(clipboard, G_TYPE_FILE, file);
++			VIPS_UNREF(file);
++		}
+ 		else if ((image = tile_source_get_base_image(win->tile_source))) {
+-			g_autoptr(GdkTexture) texture = texture_new_from_image(image);
++			GdkTexture *texture;
+ 
+-			if (texture)
++			if ((texture = texture_new_from_image(image))) {
+ 				gdk_clipboard_set(clipboard, GDK_TYPE_TEXTURE, texture);
++				VIPS_UNREF(texture);
++			}
+ 			else
+ 				image_window_error(win);
+ 		}
+@@ -844,9 +870,8 @@ image_new_from_texture_free(VipsImage *image, GBytes *bytes)
+ static VipsImage *
+ image_new_from_texture(GdkTexture *texture)
+ {
+-	g_autoptr(GBytes) bytes = gdk_texture_save_to_tiff_bytes(texture);
+-
+-	if (bytes) {
++	GBytes *bytes = gdk_texture_save_to_tiff_bytes(texture);
++	if ((bytes = gdk_texture_save_to_tiff_bytes(texture))) {
+ 		gsize len;
+ 		gconstpointer data = g_bytes_get_data(bytes, &len);
+ 
+@@ -858,9 +883,12 @@ image_new_from_texture(GdkTexture *texture)
+ 
+ 			return image;
+ 		}
++
++		VIPS_FREEF(g_bytes_unref, bytes);
+ 	}
+ 	else
+-		vips_error("Convert to TIFF", _("unable to convert texture to TIFF"));
++		vips_error("Convert to TIFF",
++			_("unable to convert texture to TIFF"));
+ 
+ 	return NULL;
+ }
+@@ -870,9 +898,11 @@ image_window_set_from_value(ImageWindow *win, const GValue *value)
+ {
+ 	if (G_VALUE_TYPE(value) == GDK_TYPE_FILE_LIST) {
+ 		GdkFileList *file_list = g_value_get_boxed(value);
+-		g_autoptr(GSList) files = gdk_file_list_get_files(file_list);
++		GSList *files = gdk_file_list_get_files(file_list);
+ 
+ 		image_window_open_list_gfiles(win, files);
++
++		g_slist_free(files);
+ 	}
+ 	else if (G_VALUE_TYPE(value) == G_TYPE_FILE) {
+ 		GFile *file = g_value_get_object(value);
+@@ -880,18 +910,24 @@ image_window_set_from_value(ImageWindow *win, const GValue *value)
+ 		image_window_open_gfiles(win, &file, 1);
+ 	}
+ 	else if (G_VALUE_TYPE(value) == G_TYPE_STRING) {
++		char *text;
++
+ 		// remove leading and trailing whitespace
+ 		// modifies the string in place, so we must dup
+-		g_autofree char *text = g_strstrip(g_strdup(g_value_get_string(value)));
++		text = g_strstrip(g_strdup(g_value_get_string(value)));
+ 
+ 		image_window_open_files(win, (char **) &text, 1);
++
++		VIPS_FREE(text);
+ 	}
+ 	else if (G_VALUE_TYPE(value) == GDK_TYPE_TEXTURE) {
+ 		GdkTexture *texture = g_value_get_object(value);
+ 
+-		g_autoptr(VipsImage) image = image_new_from_texture(texture);
+-		if (image)
++		VipsImage *image;
++		if ((image = image_new_from_texture(texture))) {
+ 			image_window_open_image(win, image);
++			VIPS_UNREF(image);
++		}
+ 		else
+ 			image_window_error(win);
+ 	}
+@@ -991,11 +1027,12 @@ image_window_reload_action(GSimpleAction *action,
+ {
+ 	ImageWindow *win = IMAGE_WINDOW(user_data);
+ 
+-	if (win->tile_source) {
+-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
++	GFile *file;
+ 
+-		if (file)
+-			image_window_open_gfiles(win, &file, 1);
++	if (win->tile_source &&
++		(file = tile_source_get_file(win->tile_source))) {
++		image_window_open_gfiles(win, &file, 1);
++		VIPS_UNREF(file);
+ 	}
+ }
+ 
+@@ -1006,6 +1043,7 @@ image_window_duplicate_action(GSimpleAction *action,
+ 	ImageWindow *win = IMAGE_WINDOW(user_data);
+ 
+ 	VipsdispApp *app;
++	TileSource *tile_source;
+ 	ImageWindow *new;
+ 	int width, height;
+ 
+@@ -1014,14 +1052,13 @@ image_window_duplicate_action(GSimpleAction *action,
+ 	gtk_window_present(GTK_WINDOW(new));
+ 
+ 	if (win->tile_source) {
+-		g_autoptr(TileSource) tile_source =
+-			tile_source_duplicate(win->tile_source);
+-		if (!tile_source) {
++		if (!(tile_source =
++					tile_source_duplicate(win->tile_source))) {
+ 			image_window_error(new);
+ 			return;
+ 		}
+-
+ 		image_window_set_tile_source(new, tile_source);
++		g_object_unref(tile_source);
+ 	}
+ 
+ 	new->n_files = win->n_files;
+@@ -1068,21 +1105,22 @@ image_window_replace_result(GObject *source_object,
+ 	ImageWindow *win = IMAGE_WINDOW(user_data);
+ 	GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
+ 
+-	g_autoptr(GListModel) list =
+-		gtk_file_dialog_open_multiple_finish(dialog, res, NULL);
++	GListModel *list;
++
++	list = gtk_file_dialog_open_multiple_finish(dialog, res, NULL);
+ 	if (list) {
+ 		if (g_list_model_get_item_type(list) == G_TYPE_FILE) {
+ 			int n_files = g_list_model_get_n_items(list);
+-			g_autofree GFile **files = VIPS_ARRAY(NULL, n_files + 1, GFile *);
++			GFile **files = VIPS_ARRAY(NULL, n_files + 1, GFile *);
+ 			for (int i = 0; i < n_files; i++)
+ 				files[i] = G_FILE(g_list_model_get_object(list, i));
+ 
+ 			// update the default load directory
+ 			VIPS_UNREF(win->load_folder);
+ 			if (n_files > 0) {
+-				g_autoptr(GFile) file =
+-					G_FILE(g_list_model_get_object(list, 0));
++				GFile *file = G_FILE(g_list_model_get_object(list, 0));
+ 				win->load_folder = get_parent(file);
++				VIPS_UNREF(file);
+ 			}
+ 
+ 			image_window_error_hide(win);
+@@ -1092,6 +1130,8 @@ image_window_replace_result(GObject *source_object,
+ 				VIPS_UNREF(files[i]);
+ 			VIPS_FREE(files);
+ 		}
++
++		VIPS_UNREF(list);
+ 	}
+ }
+ 
+@@ -1102,16 +1142,17 @@ image_window_replace_action(GSimpleAction *action,
+ 	ImageWindow *win = IMAGE_WINDOW(user_data);
+ 
+ 	GtkFileDialog *dialog;
++	GFile *file;
+ 
+ 	dialog = gtk_file_dialog_new();
+ 	gtk_file_dialog_set_title(dialog, "Replace from file");
+ 	gtk_file_dialog_set_accept_label(dialog, "Replace");
+ 	gtk_file_dialog_set_modal(dialog, TRUE);
+ 
+-	if (win->tile_source) {
+-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+-		if (file)
+-			gtk_file_dialog_set_initial_file(dialog, file);
++	if (win->tile_source &&
++		(file = tile_source_get_file(win->tile_source))) {
++		gtk_file_dialog_set_initial_file(dialog, file);
++		g_object_unref(file);
+ 	}
+ 	else if (win->load_folder)
+ 		gtk_file_dialog_set_initial_folder(dialog, win->load_folder);
+@@ -1138,20 +1179,25 @@ image_window_on_file_save_cb(GObject *source_object,
+ {
+ 	ImageWindow *win = IMAGE_WINDOW(user_data);
+ 	GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
++	GFile *file;
+ 
+-	g_autoptr(GFile) file = gtk_file_dialog_save_finish(dialog, res, NULL);
++	file = gtk_file_dialog_save_finish(dialog, res, NULL);
+ 	if (file) {
++		char *filename;
+ 		SaveOptions *options;
+ 
+ 		// note the save directory for next time
+ 		VIPS_UNREF(win->save_folder);
+ 		win->save_folder = get_parent(file);
+ 
+-		g_autofree char *filename = g_file_get_path(file);
++		filename = g_file_get_path(file);
++		g_object_unref(file);
+ 
+ 		options = save_options_new(GTK_WINDOW(win),
+ 			tile_source_get_base_image(win->tile_source), filename);
+ 
++		g_free(filename);
++
+ 		if (!options) {
+ 			image_window_error(win);
+ 			return;
+@@ -1173,14 +1219,16 @@ image_window_saveas_action(GSimpleAction *action,
+ 
+ 	if (win->tile_source) {
+ 		GtkFileDialog *dialog;
++		GFile *file;
+ 
+ 		dialog = gtk_file_dialog_new();
+ 		gtk_file_dialog_set_title(dialog, "Save file");
+ 		gtk_file_dialog_set_modal(dialog, TRUE);
+ 
+-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+-		if (file)
++		if ((file = tile_source_get_file(win->tile_source))) {
+ 			gtk_file_dialog_set_initial_file(dialog, file);
++			g_object_unref(file);
++		}
+ 		else if (win->save_folder)
+ 			gtk_file_dialog_set_initial_folder(dialog, win->save_folder);
+ 
+@@ -1251,13 +1299,15 @@ image_window_key_pressed(GtkEventControllerKey *self,
+ 
+ 	case GDK_KEY_i:
+ 		image_window_get_mouse_position(win, &scale_x, &scale_y);
+-		image_window_scale_continuous(win, 1.5 * SCALE_STEP, scale_x, scale_y);
++		image_window_scale_continuous(win, 1.5 * SCALE_STEP,
++			scale_x, scale_y);
+ 		handled = TRUE;
+ 		break;
+ 
+ 	case GDK_KEY_o:
+ 		image_window_get_mouse_position(win, &scale_x, &scale_y);
+-		image_window_scale_continuous(win, 0.2 * SCALE_STEP, scale_x, scale_y);
++		image_window_scale_continuous(win, 0.2 * SCALE_STEP,
++			scale_x, scale_y);
+ 		handled = TRUE;
+ 		break;
+ 
+@@ -1594,7 +1644,8 @@ image_window_find_scale(ImageWindow *win, VipsObject *context,
+ 	 *
+ 	 * Alternatively, run this in a BG thread.
+ 	 */
+-	if (vips_extract_area(image, &t[0], left, top, width, height, NULL) ||
++	if (vips_extract_area(image, &t[0],
++			left, top, width, height, NULL) ||
+ 		vips_stats(t[0], &t[1], NULL))
+ 		return -1;
+ 
+@@ -1623,6 +1674,7 @@ image_window_scale(GSimpleAction *action,
+ 		(image = tile_source_get_image(win->tile_source))) {
+ 		double image_scale;
+ 		int left, top, width, height;
++		VipsImage *context;
+ 		double scale, offset;
+ 
+ 		image_scale = image_window_get_scale(win);
+@@ -1637,12 +1689,14 @@ image_window_scale(GSimpleAction *action,
+ 		 * cached tiles we have.
+ 		 */
+ 
+-		g_autoptr(VipsImage) context = vips_image_new();
++		context = vips_image_new();
+ 		if (image_window_find_scale(win, VIPS_OBJECT(context), image,
+ 				left, top, width, height, &scale, &offset)) {
+ 			image_window_error(win);
++			g_object_unref(context);
+ 			return;
+ 		}
++		g_object_unref(context);
+ 
+ 		g_object_set(win->tile_source,
+ 			"scale", scale,
+@@ -2218,11 +2272,15 @@ image_window_open_gfiles(ImageWindow *win, GFile **gfiles, int n_files)
+ 	printf("image_window_open_gfiles:\n");
+ #endif /*DEBUG*/
+ 
+-	g_auto(GStrv) files = VIPS_ARRAY(NULL, n_files + 1, char *);
++	char **files;
++
++	files = VIPS_ARRAY(NULL, n_files + 1, char *);
+ 	for (int i = 0; i < n_files; i++)
+ 		files[i] = g_file_get_path(gfiles[i]);
+ 
+ 	image_window_open_files(win, files, n_files);
++
++	g_strfreev(files);
+ }
+ 
+ void
+@@ -2232,11 +2290,14 @@ image_window_open_image(ImageWindow *win, VipsImage *image)
+ 	printf("image_window_open_image:\n");
+ #endif /*DEBUG*/
+ 
+-	g_autoptr(TileSource) tile_source = tile_source_new_from_image(image);
+-	if (tile_source) {
++	TileSource *tile_source;
++
++	if ((tile_source = tile_source_new_from_image(image))) {
+ 		// no longer have a file backed image
+ 		image_window_files_free(win);
+ 		image_window_set_tile_source(win, tile_source);
++
++		VIPS_UNREF(tile_source);
+ 	}
+ }
+ 
+diff --git a/src/infobar.c b/src/infobar.c
+index 9bdd1b9..2c3a129 100644
+--- a/src/infobar.c
++++ b/src/infobar.c
+@@ -257,8 +257,11 @@ infobar_status_update(Infobar *infobar)
+ static void
+ infobar_status_changed(ImageWindow *win, Infobar *infobar)
+ {
+-	if (!gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)) ||
+-		!image_window_get_tile_source(infobar->win))
++	if (!gtk_action_bar_get_revealed(
++			GTK_ACTION_BAR(infobar->action_bar)))
++		return;
++
++	if (!image_window_get_tile_source(infobar->win))
+ 		return;
+ 
+ #ifdef DEBUG
+@@ -330,7 +333,6 @@ infobar_get_property(GObject *object,
+ 	guint prop_id, GValue *value, GParamSpec *pspec)
+ {
+ 	Infobar *infobar = (Infobar *) object;
+-	GtkActionBar *action_bar = GTK_ACTION_BAR(infobar->action_bar);
+ 
+ 	switch (prop_id) {
+ 	case PROP_IMAGE_WINDOW:
+@@ -338,7 +340,7 @@ infobar_get_property(GObject *object,
+ 		break;
+ 
+ 	case PROP_REVEALED:
+-		g_value_set_boolean(value, gtk_action_bar_get_revealed(action_bar));
++		g_value_set_boolean(value, gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)));
+ 		break;
+ 
+ 	default:
+diff --git a/src/properties.c b/src/properties.c
+index cbb75c1..674b00d 100644
+--- a/src/properties.c
++++ b/src/properties.c
+@@ -150,7 +150,7 @@ properties_refresh(Properties *p)
+ 			properties_add_row(p, "", NULL);
+ 			properties_add_row(p, "Did you mean ...", NULL);
+ 
+-			g_auto(GStrv) fields = vips_image_get_fields(image);
++			char **fields = vips_image_get_fields(image);
+ 			GSList *matches = fuzzy_match(fields, p->pattern);
+ 			int n_displayed;
+ 
+@@ -161,10 +161,11 @@ properties_refresh(Properties *p)
+ 				// don't show fields we have already displayed in the
+ 				// main search area
+ 				if (!g_strrstr(fuzzy->field, p->pattern)) {
+-					g_auto(GValue) value = { 0 };
++					GValue value = { 0 };
+ 
+ 					vips_image_get(image, fuzzy->field, &value);
+ 					properties_add_item(p, fuzzy->field, &value);
++					g_value_unset(&value);
+ 
+ 					if (n_displayed++ > NUM_INEXACT_MATCHES)
+ 						break;
+@@ -172,6 +173,7 @@ properties_refresh(Properties *p)
+ 			}
+ 
+ 			g_slist_free_full(g_steal_pointer(&matches), g_free);
++			VIPS_FREEF(g_strfreev, fields);
+ 		}
+ 		else
+ 			vips_image_map(image, properties_refresh_add_item_cb, p);
+@@ -257,11 +259,12 @@ properties_set_property(GObject *object, guint prop_id,
+ 
+ #ifdef DEBUG
+ 	{
+-		g_autofree char *str = g_strdup_value_contents(value);
++		char *str;
+ 
+ 		str = g_strdup_value_contents(value);
+ 		printf("properties_set_property: %s %s\n",
+ 			properties_property_name(prop_id), str);
++		g_free(str);
+ 	}
+ #endif /*DEBUG*/
+ 
+@@ -277,7 +280,8 @@ properties_set_property(GObject *object, guint prop_id,
+ 			gtk_revealer_get_reveal_child(GTK_REVEALER(p->revealer));
+ 
+ 		if (current_revealed != revealed) {
+-			gtk_revealer_set_reveal_child(GTK_REVEALER(p->revealer), revealed);
++			gtk_revealer_set_reveal_child(GTK_REVEALER(p->revealer),
++				revealed);
+ 			g_object_notify_by_pspec(object, pspec);
+ 		}
+ 	} break;
+@@ -309,9 +313,12 @@ properties_get_property(GObject *p_,
+ 
+ #ifdef DEBUG
+ 	{
+-		g_autofree char *str = g_strdup_value_contents(value);
++		char *str;
++
++		str = g_strdup_value_contents(value);
+ 		printf("properties_get_property: %s %s\n",
+ 			properties_property_name(prop_id), str);
++		g_free(str);
+ 	}
+ #endif /*DEBUG*/
+ }
+diff --git a/src/saveoptions.c b/src/saveoptions.c
+index 6472419..0305390 100644
+--- a/src/saveoptions.c
++++ b/src/saveoptions.c
+@@ -53,15 +53,17 @@ save_options_dispose(GObject *object)
+ static void
+ save_options_error(SaveOptions *options)
+ {
++	char *err;
+ 	int i;
+ 
+ 	/* Remove any trailing \n.
+ 	 */
+-	g_autofree char *err = vips_error_buffer_copy();
++	err = vips_error_buffer_copy();
+ 	vips_error_clear();
+ 	for (i = strlen(err); i > 0 && err[i - 1] == '\n'; i--)
+ 		err[i - 1] = '\0';
+ 	gtk_label_set_text(GTK_LABEL(options->error_label), err);
++	g_free(err);
+ 
+ 	gtk_info_bar_set_revealed(GTK_INFO_BAR(options->error_bar), TRUE);
+ }
+@@ -83,7 +85,8 @@ static void
+ save_options_preeval(VipsImage *image,
+ 	VipsProgress *progress, SaveOptions *options)
+ {
+-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar), TRUE);
++	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar),
++		TRUE);
+ }
+ 
+ static void
+@@ -123,7 +126,8 @@ static void
+ save_options_posteval(VipsImage *image,
+ 	VipsProgress *progress, SaveOptions *options)
+ {
+-	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar), FALSE);
++	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->progress_bar),
++		FALSE);
+ }
+ 
+ static void
+@@ -248,16 +252,19 @@ save_options_fetch_option(SaveOptions *options, GParamSpec *pspec)
+ 		else if (g_type_is_a(otype, VIPS_TYPE_ARRAY_DOUBLE)) {
+ 			gdouble value = gtk_spin_button_get_value(GTK_SPIN_BUTTON(t));
+ 
+-			g_autoptr(VipsArrayDouble) array = vips_array_double_newv(1, value);
++			VipsArrayDouble *array;
+ 
+ 			/* For now just pretend every array-type parameter has
+ 			 * one element.
+ 			 *
+ 			 * TODO handle arrays with two or more elements
+ 			 */
++			array = vips_array_double_newv(1, value);
+ 			g_object_set(options->save_operation,
+ 				name, array,
+ 				NULL);
++
++			vips_area_unref(VIPS_AREA(array));
+ 		}
+ 	}
+ }
+@@ -394,8 +401,7 @@ save_options_add_option(SaveOptions *options, GParamSpec *pspec, int *row)
+ 	else if (G_IS_PARAM_SPEC_ENUM(pspec)) {
+ 		GParamSpecEnum *pspec_enum = G_PARAM_SPEC_ENUM(pspec);
+ 		int n_values = pspec_enum->enum_class->n_values - 1;
+-		g_autofree const char **nicknames =
+-			VIPS_ARRAY(NULL, n_values + 1, const char *);
++		const char **nicknames = VIPS_ARRAY(NULL, n_values + 1, const char *);
+ 
+ 		for (int i = 0; i < n_values; ++i)
+ 			nicknames[i] = pspec_enum->enum_class->values[i].value_nick;
+@@ -404,6 +410,8 @@ save_options_add_option(SaveOptions *options, GParamSpec *pspec, int *row)
+ 		t = gtk_drop_down_new_from_strings(nicknames);
+ 		gtk_drop_down_set_selected(GTK_DROP_DOWN(t),
+ 			pspec_enum->default_value);
++
++		g_free(nicknames);
+ 	}
+ 	else if (G_IS_PARAM_SPEC_FLAGS(pspec)) {
+ 		GParamSpecFlags *pspec_flags = G_PARAM_SPEC_FLAGS(pspec);
+@@ -559,14 +567,16 @@ save_options_new(GtkWindow *parent_window,
+ 	const char *saver;
+ 	SaveOptions *options;
+ 
+-	g_autofree char *base = g_path_get_basename(filename);
+-	g_autofree char *title = g_strdup_printf("Save image to \"%s\"", base);
++	char *base = g_path_get_basename(filename);
++	char *title = g_strdup_printf("Save image to \"%s\"", base);
+ 	options = g_object_new(SAVE_OPTIONS_TYPE,
+ 		// we have to set this here, not in the ui file, for some reason
+ 		"use-header-bar", true,
+ 		"transient-for", parent_window,
+ 		"title", title,
+ 		NULL);
++	g_free(title);
++	g_free(base);
+ 
+ 	options->image = image;
+ 	g_object_ref(image);
+diff --git a/src/tile.c b/src/tile.c
+index 8aace1d..2072f98 100644
+--- a/src/tile.c
++++ b/src/tile.c
+@@ -64,7 +64,7 @@ tile_touch(Tile *tile)
+ Tile *
+ tile_new(VipsImage *level, int left, int top, int z)
+ {
+-	g_autoptr(Tile) tile = g_object_new(TYPE_TILE, NULL);
++	Tile *tile = g_object_new(TYPE_TILE, NULL);
+ 
+ 	VipsRect tile_bounds;
+ 	VipsRect image_bounds;
+@@ -81,8 +81,10 @@ tile_new(VipsImage *level, int left, int top, int z)
+ 	tile_bounds.width = TILE_SIZE;
+ 	tile_bounds.height = TILE_SIZE;
+ 	vips_rect_intersectrect(&image_bounds, &tile_bounds, &tile_bounds);
+-	if (vips_region_buffer(tile->region, &tile_bounds))
++	if (vips_region_buffer(tile->region, &tile_bounds)) {
++		VIPS_UNREF(tile);
+ 		return NULL;
++	}
+ 
+ 	/* Tile bounds in level 0 coordinates.
+ 	 */
+@@ -93,7 +95,7 @@ tile_new(VipsImage *level, int left, int top, int z)
+ 
+ 	tile_touch(tile);
+ 
+-	return g_steal_pointer(&tile);
++	return tile;
+ }
+ 
+ /* NULL means pixels have not arrived from libvips yet.
+diff --git a/src/tile.h b/src/tile.h
+index b390e50..aae66c7 100644
+--- a/src/tile.h
++++ b/src/tile.h
+@@ -59,8 +59,6 @@ typedef struct _TileClass {
+ 
+ } TileClass;
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(Tile, g_object_unref)
+-
+ GType tile_get_type(void);
+ 
+ /* Get the current time.
+diff --git a/src/tilecache.c b/src/tilecache.c
+index 7ecb123..816107e 100644
+--- a/src/tilecache.c
++++ b/src/tilecache.c
+@@ -102,9 +102,13 @@ tile_cache_checkerboard_destroy_notify(guchar *pixels, gpointer data)
+ static GdkTexture *
+ tile_cache_texture(TileCacheBackground background)
+ {
++	VipsPel *data;
++	GdkPixbuf *pixbuf;
++	GdkTexture *texture;
+ 	int x, y, z;
+ 
+-	VipsPel *data = g_malloc(TILE_SIZE * TILE_SIZE * 3);
++	data = g_malloc(TILE_SIZE * TILE_SIZE * 3);
++
+ 	for (y = 0; y < TILE_SIZE; y++)
+ 		for (x = 0; x < TILE_SIZE; x++)
+ 			for (z = 0; z < 3; z++) {
+@@ -128,20 +132,24 @@ tile_cache_texture(TileCacheBackground background)
+ 				data[y * TILE_SIZE * 3 + x * 3 + z] = v;
+ 			}
+ 
+-	g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_data(data,
+-		GDK_COLORSPACE_RGB,
++	pixbuf = gdk_pixbuf_new_from_data(data, GDK_COLORSPACE_RGB,
+ 		FALSE, 8,
+ 		TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
+ 		tile_cache_checkerboard_destroy_notify, NULL);
+ 
+-	return gdk_texture_new_for_pixbuf(pixbuf);
++	texture = gdk_texture_new_for_pixbuf(pixbuf);
++
++	g_object_unref(pixbuf);
++
++	return texture;
+ }
+ 
+ static void
+ tile_cache_init(TileCache *tile_cache)
+ {
+ 	tile_cache->background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
+-	tile_cache->background_texture = tile_cache_texture(tile_cache->background);
++	tile_cache->background_texture =
++		tile_cache_texture(tile_cache->background);
+ }
+ 
+ static void
+@@ -382,7 +390,7 @@ tile_cache_free_oldest(TileCache *tile_cache, int z)
+ 			tile_cache_sort_lru);
+ 
+ 		for (i = 0; i < n_to_free; i++) {
+-			g_autoptr(Tile) tile = TILE(tile_cache->free[z]->data);
++			Tile *tile = TILE(tile_cache->free[z]->data);
+ 
+ 			g_assert(g_slist_find(tile_cache->tiles[z], tile));
+ 
+@@ -392,6 +400,7 @@ tile_cache_free_oldest(TileCache *tile_cache, int z)
+ 				g_slist_remove(tile_cache->visible[z], tile);
+ 			tile_cache->free[z] =
+ 				g_slist_remove(tile_cache->free[z], tile);
++			VIPS_UNREF(tile);
+ 		}
+ 	}
+ }
+@@ -640,7 +649,7 @@ tile_cache_fetch_area(TileCache *tile_cache, VipsRect *viewport, int z)
+ 	}
+ }
+ 
+-/* Everything has changed, eg. page turn and the image geometry has changed.
++/* Eevetrything has changed, eg. page turn and the image geometry has changed.
+  */
+ static void
+ tile_cache_source_changed(TileSource *tile_source, TileCache *tile_cache)
+@@ -754,10 +763,11 @@ tile_cache_draw_bounds(GtkSnapshot *snapshot,
+ 	 */
+ 	if (bounds->size.width < 32000 &&
+ 		bounds->size.height < 32000) {
++		cairo_t *cr;
+ 		char str[256];
+ 		VipsBuf buf = VIPS_BUF_STATIC(str);
+ 
+-		g_autoptr(cairo_t) cr = gtk_snapshot_append_cairo(snapshot, bounds);
++		cr = gtk_snapshot_append_cairo(snapshot, bounds);
+ 
+ 		cairo_set_source_rgb(cr, 0, 1, 0);
+ 		cairo_set_font_size(cr, 12);
+@@ -773,6 +783,8 @@ tile_cache_draw_bounds(GtkSnapshot *snapshot,
+ 		vips_buf_rewind(&buf);
+ 		vips_buf_appendf(&buf, "%d", tile->time);
+ 		cairo_show_text(cr, vips_buf_all(&buf));
++
++		cairo_destroy(cr);
+ 	}
+ }
+ 
+@@ -888,8 +900,10 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
+ #if GTK_CHECK_VERSION(4, 10, 0)
+ 			// add a margin along the right and bottom to prevent black seams
+ 			// at tile joins
+-			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
+-			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
++			bounds.origin.x = tile->bounds.left * scale -
++				x + paint_rect->left;
++			bounds.origin.y = tile->bounds.top * scale -
++				y + paint_rect->top;
+ 			bounds.size.width = tile->bounds.width * scale + 2;
+ 			bounds.size.height = tile->bounds.height * scale + 2;
+ 
+@@ -898,8 +912,10 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
+ 				GSK_SCALING_FILTER_NEAREST,
+ 				&bounds);
+ #else
+-			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
+-			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
++			bounds.origin.x = tile->bounds.left * scale -
++				x + paint_rect->left;
++			bounds.origin.y = tile->bounds.top * scale -
++				y + paint_rect->top;
+ 			bounds.size.width = tile->bounds.width * scale + 0.5;
+ 			bounds.size.height = tile->bounds.height * scale + 0.5;
+ 
+@@ -911,7 +927,8 @@ tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
+ 			 * tile pointer and age.
+ 			 */
+ 			if (debug)
+-				tile_cache_draw_bounds(snapshot, tile, &bounds);
++				tile_cache_draw_bounds(snapshot,
++					tile, &bounds);
+ 		}
+ 	}
+ 
+diff --git a/src/tilecache.h b/src/tilecache.h
+index 60b4e79..6fb47ec 100644
+--- a/src/tilecache.h
++++ b/src/tilecache.h
+@@ -66,8 +66,6 @@ typedef struct _TileCacheClass {
+ 
+ } TileCacheClass;
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(TileCache, g_object_unref)
+-
+ GType tile_cache_get_type(void);
+ 
+ TileCache *tile_cache_new(TileSource *tile_source);
+diff --git a/src/tilesource.c b/src/tilesource.c
+index 071e5ef..ddb6c4b 100644
+--- a/src/tilesource.c
++++ b/src/tilesource.c
+@@ -195,7 +195,8 @@ tile_source_render_notify_idle(void *user_data)
+ 	 * pipeline.
+ 	 */
+ 	if (update->image == tile_source->display)
+-		tile_source_area_changed(tile_source, &update->rect, update->z);
++		tile_source_area_changed(tile_source,
++			&update->rect, update->z);
+ 
+ 	/* The update that's just for this one event needs freeing.
+ 	 */
+@@ -231,13 +232,13 @@ tile_source_render_notify(VipsImage *image, VipsRect *rect, void *client)
+ static VipsImage *
+ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ {
++	VipsImage *image;
+ 	VipsImage *x;
+ 	VipsImage *mask;
+ 	TileSourceUpdate *update;
+ 
+ 	g_assert(mask_out);
+ 
+-	g_autoptr(VipsImage) image = NULL;
+ 	if (tile_source->level_count) {
+ 		/* There's a pyramid ... compute the size of image we need,
+ 		 * then find the layer which is one larger.
+@@ -267,7 +268,8 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 			tile_source->page);
+ #endif /*DEBUG*/
+ 
+-		if (!(image = tile_source_open(tile_source, tile_source->page)))
++		if (!(image = tile_source_open(tile_source,
++				  tile_source->page)))
+ 			return NULL;
+ 	}
+ 	else {
+@@ -290,8 +292,10 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 
+ 		if (vips_crop(image, &x,
+ 				0, tile_source->page * page_height,
+-				page_width, page_height, NULL))
++				page_width, page_height, NULL)) {
++			VIPS_UNREF(image);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+@@ -309,7 +313,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 		// more than 3 for the info bar
+ 		int n_pages = VIPS_MIN(10, tile_source->n_pages);
+ 
+-		g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
++		VipsObject *context = VIPS_OBJECT(vips_image_new());
+ 		VipsImage **t = (VipsImage **)
+ 			vips_object_local_array(context, n_pages);
+ 
+@@ -319,11 +323,18 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 		for (page = 0; page < n_pages; page++)
+ 			if (vips_crop(image, &t[page],
+ 					0, page * page_height, page_width, page_height,
+-					NULL))
++					NULL)) {
++				VIPS_UNREF(context);
++				VIPS_UNREF(image);
+ 				return NULL;
+-		if (vips_bandjoin(t, &x, n_pages, NULL))
++			}
++		if (vips_bandjoin(t, &x, n_pages, NULL)) {
++			VIPS_UNREF(context);
++			VIPS_UNREF(image);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
++		VIPS_UNREF(context);
+ 		image = x;
+ 
+ 		/* Pick an interpretation ... one of the RGB types, if we
+@@ -339,19 +350,23 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 	 */
+ 	if (image->Type == VIPS_INTERPRETATION_HISTOGRAM &&
+ 		(image->Xsize == 1 || image->Ysize == 1)) {
+-		g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
+-		VipsImage **t = (VipsImage **) vips_object_local_array(context, 7);
++		VipsImage *context = vips_image_new();
++		VipsImage **t = (VipsImage **)
++			vips_object_local_array(VIPS_OBJECT(context), 7);
+ 
+ 		// so it's unreffed when we unref context
+ 		t[0] = image;
+ 
+ 		if (vips_image_decode(t[0], &t[1]) ||
+ 			vips_hist_norm(t[1], &t[3], NULL) ||
+-			vips_hist_plot(t[3], &t[4], NULL))
++			vips_hist_plot(t[3], &t[4], NULL)) {
++			VIPS_UNREF(context);
+ 			return NULL;
++		}
+ 
+ 		image = t[4];
+ 		g_object_ref(image);
++		VIPS_UNREF(context);
+ 	}
+ 
+ 	if (tile_source->current_z > 0) {
+@@ -362,8 +377,10 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 		int subsample = image->Xsize /
+ 			(tile_source->display_width >> tile_source->current_z);
+ 
+-		if (vips_subsample(image, &x, subsample, subsample, NULL))
++		if (vips_subsample(image, &x, subsample, subsample, NULL)) {
++			VIPS_UNREF(image);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+@@ -392,6 +409,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 			tile_source_render_notify, update)) {
+ 		VIPS_UNREF(x);
+ 		VIPS_UNREF(mask);
++		VIPS_UNREF(image);
+ 		return NULL;
+ 	}
+ 	VIPS_UNREF(image);
+@@ -401,7 +419,7 @@ tile_source_display_image(TileSource *tile_source, VipsImage **mask_out)
+ 
+ 	*mask_out = mask;
+ 
+-	return g_steal_pointer(&image);
++	return image;
+ }
+ 
+ static VipsImage *
+@@ -410,8 +428,9 @@ tile_source_image_log(VipsImage *image)
+ 	static const double power = 0.25;
+ 	const double scale = 255.0 / log10(1.0 + pow(255.0, power));
+ 
+-	g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
+-	VipsImage **t = (VipsImage **) vips_object_local_array(context, 7);
++	VipsImage *context = vips_image_new();
++	VipsImage **t = (VipsImage **)
++		vips_object_local_array(VIPS_OBJECT(context), 7);
+ 
+ 	VipsImage *x;
+ 
+@@ -420,8 +439,10 @@ tile_source_image_log(VipsImage *image)
+ 		vips_log10(t[1], &t[2], NULL) ||
+ 		// add 0.5 to get round to nearest
+ 		vips_linear1(t[2], &x, scale, 0.5, NULL)) {
++		g_object_unref(context);
+ 		return NULL;
+ 	}
++	VIPS_UNREF(context);
+ 	image = x;
+ 
+ 	return image;
+@@ -465,16 +486,20 @@ tile_source_n_colour(VipsImage *image)
+ static VipsImage *
+ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ {
++	VipsImage *image;
+ 	VipsImage *x;
+ 	int n_bands;
++	VipsImage *alpha;
+ 
+-	g_autoptr(VipsImage) image = in;
++	image = in;
+ 	g_object_ref(image);
+ 
+ 	/* Coded images won't unalpha correctly.
+ 	 */
+-	if (vips_image_decode(image, &x))
++	if (vips_image_decode(image, &x)) {
++		VIPS_UNREF(image);
+ 		return NULL;
++	}
+ 	VIPS_UNREF(image);
+ 	image = x;
+ 
+@@ -486,15 +511,19 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 	/* We don't want vis controls to touch alpha ... remove and reattach at
+ 	 * the end.
+ 	 */
+-	g_autoptr(VipsImage) alpha = NULL;
++	alpha = NULL;
+ 	n_bands = tile_source_n_colour(image);
+ 	if (image->Bands > n_bands) {
+-		if (vips_extract_band(image, &x, 0, "n", n_bands, NULL))
++		if (vips_extract_band(image, &x, 0, "n", n_bands, NULL)) {
++			VIPS_UNREF(image);
+ 			return NULL;
++		}
+ 
+ 		// just use the first alpha
+-		if (vips_extract_band(image, &alpha, n_bands, "n", 1, NULL))
++		if (vips_extract_band(image, &alpha, n_bands, "n", 1, NULL)) {
++			VIPS_UNREF(image);
+ 			return NULL;
++		}
+ 
+ 		VIPS_UNREF(image);
+ 		image = x;
+@@ -511,8 +540,11 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 			image->Type == VIPS_INTERPRETATION_FOURIER)) {
+ 		if (tile_source->log ||
+ 			image->Type == VIPS_INTERPRETATION_FOURIER) {
+-			if (!(x = tile_source_image_log(image)))
++			if (!(x = tile_source_image_log(image))) {
++				VIPS_UNREF(image);
++				VIPS_UNREF(alpha);
+ 				return NULL;
++			}
+ 			VIPS_UNREF(image);
+ 			image = x;
+ 		}
+@@ -521,8 +553,11 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 			tile_source->offset != 0.0) {
+ 			if (vips_linear1(image, &x,
+ 					tile_source->scale, tile_source->offset,
+-					NULL))
++					NULL)) {
++				VIPS_UNREF(image);
++				VIPS_UNREF(alpha);
+ 				return NULL;
++			}
+ 			VIPS_UNREF(image);
+ 			image = x;
+ 		}
+@@ -532,8 +567,11 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 	 */
+ 	if (tile_source->active &&
+ 		tile_source->icc) {
+-		if (vips_icc_transform(image, &x, "srgb", NULL))
++		if (vips_icc_transform(image, &x, "srgb", NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+@@ -543,15 +581,21 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 	if (image->Type != VIPS_INTERPRETATION_sRGB &&
+ 		vips_colourspace_issupported(image)) {
+ 		if (vips_colourspace(image, &x, VIPS_INTERPRETATION_sRGB,
+-				NULL))
++				NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+ 
+ 	if (image->BandFmt != VIPS_FORMAT_UCHAR) {
+-		if (vips_cast(image, &x, VIPS_FORMAT_UCHAR, NULL))
++		if (vips_cast(image, &x, VIPS_FORMAT_UCHAR, NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+@@ -560,26 +604,37 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
+ 	 */
+ 	if (tile_source->active &&
+ 		tile_source->falsecolour) {
+-		if (vips_falsecolour(image, &x, NULL))
++		if (vips_falsecolour(image, &x, NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(image);
+ 		image = x;
+ 	}
+ 
+ 	// reattach alpha
+ 	if (alpha) {
+-		if (vips_cast(alpha, &x, image->BandFmt, NULL))
++		if (vips_cast(alpha, &x, image->BandFmt, NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
+ 		VIPS_UNREF(alpha);
+ 		alpha = x;
+ 
+-		if (vips_bandjoin2(image, alpha, &x, NULL))
++		if (vips_bandjoin2(image, alpha, &x, NULL)) {
++			VIPS_UNREF(image);
++			VIPS_UNREF(alpha);
+ 			return NULL;
++		}
++
+ 		VIPS_UNREF(image);
++		VIPS_UNREF(alpha);
+ 		image = x;
+ 	}
+ 
+-	return g_steal_pointer(&image);
++	return image;
+ }
+ 
+ /* Rebuild just the second half of the image pipeline, eg. after a change to
+@@ -750,9 +805,12 @@ tile_source_set_property(GObject *object,
+ 
+ #ifdef DEBUG
+ 	{
+-		g_autofree char *str = g_strdup_value_contents(value);
++		char *str;
++
++		str = g_strdup_value_contents(value);
+ 		printf("tile_source_set_property: %s %s\n",
+ 			tile_source_property_name(prop_id), str);
++		g_free(str);
+ 	}
+ #endif /*DEBUG*/
+ 
+@@ -766,7 +824,8 @@ tile_source_set_property(GObject *object,
+ 			tile_source->display_width = tile_source->width;
+ 			tile_source->display_height = tile_source->height;
+ 			if (tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL)
+-				tile_source->display_height *= tile_source->n_pages;
++				tile_source->display_height *=
++					tile_source->n_pages;
+ 
+ 			tile_source_update_display(tile_source);
+ 
+@@ -775,7 +834,8 @@ tile_source_set_property(GObject *object,
+ 			/* In animation mode, create the page flip timeout.
+ 			 */
+ 			if (tile_source->page_flip_id)
+-				VIPS_FREEF(g_source_remove, tile_source->page_flip_id);
++				VIPS_FREEF(g_source_remove,
++					tile_source->page_flip_id);
+ 			if (tile_source->mode == TILE_SOURCE_MODE_ANIMATED &&
+ 				tile_source->n_pages > 1)
+ 				tile_source->page_flip_id = g_timeout_add(100,
+@@ -790,6 +850,7 @@ tile_source_set_property(GObject *object,
+ 			tile_source->scale != d) {
+ 			tile_source->scale = d;
+ 			tile_source_update_rgb(tile_source);
++
+ 			tile_source_tiles_changed(tile_source);
+ 		}
+ 		break;
+@@ -801,6 +862,7 @@ tile_source_set_property(GObject *object,
+ 			tile_source->offset != d) {
+ 			tile_source->offset = d;
+ 			tile_source_update_rgb(tile_source);
++
+ 			tile_source_tiles_changed(tile_source);
+ 		}
+ 		break;
+@@ -840,6 +902,7 @@ tile_source_set_property(GObject *object,
+ 		if (tile_source->log != b) {
+ 			tile_source->log = b;
+ 			tile_source_update_rgb(tile_source);
++
+ 			tile_source_tiles_changed(tile_source);
+ 		}
+ 		break;
+@@ -849,6 +912,7 @@ tile_source_set_property(GObject *object,
+ 		if (tile_source->icc != b) {
+ 			tile_source->icc = b;
+ 			tile_source_update_rgb(tile_source);
++
+ 			tile_source_tiles_changed(tile_source);
+ 		}
+ 		break;
+@@ -858,6 +922,7 @@ tile_source_set_property(GObject *object,
+ 		if (tile_source->active != b) {
+ 			tile_source->active = b;
+ 			tile_source_update_rgb(tile_source);
++
+ 			tile_source_tiles_changed(tile_source);
+ 		}
+ 		break;
+@@ -867,6 +932,7 @@ tile_source_set_property(GObject *object,
+ 		if (tile_source->loaded != b) {
+ 			tile_source->loaded = b;
+ 			tile_source_update_display(tile_source);
++
+ 			tile_source_changed(tile_source);
+ 		}
+ 		break;
+@@ -927,9 +993,12 @@ tile_source_get_property(GObject *object,
+ 
+ #ifdef DEBUG
+ 	{
+-		g_autofree char *str = g_strdup_value_contents(value);
++		char *str;
++
++		str = g_strdup_value_contents(value);
+ 		printf("tile_source_get_property: %s %s\n",
+ 			tile_source_property_name(prop_id), str);
++		g_free(str);
+ 	}
+ #endif /*DEBUG*/
+ }
+@@ -1280,14 +1349,16 @@ tile_source_default_mode(TileSource *tile_source)
+ TileSource *
+ tile_source_new_from_image(VipsImage *image)
+ {
+-	g_autoptr(TileSource) tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
++	TileSource *tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
+ 
+ 	/* Only call this once.
+ 	 */
+ 	g_assert(!tile_source->image);
+ 
+-	if (tile_source_set_image(tile_source, image))
++	if (tile_source_set_image(tile_source, image)) {
++		VIPS_UNREF(tile_source);
+ 		return NULL;
++	}
+ 
+ 	tile_source->image = image;
+ 	g_object_ref(image);
+@@ -1305,7 +1376,7 @@ tile_source_new_from_image(VipsImage *image)
+ 	// FIXME ... why do we need this extra ref?
+ 	g_object_ref(tile_source);
+ 
+-	return g_steal_pointer(&tile_source);
++	return tile_source;
+ }
+ 
+ /* Detect a TIFF pyramid made of subifds following a roughly /2 shrink.
+@@ -1320,6 +1391,7 @@ tile_source_get_pyramid_subifd(TileSource *tile_source)
+ #endif /*DEBUG*/
+ 
+ 	for (i = 0; i < tile_source->n_subifds; i++) {
++		VipsImage *level;
+ 		int level_width;
+ 		int level_height;
+ 		int expected_level_width;
+@@ -1330,11 +1402,11 @@ tile_source_get_pyramid_subifd(TileSource *tile_source)
+ 		if (i >= MAX_LEVELS)
+ 			break;
+ 
+-		g_autoptr(VipsImage) level = tile_source_open(tile_source, i);
+-		if (!level)
++		if (!(level = tile_source_open(tile_source, i)))
+ 			return;
+ 		level_width = level->Xsize;
+ 		level_height = level->Ysize;
++		VIPS_UNREF(level);
+ 
+ 		expected_level_width = tile_source->width / (1 << i);
+ 		expected_level_height = tile_source->height / (1 << i);
+@@ -1379,6 +1451,7 @@ tile_source_get_pyramid_page(TileSource *tile_source)
+ 		return;
+ 
+ 	for (i = 0; i < tile_source->n_pages; i++) {
++		VipsImage *level;
+ 		int level_width;
+ 		int level_height;
+ 		int expected_level_width;
+@@ -1389,11 +1462,11 @@ tile_source_get_pyramid_page(TileSource *tile_source)
+ 		if (i >= MAX_LEVELS)
+ 			break;
+ 
+-		g_autoptr(VipsImage) level = tile_source_open(tile_source, i);
+-		if (!level)
++		if (!(level = tile_source_open(tile_source, i)))
+ 			return;
+ 		level_width = level->Xsize;
+ 		level_height = level->Ysize;
++		VIPS_UNREF(level);
+ 
+ 		expected_level_width = tile_source->width / (1 << i);
+ 		expected_level_height = tile_source->height / (1 << i);
+@@ -1484,9 +1557,11 @@ get_int(VipsImage *image, const char *field, int default_value)
+ TileSource *
+ tile_source_new_from_file(const char *filename)
+ {
+-	g_autoptr(TileSource) tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
++	TileSource *tile_source = g_object_new(TILE_SOURCE_TYPE, NULL);
+ 
+ 	const char *loader;
++	VipsImage *image;
++	VipsImage *x;
+ 
+ #ifdef DEBUG
+ 	printf("tile_source_new_from_file: %s\n", filename);
+@@ -1494,8 +1569,10 @@ tile_source_new_from_file(const char *filename)
+ 
+ 	tile_source->filename = g_strdup(filename);
+ 
+-	if (!(loader = vips_foreign_find_load(filename)))
++	if (!(loader = vips_foreign_find_load(filename))) {
++		VIPS_UNREF(tile_source);
+ 		return NULL;
++	}
+ 
+ 	/* vips_foreign_find_load() gives us eg.
+ 	 * "VipsForeignLoadNsgifFile", but we need "gifload", the
+@@ -1505,11 +1582,16 @@ tile_source_new_from_file(const char *filename)
+ 
+ 	/* A very basic open to fetch image properties.
+ 	 */
+-	g_autoptr(VipsImage) image = vips_image_new_from_file(filename, NULL);
+-	if (!image)
++	if (!(image = vips_image_new_from_file(filename, NULL))) {
++		VIPS_UNREF(tile_source);
+ 		return NULL;
+-	if (tile_source_set_image(tile_source, image))
++	}
++
++	if (tile_source_set_image(tile_source, image)) {
++		VIPS_UNREF(image);
++		VIPS_UNREF(tile_source);
+ 		return NULL;
++	}
+ 
+ 	/* For openslide, we can read out the level structure directly.
+ 	 */
+@@ -1524,10 +1606,14 @@ tile_source_new_from_file(const char *filename)
+ 		for (level = 0; level < level_count; level++) {
+ 			char name[256];
+ 
+-			vips_snprintf(name, 256, "openslide.level[%d].width", level);
+-			tile_source->level_width[level] = get_int(image, name, 0);
+-			vips_snprintf(name, 256, "openslide.level[%d].height", level);
+-			tile_source->level_height[level] = get_int(image, name, 0);
++			vips_snprintf(name, 256,
++				"openslide.level[%d].width", level);
++			tile_source->level_width[level] =
++				get_int(image, name, 0);
++			vips_snprintf(name, 256,
++				"openslide.level[%d].height", level);
++			tile_source->level_height[level] =
++				get_int(image, name, 0);
+ 		}
+ 
+ 		/* Some openslide images don't have levels on x2 boundaries. SVS and
+@@ -1570,11 +1656,12 @@ tile_source_new_from_file(const char *filename)
+ 
+ 		/* Apply the zoom and build the pyramid.
+ 		 */
+-		g_autoptr(VipsImage) x = vips_image_new_from_file(filename,
++		x = vips_image_new_from_file(filename,
+ 			"scale", tile_source->zoom,
+ 			NULL);
+ 		tile_source->width = x->Xsize;
+ 		tile_source->height = x->Ysize;
++		VIPS_UNREF(x);
+ 
+ 		/* Fake the pyramid geometry. No sense going smaller than
+ 		 * a tile.
+@@ -1593,6 +1680,8 @@ tile_source_new_from_file(const char *filename)
+ 		}
+ 	}
+ 
++	VIPS_UNREF(image);
++
+ 	/* Can we open in toilet-roll mode? We need to test that n_pages and
+ 	 * page_size are sane too.
+ 	 */
+@@ -1605,7 +1694,7 @@ tile_source_new_from_file(const char *filename)
+ 	 */
+ 	tile_source->type = TILE_SOURCE_TYPE_TOILET_ROLL;
+ 	vips_error_freeze();
+-	g_autoptr(VipsImage) x = tile_source_open(tile_source, 0);
++	x = tile_source_open(tile_source, 0);
+ 	vips_error_thaw();
+ 	if (x) {
+ 		/* Toilet-roll mode worked. Check sanity of page height,
+@@ -1628,6 +1717,8 @@ tile_source_new_from_file(const char *filename)
+ 			/* Everything looks good.
+ 			 */
+ 			tile_source->pages_same_size = TRUE;
++
++		VIPS_UNREF(x);
+ 	}
+ 
+ 	/* Back to plain multipage for the rest of the sniff period. For
+@@ -1681,8 +1772,10 @@ tile_source_new_from_file(const char *filename)
+ 
+ 	/* And now we can reopen in the correct mode.
+ 	 */
+-	if (!(image = tile_source_open(tile_source, 0)))
++	if (!(image = tile_source_open(tile_source, 0))) {
++		VIPS_UNREF(tile_source);
+ 		return NULL;
++	}
+ 	g_assert(!tile_source->image);
+ 	g_assert(!tile_source->image_region);
+ 	tile_source->image = image;
+@@ -1709,7 +1802,7 @@ tile_source_new_from_file(const char *filename)
+ 
+ 	tile_source_attach_progress(tile_source);
+ 
+-	return g_steal_pointer(&tile_source);
++	return tile_source;
+ }
+ 
+ /* Call this some time after tile_source_new_from_file() or
+@@ -1784,9 +1877,12 @@ tile_source_get_path(TileSource *tile_source)
+ GFile *
+ tile_source_get_file(TileSource *tile_source)
+ {
+-	const char *path = tile_source_get_path(tile_source);
++	const char *path;
++
++	if ((path = tile_source_get_path(tile_source)))
++		return g_file_new_for_path(path);
+ 
+-	return path ? g_file_new_for_path(path) : NULL;
++	return NULL;
+ }
+ 
+ /* The image as used to generate the display, so including page extraction and
+@@ -1831,7 +1927,8 @@ tile_source_get_pixel(TileSource *tile_source, int image_x, int image_y,
+ 	/* The ->display image is cached in a sink screen, so this will be
+ 	 * reasonably quick, even for things like svg and pdf.
+ 	 */
+-	if (vips_getpoint(tile_source->display, vector, n, image_x, image_y, NULL))
++	if (vips_getpoint(tile_source->display,
++			vector, n, image_x, image_y, NULL))
+ 		return FALSE;
+ 
+ 	return TRUE;
+diff --git a/src/tilesource.h b/src/tilesource.h
+index 35149d1..eb1ec32 100644
+--- a/src/tilesource.h
++++ b/src/tilesource.h
+@@ -225,8 +225,6 @@ typedef struct _TileSourceClass {
+ 
+ } TileSourceClass;
+ 
+-G_DEFINE_AUTOPTR_CLEANUP_FUNC(TileSource, g_object_unref)
+-
+ GType tile_source_get_type(void);
+ 
+ TileSource *tile_source_new_from_file(const char *filename);
+diff --git a/src/tslider.c b/src/tslider.c
+index 4998473..9d31edd 100644
+--- a/src/tslider.c
++++ b/src/tslider.c
+@@ -148,7 +148,8 @@ tslider_changed(Tslider *tslider)
+ 	printf("tslider_changed\n");
+ #endif /*DEBUG*/
+ 
+-	g_signal_emit(G_OBJECT(tslider), tslider_signals[CHANGED], 0);
++	g_signal_emit(G_OBJECT(tslider),
++		tslider_signals[CHANGED], 0);
+ }
+ 
+ /* Activated!
+@@ -160,7 +161,8 @@ tslider_activate(Tslider *tslider)
+ 	printf("tslider_activate\n");
+ #endif /*DEBUG*/
+ 
+-	g_signal_emit(G_OBJECT(tslider), tslider_signals[ACTIVATE], 0);
++	g_signal_emit(G_OBJECT(tslider),
++		tslider_signals[ACTIVATE], 0);
+ }
+ 
+ /* Just the slider changed.
+@@ -172,7 +174,8 @@ tslider_slider_changed(Tslider *tslider)
+ 	printf("tslider_slider_changed\n");
+ #endif /*DEBUG*/
+ 
+-	g_signal_emit(G_OBJECT(tslider), tslider_signals[SLIDER_CHANGED], 0);
++	g_signal_emit(G_OBJECT(tslider),
++		tslider_signals[SLIDER_CHANGED], 0);
+ }
+ 
+ /* Text has been touched.
+@@ -184,7 +187,8 @@ tslider_text_changed(Tslider *tslider)
+ 	printf("tslider_text_changed\n");
+ #endif /*DEBUG*/
+ 
+-	g_signal_emit(G_OBJECT(tslider), tslider_signals[TEXT_CHANGED], 0);
++	g_signal_emit(G_OBJECT(tslider),
++		tslider_signals[TEXT_CHANGED], 0);
+ }
+ 
+ /* Enter in entry widget

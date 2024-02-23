@@ -230,9 +230,25 @@ On success, merge to master.
 
 ## TODO
 
-- some races still in fast image switch?
+- jp2 is not being detected as a pyramid correctly
 
-    maybe a bad file in pics? seems fine with just jpg images
+    vipsdisp ~/pics/x.jp2
+
+- support many page images where the pages differ in size, eg. the audi PDF
+
+    try:
+
+        vipsdisp /home/john/pics/1r41ai10801601_fong.pdf
+
+    need two ways to display many-page images:
+
+        - open with n=-1 and slide a crop window
+
+        - open with n=page and have resize on page change, ie. swap the
+          tilesource
+
+
+
 
 - batch save?
 

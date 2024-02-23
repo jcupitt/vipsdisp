@@ -315,8 +315,8 @@ image_window_open_current_file(ImageWindow *win)
 		char *filename = win->files[win->current_file];
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 		printf("image_window_open_current_file: %s:\n", filename);
+#endif /*DEBUG*/
 
 		/* FIXME ... we only want to revalidate if eg. the timestamp has
 		 * changed, or perhaps on F5?
@@ -1523,11 +1523,30 @@ image_window_info(GSimpleAction *action,
 	g_simple_action_set_state(action, state);
 }
 
+// is an image being background-loaded
+static gboolean
+image_window_loading(ImageWindow *win)
+{
+	if (win->tile_source) {
+		gboolean loaded;
+
+		g_object_get(win->tile_source, "loaded", &loaded, NULL);
+		return !loaded;
+	}
+
+	return FALSE;
+}
+
 static void
 image_window_next_image(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+
+	// if there's a background load active, do nothing
+	// we want to prevent many bg loads queueing up
+	if (image_window_loading(win)) 
+		return;
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + 1) % win->n_files;
@@ -1540,6 +1559,11 @@ image_window_prev_image(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+
+	// if there's a background load active, then do nothing
+	// we want to prevent many bg loads queueing up
+	if (!image_window_loading(win))
+		return;
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + win->n_files - 1) %

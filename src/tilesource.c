@@ -1,7 +1,7 @@
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -45,8 +45,8 @@ tile_source_dispose(GObject *object)
 	TileSource *tile_source = TILE_SOURCE(object);
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("tile_source_dispose: %s\n", tile_source->filename);
+#endif /*DEBUG*/
 
 	VIPS_FREEF(g_source_remove, tile_source->page_flip_id);
 
@@ -964,8 +964,8 @@ tile_source_background_load_done_idle(void *user_data)
 	TileSource *tile_source = (TileSource *) user_data;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("tile_source_background_load_done_cb: ... unreffing\n");
+#endif /*DEBUG*/
 
 	/* You can now fetch pixels.
 	 */
@@ -987,8 +987,8 @@ tile_source_background_load_worker(void *data, void *user_data)
 	TileSource *tile_source = (TileSource *) data;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("tile_source_background_load_worker: starting ...\n");
+#endif /*DEBUG*/
 
 	g_assert(tile_source->image_region);
 
@@ -997,8 +997,8 @@ tile_source_background_load_worker(void *data, void *user_data)
 	g_idle_add(tile_source_background_load_done_idle, tile_source);
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("tile_source_background_load_worker: ... done\n");
+#endif /*DEBUG*/
 }
 
 static void
@@ -1501,19 +1501,19 @@ tile_source_new_from_file(const char *filename)
 
 	/* A very basic open to fetch image properties.
 	 */
-	g_autoptr(VipsImage) image = vips_image_new_from_file(filename, NULL);
-	if (!image)
+	g_autoptr(VipsImage) base = vips_image_new_from_file(filename, NULL);
+	if (!base)
 		return NULL;
-	if (tile_source_set_image(tile_source, image))
+	if (tile_source_set_image(tile_source, base))
 		return NULL;
 
 	/* For openslide, we can read out the level structure directly.
 	 */
-	if (vips_image_get_typeof(image, "openslide.level-count")) {
+	if (vips_image_get_typeof(base, "openslide.level-count")) {
 		int level_count;
 		int level;
 
-		level_count = get_int(image, "openslide.level-count", 1);
+		level_count = get_int(base, "openslide.level-count", 1);
 		level_count = VIPS_CLIP(1, level_count, MAX_LEVELS);
 		tile_source->level_count = level_count;
 
@@ -1521,9 +1521,9 @@ tile_source_new_from_file(const char *filename)
 			char name[256];
 
 			vips_snprintf(name, 256, "openslide.level[%d].width", level);
-			tile_source->level_width[level] = get_int(image, name, 0);
+			tile_source->level_width[level] = get_int(base, name, 0);
 			vips_snprintf(name, 256, "openslide.level[%d].height", level);
-			tile_source->level_height[level] = get_int(image, name, 0);
+			tile_source->level_height[level] = get_int(base, name, 0);
 		}
 
 		/* Some openslide images don't have levels on x2 boundaries. SVS and
@@ -1561,7 +1561,7 @@ tile_source_new_from_file(const char *filename)
 		 * librsvg.
 		 */
 		tile_source->zoom = VIPS_CLIP(1,
-			32767.0 / VIPS_MAX(image->Xsize, image->Ysize),
+			32767.0 / VIPS_MAX(base->Xsize, base->Ysize),
 			200);
 
 		/* Apply the zoom and build the pyramid.
@@ -1611,8 +1611,7 @@ tile_source_new_from_file(const char *filename)
 			tile_source->n_pages <= 0 ||
 			tile_source->n_pages > 10000) {
 #ifdef DEBUG
-			printf("tile_source_new_from_source: "
-				   "bad page layout\n");
+			printf("tile_source_new_from_source: bad page layout\n");
 #endif /*DEBUG*/
 
 			tile_source->n_pages = 1;
@@ -1677,7 +1676,8 @@ tile_source_new_from_file(const char *filename)
 
 	/* And now we can reopen in the correct mode.
 	 */
-	if (!(image = tile_source_open(tile_source, 0)))
+	VipsImage *image = tile_source_open(tile_source, 0);
+	if (!image)
 		return NULL;
 	g_assert(!tile_source->image);
 	g_assert(!tile_source->image_region);
