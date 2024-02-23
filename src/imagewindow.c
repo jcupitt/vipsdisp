@@ -2109,7 +2109,7 @@ image_window_set_tile_source(ImageWindow *win, TileSource *tile_source)
 	VipsImage *image;
 	char *title;
 
-	g_assert(IS_TILE_SOURCE(tile_source));
+	g_assert(!tile_source || IS_TILE_SOURCE(tile_source));
 
 	// copy over any visualisation settings from the old tile_source
 	if (tile_source && win->tile_source) {
