@@ -150,9 +150,10 @@ tile_source_open(TileSource *tile_source, int level)
 				"n", n,
 				NULL);
 	}
-	else if (vips_isprefix("jp2k", tile_source->loader)) {
-		/* These only have a "page" param, so we must fail for toilet roll
-		 * mode.
+	else if (vips_isprefix("jp2k", tile_source->loader) ||
+		vips_isprefix("pdf", tile_source->loader)) {
+		/* These formats only have "page", or have pages that can vary in
+		 * size, making "n" not always useful.
 		 */
 		if (all_pages)
 			image = NULL;
@@ -161,10 +162,9 @@ tile_source_open(TileSource *tile_source, int level)
 				"page", level,
 				NULL);
 	}
-	else if (vips_isprefix("pdf", tile_source->loader) ||
-		vips_isprefix("webp", tile_source->loader) ||
+	else  if (vips_isprefix("webp", tile_source->loader) ||
 		vips_isprefix("gif", tile_source->loader)) {
-		/* Support page and n.
+		/* These formats have pages all the same size and support page and n.
 		 */
 		image = vips_image_new_from_file(tile_source->filename,
 			"page", level,
