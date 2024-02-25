@@ -15,7 +15,11 @@
 struct _ImageWindow {
 	GtkApplicationWindow parent;
 
-	TileSource *tile_source;
+	/* The imagedisplay we are currently directing UI actions to. This is not
+	 * a reference --- the real refs are the one in our widget hierarchy,
+	 * inside "stack".
+	 */
+	Imagedisplay *imagedisplay;
 
 	/* The set of filenames we cycle through.
 	 */
@@ -75,7 +79,7 @@ struct _ImageWindow {
 	GtkWidget *error_label;
 	GtkWidget *main_box;
 	GtkWidget *scrolled_window;
-	GtkWidget *imagedisplay;
+	GtkWidget *stack;
 	GtkWidget *properties;
 	GtkWidget *display_bar;
 	GtkWidget *info_bar;
@@ -97,7 +101,7 @@ G_DEFINE_TYPE(ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW);
 /* Our signals.
  */
 enum {
-	SIG_CHANGED,		/* A new tile_source */
+	SIG_CHANGED,		/* A new imagedisplay */
 	SIG_STATUS_CHANGED, /* New mouse position */
 	SIG_LAST
 };
@@ -267,13 +271,35 @@ image_window_files_set_path(ImageWindow *win, char *path)
 	}
 }
 
+TileSource *
+image_window_get_tile_source(ImageWindow *win)
+{
+	if (win->imagedisplay) {
+		TileSource *tile_source;
+
+		g_object_get(win->imagedisplay,
+			"tile-source", &tile_source,
+			NULL);
+
+		// no need to keep a ref ... we can rely on the one that imagedisplay
+		// holds
+		VIPS_UNREF(tile_source);
+
+		return tile_source;
+	}
+
+	return NULL;
+}
+
 static void
 image_window_reset_view(ImageWindow *win)
 {
-	g_object_set(win->imagedisplay, "bestfit", TRUE, NULL);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source) {
+		g_object_set(win->imagedisplay, "bestfit", TRUE, NULL);
+
+		g_object_set(tile_source,
 			"falsecolour", FALSE,
 			"log", FALSE,
 			"icc", FALSE,
@@ -281,9 +307,10 @@ image_window_reset_view(ImageWindow *win)
 			"offset", 0.0,
 			NULL);
 
-	g_object_set(win->imagedisplay,
-		"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
-		NULL);
+		g_object_set(win->imagedisplay,
+			"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
+			NULL);
+	}
 }
 
 static void
@@ -306,11 +333,15 @@ image_window_files_set(ImageWindow *win, char **files, int n_files)
 	image_window_reset_view(win);
 }
 
+// fwd ref
+static void
+image_window_set_imagedisplay(ImageWindow *win, Imagedisplay *imagedisplay);
+
 static void
 image_window_open_current_file(ImageWindow *win)
 {
 	if (!win->files)
-		image_window_set_tile_source(win, NULL);
+		image_window_set_imagedisplay(win, NULL);
 	else {
 		char *filename = win->files[win->current_file];
 
@@ -331,10 +362,18 @@ image_window_open_current_file(ImageWindow *win)
 		image_window_error_hide(win);
 
 		g_autoptr(TileSource) tile_source = tile_source_new_from_file(filename);
-		if (tile_source)
-			image_window_set_tile_source(win, tile_source);
-		else
+		if (!tile_source) {
 			image_window_error(win);
+			return;
+		}
+
+		g_autoptr(Imagedisplay) imagedisplay = imagedisplay_new(tile_source);
+		if (!imagedisplay) {
+			image_window_error(win);
+			return;
+		}
+
+		image_window_set_imagedisplay(win, imagedisplay);
 	}
 }
 
@@ -347,7 +386,6 @@ image_window_dispose(GObject *object)
 	printf("image_window_dispose:\n");
 #endif /*DEBUG*/
 
-	VIPS_UNREF(win->tile_source);
 	VIPS_UNREF(win->save_folder);
 	VIPS_UNREF(win->load_folder);
 	VIPS_FREEF(gtk_widget_unparent, win->right_click_menu);
@@ -412,13 +450,18 @@ image_window_set_scale(ImageWindow *win, double scale)
 	printf("image_window_set_scale: %g\n", scale);
 #endif /*DEBUG*/
 
-	/* Scale by the zoom factor (SVG etc. scale) we picked on load.
-	 */
-	scale /= win->tile_source->zoom;
+	if (win->imagedisplay) {
+		TileSource *tile_source = image_window_get_tile_source(win);
 
-	g_object_set(win->imagedisplay,
-		"scale", scale,
-		NULL);
+		/* Scale by the zoom factor (SVG etc. scale) we picked on load.
+		 */
+		if (tile_source)
+			scale /= tile_source->zoom;
+
+		g_object_set(win->imagedisplay,
+			"scale", scale,
+			NULL);
+	}
 }
 
 double
@@ -426,13 +469,20 @@ image_window_get_scale(ImageWindow *win)
 {
 	double scale;
 
-	g_object_get(win->imagedisplay,
-		"scale", &scale,
-		NULL);
+	scale = 1.0;
 
-	/* Scale by the zoom factor (SVG etc. scale) we picked on load.
-	 */
-	scale *= win->tile_source->zoom;
+	if (win->imagedisplay) {
+		TileSource *tile_source = image_window_get_tile_source(win);
+
+		g_object_get(win->imagedisplay,
+			"scale", &scale,
+			NULL);
+
+		/* Scale by the zoom factor (SVG etc. scale) we picked on load.
+		 */
+		if (tile_source)
+			scale *= tile_source->zoom;
+	}
 
 #ifdef DEBUG
 	printf("image_window_get_scale: %g\n", scale);
@@ -459,7 +509,7 @@ image_window_set_scale_position(ImageWindow *win,
 
 	/* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
 	 */
-	imagedisplay_image_to_gtk(IMAGEDISPLAY(win->imagedisplay),
+	imagedisplay_image_to_gtk(win->imagedisplay,
 		x_image, y_image, &old_x, &old_y);
 
 	image_window_set_scale(win, scale);
@@ -468,7 +518,7 @@ image_window_set_scale_position(ImageWindow *win,
 	 * then to keep the point in the same position we must translate by
 	 * the difference.
 	 */
-	imagedisplay_image_to_gtk(IMAGEDISPLAY(win->imagedisplay),
+	imagedisplay_image_to_gtk(win->imagedisplay,
 		x_image, y_image, &new_x, &new_y);
 
 	/* Add 0.5 since we (in effect) cast to int here and we want round to
@@ -483,6 +533,7 @@ static void
 image_window_preeval(VipsImage *image,
 	VipsProgress *progress, ImageWindow *win)
 {
+
 	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), TRUE);
 }
 
@@ -568,10 +619,11 @@ image_window_posteval(VipsImage *image,
 static void
 image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
 {
+	TileSource *tile_source;
 	VipsImage *image;
 
-	if (win->tile_source &&
-		(image = tile_source_get_image(win->tile_source)))
+	if ((tile_source = image_window_get_tile_source(win)) && 
+		(image = tile_source_get_image(tile_source)))
 		vips_image_set_kill(image, TRUE);
 }
 
@@ -715,14 +767,14 @@ image_window_stop_animation(ImageWindow *win)
 static void
 image_window_scale_to_eased(ImageWindow *win, double scale_target)
 {
-	int widget_width = gtk_widget_get_width(win->imagedisplay);
-	int widget_height = gtk_widget_get_height(win->imagedisplay);
+	int widget_width = gtk_widget_get_width(win->main_box);
+	int widget_height = gtk_widget_get_height(win->main_box);
 
 	win->eased = TRUE;
 	win->scale_target = scale_target;
 	win->scale_start = image_window_get_scale(win);
 	win->scale_progress = 0.0;
-	imagedisplay_gtk_to_image(IMAGEDISPLAY(win->imagedisplay),
+	imagedisplay_gtk_to_image(win->imagedisplay,
 		widget_width / 2, widget_height / 2,
 		&win->scale_x, &win->scale_y);
 
@@ -744,15 +796,19 @@ image_window_scale_continuous(ImageWindow *win,
 static void
 image_window_bestfit(ImageWindow *win)
 {
-	// size by whole image area, including the props pane
-	int widget_width = gtk_widget_get_width(win->main_box);
-	int widget_height = gtk_widget_get_height(win->main_box);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	double hscale = (double) widget_width / win->tile_source->display_width;
-	double vscale = (double) widget_height / win->tile_source->display_height;
-	double scale = VIPS_MIN(hscale, vscale);
+	if (tile_source) {
+		// size by whole image area, including the props pane
+		int widget_width = gtk_widget_get_width(win->main_box);
+		int widget_height = gtk_widget_get_height(win->main_box);
 
-	image_window_scale_to_eased(win, scale * win->tile_source->zoom);
+		double hscale = (double) widget_width / tile_source->display_width;
+		double vscale = (double) widget_height / tile_source->display_height;
+		double scale = VIPS_MIN(hscale, vscale);
+
+		image_window_scale_to_eased(win, scale * tile_source->zoom);
+	}
 }
 
 static void
@@ -814,16 +870,17 @@ image_window_copy_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source) {
+	if (tile_source) {
 		GdkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win));
-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+		g_autoptr(GFile) file = tile_source_get_file(tile_source);
 
 		VipsImage *image;
 
 		if (file)
 			gdk_clipboard_set(clipboard, G_TYPE_FILE, file);
-		else if ((image = tile_source_get_base_image(win->tile_source))) {
+		else if ((image = tile_source_get_base_image(tile_source))) {
 			g_autoptr(GdkTexture) texture = texture_new_from_image(image);
 
 			if (texture)
@@ -989,9 +1046,10 @@ image_window_reload_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source) {
-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+	if (tile_source) {
+		g_autoptr(GFile) file = tile_source_get_file(tile_source);
 
 		if (file)
 			image_window_open_gfiles(win, &file, 1);
@@ -1003,37 +1061,45 @@ image_window_duplicate_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
 	VipsdispApp *app;
-	ImageWindow *new;
+	ImageWindow *new_win;
 	int width, height;
 
 	g_object_get(win, "application", &app, NULL);
-	new = image_window_new(app);
-	gtk_window_present(GTK_WINDOW(new));
+	new_win = image_window_new(app);
+	gtk_window_present(GTK_WINDOW(new_win));
 
-	if (win->tile_source) {
-		g_autoptr(TileSource) tile_source =
-			tile_source_duplicate(win->tile_source);
-		if (!tile_source) {
-			image_window_error(new);
+	if (tile_source) {
+		g_autoptr(TileSource) new_tile_source = 
+			tile_source_duplicate(tile_source);
+		if (!new_tile_source) {
+			image_window_error(new_win);
 			return;
 		}
 
-		image_window_set_tile_source(new, tile_source);
+		g_autoptr(Imagedisplay) new_imagedisplay = 
+			imagedisplay_new(new_tile_source);
+		if (!new_imagedisplay) {
+			image_window_error(new_win);
+			return;
+		}
+
+		image_window_set_imagedisplay(new_win, new_imagedisplay);
 	}
 
-	new->n_files = win->n_files;
-	new->files = g_strdupv(win->files);
-	new->current_file = win->current_file;
+	new_win->n_files = win->n_files;
+	new_win->files = g_strdupv(win->files);
+	new_win->current_file = win->current_file;
 
 	gtk_window_get_default_size(GTK_WINDOW(win), &width, &height);
-	gtk_window_set_default_size(GTK_WINDOW(new), width, height);
+	gtk_window_set_default_size(GTK_WINDOW(new_win), width, height);
 
-	copy_state(GTK_WIDGET(new), GTK_WIDGET(win), "control");
-	copy_state(GTK_WIDGET(new), GTK_WIDGET(win), "info");
-	copy_state(GTK_WIDGET(new), GTK_WIDGET(win), "properties");
-	copy_state(GTK_WIDGET(new), GTK_WIDGET(win), "background");
+	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "control");
+	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "info");
+	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "properties");
+	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
 
 	/* We want to init the scroll position, but we can't do that until the
 	 * adj range is set, and that won't happen until the image is loaded.
@@ -1042,12 +1108,12 @@ image_window_duplicate_action(GSimpleAction *action,
 	 */
 	copy_adj(
 		gtk_scrolled_window_get_hadjustment(
-			GTK_SCROLLED_WINDOW(new->scrolled_window)),
+			GTK_SCROLLED_WINDOW(new_win->scrolled_window)),
 		gtk_scrolled_window_get_hadjustment(
 			GTK_SCROLLED_WINDOW(win->scrolled_window)));
 	copy_adj(
 		gtk_scrolled_window_get_vadjustment(
-			GTK_SCROLLED_WINDOW(new->scrolled_window)),
+			GTK_SCROLLED_WINDOW(new_win->scrolled_window)),
 		gtk_scrolled_window_get_vadjustment(
 			GTK_SCROLLED_WINDOW(win->scrolled_window)));
 }
@@ -1099,6 +1165,7 @@ image_window_replace_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
 	GtkFileDialog *dialog;
 
@@ -1107,8 +1174,8 @@ image_window_replace_action(GSimpleAction *action,
 	gtk_file_dialog_set_accept_label(dialog, "Replace");
 	gtk_file_dialog_set_modal(dialog, TRUE);
 
-	if (win->tile_source) {
-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+	if (tile_source) {
+		g_autoptr(GFile) file = tile_source_get_file(tile_source);
 		if (file)
 			gtk_file_dialog_set_initial_file(dialog, file);
 	}
@@ -1136,10 +1203,11 @@ image_window_on_file_save_cb(GObject *source_object,
 	GAsyncResult *res, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 	GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
 
 	g_autoptr(GFile) file = gtk_file_dialog_save_finish(dialog, res, NULL);
-	if (file) {
+	if (file && tile_source) {
 		SaveOptions *options;
 
 		// note the save directory for next time
@@ -1149,7 +1217,7 @@ image_window_on_file_save_cb(GObject *source_object,
 		g_autofree char *filename = g_file_get_path(file);
 
 		options = save_options_new(GTK_WINDOW(win),
-			tile_source_get_base_image(win->tile_source), filename);
+			tile_source_get_base_image(tile_source), filename);
 
 		if (!options) {
 			image_window_error(win);
@@ -1169,15 +1237,16 @@ image_window_saveas_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source) {
+	if (tile_source) {
 		GtkFileDialog *dialog;
 
 		dialog = gtk_file_dialog_new();
 		gtk_file_dialog_set_title(dialog, "Save file");
 		gtk_file_dialog_set_modal(dialog, TRUE);
 
-		g_autoptr(GFile) file = tile_source_get_file(win->tile_source);
+		g_autoptr(GFile) file = tile_source_get_file(tile_source);
 		if (file)
 			gtk_file_dialog_set_initial_file(dialog, file);
 		else if (win->save_folder)
@@ -1411,29 +1480,29 @@ image_window_scroll(GtkEventControllerMotion *self,
 /* See commments below.
  *
 static void
-image_window_scale_begin( GtkGesture* self,
-	GdkEventSequence* sequence, gpointer user_data )
+image_window_scale_begin(GtkGesture* self,
+	GdkEventSequence* sequence, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW( user_data );
+	ImageWindow *win = IMAGE_WINDOW(user_data);
 
 	double finger_cx;
 	double finger_cy;
 
-	win->last_scale = image_window_get_scale( win );
-	gtk_gesture_get_bounding_box_center( self, &finger_cx, &finger_cy );
+	win->last_scale = image_window_get_scale(win);
+	gtk_gesture_get_bounding_box_center(self, &finger_cx, &finger_cy);
 
-	imagedisplay_gtk_to_image( IMAGEDISPLAY( win->imagedisplay ),
-		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy );
+	imagedisplay_gtk_to_image(win->imagedisplay,
+		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy);
 }
 
 static void
-image_window_scale_changed( GtkGestureZoom *self,
-	gdouble scale, gpointer user_data )
+image_window_scale_changed(GtkGestureZoom *self,
+	gdouble scale, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW( user_data );
+	ImageWindow *win = IMAGE_WINDOW(user_data);
 
-	image_window_set_scale_position( win,
-		scale * win->last_scale, win->scale_cx, win->scale_cy );
+	image_window_set_scale_position(win,
+		scale * win->last_scale, win->scale_cx, win->scale_cy);
 }
  */
 
@@ -1494,6 +1563,7 @@ image_window_control(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
 	g_object_set(win->display_bar,
 		"revealed", g_variant_get_boolean(state),
@@ -1502,8 +1572,8 @@ image_window_control(GSimpleAction *action,
 	/* Disable most visualisation settings if the controls are hidden. It's
 	 * much too confusing.
 	 */
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source)
+		g_object_set(tile_source,
 			"active", g_variant_get_boolean(state),
 			NULL);
 
@@ -1523,14 +1593,16 @@ image_window_info(GSimpleAction *action,
 	g_simple_action_set_state(action, state);
 }
 
-// is an image being background-loaded
+// is an image being background-loaded?
 static gboolean
 image_window_loading(ImageWindow *win)
 {
-	if (win->tile_source) {
+	TileSource *tile_source = image_window_get_tile_source(win);
+
+	if (tile_source) {
 		gboolean loaded;
 
-		g_object_get(win->tile_source, "loaded", &loaded, NULL);
+		g_object_get(tile_source, "loaded", &loaded, NULL);
 		return !loaded;
 	}
 
@@ -1576,12 +1648,13 @@ static void
 image_window_next(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source) {
-		int n_pages = win->tile_source->n_pages;
-		int page = VIPS_CLIP(0, win->tile_source->page, n_pages - 1);
+	if (tile_source) {
+		int n_pages = tile_source->n_pages;
+		int page = VIPS_CLIP(0, tile_source->page, n_pages - 1);
 
-		g_object_set(win->tile_source,
+		g_object_set(tile_source,
 			"page", (page + 1) % n_pages,
 			NULL);
 	}
@@ -1591,12 +1664,13 @@ static void
 image_window_prev(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source) {
-		int n_pages = win->tile_source->n_pages;
-		int page = VIPS_CLIP(0, win->tile_source->page, n_pages - 1);
+	if (tile_source) {
+		int n_pages = tile_source->n_pages;
+		int page = VIPS_CLIP(0, tile_source->page, n_pages - 1);
 
-		g_object_set(win->tile_source,
+		g_object_set(tile_source,
 			"page", page == 0 ? n_pages - 1 : page - 1,
 			NULL);
 	}
@@ -1639,11 +1713,12 @@ image_window_scale(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
 	VipsImage *image;
 
-	if (win->tile_source &&
-		(image = tile_source_get_image(win->tile_source))) {
+	if (tile_source &&
+		(image = tile_source_get_image(tile_source))) {
 		double image_scale;
 		int left, top, width, height;
 		double scale, offset;
@@ -1667,7 +1742,7 @@ image_window_scale(GSimpleAction *action,
 			return;
 		}
 
-		g_object_set(win->tile_source,
+		g_object_set(tile_source,
 			"scale", scale,
 			"offset", offset,
 			NULL);
@@ -1678,9 +1753,10 @@ static void
 image_window_log(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source)
+		g_object_set(tile_source,
 			"log", g_variant_get_boolean(state),
 			NULL);
 
@@ -1691,9 +1767,10 @@ static void
 image_window_icc(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source)
+		g_object_set(tile_source,
 			"icc", g_variant_get_boolean(state),
 			NULL);
 
@@ -1705,9 +1782,10 @@ image_window_falsecolour(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source)
+		g_object_set(tile_source,
 			"falsecolour", g_variant_get_boolean(state),
 			NULL);
 
@@ -1719,6 +1797,7 @@ image_window_mode(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	TileSource *tile_source = image_window_get_tile_source(win);
 
 	const gchar *str;
 	TileSourceMode mode;
@@ -1737,8 +1816,8 @@ image_window_mode(GSimpleAction *action,
 		 */
 		return;
 
-	if (win->tile_source)
-		g_object_set(win->tile_source,
+	if (tile_source)
+		g_object_set(tile_source,
 			"mode", mode,
 			NULL);
 
@@ -1854,7 +1933,7 @@ image_window_properties_leave(GtkEventControllerFocus *self,
 
 	// if the props pane had the focus, and it's being hidden, we must refocus
 	if (!revealed)
-		gtk_widget_grab_focus(win->imagedisplay);
+		gtk_widget_grab_focus(GTK_WIDGET(win->imagedisplay));
 }
 
 static gboolean
@@ -1897,57 +1976,12 @@ image_window_init(ImageWindow *win)
 
 	g_signal_connect_object(win->progress_cancel, "clicked",
 		G_CALLBACK(image_window_cancel_clicked), win, 0);
-
 	g_signal_connect_object(win->error_bar, "response",
 		G_CALLBACK(image_window_error_response), win, 0);
-
-	g_signal_connect_object(win->imagedisplay, "changed",
-		G_CALLBACK(image_window_imagedisplay_changed), win, 0);
 
 	g_action_map_add_action_entries(G_ACTION_MAP(win),
 		image_window_entries, G_N_ELEMENTS(image_window_entries),
 		win);
-
-	controller = GTK_EVENT_CONTROLLER(gtk_event_controller_key_new());
-	g_signal_connect(controller, "key-pressed",
-		G_CALLBACK(image_window_key_pressed), win);
-	g_signal_connect(controller, "key-released",
-		G_CALLBACK(image_window_key_released), win);
-	gtk_widget_add_controller(win->imagedisplay, controller);
-
-	controller = GTK_EVENT_CONTROLLER(gtk_event_controller_motion_new());
-	g_signal_connect(controller, "motion",
-		G_CALLBACK(image_window_motion), win);
-	gtk_widget_add_controller(win->imagedisplay, controller);
-
-	/* Panning windows should use scroll to zoom, according to the HIG.
-	 */
-	controller = GTK_EVENT_CONTROLLER(gtk_event_controller_scroll_new(
-		GTK_EVENT_CONTROLLER_SCROLL_VERTICAL));
-	g_signal_connect(controller, "scroll",
-		G_CALLBACK(image_window_scroll), win);
-	gtk_widget_add_controller(win->imagedisplay, controller);
-
-	/* We'd need to implement more of the pinch zoom interface to make this
-	 * useful. At the moment this just causes wonky behaviour on multitouch
-	 * trackpads.
-	 *
-	controller = GTK_EVENT_CONTROLLER( gtk_gesture_zoom_new() );
-	g_signal_connect( controller, "begin",
-		G_CALLBACK( image_window_scale_begin ), win );
-	g_signal_connect( controller, "scale-changed",
-		G_CALLBACK( image_window_scale_changed ), win );
-	gtk_widget_add_controller( win->imagedisplay, controller );
-	 */
-
-	/* And drag to pan.
-	 */
-	controller = GTK_EVENT_CONTROLLER(gtk_gesture_drag_new());
-	g_signal_connect(controller, "drag-begin",
-		G_CALLBACK(image_window_drag_begin), win);
-	g_signal_connect(controller, "drag-update",
-		G_CALLBACK(image_window_drag_update), win);
-	gtk_widget_add_controller(win->imagedisplay, controller);
 
 	/* We need to know if the props pane has the focus so we can refocus on
 	 * hide.
@@ -1981,7 +2015,7 @@ image_window_init(ImageWindow *win)
 		image_window_n_supported_types);
 	g_signal_connect(controller, "drop",
 		G_CALLBACK(image_window_dnd_drop), win);
-	gtk_widget_add_controller(win->imagedisplay, controller);
+	gtk_widget_add_controller(win->main_box, controller);
 
 	/* We can't be a drag source, we use drag for pan. Copy/paste images out
 	 * instead.
@@ -2048,8 +2082,8 @@ image_window_class_init(ImageWindowClass *class)
 	BIND(error_bar);
 	BIND(error_label);
 	BIND(main_box);
+	BIND(stack);
 	BIND(scrolled_window);
-	BIND(imagedisplay);
 	BIND(properties);
 	BIND(display_bar);
 	BIND(info_bar);
@@ -2103,98 +2137,159 @@ copy_value(GObject *to, GObject *from, const char *name)
 	g_value_unset(&value);
 }
 
-void
-image_window_set_tile_source(ImageWindow *win, TileSource *tile_source)
+/* Change the imagedisplay the UI is manipulating.
+ */
+static void
+image_window_set_imagedisplay(ImageWindow *win, Imagedisplay *imagedisplay)
 {
+	TileSource *old_tile_source = image_window_get_tile_source(win);
+
 	VipsImage *image;
 	char *title;
 
-	g_assert(!tile_source || IS_TILE_SOURCE(tile_source));
+	TileSource *new_tile_source = NULL;
+	if (imagedisplay) 
+		g_object_get(imagedisplay,
+			"tile-source", &new_tile_source,
+			NULL);
 
 	// copy over any visualisation settings from the old tile_source
-	if (tile_source && win->tile_source) {
-		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "scale");
-		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "offset");
-		copy_value(G_OBJECT(tile_source), 
-				G_OBJECT(win->tile_source), "falsecolour");
-		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "log");
-		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "icc");
-		copy_value(G_OBJECT(tile_source), G_OBJECT(win->tile_source), "active");
+	if (old_tile_source && new_tile_source) {
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "scale");
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "offset");
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "falsecolour");
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "log");
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "icc");
+		copy_value(G_OBJECT(new_tile_source), 
+				G_OBJECT(old_tile_source), "active");
 	}
 
 	/* Try to shut down any current evaluation.
 	 */
-	if (win->tile_source)
-		tile_source_kill(win->tile_source);
+	if (old_tile_source)
+		tile_source_kill(old_tile_source);
 
-	VIPS_UNREF(win->tile_source);
+	image_window_error_hide(win);
 
-	if (tile_source) {
-		win->tile_source = tile_source;
-		g_object_ref(tile_source);
+	g_object_set(win->properties,
+		"tile-source", new_tile_source,
+		NULL);
 
-		g_object_set(win->properties,
-			"tile-source", win->tile_source,
-			NULL);
+	/* Update title and subtitle.
+	 */
+	title = new_tile_source ?
+		(char *) tile_source_get_path(new_tile_source) : NULL;
+		title = (char *) tile_source_get_path(new_tile_source);
+	gtk_label_set_text(GTK_LABEL(win->title), title ? title : "Untitled");
 
-		g_object_set(win->imagedisplay,
-			"tile-source", win->tile_source,
-			NULL);
+	if (new_tile_source &&
+		(image = tile_source_get_base_image(new_tile_source))) {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC(str);
 
-		g_signal_connect_object(win->tile_source, "preeval",
+		vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
+		if (new_tile_source->n_pages > 1)
+			vips_buf_appendf(&buf, "%d pages, ", new_tile_source->n_pages);
+		if (vips_image_get_coding(image) == VIPS_CODING_NONE)
+			vips_buf_appendf(&buf,
+				g_dngettext(GETTEXT_PACKAGE,
+					" %s, %d band, %s",
+					" %s, %d bands, %s",
+					image->Bands),
+				vips_enum_nick(VIPS_TYPE_BAND_FORMAT, image->BandFmt),
+				vips_image_get_bands(image),
+				vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
+		else
+			vips_buf_appendf(&buf, "%s",
+				vips_enum_nick(VIPS_TYPE_CODING,
+					vips_image_get_coding(image)));
+		vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
+		gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
+	}
+	else
+		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
+
+	if (imagedisplay) {
+		GtkEventController *controller;
+
+		g_signal_connect_object(new_tile_source, "preeval",
 			G_CALLBACK(image_window_preeval), win, 0);
-		g_signal_connect_object(win->tile_source, "eval",
+		g_signal_connect_object(new_tile_source, "eval",
 			G_CALLBACK(image_window_eval), win, 0);
-		g_signal_connect_object(win->tile_source, "posteval",
+		g_signal_connect_object(new_tile_source, "posteval",
 			G_CALLBACK(image_window_posteval), win, 0);
 
-		g_signal_connect_object(win->tile_source, "changed",
+		g_signal_connect_object(new_tile_source, "changed",
 			G_CALLBACK(image_window_tile_source_changed), win, 0);
 
-		if (!(title = (char *) tile_source_get_path(tile_source)))
-			title = "Untitled";
-		gtk_label_set_text(GTK_LABEL(win->title), title);
+		g_signal_connect_object(imagedisplay, "changed",
+			G_CALLBACK(image_window_imagedisplay_changed), win, 0);
 
-		if ((image = tile_source_get_base_image(tile_source))) {
-			char str[256];
-			VipsBuf buf = VIPS_BUF_STATIC(str);
+		controller = GTK_EVENT_CONTROLLER(gtk_event_controller_key_new());
+		g_signal_connect(controller, "key-pressed",
+			G_CALLBACK(image_window_key_pressed), win);
+		g_signal_connect(controller, "key-released",
+			G_CALLBACK(image_window_key_released), win);
+		gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
 
-			vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
-			if (tile_source->n_pages > 1)
-				vips_buf_appendf(&buf, "%d pages, ", tile_source->n_pages);
-			if (vips_image_get_coding(image) == VIPS_CODING_NONE)
-				vips_buf_appendf(&buf,
-					g_dngettext(GETTEXT_PACKAGE,
-						" %s, %d band, %s",
-						" %s, %d bands, %s",
-						image->Bands),
-					vips_enum_nick(VIPS_TYPE_BAND_FORMAT, image->BandFmt),
-					vips_image_get_bands(image),
-					vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
-			else
-				vips_buf_appendf(&buf, "%s",
-					vips_enum_nick(VIPS_TYPE_CODING,
-						vips_image_get_coding(image)));
-			vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
-			gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
-		}
+		controller = GTK_EVENT_CONTROLLER(gtk_event_controller_motion_new());
+		g_signal_connect(controller, "motion",
+			G_CALLBACK(image_window_motion), win);
+		gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
 
-		/* Initial state.
+		/* Panning windows should use scroll to zoom, according to the HIG.
 		 */
-		tile_source->active = g_settings_get_boolean(win->settings, "control");
+		controller = GTK_EVENT_CONTROLLER(gtk_event_controller_scroll_new(
+			GTK_EVENT_CONTROLLER_SCROLL_VERTICAL));
+		g_signal_connect(controller, "scroll",
+			G_CALLBACK(image_window_scroll), win);
+		gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
+
+		/* We'd need to implement more of the pinch zoom interface to make this
+		 * useful. At the moment this just causes wonky behaviour on multitouch
+		 * trackpads.
+		 *
+		controller = GTK_EVENT_CONTROLLER(gtk_gesture_zoom_new());
+		g_signal_connect(controller, "begin",
+			G_CALLBACK(image_window_scale_begin), win);
+		g_signal_connect(controller, "scale-changed",
+			G_CALLBACK(image_window_scale_changed), win);
+		gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
+		 */
+
+		/* And drag to pan.
+		 */
+		controller = GTK_EVENT_CONTROLLER(gtk_gesture_drag_new());
+		g_signal_connect(controller, "drag-begin",
+			G_CALLBACK(image_window_drag_begin), win);
+		g_signal_connect(controller, "drag-update",
+			G_CALLBACK(image_window_drag_update), win);
+		gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
+
+		/* Add to stack.
+		 */
+		gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imagedisplay));
+		gtk_stack_set_transition_type(GTK_STACK(win->stack), 
+				GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT_RIGHT);
+		gtk_stack_set_transition_duration(GTK_STACK(win->stack), 
+				1000);
+		gtk_stack_set_visible_child(GTK_STACK(win->stack), 
+				GTK_WIDGET(imagedisplay));
 
 		/* Everything is set up ... start loading the image.
 		 */
-		tile_source_background_load(tile_source);
+		tile_source_background_load(new_tile_source);
 	}
 
-	image_window_changed(win);
-}
+	// not a ref, so we can just overwrite it
+	win->imagedisplay = imagedisplay;
 
-TileSource *
-image_window_get_tile_source(ImageWindow *win)
-{
-	return win->tile_source;
+	image_window_changed(win);
 }
 
 GSettings *
@@ -2247,17 +2342,28 @@ image_window_open_image(ImageWindow *win, VipsImage *image)
 #endif /*DEBUG*/
 
 	g_autoptr(TileSource) tile_source = tile_source_new_from_image(image);
-	if (tile_source) {
-		// no longer have a file backed image
-		image_window_files_free(win);
-		image_window_set_tile_source(win, tile_source);
+	if (!tile_source) {
+		image_window_error(win);
+		return;
 	}
+
+	g_autoptr(Imagedisplay) imagedisplay = imagedisplay_new(tile_source);
+	if (!imagedisplay) {
+		image_window_error(win);
+		return;
+	}
+
+	// no longer have a file backed image
+	image_window_files_free(win);
+
+	image_window_set_imagedisplay(win, imagedisplay);
 }
 
 void
 image_window_get_mouse_position(ImageWindow *win,
 	double *x_image, double *y_image)
 {
-	imagedisplay_gtk_to_image(IMAGEDISPLAY(win->imagedisplay),
-		win->last_x_gtk, win->last_y_gtk, x_image, y_image);
+	if (win->imagedisplay) 
+		imagedisplay_gtk_to_image(win->imagedisplay,
+			win->last_x_gtk, win->last_y_gtk, x_image, y_image);
 }

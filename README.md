@@ -230,21 +230,12 @@ On success, merge to master.
 
 ## TODO
 
-- support many page images where the pages differ in size, eg. the audi PDF
-
-    try:
-
-        vipsdisp /home/john/pics/1r41ai10801601_fong.pdf
-
-    need two ways to display many-page images:
-
-        - open with n=-1 and slide a crop window
-
-        - open with n=page and have resize on page change, ie. swap the
-          tilesource
+- image_window_preeval, changed etc. handlers need to check that the signal
+  is for the current imagedisplay
 
 
 
+- ^C during a slow load leaves a file in /tmp, can we fix this?
 
 - batch save?
 
@@ -252,10 +243,15 @@ On success, merge to master.
 
 - use a revealer for next/prev image transition? would look nice
 
-    could do slideshow
+    could do slideshow?
 
-    use gtkstack to have several imagedisplay on top of each other, and a
-    revealer to flip between them
+    use gtkstack to have several imagedisplay on top of each other, and 
+    flip between them
+
+    could we have a page for every image in the next/prev set? might be 
+    too heavy
+
+    we'd need 
 
 - live with it for a bit, then make v2.7
 

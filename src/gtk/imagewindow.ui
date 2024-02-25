@@ -219,36 +219,38 @@
           <object class="GtkBox" id="main_box">
             <property name="orientation">horizontal</property>
 
-	    <child>
+            <child>
               <object class="GtkScrolledWindow" id="scrolled_window">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
+
                 <child>
-                  <object class="Imagedisplay" id="imagedisplay">  
-
-                    <child>
-                      <object class="GtkPopoverMenu" id="right_click_menu">
-                        <property name="has-arrow">0</property>
-                        <property name="menu-model">imagewindow-menu</property>
-                      </object> 
-                    </child>
-
-                    <child> 
-                      <object class="GtkGestureClick">
-                        <property name="button">3</property>
-                        <signal name="pressed" handler="image_window_pressed_cb"/>
-                      </object>
-                    </child>
+                  <object class="GtkStack" id="stack">
+                      <!-- imagedisplays go in here -->
                   </object>
                 </child>
               </object>
             </child>
 
-	    <child>
+            <child>
               <object class="Properties" id="properties">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
               </object>
+            </child>
+
+            <child> 
+              <object class="GtkGestureClick">
+                <property name="button">3</property>
+                <signal name="pressed" handler="image_window_pressed_cb"/>
+              </object>
+            </child>
+
+            <child>
+              <object class="GtkPopoverMenu" id="right_click_menu">
+                <property name="has-arrow">0</property>
+                <property name="menu-model">imagewindow-menu</property>
+              </object> 
             </child>
 
           </object>
