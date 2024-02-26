@@ -230,8 +230,18 @@ On success, merge to master.
 
 ## TODO
 
-- image_window_preeval, changed etc. handlers need to check that the signal
-  is for the current imagedisplay
+- need to set initial state of tilesource "active" on image load from UI state
+
+- load cancel does not work
+
+  scroll wheel does not work
+
+  unref of stack children does not work
+
+  only keep recent 3 images
+
+  check mem use, esp with three large images loaded
+
 
 
 
@@ -241,19 +251,6 @@ On success, merge to master.
 
 - pass revalidate down to `new_from_file` on F5
 
-- use a revealer for next/prev image transition? would look nice
-
-    could do slideshow?
-
-    use gtkstack to have several imagedisplay on top of each other, and 
-    flip between them
-
-    could we have a page for every image in the next/prev set? might be 
-    too heavy
-
-    we'd need 
-
-- live with it for a bit, then make v2.7
 
 
 

@@ -17,6 +17,7 @@ executable('vipsdisp', [
     'gtkutil.c',
     'imagedisplay.c',
     'imagewindow.c',
+    'imageui.c',
     'infobar.c',
     'main.c',
     'tile.c',

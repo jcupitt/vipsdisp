@@ -40,6 +40,7 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 #include "tilesource.h"
 #include "tilecache.h"
 #include "imagedisplay.h"
+#include "imageui.h"
 #include "imagewindow.h"
 #include "infobar.h"
 #include "displaybar.h"

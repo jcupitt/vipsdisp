@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="Imageui" parent="GtkWidget">
+    <child>
+      <object class="GtkScrolledWindow" id="scrolled_window">
+        <property name="hexpand">true</property>
+        <property name="vexpand">true</property>
+
+        <child>
+          <object class="Imagedisplay" id="imagedisplay">
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkGestureDrag">
+            <signal name="drag-begin" handler="imageui_drag_begin"/>
+            <signal name="drag-update" handler="imageui_drag_update"/>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkEventControllerKey">
+            <signal name="key-pressed" handler="imageui_key_pressed"/>
+            <signal name="key-released" handler="imageui_key_released"/>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkEventControllerMotion">
+            <signal name="motion" handler="imageui_motion"/>
+          </object>
+        </child>
+
+        <child>
+          <object class="GtkEventControllerScroll">
+            <signal name="scroll" handler="imageui_scroll"/>
+          </object>
+        </child>
+
+      </object>
+    </child>
+  </template>
+</interface>

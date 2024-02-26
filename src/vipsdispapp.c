@@ -135,6 +135,7 @@ vipsdisp_app_startup(GApplication *app)
 	/* Build our classes.
 	 */
 	IMAGEDISPLAY_TYPE;
+	IMAGEUI_TYPE;
 	DISPLAYBAR_TYPE;
 	TSLIDER_TYPE;
 	INFOBAR_TYPE;

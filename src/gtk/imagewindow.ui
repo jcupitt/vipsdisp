@@ -220,15 +220,13 @@
             <property name="orientation">horizontal</property>
 
             <child>
-              <object class="GtkScrolledWindow" id="scrolled_window">
+              <object class="GtkStack" id="stack">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
+                <property name="transition-type">slide-left-right</property>
+                <property name="transition-duration">2000</property>
 
-                <child>
-                  <object class="GtkStack" id="stack">
-                      <!-- imagedisplays go in here -->
-                  </object>
-                </child>
+                  <!-- Imageui go in here -->
               </object>
             </child>
 
