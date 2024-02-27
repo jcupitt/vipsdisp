@@ -8,7 +8,9 @@
 
         <child>
           <object class="Imagedisplay" id="imagedisplay">
+
           </object>
+
         </child>
 
         <child>
@@ -31,8 +33,10 @@
           </object>
         </child>
 
+
         <child>
           <object class="GtkEventControllerScroll">
+            <property name="flags">vertical</property>
             <signal name="scroll" handler="imageui_scroll"/>
           </object>
         </child>

@@ -2,8 +2,8 @@
 
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 /* How much to scale view by each frame.
  */
@@ -99,9 +99,9 @@ imageui_dispose(GObject *object)
 static void
 imageui_changed(Imageui *imageui)
 {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_changed:\n");
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	g_signal_emit(imageui, imageui_signals[SIG_CHANGED], 0);
 }
@@ -117,11 +117,38 @@ imageui_set_tile_source(Imageui *imageui, TileSource *tile_source)
 		NULL);
 }
 
+#ifdef DEBUG_VERBOSE
+static const char *
+imageui_property_name(guint prop_id)
+{
+	switch (prop_id) {
+	case PROP_TILE_SOURCE:
+		return "TILE_SOURCE";
+		break;
+
+	case PROP_BACKGROUND:
+		return "BACKGROUND";
+		break;
+
+	default:
+		return "<unknown>";
+	}
+}
+#endif /*DEBUG_VERBOSE*/
+
 static void
 imageui_set_property(GObject *object,
 	guint prop_id, const GValue *value, GParamSpec *pspec)
 {
 	Imageui *imageui = (Imageui *) object;
+
+#ifdef DEBUG_VERBOSE
+	{
+		g_autofree char *str = g_strdup_value_contents(value);
+		printf("imageui_set_property: %s %s\n",
+			imageui_property_name(prop_id), str);
+	}
+#endif /*DEBUG_VERBOSE*/
 
 	switch (prop_id) {
 	case PROP_TILE_SOURCE:
@@ -160,14 +187,22 @@ imageui_get_property(GObject *object,
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
 	}
+
+#ifdef DEBUG_VERBOSE
+	{
+		g_autofree char *str = g_strdup_value_contents(value);
+		printf("imageui_get_property: %s %s\n",
+			imageui_property_name(prop_id), str);
+	}
+#endif /*DEBUG_VERBOSE*/
 }
 
 static void
 imageui_set_scale(Imageui *imageui, double scale)
 {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_set_scale: %g\n", scale);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	/* Scale by the zoom factor (SVG etc. scale) we picked on load.
 	 */
@@ -191,9 +226,9 @@ imageui_get_scale(Imageui *imageui)
 	 */
 	scale *= imageui->tile_source->zoom;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_get_scale: %g\n", scale);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	return scale;
 }
@@ -212,9 +247,9 @@ imageui_get_position(Imageui *imageui,
 	*width = gtk_adjustment_get_page_size(hadj);
 	*height = gtk_adjustment_get_page_size(vadj);
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_get_position: %d %d %d %d\n", *left, *top, *width, *height);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 }
 
 static void
@@ -225,9 +260,9 @@ imageui_set_position(Imageui *imageui, double x, double y)
 	GtkAdjustment *vadj = gtk_scrolled_window_get_vadjustment(
 		GTK_SCROLLED_WINDOW(imageui->scrolled_window));
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("image_window_set_position: x = %g, y = %g\n", x, y);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	gtk_adjustment_set_value(hadj, x);
 	gtk_adjustment_set_value(vadj, y);
@@ -244,9 +279,9 @@ imageui_set_scale_position(Imageui *imageui,
 	double new_x, new_y;
 	int left, top, width, height;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_set_scale_position: %g %g %g\n", scale, x_image, y_image);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	/* Map the image pixel at (x, y) to gtk space, ie. mouse coordinates.
 	 */
@@ -304,9 +339,9 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 
 	double new_scale;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("image_window_tick: dt = %g\n", dt);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	new_scale = scale;
 
@@ -535,10 +570,10 @@ imageui_key_pressed(GtkEventControllerKey *self,
 	double scale_y;
 	gboolean ret;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_key_pressed: keyval = %d, state = %d\n",
 		keyval, state);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	handled = FALSE;
 
@@ -690,10 +725,10 @@ imageui_drag_begin(GtkEventControllerMotion *self,
 	int window_width;
 	int window_height;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_drag_begin: start_x = %g, start_y = %g\n",
 		start_x, start_y);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	imageui_get_position(imageui,
 		&window_left, &window_top, &window_width, &window_height);
@@ -708,10 +743,10 @@ imageui_drag_update(GtkEventControllerMotion *self,
 {
 	Imageui *imageui = IMAGEUI(user_data);
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_drag_update: offset_x = %g, offset_y = %g\n",
 		offset_x, offset_y);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	imageui_set_position(imageui,
 		imageui->drag_start_x - offset_x, imageui->drag_start_y - offset_y);
@@ -723,9 +758,9 @@ imageui_motion(GtkEventControllerMotion *self,
 {
 	Imageui *imageui = IMAGEUI(user_data);
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_motion: x = %g, y = %g\n", x, y);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	imageui->last_x_gtk = x;
 	imageui->last_y_gtk = y;
@@ -742,9 +777,9 @@ imageui_scroll(GtkEventControllerMotion *self,
 	double x_image;
 	double y_image;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
 	printf("imageui_scroll: dx = %g, dy = %g\n", dx, dy);
-#endif /*DEBUG*/
+#endif /*DEBUG_VERBOSE*/
 
 	imageui_get_mouse_position(imageui, &x_image, &y_image);
 
@@ -757,43 +792,6 @@ imageui_scroll(GtkEventControllerMotion *self,
 
 	return TRUE;
 }
-
-/* Link to gesturezoom, but we'd need more of the touch interface for this to
- * work well ... right now, thios causes wionky behaviour on touch pads
- *
-		controller = GTK_EVENT_CONTROLLER(gtk_gesture_zoom_new());
-		g_signal_connect(controller, "begin",
-			G_CALLBACK(image_window_scale_begin), win);
-		g_signal_connect(controller, "scale-changed",
-			G_CALLBACK(image_window_scale_changed), win);
-		gtk_widget_add_controller(imagedisplay, controller);
-
-static void
-image_window_scale_begin(GtkGesture* self,
-	GdkEventSequence* sequence, gpointer user_data)
-{
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-
-	double finger_cx;
-	double finger_cy;
-
-	win->last_scale = image_window_get_scale(win);
-	gtk_gesture_get_bounding_box_center(self, &finger_cx, &finger_cy);
-
-	imagedisplay_gtk_to_image(IMAGEDISPLAY(imageui->imagedisplay),
-		finger_cx, finger_cy, &win->scale_cx, &win->scale_cy);
-}
-
-static void
-image_window_scale_changed(GtkGestureZoom *self,
-	gdouble scale, gpointer user_data)
-{
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-
-	image_window_set_scale_position(win,
-		scale * win->last_scale, win->scale_cx, win->scale_cy);
-}
- */
 
 static void
 imageui_init(Imageui *imageui)

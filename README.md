@@ -230,20 +230,24 @@ On success, merge to master.
 
 ## TODO
 
-- need to set initial state of tilesource "active" on image load from UI state
+- get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
+  stack ... gtk seems to be calling `stack_remove()` twice, even when only 
+  one child is present?
+
+  load two images, ^Q, get two crits, one each time a page is freed
 
 - load cancel does not work
 
-  scroll wheel does not work
+- only keep recent 3 images, keep a hash of filenames (or indexes in 
+  current file?)  to stack points
 
-  unref of stack children does not work
+- test duplicate
 
-  only keep recent 3 images
+- check mem use, esp with three large images loaded
 
-  check mem use, esp with three large images loaded
+- PDF page change does not change image size if pages vary in size
 
-
-
+- add some internal stuff, like pyramid shape, to props display?
 
 - ^C during a slow load leaves a file in /tmp, can we fix this?
 

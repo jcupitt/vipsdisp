@@ -224,7 +224,6 @@
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
                 <property name="transition-type">slide-left-right</property>
-                <property name="transition-duration">2000</property>
 
                   <!-- Imageui go in here -->
               </object>

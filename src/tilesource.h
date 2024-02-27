@@ -190,6 +190,11 @@ typedef struct _TileSource {
 	 */
 	gboolean loaded;
 
+	/* TRUE when the imageis visible. GIF animations (for example) pause for
+	 * invisible images.
+	 */
+	gboolean visible;
+
 	/* Set this to try to shut down eval.
 	 */
 	gboolean kill;

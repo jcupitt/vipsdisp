@@ -270,10 +270,6 @@ image_window_reset_view(ImageWindow *win)
 			"scale", 1.0,
 			"offset", 0.0,
 			NULL);
-
-		g_object_set(win->imageui,
-			"background", TILE_CACHE_BACKGROUND_CHECKERBOARD,
-			NULL);
 	}
 }
 
@@ -292,9 +288,6 @@ image_window_files_set(ImageWindow *win, char **files, int n_files)
 
 		win->current_file = 0;
 	}
-
-	// a new set of files to view ... reset the view
-	image_window_reset_view(win);
 }
 
 // fwd ref
@@ -464,15 +457,17 @@ image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
 	VipsImage *image;
 
 	if ((tile_source = image_window_get_tile_source(win)) && 
-		(image = tile_source_get_image(tile_source)))
+		(image = tile_source_get_image(tile_source))) {
+		printf("image_window_cancel_clicked: set kill on image %p\n", image);
 		vips_image_set_kill(image, TRUE);
+	}
 }
 
 static void
 image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 {
 	GVariant *state;
-	const char *str_mode;
+	const char *str;
 
 #ifdef DEBUG
 	printf("image_window_tile_source_changed:\n");
@@ -488,18 +483,17 @@ image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 	change_state(GTK_WIDGET(win), "icc", state);
 
 	if (tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL)
-		str_mode = "toilet-roll";
+		str = "toilet-roll";
 	else if (tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE)
-		str_mode = "multipage";
+		str = "multipage";
 	else if (tile_source->mode == TILE_SOURCE_MODE_ANIMATED)
-		str_mode = "animated";
+		str = "animated";
 	else if (tile_source->mode == TILE_SOURCE_MODE_PAGES_AS_BANDS)
-		str_mode = "pages-as-bands";
+		str = "pages-as-bands";
 	else
-		str_mode = NULL;
-
-	if (str_mode) {
-		state = g_variant_new_string(str_mode);
+		str = NULL;
+	if (str) {
+		state = g_variant_new_string(str);
 		change_state(GTK_WIDGET(win), "mode", state);
 	}
 }
@@ -513,6 +507,24 @@ image_window_error_response(GtkWidget *button, int response, ImageWindow *win)
 static void
 image_window_imageui_changed(Imageui *imageui, ImageWindow *win)
 {
+	GVariant *state;
+	const char *str;
+
+	TileCacheBackground background;
+	g_object_get(imageui, "background", &background, NULL);
+	if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
+		str = "checkerboard";
+	else if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
+		str = "white";
+	else if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
+		str = "white";
+	else
+		str = NULL;
+	if (str) {
+		state = g_variant_new_string(str);
+		change_state(GTK_WIDGET(win), "background", state);
+	}
+
 	image_window_status_changed(win);
 }
 
@@ -785,8 +797,6 @@ image_window_duplicate_action(GSimpleAction *action,
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "info");
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "properties");
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
-
-
 }
 
 static GFile *
@@ -1459,15 +1469,23 @@ image_window_set_imageui(ImageWindow *win, Imageui *imageui)
 	char *title;
 
 	TileSource *new_tile_source = NULL;
-	if (imageui) 
+	if (imageui) {
 		g_object_get(imageui,
 			"tile-source", &new_tile_source,
 			NULL);
+
+		// we don't want a ref to it, just to fetch it
+		g_object_unref(new_tile_source);
+	}
 
 	/* Try to shut down any current evaluation.
 	 */
 	if (old_tile_source)
 		tile_source_kill(old_tile_source);
+
+	g_object_set(old_tile_source,
+		"visible", FALSE,
+		NULL);
 
 	image_window_error_hide(win);
 
@@ -1528,6 +1546,14 @@ image_window_set_imageui(ImageWindow *win, Imageui *imageui)
 		gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
+		/* Enable the control settings, if the displaycontrolbar is on.
+		 */
+		GVariant *control = g_settings_get_value(win->settings, "control");
+		g_object_set(new_tile_source,
+			"active", g_variant_get_boolean(control),
+			"visible", TRUE,
+			NULL);
+
 		/* Everything is set up ... start loading the image.
 		 */
 		tile_source_background_load(new_tile_source);
@@ -1535,6 +1561,8 @@ image_window_set_imageui(ImageWindow *win, Imageui *imageui)
 
 	// not a ref, so we can just overwrite it
 	win->imageui = imageui;
+
+	image_window_reset_view(win);
 
 	image_window_changed(win);
 }

@@ -1,7 +1,7 @@
 /*
 #define DEBUG_VERBOSE
- */
 #define DEBUG
+ */
 
 #include "vipsdisp.h"
 
@@ -23,6 +23,7 @@ enum {
 	PROP_ICC,
 	PROP_ACTIVE,
 	PROP_LOADED,
+	PROP_VISIBLE,
 
 	/* Signals.
 	 */
@@ -689,6 +690,10 @@ tile_source_property_name(guint prop_id)
 		return "LOADED";
 		break;
 
+	case PROP_VISIBLE:
+		return "VISIBLE";
+		break;
+
 	default:
 		return "<unknown>";
 	}
@@ -704,6 +709,10 @@ tile_source_page_flip(void *user_data)
 	int page = VIPS_CLIP(0, tile_source->page, tile_source->n_pages - 1);
 
 	int timeout;
+
+	// don't update invisible images
+	if (!tile_source->visible)
+		return FALSE;
 
 	/* By convention, GIFs default to 10fps.
 	 */
@@ -873,6 +882,12 @@ tile_source_set_property(GObject *object,
 		}
 		break;
 
+	case PROP_VISIBLE:
+		b = g_value_get_boolean(value);
+		if (tile_source->visible != b)
+			tile_source->visible = b;
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
@@ -920,6 +935,10 @@ tile_source_get_property(GObject *object,
 
 	case PROP_LOADED:
 		g_value_set_boolean(value, tile_source->loaded);
+		break;
+
+	case PROP_VISIBLE:
+		g_value_set_boolean(value, tile_source->visible);
 		break;
 
 	default:
@@ -1075,6 +1094,13 @@ tile_source_class_init(TileSourceClass *class)
 		g_param_spec_boolean("loaded",
 			_("loaded"),
 			_("Image has finished loading"),
+			FALSE,
+			G_PARAM_READWRITE));
+
+	g_object_class_install_property(gobject_class, PROP_VISIBLE,
+		g_param_spec_boolean("visible",
+			_("visible"),
+			_("Image is currently visible"),
 			FALSE,
 			G_PARAM_READWRITE));
 
@@ -1437,6 +1463,8 @@ static void
 tile_source_eval(VipsImage *image,
 	VipsProgress *progress, TileSource *tile_source)
 {
+	printf("tile_source_eval: image = %p\n", image);
+
 	g_signal_emit(tile_source,
 		tile_source_signals[SIG_EVAL], 0, progress);
 }
