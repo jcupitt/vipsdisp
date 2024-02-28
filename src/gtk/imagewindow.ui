@@ -142,6 +142,27 @@
           </object>
         </child>
 
+        <child type="start">
+          <object class="GtkButton">
+            <property name="icon-name">go-previous-symbolic</property>
+            <property name="action-name">win.prev_image</property>
+          </object>
+        </child>
+
+        <child type="start">
+          <object class="GtkButton">
+            <property name="icon-name">go-next-symbolic</property>
+            <property name="action-name">win.next_image</property>
+          </object>
+        </child>
+
+        <child type="start">
+          <object class="GtkButton">
+            <property name="icon-name">view-refresh-symbolic</property>
+            <property name="action-name">win.reload</property>
+          </object>
+        </child>
+
         <child type="title">
           <object class="GtkBox" id="content_box">
             <property name="valign">center</property>
@@ -223,7 +244,7 @@
               <object class="GtkStack" id="stack">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
-                <property name="transition-type">slide-left-right</property>
+                <property name="transition-type">rotate-left-right</property>
 
                   <!-- Imageui go in here -->
               </object>

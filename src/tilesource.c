@@ -1463,8 +1463,6 @@ static void
 tile_source_eval(VipsImage *image,
 	VipsProgress *progress, TileSource *tile_source)
 {
-	printf("tile_source_eval: image = %p\n", image);
-
 	g_signal_emit(tile_source,
 		tile_source_signals[SIG_EVAL], 0, progress);
 }
