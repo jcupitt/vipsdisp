@@ -171,6 +171,7 @@ image_window_active_remove(ImageWindow *win, const char *filename)
 {
 	Active *active = image_window_active_lookup(win, filename);
 
+	printf("image_window_active_remove: %s\n", filename);
 	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 	g_hash_table_remove(win->active_hash, filename);
 }
@@ -190,6 +191,8 @@ image_window_active_add(ImageWindow *win,
 	const char *filename, Imageui *imageui)
 {
 	g_assert(!image_window_active_lookup(win, filename));
+
+	printf("image_window_active_add: %s\n", filename);
 
 	Active *active = VIPS_NEW(NULL, Active);
 	active->win = win;
@@ -356,21 +359,7 @@ image_window_get_mouse_position(ImageWindow *win,
 TileSource *
 image_window_get_tile_source(ImageWindow *win)
 {
-	if (win->imageui) {
-		TileSource *tile_source;
-
-		g_object_get(win->imageui,
-			"tile-source", &tile_source,
-			NULL);
-
-		// no need to keep a ref ... we can rely on the one that imagedisplay
-		// holds
-		g_object_unref(tile_source);
-
-		return tile_source;
-	}
-
-	return NULL;
+	return win->imageui ? imageui_get_tile_source(win->imageui) : NULL;
 }
 
 static void
@@ -387,94 +376,6 @@ image_window_reset_view(ImageWindow *win)
 			"offset", 0.0,
 			NULL);
 	}
-}
-
-// fwd ref
-static void
-image_window_set_imageui(ImageWindow *win, Imageui *imageui);
-
-static void
-image_window_open_current_file(ImageWindow *win)
-{
-	image_window_error_hide(win);
-
-	if (!win->files)
-		image_window_set_imageui(win, NULL);
-	else {
-		char *filename = win->files[win->current_file];
-		g_autoptr(Imageui) imageui = NULL;
-
-		Active *active;
-
-#ifdef DEBUG
-		printf("image_window_open_current_file: %s:\n", filename);
-#endif /*DEBUG*/
-
-		/* An old image selected again?
-		 */
-		if ((active = image_window_active_lookup(win, filename))) {
-			imageui = active->imageui;
-			g_object_ref(imageui);
-		}
-		else {
-			/* FIXME ... we only want to revalidate if eg. the timestamp has
-			 * changed, or perhaps on F5?
-			VipsImage *image;
-			if( (image = vips_image_new_from_file( filename,
-					"revalidate", TRUE, NULL )) )
-				VIPS_UNREF( image );
-			else
-				image_window_error( win );
-			 */
-
-			g_autoptr(TileSource) tile_source = 
-				tile_source_new_from_file(filename);
-			if (!tile_source) {
-				image_window_error(win);
-				return;
-			}
-
-			imageui = imageui_new(tile_source);
-			if (!imageui) {
-				image_window_error(win);
-				return;
-			}
-
-			image_window_active_add(win, filename, imageui);
-		}
-
-		image_window_set_imageui(win, imageui);
-	}
-}
-
-static void
-image_window_dispose(GObject *object)
-{
-	ImageWindow *win = IMAGE_WINDOW(object);
-
-#ifdef DEBUG
-	printf("image_window_dispose:\n");
-#endif /*DEBUG*/
-
-	VIPS_UNREF(win->save_folder);
-	VIPS_UNREF(win->load_folder);
-	VIPS_FREEF(gtk_widget_unparent, win->right_click_menu);
-	VIPS_FREEF(g_timer_destroy, win->progress_timer);
-	image_window_files_free(win);
-
-	G_OBJECT_CLASS(image_window_parent_class)->dispose(object);
-}
-
-static void
-image_window_status_changed(ImageWindow *win)
-{
-	g_signal_emit(win, image_window_signals[SIG_STATUS_CHANGED], 0);
-}
-
-static void
-image_window_changed(ImageWindow *win)
-{
-	g_signal_emit(win, image_window_signals[SIG_CHANGED], 0);
 }
 
 static void
@@ -564,19 +465,6 @@ image_window_posteval(VipsImage *image,
 }
 
 static void
-image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
-{
-	TileSource *tile_source;
-	VipsImage *image;
-
-	if ((tile_source = image_window_get_tile_source(win)) && 
-		(image = tile_source_get_image(tile_source))) {
-		printf("image_window_cancel_clicked: set kill on image %p\n", image);
-		vips_image_set_kill(image, TRUE);
-	}
-}
-
-static void
 image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 {
 	GVariant *state;
@@ -612,9 +500,15 @@ image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 }
 
 static void
-image_window_error_response(GtkWidget *button, int response, ImageWindow *win)
+image_window_status_changed(ImageWindow *win)
 {
-	image_window_error_hide(win);
+	g_signal_emit(win, image_window_signals[SIG_STATUS_CHANGED], 0);
+}
+
+static void
+image_window_changed(ImageWindow *win)
+{
+	g_signal_emit(win, image_window_signals[SIG_CHANGED], 0);
 }
 
 static void
@@ -639,6 +533,204 @@ image_window_imageui_changed(Imageui *imageui, ImageWindow *win)
 	}
 
 	image_window_status_changed(win);
+}
+
+/* Add an imageui to the stack.
+ */
+static void
+image_window_imageui_add(ImageWindow *win, Imageui *imageui)
+{
+	TileSource *tile_source = imageui_get_tile_source(imageui);
+
+	g_signal_connect_object(tile_source, "preeval",
+		G_CALLBACK(image_window_preeval), win, 0);
+	g_signal_connect_object(tile_source, "eval",
+		G_CALLBACK(image_window_eval), win, 0);
+	g_signal_connect_object(tile_source, "posteval",
+		G_CALLBACK(image_window_posteval), win, 0);
+
+	g_signal_connect_object(tile_source, "changed",
+		G_CALLBACK(image_window_tile_source_changed), win, 0);
+
+	g_signal_connect_object(imageui, "changed",
+		G_CALLBACK(image_window_imageui_changed), win, 0);
+
+	gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
+
+	// now it's in the UI, trigger a load
+	tile_source_background_load(tile_source);
+}
+
+/* Change the image we are manipulating. The imageui is in the stack already.
+ */
+static void
+image_window_imageui_set_visible(ImageWindow *win, Imageui *imageui)
+{
+	TileSource *old_tile_source = image_window_get_tile_source(win);
+	TileSource *new_tile_source = imageui ? imageui_get_tile_source(imageui) : NULL;
+
+	VipsImage *image;
+	char *title;
+
+	/* Try to shut down any current evaluation.
+	 */
+	if (old_tile_source)
+		tile_source_kill(old_tile_source);
+
+	g_object_set(old_tile_source,
+		"visible", FALSE,
+		NULL);
+
+	image_window_error_hide(win);
+
+	g_object_set(win->properties,
+		"tile-source", new_tile_source,
+		NULL);
+
+	/* Update title and subtitle.
+	 */
+	title = new_tile_source ? (char *) tile_source_get_path(new_tile_source) : NULL;
+	title = (char *) tile_source_get_path(new_tile_source);
+	gtk_label_set_text(GTK_LABEL(win->title), title ? title : "Untitled");
+
+	if (new_tile_source &&
+		(image = tile_source_get_base_image(new_tile_source))) {
+		char str[256];
+		VipsBuf buf = VIPS_BUF_STATIC(str);
+
+		vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
+		if (new_tile_source->n_pages > 1)
+			vips_buf_appendf(&buf, "%d pages, ", new_tile_source->n_pages);
+		if (vips_image_get_coding(image) == VIPS_CODING_NONE)
+			vips_buf_appendf(&buf,
+				g_dngettext(GETTEXT_PACKAGE,
+					" %s, %d band, %s",
+					" %s, %d bands, %s",
+					image->Bands),
+				vips_enum_nick(VIPS_TYPE_BAND_FORMAT, image->BandFmt),
+				vips_image_get_bands(image),
+				vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
+		else
+			vips_buf_appendf(&buf, "%s",
+				vips_enum_nick(VIPS_TYPE_CODING,
+					vips_image_get_coding(image)));
+		vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
+		gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
+	}
+	else
+		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
+
+	if (imageui) {
+		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
+
+		/* Enable the control settings, if the displaycontrolbar is on.
+		 */
+		GVariant *control = g_settings_get_value(win->settings, "control");
+		g_object_set(new_tile_source,
+			"active", g_variant_get_boolean(control),
+			"visible", TRUE,
+			NULL);
+	}
+
+	// not a ref, so we can just overwrite it
+	win->imageui = imageui;
+
+	image_window_reset_view(win);
+
+	image_window_changed(win);
+}
+
+static void
+image_window_open_current_file(ImageWindow *win)
+{
+	image_window_error_hide(win);
+
+	if (!win->files)
+		image_window_imageui_set_visible(win, NULL);
+	else {
+		char *filename = win->files[win->current_file];
+		g_autoptr(Imageui) imageui = NULL;
+
+		Active *active;
+
+#ifdef DEBUG
+		printf("image_window_open_current_file: %s:\n", filename);
+#endif /*DEBUG*/
+
+		/* An old image selected again?
+		 */
+		if ((active = image_window_active_lookup(win, filename))) {
+			imageui = active->imageui;
+			g_object_ref(imageui);
+		}
+		else {
+			/* FIXME ... we only want to revalidate if eg. the timestamp has
+			 * changed, or perhaps on F5?
+			VipsImage *image;
+			if( (image = vips_image_new_from_file( filename,
+					"revalidate", TRUE, NULL )) )
+				VIPS_UNREF( image );
+			else
+				image_window_error( win );
+			 */
+
+			g_autoptr(TileSource) tile_source =
+				tile_source_new_from_file(filename);
+			if (!tile_source) {
+				image_window_error(win);
+				return;
+			}
+
+			imageui = imageui_new(tile_source);
+			if (!imageui) {
+				image_window_error(win);
+				return;
+			}
+
+			image_window_imageui_add(win, imageui);
+
+			image_window_active_add(win, filename, imageui);
+		}
+
+		image_window_imageui_set_visible(win, imageui);
+	}
+}
+
+static void
+image_window_dispose(GObject *object)
+{
+	ImageWindow *win = IMAGE_WINDOW(object);
+
+#ifdef DEBUG
+	printf("image_window_dispose:\n");
+#endif /*DEBUG*/
+
+	VIPS_UNREF(win->save_folder);
+	VIPS_UNREF(win->load_folder);
+	VIPS_FREEF(gtk_widget_unparent, win->right_click_menu);
+	VIPS_FREEF(g_timer_destroy, win->progress_timer);
+	image_window_files_free(win);
+
+	G_OBJECT_CLASS(image_window_parent_class)->dispose(object);
+}
+
+static void
+image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
+{
+	TileSource *tile_source;
+	VipsImage *image;
+
+	if ((tile_source = image_window_get_tile_source(win)) &&
+		(image = tile_source_get_image(tile_source))) {
+		printf("image_window_cancel_clicked: set kill on image %p\n", image);
+		vips_image_set_kill(image, TRUE);
+	}
+}
+
+static void
+image_window_error_response(GtkWidget *button, int response, ImageWindow *win)
+{
+	image_window_error_hide(win);
 }
 
 static GdkTexture *
@@ -869,7 +961,6 @@ image_window_duplicate_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
 
 	VipsdispApp *app;
 	ImageWindow *new_win;
@@ -879,29 +970,10 @@ image_window_duplicate_action(GSimpleAction *action,
 	new_win = image_window_new(app);
 	gtk_window_present(GTK_WINDOW(new_win));
 
-	if (tile_source) {
-		g_autoptr(TileSource) new_tile_source = 
-			tile_source_duplicate(tile_source);
-		if (!new_tile_source) {
-			image_window_error(new_win);
-			return;
-		}
-
-		g_autoptr(Imageui) new_imageui = imageui_new(new_tile_source);
-		if (!new_imageui) {
-			image_window_error(new_win);
-			return;
-		}
-
-		image_window_set_imageui(new_win, new_imageui);
-
-		// copy over the scroll position
-		imageui_copy_position(new_imageui, win->imageui);
-	}
-
 	new_win->n_files = win->n_files;
 	new_win->files = g_strdupv(win->files);
 	new_win->current_file = win->current_file;
+	image_window_open_current_file(new_win);
 
 	gtk_window_get_default_size(GTK_WINDOW(win), &width, &height);
 	gtk_window_set_default_size(GTK_WINDOW(new_win), width, height);
@@ -910,6 +982,8 @@ image_window_duplicate_action(GSimpleAction *action,
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "info");
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "properties");
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
+
+	// FIXME copy other stuff over eg scale, position etc
 }
 
 static GFile *
@@ -1573,115 +1647,6 @@ image_window_new(VipsdispApp *app)
 	return g_object_new(IMAGE_WINDOW_TYPE, "application", app, NULL);
 }
 
-/* Change the image we are manipulating.
- */
-static void
-image_window_set_imageui(ImageWindow *win, Imageui *imageui)
-{
-	TileSource *old_tile_source = image_window_get_tile_source(win);
-
-	VipsImage *image;
-	char *title;
-
-	TileSource *new_tile_source = NULL;
-	if (imageui) {
-		g_object_get(imageui,
-			"tile-source", &new_tile_source,
-			NULL);
-
-		// we don't want a ref to it, just to fetch it
-		g_object_unref(new_tile_source);
-	}
-
-	/* Try to shut down any current evaluation.
-	 */
-	if (old_tile_source)
-		tile_source_kill(old_tile_source);
-
-	g_object_set(old_tile_source,
-		"visible", FALSE,
-		NULL);
-
-	image_window_error_hide(win);
-
-	g_object_set(win->properties,
-		"tile-source", new_tile_source,
-		NULL);
-
-	/* Update title and subtitle.
-	 */
-	title = new_tile_source ?
-		(char *) tile_source_get_path(new_tile_source) : NULL;
-		title = (char *) tile_source_get_path(new_tile_source);
-	gtk_label_set_text(GTK_LABEL(win->title), title ? title : "Untitled");
-
-	if (new_tile_source &&
-		(image = tile_source_get_base_image(new_tile_source))) {
-		char str[256];
-		VipsBuf buf = VIPS_BUF_STATIC(str);
-
-		vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
-		if (new_tile_source->n_pages > 1)
-			vips_buf_appendf(&buf, "%d pages, ", new_tile_source->n_pages);
-		if (vips_image_get_coding(image) == VIPS_CODING_NONE)
-			vips_buf_appendf(&buf,
-				g_dngettext(GETTEXT_PACKAGE,
-					" %s, %d band, %s",
-					" %s, %d bands, %s",
-					image->Bands),
-				vips_enum_nick(VIPS_TYPE_BAND_FORMAT, image->BandFmt),
-				vips_image_get_bands(image),
-				vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
-		else
-			vips_buf_appendf(&buf, "%s",
-				vips_enum_nick(VIPS_TYPE_CODING,
-					vips_image_get_coding(image)));
-		vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
-		gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
-	}
-	else
-		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
-
-	if (imageui) {
-		g_signal_connect_object(new_tile_source, "preeval",
-			G_CALLBACK(image_window_preeval), win, 0);
-		g_signal_connect_object(new_tile_source, "eval",
-			G_CALLBACK(image_window_eval), win, 0);
-		g_signal_connect_object(new_tile_source, "posteval",
-			G_CALLBACK(image_window_posteval), win, 0);
-
-		g_signal_connect_object(new_tile_source, "changed",
-			G_CALLBACK(image_window_tile_source_changed), win, 0);
-
-		g_signal_connect_object(imageui, "changed",
-			G_CALLBACK(image_window_imageui_changed), win, 0);
-
-		/* Add to stack.
-		 */
-		gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
-		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
-
-		/* Enable the control settings, if the displaycontrolbar is on.
-		 */
-		GVariant *control = g_settings_get_value(win->settings, "control");
-		g_object_set(new_tile_source,
-			"active", g_variant_get_boolean(control),
-			"visible", TRUE,
-			NULL);
-
-		/* Everything is set up ... start loading the image.
-		 */
-		tile_source_background_load(new_tile_source);
-	}
-
-	// not a ref, so we can just overwrite it
-	win->imageui = imageui;
-
-	image_window_reset_view(win);
-
-	image_window_changed(win);
-}
-
 GSettings *
 image_window_get_settings(ImageWindow *win)
 {
@@ -1746,5 +1711,6 @@ image_window_open_image(ImageWindow *win, VipsImage *image)
 	// no longer have a file backed image
 	image_window_files_free(win);
 
-	image_window_set_imageui(win, imageui);
+	image_window_imageui_add(win, imageui);
+	image_window_imageui_set_visible(win, imageui);
 }

@@ -197,6 +197,12 @@ imageui_get_property(GObject *object,
 #endif /*DEBUG_VERBOSE*/
 }
 
+TileSource *
+imageui_get_tile_source(Imageui *imageui)
+{
+	return imageui->tile_source;
+}
+
 static void
 imageui_set_scale(Imageui *imageui, double scale)
 {
