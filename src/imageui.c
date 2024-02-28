@@ -346,8 +346,8 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 	double new_scale;
 
 #ifdef DEBUG_VERBOSE
-	printf("image_window_tick: dt = %g\n", dt);
 #endif /*DEBUG_VERBOSE*/
+	printf("image_window_tick: dt = %g\n", dt);
 
 	new_scale = scale;
 

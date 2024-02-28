@@ -230,7 +230,23 @@ On success, merge to master.
 
 ## TODO
 
-- pressing refresh a few times kills it
+- pressing F5 usually kills it ... a segv in some animation thing
+
+image_window_active_remove: /home/john/pics/k2.jpg
+image_window_active_add: /home/john/pics/k2.jpg
+Thread 1 "vipsdisp" received signal SIGSEGV, Segmentation fault.
+0x00007ffff707f150 in _gtk_widget_get_parent (widget=<optimised out>)
+    at ../../../gtk/gtkwidgetprivate.h:379
+379       return widget->priv->parent;                                          
+
+  killing widget with focus?
+
+
+- paste kills it
+
+- copy then paste into gimp doesn't seem to work
+
+- test drag/drop too
 
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
   stack ... gtk seems to be calling `stack_remove()` twice, even when only 
