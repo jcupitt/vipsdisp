@@ -244,7 +244,6 @@
               <object class="GtkStack" id="stack">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
-                <property name="transition-type">rotate-left-right</property>
 
                   <!-- Imageui go in here -->
               </object>

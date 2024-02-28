@@ -230,17 +230,17 @@ On success, merge to master.
 
 ## TODO
 
-- prev image is broken
+- pressing refresh a few times kills it
 
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
   stack ... gtk seems to be calling `stack_remove()` twice, even when only 
   one child is present?
 
-  load two images, ^Q, get two crits, one each time a page is freed
+  check bt for the two calls
 
 - load cancel does not work
 
-- duplicate should copy view params
+- duplicate should copy all view params
 
 - check mem use, esp with three large images loaded
 

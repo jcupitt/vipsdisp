@@ -564,7 +564,8 @@ image_window_imageui_add(ImageWindow *win, Imageui *imageui)
 /* Change the image we are manipulating. The imageui is in the stack already.
  */
 static void
-image_window_imageui_set_visible(ImageWindow *win, Imageui *imageui)
+image_window_imageui_set_visible(ImageWindow *win,
+	Imageui *imageui, GtkStackTransitionType transition)
 {
 	TileSource *old_tile_source = image_window_get_tile_source(win);
 	TileSource *new_tile_source = imageui ? imageui_get_tile_source(imageui) : NULL;
@@ -621,6 +622,7 @@ image_window_imageui_set_visible(ImageWindow *win, Imageui *imageui)
 		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
 
 	if (imageui) {
+		gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
 		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
 		/* Enable the control settings, if the displaycontrolbar is on.
@@ -641,12 +643,13 @@ image_window_imageui_set_visible(ImageWindow *win, Imageui *imageui)
 }
 
 static void
-image_window_open_current_file(ImageWindow *win)
+image_window_open_current_file(ImageWindow *win,
+	GtkStackTransitionType transition)
 {
 	image_window_error_hide(win);
 
 	if (!win->files)
-		image_window_imageui_set_visible(win, NULL);
+		image_window_imageui_set_visible(win, NULL, transition);
 	else {
 		char *filename = win->files[win->current_file];
 		g_autoptr(Imageui) imageui = NULL;
@@ -692,7 +695,7 @@ image_window_open_current_file(ImageWindow *win)
 			image_window_active_add(win, filename, imageui);
 		}
 
-		image_window_imageui_set_visible(win, imageui);
+		image_window_imageui_set_visible(win, imageui, transition);
 	}
 }
 
@@ -973,7 +976,7 @@ image_window_duplicate_action(GSimpleAction *action,
 	new_win->n_files = win->n_files;
 	new_win->files = g_strdupv(win->files);
 	new_win->current_file = win->current_file;
-	image_window_open_current_file(new_win);
+	image_window_open_current_file(new_win, GTK_STACK_TRANSITION_TYPE_NONE);
 
 	gtk_window_get_default_size(GTK_WINDOW(win), &width, &height);
 	gtk_window_set_default_size(GTK_WINDOW(new_win), width, height);
@@ -1211,7 +1214,8 @@ image_window_next_image(GSimpleAction *action,
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + 1) % win->n_files;
-		image_window_open_current_file(win);
+		image_window_open_current_file(win,
+			GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 	}
 }
 
@@ -1229,7 +1233,8 @@ image_window_prev_image(GSimpleAction *action,
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + win->n_files - 1) %
 			win->n_files;
-		image_window_open_current_file(win);
+		image_window_open_current_file(win,
+			GTK_STACK_TRANSITION_TYPE_ROTATE_RIGHT);
 	}
 }
 
@@ -1661,7 +1666,7 @@ image_window_open_files(ImageWindow *win, char **files, int n_files)
 #endif /*DEBUG*/
 
 	image_window_files_set(win, files, n_files);
-	image_window_open_current_file(win);
+	image_window_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 }
 
 void
@@ -1672,7 +1677,7 @@ image_window_open_list_gfiles(ImageWindow *win, GSList *gfiles)
 #endif /*DEBUG*/
 
 	image_window_files_set_list_gfiles(win, gfiles);
-	image_window_open_current_file(win);
+	image_window_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 }
 
 void
@@ -1712,5 +1717,6 @@ image_window_open_image(ImageWindow *win, VipsImage *image)
 	image_window_files_free(win);
 
 	image_window_imageui_add(win, imageui);
-	image_window_imageui_set_visible(win, imageui);
+	image_window_imageui_set_visible(win,
+		imageui, GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN);
 }
