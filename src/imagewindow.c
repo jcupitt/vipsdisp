@@ -171,6 +171,13 @@ image_window_active_remove(ImageWindow *win, const char *filename)
 {
 	Active *active = image_window_active_lookup(win, filename);
 
+	if (active->imageui == win->imageui)
+		win->imageui = NULL;
+
+	// gtk hates killing widgets with active focus ... this triggers crashes
+	// in focus decoration redraw
+	gtk_widget_grab_focus(GTK_WIDGET(win->gears));
+
 	printf("image_window_active_remove: %s\n", filename);
 	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 	g_hash_table_remove(win->active_hash, filename);

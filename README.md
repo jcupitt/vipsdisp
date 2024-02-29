@@ -230,18 +230,6 @@ On success, merge to master.
 
 ## TODO
 
-- pressing F5 usually kills it ... a segv in some animation thing
-
-image_window_active_remove: /home/john/pics/k2.jpg
-image_window_active_add: /home/john/pics/k2.jpg
-Thread 1 "vipsdisp" received signal SIGSEGV, Segmentation fault.
-0x00007ffff707f150 in _gtk_widget_get_parent (widget=<optimised out>)
-    at ../../../gtk/gtkwidgetprivate.h:379
-379       return widget->priv->parent;                                          
-
-  killing widget with focus?
-
-
 - paste kills it
 
 - copy then paste into gimp doesn't seem to work
@@ -249,14 +237,14 @@ Thread 1 "vipsdisp" received signal SIGSEGV, Segmentation fault.
 - test drag/drop too
 
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
-  stack ... gtk seems to be calling `stack_remove()` twice, even when only 
-  one child is present?
+  stack ... seems to be a harmless minor glib bug with `g_clear_object()`
+  failing with a crit for a null value
 
-  check bt for the two calls
+  maybe check glib master and file a bug report
 
 - load cancel does not work
 
-- duplicate should copy all view params
+- duplicate should copy all view params?
 
 - check mem use, esp with three large images loaded
 
