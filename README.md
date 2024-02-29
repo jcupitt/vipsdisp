@@ -230,12 +230,6 @@ On success, merge to master.
 
 ## TODO
 
-- paste kills it
-
-- copy then paste into gimp doesn't seem to work
-
-- test drag/drop too
-
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
   stack ... seems to be a harmless minor glib bug with `g_clear_object()`
   failing with a crit for a null value
@@ -244,7 +238,8 @@ On success, merge to master.
 
 - load cancel does not work
 
-- duplicate should copy all view params?
+- duplicate should copy more view params? slider settings? scale and
+  position?
 
 - check mem use, esp with three large images loaded
 

@@ -127,6 +127,14 @@ change_state(GtkWidget *widget, const char *name, GVariant *state)
 		g_action_change_state(action, state);
 }
 
+void
+set_state(GtkWidget *to, GSettings *settings, const char *name)
+{
+	g_autoptr(GVariant) var = g_settings_get_value(settings, name);
+
+	change_state(to, name, var);
+}
+
 GVariant *
 get_state(GtkWidget *widget, const char *name)
 {

@@ -634,7 +634,8 @@ image_window_imageui_set_visible(ImageWindow *win,
 
 		/* Enable the control settings, if the displaycontrolbar is on.
 		 */
-		GVariant *control = g_settings_get_value(win->settings, "control");
+		g_autoptr(GVariant) control = 
+			g_settings_get_value(win->settings, "control");
 		g_object_set(new_tile_source,
 			"active", g_variant_get_boolean(control),
 			"visible", TRUE,
@@ -1562,17 +1563,12 @@ image_window_init(ImageWindow *win)
 	 * instead.
 	 */
 
-	/* Initialise from settings.
+	/* Menu state from settings.
 	 */
-	change_state(GTK_WIDGET(win), "properties",
-		g_settings_get_value(win->settings, "properties"));
-
-	/* Initial menu state from settings.
-	 */
-	change_state(GTK_WIDGET(win), "control",
-		g_settings_get_value(win->settings, "control"));
-	change_state(GTK_WIDGET(win), "info",
-		g_settings_get_value(win->settings, "info"));
+	set_state(GTK_WIDGET(win), win->settings, "properties");
+	set_state(GTK_WIDGET(win), win->settings, "control");
+	set_state(GTK_WIDGET(win), win->settings, "info");
+	set_state(GTK_WIDGET(win), win->settings, "background");
 
 	// some kind of gtk bug? hexpand on properties can't be set from .ui or in
 	// properties.c, but must be set after adding to a parent
