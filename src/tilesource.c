@@ -1887,7 +1887,6 @@ tile_source_duplicate(TileSource *tile_source)
 		"falsecolour", &falsecolour,
 		"log", &log,
 		"icc", &icc,
-		"active", &active,
 		NULL);
 
 	g_object_set(new_tile_source,
@@ -1898,7 +1897,6 @@ tile_source_duplicate(TileSource *tile_source)
 		"falsecolour", falsecolour,
 		"log", log,
 		"icc", icc,
-		"active", active,
 		NULL);
 
 	return new_tile_source;

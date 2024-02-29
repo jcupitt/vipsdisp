@@ -29,8 +29,7 @@ enum {
 };
 
 static void
-displaybar_tile_source_changed(TileSource *tile_source,
-	Displaybar *displaybar)
+displaybar_tile_source_changed(TileSource *tile_source, Displaybar *displaybar)
 {
 #ifdef DEBUG
 	printf("displaybar_tile_source_changed:\n");
@@ -46,8 +45,7 @@ displaybar_tile_source_changed(TileSource *tile_source,
 		tslider_changed(TSLIDER(displaybar->offset));
 	}
 
-	gtk_spin_button_set_range(
-		GTK_SPIN_BUTTON(displaybar->page),
+	gtk_spin_button_set_range(GTK_SPIN_BUTTON(displaybar->page),
 		0, tile_source->n_pages - 1);
 	gtk_widget_set_sensitive(displaybar->page,
 		tile_source->n_pages > 1 &&
@@ -55,23 +53,20 @@ displaybar_tile_source_changed(TileSource *tile_source,
 }
 
 static void
-displaybar_page_changed(TileSource *tile_source,
-	Displaybar *displaybar)
+displaybar_page_changed(TileSource *tile_source, Displaybar *displaybar)
 {
 #ifdef DEBUG
 	printf("displaybar_page_changed:\n");
 #endif /*DEBUG*/
 
-	gtk_spin_button_set_value(
-		GTK_SPIN_BUTTON(displaybar->page),
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(displaybar->page),
 		tile_source->page);
 }
 
 /* Imagewindow has a new tile_source.
  */
 static void
-displaybar_image_window_changed(ImageWindow *win,
-	Displaybar *displaybar)
+displaybar_image_window_changed(ImageWindow *win, Displaybar *displaybar)
 {
 	TileSource *tile_source;
 
@@ -89,8 +84,7 @@ displaybar_image_window_changed(ImageWindow *win,
 }
 
 static void
-displaybar_set_image_window(Displaybar *displaybar,
-	ImageWindow *win)
+displaybar_set_image_window(Displaybar *displaybar, ImageWindow *win)
 {
 	/* No need to ref ... win holds a ref to us.
 	 */
@@ -179,11 +173,9 @@ displaybar_page_value_changed(GtkSpinButton *spin_button,
 }
 
 static void
-displaybar_scale_value_changed(Tslider *slider,
-	Displaybar *displaybar)
+displaybar_scale_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source =
-		image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
 
 	if (tile_source)
 		g_object_set(tile_source,
@@ -192,11 +184,9 @@ displaybar_scale_value_changed(Tslider *slider,
 }
 
 static void
-displaybar_offset_value_changed(Tslider *slider,
-	Displaybar *displaybar)
+displaybar_offset_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source =
-		image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
 
 	if (tile_source)
 		g_object_set(tile_source,

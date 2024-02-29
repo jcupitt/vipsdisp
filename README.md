@@ -241,11 +241,17 @@ On success, merge to master.
 - duplicate should copy more view params? slider settings? scale and
   position?
 
+- looks like duplicate of a texture view will fail ... see
+  tile_source_duplicate()
+
+- next / prev image does not set scale offset etc
+
 - check mem use, esp with three large images loaded
 
 - PDF page change does not change image size if pages vary in size
 
-- add some internal stuff, like pyramid shape, to props display?
+- add some internal stuff, like pyramid shape, to props display? number of
+  loaded tiles?
 
 - ^C during a slow load leaves a file in /tmp, can we fix this?
 

@@ -575,7 +575,8 @@ image_window_imageui_set_visible(ImageWindow *win,
 	Imageui *imageui, GtkStackTransitionType transition)
 {
 	TileSource *old_tile_source = image_window_get_tile_source(win);
-	TileSource *new_tile_source = imageui ? imageui_get_tile_source(imageui) : NULL;
+	TileSource *new_tile_source = 
+		imageui ? imageui_get_tile_source(imageui) : NULL;
 
 	VipsImage *image;
 	char *title;
@@ -597,7 +598,8 @@ image_window_imageui_set_visible(ImageWindow *win,
 
 	/* Update title and subtitle.
 	 */
-	title = new_tile_source ? (char *) tile_source_get_path(new_tile_source) : NULL;
+	title = new_tile_source ? 
+		(char *) tile_source_get_path(new_tile_source) : NULL;
 	title = (char *) tile_source_get_path(new_tile_source);
 	gtk_label_set_text(GTK_LABEL(win->title), title ? title : "Untitled");
 
@@ -636,16 +638,17 @@ image_window_imageui_set_visible(ImageWindow *win,
 		 */
 		g_autoptr(GVariant) control = 
 			g_settings_get_value(win->settings, "control");
+
 		g_object_set(new_tile_source,
 			"active", g_variant_get_boolean(control),
 			"visible", TRUE,
 			NULL);
+
+		//tile_source_changed(new_tile_source);
 	}
 
 	// not a ref, so we can just overwrite it
 	win->imageui = imageui;
-
-	image_window_reset_view(win);
 
 	image_window_changed(win);
 }
@@ -972,6 +975,7 @@ image_window_duplicate_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
+	GtkStackTransitionType transition = GTK_STACK_TRANSITION_TYPE_NONE;
 
 	VipsdispApp *app;
 	ImageWindow *new_win;
@@ -979,12 +983,10 @@ image_window_duplicate_action(GSimpleAction *action,
 
 	g_object_get(win, "application", &app, NULL);
 	new_win = image_window_new(app);
-	gtk_window_present(GTK_WINDOW(new_win));
 
 	new_win->n_files = win->n_files;
 	new_win->files = g_strdupv(win->files);
 	new_win->current_file = win->current_file;
-	image_window_open_current_file(new_win, GTK_STACK_TRANSITION_TYPE_NONE);
 
 	gtk_window_get_default_size(GTK_WINDOW(win), &width, &height);
 	gtk_window_set_default_size(GTK_WINDOW(new_win), width, height);
@@ -994,7 +996,16 @@ image_window_duplicate_action(GSimpleAction *action,
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "properties");
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
 
-	// FIXME copy other stuff over eg scale, position etc
+	if (win->imageui) {
+		TileSource *tile_source = imageui_get_tile_source(win->imageui);
+		TileSource *new_tile_source = tile_source_duplicate(tile_source);
+		Imageui *imageui = imageui_new(new_tile_source);
+
+		image_window_imageui_add(new_win, imageui);
+		image_window_imageui_set_visible(new_win, imageui, transition);
+	}
+
+	gtk_window_present(GTK_WINDOW(new_win));
 }
 
 static GFile *
