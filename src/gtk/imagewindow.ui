@@ -14,11 +14,6 @@
         <attribute name="verb-icon">edit-paste-symbolic</attribute>
       </item>
       <item>
-        <attribute name="label">Reload</attribute>
-        <attribute name="action">win.reload</attribute>
-        <attribute name="verb-icon">view-refresh-symbolic</attribute>
-      </item>
-      <item>
         <attribute name="label">Fullscreen</attribute>
         <attribute name="action">win.fullscreen</attribute>
         <attribute name="verb-icon">view-fullscreen-symbolic</attribute>
@@ -32,6 +27,11 @@
         <attribute name="label">Next page</attribute>
         <attribute name="action">win.next</attribute>
         <attribute name="verb-icon">go-next-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label">Reload</attribute>
+        <attribute name="action">win.reload</attribute>
+        <attribute name="verb-icon">view-refresh-symbolic</attribute>
       </item>
     </section>
 

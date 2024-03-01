@@ -643,14 +643,16 @@ image_window_imageui_set_visible(ImageWindow *win,
 			"active", g_variant_get_boolean(control),
 			"visible", TRUE,
 			NULL);
-
-		//tile_source_changed(new_tile_source);
 	}
 
 	// not a ref, so we can just overwrite it
 	win->imageui = imageui;
 
+	// update the displaybar etc.
 	image_window_changed(win);
+
+	// update the menus
+	image_window_tile_source_changed(new_tile_source, win);
 }
 
 static void
@@ -998,7 +1000,8 @@ image_window_duplicate_action(GSimpleAction *action,
 
 	if (win->imageui) {
 		TileSource *tile_source = imageui_get_tile_source(win->imageui);
-		TileSource *new_tile_source = tile_source_duplicate(tile_source);
+		g_autoptr(TileSource) new_tile_source = 
+			tile_source_duplicate(tile_source);
 		Imageui *imageui = imageui_new(new_tile_source);
 
 		image_window_imageui_add(new_win, imageui);

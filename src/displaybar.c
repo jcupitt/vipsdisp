@@ -12,11 +12,22 @@ struct _Displaybar {
 	 */
 	ImageWindow *win;
 
+	/* The tile_source we are currently controlling. Not a ref.
+	 */
+	TileSource *tile_source;
+
 	GtkWidget *action_bar;
 	GtkWidget *gears;
 	GtkWidget *page;
 	GtkWidget *scale;
 	GtkWidget *offset;
+
+	/* We have to disconnect and reconnect these when imagewindow gets a new
+	 * tile_source.
+	 */
+	guint changed_sid;
+	guint tiles_changed_sid;
+	guint page_changed_sid;
 };
 
 G_DEFINE_TYPE(Displaybar, displaybar, GTK_TYPE_WIDGET);
@@ -32,8 +43,8 @@ static void
 displaybar_tile_source_changed(TileSource *tile_source, Displaybar *displaybar)
 {
 #ifdef DEBUG
-	printf("displaybar_tile_source_changed:\n");
 #endif /*DEBUG*/
+	printf("displaybar_tile_source_changed:\n");
 
 	if (TSLIDER(displaybar->scale)->value != tile_source->scale) {
 		TSLIDER(displaybar->scale)->value = tile_source->scale;
@@ -63,23 +74,45 @@ displaybar_page_changed(TileSource *tile_source, Displaybar *displaybar)
 		tile_source->page);
 }
 
+static void
+displaybar_disconnect(Displaybar *displaybar)
+{
+	if (displaybar->tile_source) {
+		FREESID(displaybar->changed_sid, displaybar->tile_source);
+		FREESID(displaybar->tiles_changed_sid, displaybar->tile_source);
+		FREESID(displaybar->page_changed_sid, displaybar->tile_source);
+
+		displaybar->tile_source = NULL;
+	}
+}
+
 /* Imagewindow has a new tile_source.
  */
 static void
 displaybar_image_window_changed(ImageWindow *win, Displaybar *displaybar)
 {
-	TileSource *tile_source;
+	TileSource *tile_source = image_window_get_tile_source(win);
 
-	if ((tile_source = image_window_get_tile_source(win))) {
-		g_signal_connect_object(tile_source, "changed",
-			G_CALLBACK(displaybar_tile_source_changed),
-			displaybar, 0);
-		g_signal_connect_object(tile_source, "tiles-changed",
-			G_CALLBACK(displaybar_tile_source_changed),
-			displaybar, 0);
-		g_signal_connect_object(tile_source, "page-changed",
-			G_CALLBACK(displaybar_page_changed),
-			displaybar, 0);
+#ifdef DEBUG
+#endif /*DEBUG*/
+	printf("displaybar_image_window_changed:\n");
+
+	displaybar_disconnect(displaybar);
+
+	if (tile_source) {
+		displaybar->changed_sid = g_signal_connect(tile_source, 
+			"changed",
+			G_CALLBACK(displaybar_tile_source_changed), displaybar);
+		displaybar->tiles_changed_sid = g_signal_connect(tile_source, 
+			"tiles-changed",
+			G_CALLBACK(displaybar_tile_source_changed), displaybar);
+		displaybar->page_changed_sid = g_signal_connect(tile_source, 
+			"page-changed",
+			G_CALLBACK(displaybar_page_changed), displaybar);
+
+		displaybar->tile_source = tile_source;
+
+		displaybar_tile_source_changed(tile_source, displaybar);
 	}
 }
 
@@ -89,6 +122,7 @@ displaybar_set_image_window(Displaybar *displaybar, ImageWindow *win)
 	/* No need to ref ... win holds a ref to us.
 	 */
 	displaybar->win = win;
+	displaybar->tile_source = image_window_get_tile_source(win);
 
 	g_signal_connect_object(win, "changed",
 		G_CALLBACK(displaybar_image_window_changed),
@@ -150,6 +184,8 @@ displaybar_dispose(GObject *object)
 	printf("displaybar_dispose:\n");
 #endif /*DEBUG*/
 
+	displaybar_disconnect(displaybar);
+
 	VIPS_FREEF(gtk_widget_unparent, displaybar->action_bar);
 
 	G_OBJECT_CLASS(displaybar_parent_class)->dispose(object);
@@ -159,7 +195,7 @@ static void
 displaybar_page_value_changed(GtkSpinButton *spin_button,
 	Displaybar *displaybar)
 {
-	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = displaybar->tile_source;
 	int new_page = gtk_spin_button_get_value_as_int(spin_button);
 
 #ifdef DEBUG
@@ -175,7 +211,7 @@ displaybar_page_value_changed(GtkSpinButton *spin_button,
 static void
 displaybar_scale_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = displaybar->tile_source;
 
 	if (tile_source)
 		g_object_set(tile_source,
@@ -186,7 +222,7 @@ displaybar_scale_value_changed(Tslider *slider, Displaybar *displaybar)
 static void
 displaybar_offset_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source = image_window_get_tile_source(displaybar->win);
+	TileSource *tile_source = displaybar->tile_source;
 
 	if (tile_source)
 		g_object_set(tile_source,
