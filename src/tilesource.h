@@ -194,10 +194,6 @@ typedef struct _TileSource {
 	 * invisible images.
 	 */
 	gboolean visible;
-
-	/* Set this to try to shut down eval.
-	 */
-	gboolean kill;
 } TileSource;
 
 typedef struct _TileSourceClass {
@@ -250,6 +246,5 @@ gboolean tile_source_get_pixel(TileSource *tile_source,
 	int image_x, int image_y, double **vector, int *n);
 TileSource *tile_source_duplicate(TileSource *tile_source);
 void tile_source_changed(TileSource *tile_source);
-void tile_source_kill(TileSource *tile_source);
 
 #endif /*__TILE_SOURCE_H*/

@@ -70,7 +70,7 @@ G_DEFINE_TYPE(ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW);
 /* Our signals.
  */
 enum {
-	SIG_CHANGED,		/* A new imageui */
+	SIG_CHANGED,		/* A new imageui and tile_source */
 	SIG_STATUS_CHANGED, /* New mouse position */
 	SIG_LAST
 };
@@ -174,11 +174,6 @@ image_window_active_remove(ImageWindow *win, const char *filename)
 	if (active->imageui == win->imageui)
 		win->imageui = NULL;
 
-	// gtk hates killing widgets with active focus ... this triggers crashes
-	// in focus decoration redraw
-	gtk_widget_grab_focus(GTK_WIDGET(win->gears));
-
-	printf("image_window_active_remove: %s\n", filename);
 	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 	g_hash_table_remove(win->active_hash, filename);
 }
@@ -198,8 +193,6 @@ image_window_active_add(ImageWindow *win,
 	const char *filename, Imageui *imageui)
 {
 	g_assert(!image_window_active_lookup(win, filename));
-
-	printf("image_window_active_add: %s\n", filename);
 
 	Active *active = VIPS_NEW(NULL, Active);
 	active->win = win;
@@ -581,11 +574,6 @@ image_window_imageui_set_visible(ImageWindow *win,
 	VipsImage *image;
 	char *title;
 
-	/* Try to shut down any current evaluation.
-	 */
-	if (old_tile_source)
-		tile_source_kill(old_tile_source);
-
 	g_object_set(old_tile_source,
 		"visible", FALSE,
 		NULL);
@@ -648,7 +636,7 @@ image_window_imageui_set_visible(ImageWindow *win,
 	// not a ref, so we can just overwrite it
 	win->imageui = imageui;
 
-	// update the displaybar etc.
+	// tell everyone there's a new imageui
 	image_window_changed(win);
 
 	// update the menus

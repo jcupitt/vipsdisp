@@ -232,8 +232,6 @@ On success, merge to master.
 
 - duplicate could copy zoom/pan settings
 
-- next image twice ... display bar stops working
-
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
   stack ... seems to be a harmless minor glib bug with `g_clear_object()`
   failing with a crit for a null value
@@ -242,11 +240,7 @@ On success, merge to master.
 
 - load cancel does not work
 
-- duplicate should copy more view params? slider settings? scale and
-  position?
-
-- looks like duplicate of a texture view will fail ... see
-  tile_source_duplicate()
+- duplicate of a texture view crashes ... see tile_source_duplicate()
 
 - check mem use, esp with three large images loaded
 

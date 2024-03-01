@@ -587,11 +587,15 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 }
 
 /* Rebuild just the second half of the image pipeline, eg. after a change to
- * falsecolour, or if current_z changes.
+ * falsecolour, scale, or if current_z changes.
  */
 static int
 tile_source_update_rgb(TileSource *tile_source)
 {
+#ifdef DEBUG
+	printf("tile_source_update_rgb:\n");
+#endif /*DEBUG*/
+
 	if (tile_source->display) {
 		VipsImage *rgb;
 
@@ -1757,9 +1761,6 @@ tile_source_fill_tile(TileSource *tile_source, Tile *tile)
 		tile->region->valid.left, tile->region->valid.top);
 #endif /*DEBUG_VERBOSE*/
 
-	if (tile_source->kill)
-		return 0;
-
 	/* Change z if necessary.
 	 */
 	if (tile_source->current_z != tile->z ||
@@ -1904,15 +1905,3 @@ tile_source_duplicate(TileSource *tile_source)
 	return new_tile_source;
 }
 
-void
-tile_source_kill(TileSource *tile_source)
-{
-	tile_source->kill = TRUE;
-
-	if (tile_source->display)
-		vips_image_set_kill(tile_source->display, TRUE);
-	if (tile_source->mask)
-		vips_image_set_kill(tile_source->mask, TRUE);
-	if (tile_source->rgb)
-		vips_image_set_kill(tile_source->rgb, TRUE);
-}

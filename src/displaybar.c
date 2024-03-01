@@ -12,7 +12,7 @@ struct _Displaybar {
 	 */
 	ImageWindow *win;
 
-	/* The tile_source we are currently controlling. Not a ref.
+	/* A ref to the tile_source we are currently controlling. 
 	 */
 	TileSource *tile_source;
 
@@ -43,8 +43,10 @@ static void
 displaybar_tile_source_changed(TileSource *tile_source, Displaybar *displaybar)
 {
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("displaybar_tile_source_changed:\n");
+#endif /*DEBUG*/
+
+	g_assert(tile_source == displaybar->tile_source);
 
 	if (TSLIDER(displaybar->scale)->value != tile_source->scale) {
 		TSLIDER(displaybar->scale)->value = tile_source->scale;
@@ -70,6 +72,8 @@ displaybar_page_changed(TileSource *tile_source, Displaybar *displaybar)
 	printf("displaybar_page_changed:\n");
 #endif /*DEBUG*/
 
+	g_assert(tile_source == displaybar->tile_source);
+
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(displaybar->page),
 		tile_source->page);
 }
@@ -82,7 +86,7 @@ displaybar_disconnect(Displaybar *displaybar)
 		FREESID(displaybar->tiles_changed_sid, displaybar->tile_source);
 		FREESID(displaybar->page_changed_sid, displaybar->tile_source);
 
-		displaybar->tile_source = NULL;
+		VIPS_UNREF(displaybar->tile_source);
 	}
 }
 
@@ -91,28 +95,33 @@ displaybar_disconnect(Displaybar *displaybar)
 static void
 displaybar_image_window_changed(ImageWindow *win, Displaybar *displaybar)
 {
-	TileSource *tile_source = image_window_get_tile_source(win);
-
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("displaybar_image_window_changed:\n");
+#endif /*DEBUG*/
 
 	displaybar_disconnect(displaybar);
 
-	if (tile_source) {
-		displaybar->changed_sid = g_signal_connect(tile_source, 
+	TileSource *new_tile_source = image_window_get_tile_source(win);
+	if (new_tile_source) {
+		/* Set new source.
+		 */
+		displaybar->changed_sid = g_signal_connect(new_tile_source, 
 			"changed",
 			G_CALLBACK(displaybar_tile_source_changed), displaybar);
-		displaybar->tiles_changed_sid = g_signal_connect(tile_source, 
+		displaybar->tiles_changed_sid = g_signal_connect(new_tile_source, 
 			"tiles-changed",
 			G_CALLBACK(displaybar_tile_source_changed), displaybar);
-		displaybar->page_changed_sid = g_signal_connect(tile_source, 
+		displaybar->page_changed_sid = g_signal_connect(new_tile_source, 
 			"page-changed",
 			G_CALLBACK(displaybar_page_changed), displaybar);
 
-		displaybar->tile_source = tile_source;
+		displaybar->tile_source = new_tile_source;
+		g_object_ref(new_tile_source);
 
-		displaybar_tile_source_changed(tile_source, displaybar);
+		/* Init from new source.
+		 */
+		displaybar_tile_source_changed(new_tile_source, displaybar);
+		displaybar_page_changed(new_tile_source, displaybar);
 	}
 }
 
@@ -122,11 +131,12 @@ displaybar_set_image_window(Displaybar *displaybar, ImageWindow *win)
 	/* No need to ref ... win holds a ref to us.
 	 */
 	displaybar->win = win;
-	displaybar->tile_source = image_window_get_tile_source(win);
 
 	g_signal_connect_object(win, "changed",
 		G_CALLBACK(displaybar_image_window_changed),
 		displaybar, 0);
+
+	displaybar_image_window_changed(win, displaybar);
 }
 
 static void
