@@ -77,6 +77,10 @@ enum {
 	PROP_VADJUSTMENT,
 	PROP_VSCROLL_POLICY,
 
+	/* We need bestfit off for eg. suplicate.
+	 */
+	PROP_BESTFIT,
+
 	/* Control transform with this.
 	 */
 	PROP_BACKGROUND,
@@ -435,6 +439,10 @@ imagedisplay_set_property(GObject *object,
 			g_value_get_object(value));
 		break;
 
+	case PROP_BESTFIT:
+		imagedisplay->bestfit = g_value_get_boolean(value);
+		break;
+
 	case PROP_BACKGROUND:
 		if (imagedisplay->tile_cache)
 			g_object_set(imagedisplay->tile_cache,
@@ -503,6 +511,10 @@ imagedisplay_get_property(GObject *object,
 
 	case PROP_TILE_SOURCE:
 		g_value_set_object(value, imagedisplay->tile_source);
+		break;
+
+	case PROP_BESTFIT:
+		g_value_set_boolean(value, imagedisplay->bestfit);
 		break;
 
 	case PROP_BACKGROUND:
@@ -662,6 +674,13 @@ imagedisplay_class_init(ImagedisplayClass *class)
 			_("Tile source"),
 			_("The tile source to be displayed"),
 			TILE_SOURCE_TYPE,
+			G_PARAM_READWRITE));
+
+	g_object_class_install_property(gobject_class, PROP_BESTFIT,
+		g_param_spec_boolean("bestfit",
+			_("Bestfit"),
+			_("Shrink on first display"),
+			FALSE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_BACKGROUND,

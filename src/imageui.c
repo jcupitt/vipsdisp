@@ -346,8 +346,9 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 	double new_scale;
 
 #ifdef DEBUG_VERBOSE
+	// FIXME could display FPS from this?
+	printf("imageui_tick: dt = %g\n", dt);
 #endif /*DEBUG_VERBOSE*/
-	printf("image_window_tick: dt = %g\n", dt);
 
 	new_scale = scale;
 
@@ -903,6 +904,29 @@ imageui_new(TileSource *tile_source)
 	return imageui;
 }
 
+Imageui *
+imageui_duplicate(TileSource *tile_source, Imageui *old_imageui)
+{
+	Imageui *new_imageui = imageui_new(tile_source);
+
+	/* We want to copy position and scale, so no bestfit.
+	 */
+	g_object_set(new_imageui->imagedisplay,
+		"bestfit", FALSE,
+		NULL);
+
+	double scale = imageui_get_scale(old_imageui);
+	imageui_set_scale(new_imageui, scale);
+
+	// this won't work until imagedisplay has had a layout :( think about this
+	// again
+	int left, top, width, height;
+	imageui_get_position(old_imageui, &left, &top, &width, &height);
+	imageui_set_position(new_imageui, left, top);
+
+	return new_imageui;
+}
+
 void
 imageui_image_to_gtk(Imageui *imageui,
 	double x_image, double y_image, double *x_gtk, double *y_gtk)
@@ -917,19 +941,4 @@ imageui_gtk_to_image(Imageui *imageui,
 {
 	imagedisplay_gtk_to_image(IMAGEDISPLAY(imageui->imagedisplay),
 		x_gtk, y_gtk, x_image, y_image);
-}
-
-void
-imageui_copy_position(Imageui *new, Imageui *old)
-{
-	copy_adj(
-		gtk_scrolled_window_get_hadjustment(
-			GTK_SCROLLED_WINDOW(new->scrolled_window)),
-		gtk_scrolled_window_get_hadjustment(
-			GTK_SCROLLED_WINDOW(old->scrolled_window)));
-	copy_adj(
-		gtk_scrolled_window_get_vadjustment(
-			GTK_SCROLLED_WINDOW(new->scrolled_window)),
-		gtk_scrolled_window_get_vadjustment(
-			GTK_SCROLLED_WINDOW(old->scrolled_window)));
 }

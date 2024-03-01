@@ -230,8 +230,6 @@ On success, merge to master.
 
 ## TODO
 
-- duplicate could copy zoom/pan settings
-
 - get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
   stack ... seems to be a harmless minor glib bug with `g_clear_object()`
   failing with a crit for a null value

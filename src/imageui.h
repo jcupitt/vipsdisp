@@ -15,7 +15,6 @@
 
 G_DECLARE_FINAL_TYPE(Imageui, imageui, VIPSDISP, IMAGEUI, GtkWidget)
 
-Imageui *imageui_new(TileSource *tile_source);
 double imageui_get_scale(Imageui *imageui);
 TileSource *imageui_get_tile_source(Imageui *imageui);
 void imageui_get_mouse_position(Imageui *imageui,
@@ -27,10 +26,12 @@ void imageui_magout(Imageui *imageui);
 void imageui_oneone(Imageui *imageui);
 gboolean imageui_scale(Imageui *imageui);
 
+Imageui *imageui_new(TileSource *tile_source);
+Imageui *imageui_duplicate(TileSource *tile_source, Imageui *old_imageui);
+
 void imageui_image_to_gtk(Imageui *imageui,
 	double x_image, double y_image, double *x_gtk, double *y_gtk);
 void imageui_gtk_to_image(Imageui *imageui,
 	double x_gtk, double y_gtk, double *x_image, double *y_image);
-void imageui_copy_position(Imageui *new, Imageui *old);
 
 #endif /* __IMAGEUI_H */

@@ -658,8 +658,8 @@ image_window_open_current_file(ImageWindow *win,
 		Active *active;
 
 #ifdef DEBUG
-		printf("image_window_open_current_file: %s:\n", filename);
 #endif /*DEBUG*/
+		printf("image_window_open_current_file: %s:\n", filename);
 
 		/* An old image selected again?
 		 */
@@ -990,10 +990,10 @@ image_window_duplicate_action(GSimpleAction *action,
 		TileSource *tile_source = imageui_get_tile_source(win->imageui);
 		g_autoptr(TileSource) new_tile_source = 
 			tile_source_duplicate(tile_source);
-		Imageui *imageui = imageui_new(new_tile_source);
+		Imageui *new_imageui = imageui_duplicate(new_tile_source, win->imageui);
 
-		image_window_imageui_add(new_win, imageui);
-		image_window_imageui_set_visible(new_win, imageui, transition);
+		image_window_imageui_add(new_win, new_imageui);
+		image_window_imageui_set_visible(new_win, new_imageui, transition);
 	}
 
 	gtk_window_present(GTK_WINDOW(new_win));
