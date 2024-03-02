@@ -52,7 +52,8 @@ flatpak install flathub org.libvips.vipsdisp
   computed in the background by a pool of workers. The interface stays live
   even under very heavy load.
 
-* It keeps a sparse pyramid of computed tiles as textures on the GPU. Each frame,
+* It keeps a sparse pyramid of computed tiles as textures on the GPU. Each 
+  frame,
   it computes the set of visible tiles, and then the GPU scales, positions and
   composites just those tiles to the screen. CPU load should be low (except
   for the background workers heh). Hold down i (for "in") or + to do a smooth
@@ -82,28 +83,24 @@ flatpak install flathub org.libvips.vipsdisp
   amounts of metadata (useful for eg. DICOM) with filtering.
 
 * Use alt-Left and alt-Right to move between the set of images being
-  displayed, handy for browsing a directory of images.
+  displayed, handy for browsing a directory of images. If you drag or load a
+  set of images, it'll flip between the images in the set. If you drag or load
+  a single image, it'll flip between all the images in that directory.
+
+* It keeps the most recent three views live, so you can flip between them very
+  quickly, and all view settings are preserved. This is handy for comparing
+  details on two images.
+
+* `Duplicate window` crtl-D makes a copy of the window, so you can compare two
+  images side by side. 
+
+* It supports copy/paste and drag/drop of filenames, sets of filenames, and
+  textures. You can paste from the screenshot tool, or drag-drop images from
+  your file browser, for example.
 
 * It uses the gtk4 GUI toolkit, so the interface is fast, attractive
   and nicely animated. The image is rendered with the GPU, so display ought to
   be quick.
-
-## Build from source
-
-```shell
-cd vipsdisp
-meson setup build --prefix=~/vips
-cd build
-ninja
-ninja install
-```
-
-And to run:
-
-```shell
-export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
-vipsdisp ~/pics/k2.jpg
-```
 
 ## Shortcuts
 
@@ -130,6 +127,23 @@ vipsdisp ~/pics/k2.jpg
 
 Additionally, you can drag and drop filenames, lists of filenames and
 textures.
+
+## Build from source
+
+```shell
+cd vipsdisp
+meson setup build --prefix=~/vips
+cd build
+ninja
+ninja install
+```
+
+And to run:
+
+```shell
+export GSETTINGS_SCHEMA_DIR=/home/john/vips/share/glib-2.0/schemas
+vipsdisp ~/pics/k2.jpg
+```
 
 ## Version bump checklist
 
