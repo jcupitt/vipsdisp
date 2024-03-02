@@ -60,6 +60,15 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="3.0.3" date="2024-03-02">
+      <description>
+        <p>
+	  Next and previous image, copy paste, drag drop, reload, 
+	  performance and stability improvements.
+        </p>
+      </description>
+    </release>
+
     <release version="2.6.3" date="2024-01-07">
       <description>
         <p>
