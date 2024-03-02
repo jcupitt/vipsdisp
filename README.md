@@ -231,6 +231,8 @@ On success, merge to master.
 
 ## TODO
 
+- animations do not stop and restart correctly on image change
+
 - PDF page change does not change image size if pages vary in size
 
 - ^C during a slow load leaves a file in /tmp, can we improve this?

@@ -715,10 +715,6 @@ tile_source_page_flip(void *user_data)
 
 	int timeout;
 
-	// don't update invisible images
-	if (!tile_source->visible)
-		return FALSE;
-
 	/* By convention, GIFs default to 10fps.
 	 */
 	timeout = 100;
@@ -743,13 +739,13 @@ tile_source_page_flip(void *user_data)
 	printf("tile_source_page_flip: timeout %d ms\n", timeout);
 #endif /*DEBUG*/
 
-	/* Only flip the page if everything has loaded.
+	/* Only flip the page if everything has loaded and the image is visible.
 	 */
-	if (tile_source->rgb) {
+	if (tile_source->rgb && 
+		tile_source->visible)
 		g_object_set(tile_source,
 			"page", (page + 1) % tile_source->n_pages,
 			NULL);
-	}
 
 	return FALSE;
 }
