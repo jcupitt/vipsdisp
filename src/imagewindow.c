@@ -672,8 +672,8 @@ image_window_open_current_file(ImageWindow *win,
 		Active *active;
 
 #ifdef DEBUG
-#endif /*DEBUG*/
 		printf("image_window_open_current_file: %s:\n", filename);
+#endif /*DEBUG*/
 
 		/* An old image selected again?
 		 */
