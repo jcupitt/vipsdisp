@@ -474,6 +474,9 @@ image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 	printf("image_window_tile_source_changed:\n");
 #endif /*DEBUG*/
 
+	if (tile_source->load_error)
+		image_window_set_error(win, tile_source->load_message);
+
 	state = g_variant_new_boolean(tile_source->falsecolour);
 	change_state(GTK_WIDGET(win), "falsecolour", state);
 
@@ -577,8 +580,6 @@ image_window_imageui_set_visible(ImageWindow *win,
 	g_object_set(old_tile_source,
 		"visible", FALSE,
 		NULL);
-
-	image_window_error_hide(win);
 
 	g_object_set(win->properties,
 		"tile-source", new_tile_source,
@@ -725,10 +726,8 @@ image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
 	VipsImage *image;
 
 	if ((tile_source = image_window_get_tile_source(win)) &&
-		(image = tile_source_get_image(tile_source))) {
-		printf("image_window_cancel_clicked: set kill on image %p\n", image);
+		(image = tile_source_get_image(tile_source)))
 		vips_image_set_kill(image, TRUE);
-	}
 }
 
 static void

@@ -63,6 +63,7 @@ tile_source_dispose(GObject *object)
 	VIPS_UNREF(tile_source->mask_region);
 
 	VIPS_FREE(tile_source->delay);
+	VIPS_FREE(tile_source->load_message);
 
 	G_OBJECT_CLASS(tile_source_parent_class)->dispose(object);
 }
@@ -966,7 +967,7 @@ tile_source_init(TileSource *tile_source)
 	tile_source->zoom = 1.0;
 }
 
-static void
+static int
 tile_source_force_load(TileSource *tile_source)
 {
 	if (tile_source->image_region &&
@@ -977,8 +978,11 @@ tile_source_force_load(TileSource *tile_source)
 		rect.top = 0;
 		rect.width = 1;
 		rect.height = 1;
-		(void) vips_region_prepare(tile_source->image_region, &rect);
+		if (vips_region_prepare(tile_source->image_region, &rect))
+			return -1;
 	}
+
+	return 0;
 }
 
 /* This runs in the main thread when the bg load is done. We can't use
@@ -1019,7 +1023,10 @@ tile_source_background_load_worker(void *data, void *user_data)
 
 	g_assert(tile_source->image_region);
 
-	tile_source_force_load(tile_source);
+	if (tile_source_force_load(tile_source)) {
+		tile_source->load_error = TRUE;
+		tile_source->load_message = vips_error_buffer_copy();
+	}
 
 	g_idle_add(tile_source_background_load_done_idle, tile_source);
 

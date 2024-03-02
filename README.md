@@ -236,16 +236,9 @@ On success, merge to master.
 
   maybe check glib master and file a bug report
 
-- load cancel does not work
-
-- duplicate of a texture view crashes ... see tile_source_duplicate()
-
 - check mem use, esp with three large images loaded
 
 - PDF page change does not change image size if pages vary in size
-
-- add some internal stuff, like pyramid shape, to props display? number of
-  loaded tiles?
 
 - ^C during a slow load leaves a file in /tmp, can we fix this?
 

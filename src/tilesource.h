@@ -190,10 +190,16 @@ typedef struct _TileSource {
 	 */
 	gboolean loaded;
 
-	/* TRUE when the imageis visible. GIF animations (for example) pause for
+	/* TRUE when the image is visible. GIF animations (for example) pause for
 	 * invisible images.
 	 */
 	gboolean visible;
+
+	/* Set on a background load error, eg. cancel etc.
+	 */
+	int load_error;
+	char *load_message;
+
 } TileSource;
 
 typedef struct _TileSourceClass {
