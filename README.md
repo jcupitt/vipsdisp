@@ -230,12 +230,6 @@ On success, merge to master.
 
 ## TODO
 
-- get `object_unref: assertion 'G_IS_OBJECT (object)' failed` during free of
-  stack ... seems to be a harmless minor glib bug with `g_clear_object()`
-  failing with a crit for a null value
-
-  maybe check glib master and file a bug report
-
 - PDF page change does not change image size if pages vary in size
 
 - ^C during a slow load leaves a file in /tmp, can we improve this?

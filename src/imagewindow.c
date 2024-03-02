@@ -4,12 +4,19 @@
 
 #include "vipsdisp.h"
 
-/* We have a number of active imageui (open images) and look them up via a
- * filename. Use this to flip back to an open image.
+/* We have a number of active imageui (open images) and look them up via the
+ * tile_source filename or image pointer. 
+ *
+ * Use these to flip back to an already open image.
  */
 typedef struct _Active {
 	ImageWindow *win;
-	const char *filename;
+
+	/* This is a ref ... we can't just use the ref in the widget hierarchy or
+	 * it'll be freed during gtk_stack_remove() and cause chaos.
+	 *
+	 * Fetch active
+	 */
 	Imageui *imageui;
 
 	/* A timestamp we update on every action -- we throw away the oldest views
@@ -60,7 +67,7 @@ struct _ImageWindow {
 	/* The set of active images in the stack right now. These are not 
 	 * references.
 	 */
-	GHashTable *active_hash;
+	GSList *active;
 
 	GSettings *settings;
 };
@@ -138,80 +145,80 @@ image_window_error_hide(ImageWindow *win)
  */
 
 static Active *
-image_window_active_lookup(ImageWindow *win, const char *filename)
+image_window_active_lookup_by_filename(ImageWindow *win, const char *filename)
 {
-	return g_hash_table_lookup(win->active_hash, (gpointer) filename);
+	for (GSList *p = win->active; p; p = p->next) {
+		Active *active = (Active *) p->data;
+		TileSource *tile_source = imageui_get_tile_source(active->imageui);
+
+		if (tile_source->filename && 
+			g_str_equal(tile_source->filename, filename))
+			return active;
+	}
+
+	return NULL;
 }
 
 static void
-image_window_active_touch(ImageWindow *win, const char *filename)
+image_window_active_touch(ImageWindow *win, Active *active)
 {
 	static int serial = 0;
-
-	Active *active = image_window_active_lookup(win, filename);
 
 	active->timestamp = serial++;
 }
 
 static void
-active_imageui_active_oldest(gpointer key, gpointer value, gpointer user_data)
+image_window_active_remove(ImageWindow *win, Active *active)
 {
-	Active *this = (Active *) value;
-	const char **oldest = (const char **) user_data;
-	Active *prev = (*oldest) ? 
-		image_window_active_lookup(this->win, *oldest) : NULL;
-
-	if (!prev ||
-		this->timestamp < prev->timestamp)
-		*oldest = this->filename;
-}
-
-static void
-image_window_active_remove(ImageWindow *win, const char *filename)
-{
-	Active *active = image_window_active_lookup(win, filename);
+	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 
 	if (active->imageui == win->imageui)
 		win->imageui = NULL;
 
-	// many version of gtk hate removing a widget which has focus
-	gtk_widget_grab_focus(win->gears);
+	VIPS_UNREF(active->imageui);
 
-	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
-	g_hash_table_remove(win->active_hash, filename);
+	win->active = g_slist_remove(win->active, active);
+
+	g_free(active);
 }
 
 static void
 image_window_active_remove_all(ImageWindow *win)
 {
-	g_autofree const char **filenames = 
-		(const char **) g_hash_table_get_keys_as_array(win->active_hash, NULL);
+	while (win->active) {
+		Active *active = (Active *) win->active->data;
 
-	for (const char **p = filenames; *p; p++)
-		image_window_active_remove(win, *p);
+		image_window_active_remove(win, active);
+	}
 }
 
 static void
-image_window_active_add(ImageWindow *win, 
-	const char *filename, Imageui *imageui)
+image_window_active_add(ImageWindow *win, Imageui *imageui)
 {
-	g_assert(!image_window_active_lookup(win, filename));
-
 	Active *active = VIPS_NEW(NULL, Active);
 	active->win = win;
-	active->filename = filename;
 	active->imageui = imageui;
-	g_hash_table_insert(win->active_hash, (gpointer) filename, active);
-	image_window_active_touch(win, filename);
 
-	if (g_hash_table_size(win->active_hash) > 3) {
-		const char *oldest = NULL;
+	// we hold a true reference
+	g_object_ref(imageui);
 
-		g_hash_table_foreach(win->active_hash,
-			active_imageui_active_oldest, &oldest);
+	win->active = g_slist_prepend(win->active, active);
 
-		if (oldest)
-			image_window_active_remove(win, oldest);
+	image_window_active_touch(win, active);
+
+	while (g_slist_length(win->active) > 3) {
+		Active *oldest;
+
+		oldest = NULL;
+		for (GSList *p = win->active; p; p = p->next) {
+			Active *active = (Active *) p->data;
+
+			if (!oldest ||
+				active->timestamp < oldest->timestamp)
+				oldest = active;
+		}
+
+		image_window_active_remove(win, oldest);
 	}
 }
 
@@ -544,7 +551,7 @@ image_window_imageui_changed(Imageui *imageui, ImageWindow *win)
 /* Add an imageui to the stack.
  */
 static void
-image_window_imageui_add(ImageWindow *win, Imageui *imageui)
+image_window_imageui_add(ImageWindow *win, Imageui *imageui) 
 {
 	TileSource *tile_source = imageui_get_tile_source(imageui);
 
@@ -563,6 +570,8 @@ image_window_imageui_add(ImageWindow *win, Imageui *imageui)
 
 	gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
+	image_window_active_add(win, imageui);
+
 	// now it's in the UI, trigger a load
 	tile_source_background_load(tile_source);
 }
@@ -580,9 +589,10 @@ image_window_imageui_set_visible(ImageWindow *win,
 	VipsImage *image;
 	char *title;
 
-	g_object_set(old_tile_source,
-		"visible", FALSE,
-		NULL);
+	if (old_tile_source)
+		g_object_set(old_tile_source,
+			"visible", FALSE,
+			NULL);
 
 	g_object_set(win->properties,
 		"tile-source", new_tile_source,
@@ -657,8 +667,8 @@ image_window_open_current_file(ImageWindow *win,
 		image_window_imageui_set_visible(win, NULL, transition);
 	else {
 		char *filename = win->files[win->current_file];
-		g_autoptr(Imageui) imageui = NULL;
 
+		Imageui *imageui;
 		Active *active;
 
 #ifdef DEBUG
@@ -667,10 +677,9 @@ image_window_open_current_file(ImageWindow *win,
 
 		/* An old image selected again?
 		 */
-		if ((active = image_window_active_lookup(win, filename))) {
+		imageui = NULL;
+		if ((active = image_window_active_lookup_by_filename(win, filename)))
 			imageui = active->imageui;
-			g_object_ref(imageui);
-		}
 		else {
 			/* FIXME ... we only want to revalidate if eg. the timestamp has
 			 * changed, or perhaps on F5?
@@ -696,8 +705,6 @@ image_window_open_current_file(ImageWindow *win,
 			}
 
 			image_window_imageui_add(win, imageui);
-
-			image_window_active_add(win, filename, imageui);
 		}
 
 		image_window_imageui_set_visible(win, imageui, transition);
@@ -713,11 +720,12 @@ image_window_dispose(GObject *object)
 	printf("image_window_dispose:\n");
 #endif /*DEBUG*/
 
+	image_window_files_free(win);
+
 	VIPS_UNREF(win->save_folder);
 	VIPS_UNREF(win->load_folder);
 	VIPS_FREEF(gtk_widget_unparent, win->right_click_menu);
 	VIPS_FREEF(g_timer_destroy, win->progress_timer);
-	image_window_files_free(win);
 
 	G_OBJECT_CLASS(image_window_parent_class)->dispose(object);
 }
@@ -1508,8 +1516,6 @@ image_window_init(ImageWindow *win)
 	win->save_folder = g_file_new_for_path(cwd);
 	win->load_folder = g_file_new_for_path(cwd);
 	g_free(cwd);
-	win->active_hash = g_hash_table_new_full(g_str_hash, g_str_equal, 
-		NULL, g_free);
 
 	gtk_widget_init_template(GTK_WIDGET(win));
 
@@ -1714,7 +1720,7 @@ image_window_open_image(ImageWindow *win, VipsImage *image)
 		return;
 	}
 
-	g_autoptr(Imageui) imageui = imageui_new(tile_source);
+	Imageui *imageui = imageui_new(tile_source);
 	if (!imageui) {
 		image_window_error(win);
 		return;
