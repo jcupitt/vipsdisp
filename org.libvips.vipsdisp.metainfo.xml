@@ -60,6 +60,14 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="3.0.4" date="2024-03-02">
+      <description>
+        <p>
+	  Fix animated images on image flip.
+        </p>
+      </description>
+    </release>
+
     <release version="3.0.3" date="2024-03-02">
       <description>
         <p>
