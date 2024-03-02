@@ -174,6 +174,9 @@ image_window_active_remove(ImageWindow *win, const char *filename)
 	if (active->imageui == win->imageui)
 		win->imageui = NULL;
 
+	// many version of gtk hate removing a widget which has focus
+	gtk_widget_grab_focus(win->gears);
+
 	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 	g_hash_table_remove(win->active_hash, filename);
 }

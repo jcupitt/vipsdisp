@@ -367,7 +367,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git",
-                    "commit" : "baf3ac9b6151c961be00ff3c6cf8ad06b0305d31"
+                    "commit" : "db9c535a4a8d56bab564e12f7bc14db88e82a6f9"
                 }
             ]
         },
@@ -383,7 +383,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v2.7"
+                    "tag" : "v3.0a"
                 }
             ]
         }
