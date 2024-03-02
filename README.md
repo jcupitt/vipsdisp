@@ -236,18 +236,13 @@ On success, merge to master.
 
   maybe check glib master and file a bug report
 
-- check mem use, esp with three large images loaded
-
 - PDF page change does not change image size if pages vary in size
 
-- ^C during a slow load leaves a file in /tmp, can we fix this?
+- ^C during a slow load leaves a file in /tmp, can we improve this?
 
 - batch save?
 
 - pass revalidate down to `new_from_file` on F5
-
-
-
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 
