@@ -1,5 +1,9 @@
 ## master
 
+- better behaviour for image interpretations like MATRIX
+
+# 3.0.4 1/3/24
+
 - add next image / previous image
 - add drag/drop and copy/paste of files, file lists, textures and strings
 - add "reload"

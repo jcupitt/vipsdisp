@@ -543,12 +543,11 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 		image = x;
 	}
 
-	/* Force to uint8 sRGB.
+	/* Go to uint8 sRGB in a nice way.
 	 */
 	if (image->Type != VIPS_INTERPRETATION_sRGB &&
 		vips_colourspace_issupported(image)) {
-		if (vips_colourspace(image, &x, VIPS_INTERPRETATION_sRGB,
-				NULL))
+		if (vips_colourspace(image, &x, VIPS_INTERPRETATION_sRGB, NULL))
 			return NULL;
 		VIPS_UNREF(image);
 		image = x;
@@ -566,6 +565,30 @@ tile_source_rgb_image(TileSource *tile_source, VipsImage *in)
 	if (tile_source->active &&
 		tile_source->falsecolour) {
 		if (vips_falsecolour(image, &x, NULL))
+			return NULL;
+		VIPS_UNREF(image);
+		image = x;
+	}
+
+	/* The number of bands could still be wrong for unsupported spaces like
+	 * MATRIX or FOURIER.
+	 */
+	if (image->Bands > 3) {
+		if (vips_extract_band(image, &x, 0, "n", 3, NULL))
+			return NULL;
+		VIPS_UNREF(image);
+		image = x;
+	}
+	else if (image->Bands == 2) {
+		if (vips_bandjoin_const1(image, &x, 0, NULL))
+			return NULL;
+		VIPS_UNREF(image);
+		image = x;
+	}
+	else if (image->Bands == 1) {
+		VipsImage *in[3] = { image, image, image };
+
+		if (vips_bandjoin(in, &x, 3, NULL))
 			return NULL;
 		VIPS_UNREF(image);
 		image = x;
