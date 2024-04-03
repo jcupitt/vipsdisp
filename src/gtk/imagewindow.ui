@@ -19,13 +19,13 @@
         <attribute name="verb-icon">view-fullscreen-symbolic</attribute>
       </item>
       <item>
-        <attribute name="label">Previous page</attribute>
-        <attribute name="action">win.prev</attribute>
+        <attribute name="label">Previous image</attribute>
+        <attribute name="action">win.prev_image</attribute>
         <attribute name="verb-icon">go-previous-symbolic</attribute>
       </item>
       <item>
-        <attribute name="label">Next page</attribute>
-        <attribute name="action">win.next</attribute>
+        <attribute name="label">Next image</attribute>
+        <attribute name="action">win.next_image</attribute>
         <attribute name="verb-icon">go-next-symbolic</attribute>
       </item>
       <item>
@@ -45,12 +45,12 @@
         <attribute name='action'>win.duplicate</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Next image</attribute>
-        <attribute name='action'>win.next_image</attribute>
+        <attribute name='label' translatable='yes'>Next page</attribute>
+        <attribute name='action'>win.next</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Previous image</attribute>
-        <attribute name='action'>win.prev_image</attribute>
+        <attribute name='label' translatable='yes'>Previous page</attribute>
+        <attribute name='action'>win.prev</attribute>
       </item>
     </section>
 

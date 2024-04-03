@@ -246,6 +246,15 @@ On success, merge to master.
 
 ## TODO
 
+- skip unknown files on next / prev?
+
+    - need to add the test to next-image, not glob, since we can't test the
+      whole dir on startup
+
+    - need to use next-image to pick the start image (not always the first)
+
+    - need to *not* do this if only one file specified, eg. `vipsdisp x.txt`
+
 - PDF page change does not change image size if pages vary in size
 
 - ^C during a slow load leaves a file in /tmp, can we improve this?
