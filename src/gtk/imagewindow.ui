@@ -4,19 +4,9 @@
     <section>
       <attribute name="display-hint">horizontal-buttons</attribute>
       <item>
-        <attribute name="label">Copy</attribute>
-        <attribute name="action">win.copy</attribute>
-        <attribute name="verb-icon">edit-copy-symbolic</attribute>
-      </item>
-      <item>
-        <attribute name="label">Paste</attribute>
-        <attribute name="action">win.paste</attribute>
-        <attribute name="verb-icon">edit-paste-symbolic</attribute>
-      </item>
-      <item>
-        <attribute name="label">Fullscreen</attribute>
-        <attribute name="action">win.fullscreen</attribute>
-        <attribute name="verb-icon">view-fullscreen-symbolic</attribute>
+        <attribute name="label">Open image</attribute>
+        <attribute name="action">win.replace</attribute>
+        <attribute name="verb-icon">document-open-symbolic</attribute>
       </item>
       <item>
         <attribute name="label">Previous image</attribute>
@@ -32,6 +22,21 @@
         <attribute name="label">Reload</attribute>
         <attribute name="action">win.reload</attribute>
         <attribute name="verb-icon">view-refresh-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label">Copy</attribute>
+        <attribute name="action">win.copy</attribute>
+        <attribute name="verb-icon">edit-copy-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label">Paste</attribute>
+        <attribute name="action">win.paste</attribute>
+        <attribute name="verb-icon">edit-paste-symbolic</attribute>
+      </item>
+      <item>
+        <attribute name="label">Fullscreen</attribute>
+        <attribute name="action">win.fullscreen</attribute>
+        <attribute name="verb-icon">view-fullscreen-symbolic</attribute>
       </item>
     </section>
 
@@ -55,10 +60,6 @@
     </section>
 
     <section>
-      <item>
-        <attribute name='label' translatable='yes'>Replace image ...</attribute>
-        <attribute name='action'>win.replace</attribute>
-      </item>
       <item>
         <attribute name='label' translatable='yes'>Save as ...</attribute>
         <attribute name='action'>win.saveas</attribute>
@@ -137,8 +138,9 @@
 
         <child type="start">
           <object class="GtkButton">
-            <property name="label">Open</property>
+            <property name="icon-name">document-open-symbolic</property>
             <property name="action-name">win.replace</property>
+            <property name="tooltip-text">Open image</property>
           </object>
         </child>
 
@@ -146,6 +148,7 @@
           <object class="GtkButton">
             <property name="icon-name">go-previous-symbolic</property>
             <property name="action-name">win.prev_image</property>
+            <property name="tooltip-text">Previous image</property>
           </object>
         </child>
 
@@ -153,6 +156,7 @@
           <object class="GtkButton">
             <property name="icon-name">go-next-symbolic</property>
             <property name="action-name">win.next_image</property>
+            <property name="tooltip-text">Next image</property>
           </object>
         </child>
 
@@ -160,6 +164,7 @@
           <object class="GtkButton">
             <property name="icon-name">view-refresh-symbolic</property>
             <property name="action-name">win.reload</property>
+            <property name="tooltip-text">Reload</property>
           </object>
         </child>
 
