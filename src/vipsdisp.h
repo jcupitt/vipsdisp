@@ -42,6 +42,7 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     } \
     G_STMT_END
 
+#include "enumtypes.h"
 #include "gtkutil.h"
 #include "tslider.h"
 #include "vipsdispapp.h"

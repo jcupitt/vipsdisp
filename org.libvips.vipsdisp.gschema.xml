@@ -55,6 +55,14 @@
       </description>
     </key>
 
+    <key type="b" name="preserve">
+      <default>false</default>
+      <summary>Preserve</summary>
+      <description>
+        Preserve view settings on new image
+      </description>
+    </key>
+
     <key type="b" name="log">
       <default>false</default>
       <summary>log</summary>

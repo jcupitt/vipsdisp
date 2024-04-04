@@ -38,6 +38,7 @@ struct _ImageWindow {
 	char **files;
 	int n_files;
 	int current_file;
+	gboolean preserve;
 
 	/* The current save and load directories.
 	 */
@@ -77,8 +78,8 @@ G_DEFINE_TYPE(ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW);
 /* Our signals.
  */
 enum {
-	SIG_CHANGED,		/* A new imageui and tile_source */
-	SIG_STATUS_CHANGED, /* New mouse position */
+	SIG_CHANGED,			/* A new imageui and tile_source */
+	SIG_STATUS_CHANGED, 	/* New mouse position */
 	SIG_LAST
 };
 
@@ -377,6 +378,8 @@ image_window_reset_view(ImageWindow *win)
 {
 	TileSource *tile_source = image_window_get_tile_source(win);
 
+	printf("image_window_reset_view:\n");
+
 	if (tile_source) {
 		g_object_set(tile_source,
 			"falsecolour", FALSE,
@@ -478,36 +481,42 @@ static void
 image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
 {
 	GVariant *state;
-	const char *str;
 
 #ifdef DEBUG
-	printf("image_window_tile_source_changed:\n");
 #endif /*DEBUG*/
+	printf("image_window_tile_source_changed:\n");
 
 	if (tile_source->load_error)
 		image_window_set_error(win, tile_source->load_message);
 
-	state = g_variant_new_boolean(tile_source->falsecolour);
-	change_state(GTK_WIDGET(win), "falsecolour", state);
+	if (win->preserve) {
+		// update tile_source with our settings
+		set_property_from_state(G_OBJECT(tile_source), 
+			GTK_WIDGET(win), "falsecolour");
+		set_property_from_state(G_OBJECT(tile_source), 
+			GTK_WIDGET(win), "log");
+		set_property_from_state(G_OBJECT(tile_source), 
+			GTK_WIDGET(win), "icc");
 
-	state = g_variant_new_boolean(tile_source->log);
-	change_state(GTK_WIDGET(win), "log", state);
+		set_property_from_state(G_OBJECT(tile_source), 
+			GTK_WIDGET(win), "mode");
 
-	state = g_variant_new_boolean(tile_source->icc);
-	change_state(GTK_WIDGET(win), "icc", state);
+	}
+	else {
+		// update win settings from new tile source
+		printf("image_window_tile_source_changed: leaky!\n");
 
-	if (tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL)
-		str = "toilet-roll";
-	else if (tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE)
-		str = "multipage";
-	else if (tile_source->mode == TILE_SOURCE_MODE_ANIMATED)
-		str = "animated";
-	else if (tile_source->mode == TILE_SOURCE_MODE_PAGES_AS_BANDS)
-		str = "pages-as-bands";
-	else
-		str = NULL;
-	if (str) {
-		state = g_variant_new_string(str);
+		state = g_variant_new_boolean(tile_source->falsecolour);
+		change_state(GTK_WIDGET(win), "falsecolour", state);
+
+		state = g_variant_new_boolean(tile_source->log);
+		change_state(GTK_WIDGET(win), "log", state);
+
+		state = g_variant_new_boolean(tile_source->icc);
+		change_state(GTK_WIDGET(win), "icc", state);
+
+		const char *name = vips_enum_nick(TYPE_SOURCE_MODE, tile_source->mode);
+		state = g_variant_new_string(name);
 		change_state(GTK_WIDGET(win), "mode", state);
 	}
 }
@@ -1346,28 +1355,25 @@ image_window_falsecolour(GSimpleAction *action,
 }
 
 static void
+image_window_preserve(GSimpleAction *action,
+	GVariant *state, gpointer user_data)
+{
+	ImageWindow *win = IMAGE_WINDOW(user_data);
+
+	win->preserve = g_variant_get_boolean(state);
+
+	g_simple_action_set_state(action, state);
+}
+
+static void
 image_window_mode(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
 	TileSource *tile_source = image_window_get_tile_source(win);
-
-	const gchar *str;
-	TileSourceMode mode;
-
-	str = g_variant_get_string(state, NULL);
-	if (g_str_equal(str, "toilet-roll"))
-		mode = TILE_SOURCE_MODE_TOILET_ROLL;
-	else if (g_str_equal(str, "multipage"))
-		mode = TILE_SOURCE_MODE_MULTIPAGE;
-	else if (g_str_equal(str, "animated"))
-		mode = TILE_SOURCE_MODE_ANIMATED;
-	else if (g_str_equal(str, "pages-as-bands"))
-		mode = TILE_SOURCE_MODE_PAGES_AS_BANDS;
-	else
-		/* Ignore attempted change.
-		 */
-		return;
+	const gchar *str = g_variant_get_string(state, NULL);
+	TileSourceMode mode = 
+		vips_enum_from_nick("vipsdisp", TYPE_SOURCE_MODE, str);
 
 	if (tile_source)
 		g_object_set(tile_source,
@@ -1377,30 +1383,14 @@ image_window_mode(GSimpleAction *action,
 	g_simple_action_set_state(action, state);
 }
 
-static TileCacheBackground
-background_to_enum(const char *str)
-{
-	TileCacheBackground background;
-
-	if (g_str_equal(str, "checkerboard"))
-		background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
-	else if (g_str_equal(str, "white"))
-		background = TILE_CACHE_BACKGROUND_WHITE;
-	else if (g_str_equal(str, "black"))
-		background = TILE_CACHE_BACKGROUND_BLACK;
-	else
-		background = TILE_CACHE_BACKGROUND_CHECKERBOARD;
-
-	return background;
-}
-
 static void
 image_window_background(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
 	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileCacheBackground background =
-		background_to_enum(g_variant_get_string(state, NULL));
+	const gchar *str = g_variant_get_string(state, NULL);
+	TileCacheBackground background = 
+		vips_enum_from_nick("vipsdisp", TYPE_CACHE_BACKGROUND, str);
 
 	if(win->imageui)
 		g_object_set(win->imageui,
@@ -1466,6 +1456,7 @@ static GActionEntry image_window_entries[] = {
 	{ "log", action_toggle, NULL, "false", image_window_log },
 	{ "icc", action_toggle, NULL, "false", image_window_icc },
 	{ "falsecolour", action_toggle, NULL, "false", image_window_falsecolour },
+	{ "preserve", action_toggle, NULL, "false", image_window_preserve },
 	{ "mode", action_radio, "s", "'multipage'", image_window_mode },
 	{ "background", action_radio, "s", "'checkerboard'", 
 		image_window_background },
@@ -1606,7 +1597,7 @@ image_window_pressed_cb(GtkGestureClick *gesture,
 static void
 image_window_class_init(ImageWindowClass *class)
 {
-	G_OBJECT_CLASS(class)->dispose = image_window_dispose;
+	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
 
 	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
 		APP_PATH "/imagewindow.ui");
@@ -1628,6 +1619,8 @@ image_window_class_init(ImageWindowClass *class)
 
 	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
 		image_window_pressed_cb);
+
+	gobject_class->dispose = image_window_dispose;
 
 	image_window_signals[SIG_STATUS_CHANGED] = g_signal_new(
 		"status-changed",

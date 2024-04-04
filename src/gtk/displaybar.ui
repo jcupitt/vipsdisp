@@ -23,6 +23,12 @@
         <attribute name='label' translatable='yes'>Enable colour management</attribute>
         <attribute name='action'>win.icc</attribute>
       </item>
+
+      <item>
+        <attribute name='label' translatable='yes'>Preserve view settings on new image</attribute>
+        <attribute name='action'>win.preserve</attribute>
+      </item>
+
     </section>
 
     <section>

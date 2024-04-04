@@ -11,6 +11,7 @@ void change_state(GtkWidget *widget, const char *name, GVariant *state);
 GVariant *get_state(GtkWidget *widget, const char *name);
 void copy_state(GtkWidget *to, GtkWidget *from, const char *name);
 void set_state(GtkWidget *to, GSettings *settings, const char *name);
+void set_property_from_state(GObject *to, GtkWidget *from, const char *name);
 
 void process_events(void);
 

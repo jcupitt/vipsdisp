@@ -793,11 +793,11 @@ tile_source_set_property(GObject *object,
 
 	switch (prop_id) {
 	case PROP_MODE:
-		i = g_value_get_int(value);
-		if (i >= 0 &&
-			i < TILE_SOURCE_MODE_LAST &&
-			tile_source->mode != i) {
-			tile_source->mode = i;
+		TileSourceMode mode = g_value_get_enum(value);
+		if (mode >= 0 &&
+			mode < TILE_SOURCE_MODE_LAST &&
+			tile_source->mode != mode) {
+			tile_source->mode = mode;
 			tile_source->display_width = tile_source->width;
 			tile_source->display_height = tile_source->height;
 			if (tile_source->mode == TILE_SOURCE_MODE_TOILET_ROLL)
@@ -926,7 +926,7 @@ tile_source_get_property(GObject *object,
 
 	switch (prop_id) {
 	case PROP_MODE:
-		g_value_set_int(value, tile_source->mode);
+		g_value_set_enum(value, tile_source->mode);
 		break;
 
 	case PROP_SCALE:
@@ -1064,10 +1064,10 @@ tile_source_class_init(TileSourceClass *class)
 	gobject_class->get_property = tile_source_get_property;
 
 	g_object_class_install_property(gobject_class, PROP_MODE,
-		g_param_spec_int("mode",
+		g_param_spec_enum("mode",
 			_("Mode"),
 			_("Display mode"),
-			0, TILE_SOURCE_MODE_LAST - 1,
+			TYPE_SOURCE_MODE,
 			TILE_SOURCE_MODE_MULTIPAGE,
 			G_PARAM_READWRITE));
 
@@ -1202,38 +1202,6 @@ tile_source_class_init(TileSourceClass *class)
 }
 
 #ifdef DEBUG
-static const char *
-type_name(TileSourceType type)
-{
-	switch (type) {
-	case TILE_SOURCE_TYPE_PAGE_PYRAMID:
-		return "pyramid";
-	case TILE_SOURCE_TYPE_TOILET_ROLL:
-		return "toilet-roll";
-	case TILE_SOURCE_TYPE_MULTIPAGE:
-		return "multipage";
-	default:
-		return "<unknown>";
-	}
-}
-
-static const char *
-mode_name(TileSourceMode mode)
-{
-	switch (mode) {
-	case TILE_SOURCE_MODE_TOILET_ROLL:
-		return "toilet-roll";
-	case TILE_SOURCE_MODE_MULTIPAGE:
-		return "multipage";
-	case TILE_SOURCE_MODE_ANIMATED:
-		return "animated";
-	case TILE_SOURCE_MODE_PAGES_AS_BANDS:
-		return "pages-as-bands";
-	default:
-		return "<unknown>";
-	}
-}
-
 static void
 tile_source_print(TileSource *tile_source)
 {
@@ -1257,8 +1225,10 @@ tile_source_print(TileSource *tile_source)
 
 	printf("\tpages_same_size = %d\n", tile_source->pages_same_size);
 	printf("\tall_mono = %d\n", tile_source->all_mono);
-	printf("\ttype = %s\n", type_name(tile_source->type));
-	printf("\tmode = %s\n", mode_name(tile_source->mode));
+	printf("\ttype = %s\n", 
+			vips_enum_nick(TYPE_SOURCE_TYPE, tile_source->type));
+	printf("\tmode = %s\n", 
+			vips_enum_nick(TYPE_SOURCE_MODE, tile_source->mode));
 	printf("\tdelay = %p\n", tile_source->delay);
 	printf("\tn_delay = %d\n", tile_source->n_delay);
 	printf("\tdisplay_width = %d\n", tile_source->display_width);
@@ -1894,7 +1864,7 @@ TileSource *
 tile_source_duplicate(TileSource *tile_source)
 {
 	TileSource *new_tile_source;
-	int mode;
+	TileSourceMode mode;
 	double scale;
 	double offset;
 	int page;

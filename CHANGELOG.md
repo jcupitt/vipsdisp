@@ -2,6 +2,7 @@
 
 - better behaviour for image interpretations like MATRIX
 - window menu has next-image / prev-image in the top line [euzada]
+- add "preserve view settings on new image"
 
 # 3.0.4 1/3/24
 

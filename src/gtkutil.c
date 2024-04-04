@@ -156,6 +156,29 @@ copy_state(GtkWidget *to, GtkWidget *from, const char *name)
 		change_state(to, name, state);
 }
 
+void
+set_property_from_state(GObject *to, GtkWidget *from, const char *name)
+{
+	g_autoptr(GVariant) state = get_state(from, name);
+	g_auto(GValue) value = { 0 };
+	g_auto(GValue) to_value = { 0 };
+
+	g_dbus_gvariant_to_gvalue(state, &value);
+
+	g_object_get_property(to, name, &to_value);
+	GType type = G_VALUE_TYPE(&to_value);
+	if (G_TYPE_FUNDAMENTAL(type) == G_TYPE_ENUM &&
+		G_VALUE_TYPE(&value) == G_TYPE_STRING) {
+		// special case ... setting an enum from a string
+		const char *nick = g_value_get_string(&value);
+		int enum_v = vips_enum_from_nick("vipsdisp", type, nick);
+
+		g_object_set(to, name, enum_v, NULL);
+	}
+	else
+		g_object_set_property(to, name, &value);
+}
+
 /* A 'safe' way to run a few events.
  */
 void
