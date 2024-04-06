@@ -10,6 +10,6 @@ G_DECLARE_FINAL_TYPE(Displaybar, displaybar,
 	(G_TYPE_CHECK_INSTANCE_CAST((obj), \
 		DISPLAYBAR_TYPE, Displaybar))
 
-Displaybar *displaybar_new(ImageWindow *win);
+Displaybar *displaybar_new(Imagewindow *win);
 
 #endif /* __DISPLAYBAR_H */

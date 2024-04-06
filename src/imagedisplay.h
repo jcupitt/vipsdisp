@@ -1,5 +1,5 @@
-#ifndef __IMAGE_DISPLAY_H
-#define __IMAGE_DISPLAY_H
+#ifndef __IMAGEDISPLAY_H
+#define __IMAGEDISPLAY_H
 
 #define IMAGEDISPLAY_TYPE (imagedisplay_get_type())
 #define IMAGEDISPLAY VIPSDISP_IMAGEDISPLAY
@@ -12,6 +12,6 @@ void imagedisplay_image_to_gtk(Imagedisplay *imagedisplay,
 void imagedisplay_gtk_to_image(Imagedisplay *imagedisplay,
 	double x_gtk, double y_gtk, double *x_image, double *y_image);
 
-Imagedisplay *imagedisplay_new(TileSource *tile_source);
+Imagedisplay *imagedisplay_new(Tilesource *tilesource);
 
-#endif /* __IMAGE_DISPLAY_H */
+#endif /* __IMAGEDISPLAY_H */

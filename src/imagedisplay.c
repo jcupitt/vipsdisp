@@ -14,7 +14,7 @@ struct _Imagedisplay {
 
 	/* The tilesource we display.
 	 */
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
 	/* We implement a scrollable interface.
 	 */
@@ -25,7 +25,7 @@ struct _Imagedisplay {
 
 	/* Generate and cache tiles with this.
 	 */
-	TileCache *tile_cache;
+	Tilecache *tilecache;
 
 	/* image_rect is the bounds of image space .. 0,0 to image->Xsize,
 	 * image->Ysize
@@ -66,9 +66,9 @@ G_DEFINE_TYPE_WITH_CODE(Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 	G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL));
 
 enum {
-	/* Set the tile_cache we display.
+	/* Set the tilecache we display.
 	 */
-	PROP_TILE_SOURCE = 1,
+	PROP_TILESOURCE = 1,
 
 	/* The props we implement for the scrollable interface.
 	 */
@@ -84,7 +84,7 @@ enum {
 	/* Control transform with this.
 	 */
 	PROP_BACKGROUND,
-	PROP_SCALE,
+	PROP_ZOOM,
 	PROP_X,
 	PROP_Y,
 
@@ -110,8 +110,8 @@ imagedisplay_dispose(GObject *object)
 	printf("imagedisplay_dispose:\n");
 #endif /*DEBUG*/
 
-	VIPS_UNREF(imagedisplay->tile_cache);
-	VIPS_UNREF(imagedisplay->tile_source);
+	VIPS_UNREF(imagedisplay->tilecache);
+	VIPS_UNREF(imagedisplay->tilesource);
 
 	G_OBJECT_CLASS(imagedisplay_parent_class)->dispose(object);
 }
@@ -266,7 +266,7 @@ imagedisplay_layout(Imagedisplay *imagedisplay)
 
 	/* If there's no image yet, we can't do anything.
 	 */
-	if (!imagedisplay->tile_cache)
+	if (!imagedisplay->tilecache)
 		return;
 
 	/* Do this the first time we have the image.
@@ -315,15 +315,15 @@ imagedisplay_layout(Imagedisplay *imagedisplay)
 /* Large change, we need to relayout.
  */
 static void
-imagedisplay_tile_cache_changed(TileCache *tile_cache,
+imagedisplay_tilecache_changed(Tilecache *tilecache,
 	Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG
-	printf("imagedisplay_tile_cache_changed:\n");
+	printf("imagedisplay_tilecache_changed:\n");
 #endif /*DEBUG*/
 
-	imagedisplay->image_rect.width = tile_cache->tile_source->display_width;
-	imagedisplay->image_rect.height = tile_cache->tile_source->display_height;
+	imagedisplay->image_rect.width = tilecache->tilesource->display_width;
+	imagedisplay->image_rect.height = tilecache->tilesource->display_height;
 	imagedisplay_layout(imagedisplay);
 
 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
@@ -332,22 +332,22 @@ imagedisplay_tile_cache_changed(TileCache *tile_cache,
 /* Tiles have changed, but not image geometry. Perhaps falsecolour.
  */
 static void
-imagedisplay_tile_cache_tiles_changed(TileCache *tile_cache,
+imagedisplay_tilecache_tiles_changed(Tilecache *tilecache,
 	Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG
-	printf("imagedisplay_tile_cache_tiles_changed:\n");
+	printf("imagedisplay_tilecache_tiles_changed:\n");
 #endif /*DEBUG*/
 
 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
 }
 
 static void
-imagedisplay_tile_cache_area_changed(TileCache *tile_cache,
+imagedisplay_tilecache_area_changed(Tilecache *tilecache,
 	VipsRect *dirty, int z, Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG_VERBOSE
-	printf("imagedisplay_tile_cache_area_changed: "
+	printf("imagedisplay_tilecache_area_changed: "
 		   "at %d x %d, size %d x %d, z = %d\n",
 		dirty->left, dirty->top,
 		dirty->width, dirty->height,
@@ -361,30 +361,30 @@ imagedisplay_tile_cache_area_changed(TileCache *tile_cache,
 }
 
 static void
-imagedisplay_set_tile_source(Imagedisplay *imagedisplay,
-	TileSource *tile_source)
+imagedisplay_set_tilesource(Imagedisplay *imagedisplay,
+	Tilesource *tilesource)
 {
-	VIPS_UNREF(imagedisplay->tile_cache);
-	VIPS_UNREF(imagedisplay->tile_source);
+	VIPS_UNREF(imagedisplay->tilecache);
+	VIPS_UNREF(imagedisplay->tilesource);
 
-	imagedisplay->tile_source = tile_source;
-	g_object_ref(imagedisplay->tile_source);
+	imagedisplay->tilesource = tilesource;
+	g_object_ref(imagedisplay->tilesource);
 
-	imagedisplay->tile_cache = tile_cache_new(imagedisplay->tile_source);
+	imagedisplay->tilecache = tilecache_new(imagedisplay->tilesource);
 
-	g_signal_connect_object(imagedisplay->tile_cache, "changed",
-		G_CALLBACK(imagedisplay_tile_cache_changed),
+	g_signal_connect_object(imagedisplay->tilecache, "changed",
+		G_CALLBACK(imagedisplay_tilecache_changed),
 		imagedisplay, 0);
-	g_signal_connect_object(imagedisplay->tile_cache, "tiles-changed",
-		G_CALLBACK(imagedisplay_tile_cache_tiles_changed),
+	g_signal_connect_object(imagedisplay->tilecache, "tiles-changed",
+		G_CALLBACK(imagedisplay_tilecache_tiles_changed),
 		imagedisplay, 0);
-	g_signal_connect_object(imagedisplay->tile_cache, "area-changed",
-		G_CALLBACK(imagedisplay_tile_cache_area_changed),
+	g_signal_connect_object(imagedisplay->tilecache, "area-changed",
+		G_CALLBACK(imagedisplay_tilecache_area_changed),
 		imagedisplay, 0);
 
 	/* Do initial change to init.
 	 */
-	imagedisplay_tile_cache_changed(imagedisplay->tile_cache, imagedisplay);
+	imagedisplay_tilecache_changed(imagedisplay->tilecache, imagedisplay);
 }
 
 static void
@@ -434,8 +434,8 @@ imagedisplay_set_property(GObject *object,
 		}
 		break;
 
-	case PROP_TILE_SOURCE:
-		imagedisplay_set_tile_source(imagedisplay,
+	case PROP_TILESOURCE:
+		imagedisplay_set_tilesource(imagedisplay,
 			g_value_get_object(value));
 		break;
 
@@ -444,13 +444,13 @@ imagedisplay_set_property(GObject *object,
 		break;
 
 	case PROP_BACKGROUND:
-		if (imagedisplay->tile_cache)
-			g_object_set(imagedisplay->tile_cache,
+		if (imagedisplay->tilecache)
+			g_object_set(imagedisplay->tilecache,
 				"background", g_value_get_int(value),
 				NULL);
 		break;
 
-	case PROP_SCALE:
+	case PROP_ZOOM:
 		imagedisplay_set_transform(imagedisplay,
 			g_value_get_double(value),
 			imagedisplay->x,
@@ -509,8 +509,8 @@ imagedisplay_get_property(GObject *object,
 		g_value_set_enum(value, imagedisplay->vscroll_policy);
 		break;
 
-	case PROP_TILE_SOURCE:
-		g_value_set_object(value, imagedisplay->tile_source);
+	case PROP_TILESOURCE:
+		g_value_set_object(value, imagedisplay->tilesource);
 		break;
 
 	case PROP_BESTFIT:
@@ -518,12 +518,12 @@ imagedisplay_get_property(GObject *object,
 		break;
 
 	case PROP_BACKGROUND:
-		if (imagedisplay->tile_cache)
-			g_object_get_property(G_OBJECT(imagedisplay->tile_cache),
+		if (imagedisplay->tilecache)
+			g_object_get_property(G_OBJECT(imagedisplay->tilecache),
 				"background", value);
 		break;
 
-	case PROP_SCALE:
+	case PROP_ZOOM:
 		g_value_set_double(value, imagedisplay->scale);
 		break;
 
@@ -561,9 +561,9 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 		&GRAPHENE_RECT_INIT(0, 0,
 			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
 
-	if (imagedisplay->tile_cache &&
-		imagedisplay->tile_cache->tiles)
-		tile_cache_snapshot(imagedisplay->tile_cache, snapshot,
+	if (imagedisplay->tilecache &&
+		imagedisplay->tilecache->tiles)
+		tilecache_snapshot(imagedisplay->tilecache, snapshot,
 			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
 			&imagedisplay->paint_rect,
 			imagedisplay->debug);
@@ -669,11 +669,11 @@ imagedisplay_class_init(ImagedisplayClass *class)
 
 	widget_class->snapshot = imagedisplay_snapshot;
 
-	g_object_class_install_property(gobject_class, PROP_TILE_SOURCE,
+	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
 		g_param_spec_object("tile-source",
 			_("Tile source"),
 			_("The tile source to be displayed"),
-			TILE_SOURCE_TYPE,
+			TILESOURCE_TYPE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_BESTFIT,
@@ -687,14 +687,14 @@ imagedisplay_class_init(ImagedisplayClass *class)
 		g_param_spec_int("background",
 			_("Background"),
 			_("Background mode"),
-			0, TILE_CACHE_BACKGROUND_LAST - 1,
-			TILE_CACHE_BACKGROUND_CHECKERBOARD,
+			0, TILECACHE_BACKGROUND_LAST - 1,
+			TILECACHE_BACKGROUND_CHECKERBOARD,
 			G_PARAM_READWRITE));
 
-	g_object_class_install_property(gobject_class, PROP_SCALE,
-		g_param_spec_double("scale",
-			_("Scale"),
-			_("Scale of viewport"),
+	g_object_class_install_property(gobject_class, PROP_ZOOM,
+		g_param_spec_double("zoom",
+			_("Zoom"),
+			_("Zoom of viewport"),
 			-VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
 			G_PARAM_READWRITE));
 
@@ -738,7 +738,7 @@ imagedisplay_class_init(ImagedisplayClass *class)
 }
 
 Imagedisplay *
-imagedisplay_new(TileSource *tile_source)
+imagedisplay_new(Tilesource *tilesource)
 {
 	Imagedisplay *imagedisplay;
 
@@ -747,14 +747,14 @@ imagedisplay_new(TileSource *tile_source)
 #endif /*DEBUG*/
 
 	imagedisplay = g_object_new(imagedisplay_get_type(),
-		"tile-source", tile_source,
+		"tile-source", tilesource,
 		NULL);
 
 	return imagedisplay;
 }
 
 /* image	level0 image coordinates ... this is the coordinate space we
- *		pass down to tile_cache
+ *		pass down to tilecache
  *
  * gtk		screen cods, so the coordinates we use to render tiles
  */

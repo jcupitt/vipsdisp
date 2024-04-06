@@ -8,13 +8,13 @@
 struct _Displaybar {
 	GtkWidget parent_instance;
 
-	/* The image_window we attach to.
+	/* The imagewindow we attach to.
 	 */
-	ImageWindow *win;
+	Imagewindow *win;
 
-	/* A ref to the tile_source we are currently controlling. 
+	/* A ref to the tilesource we are currently controlling. 
 	 */
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
 	GtkWidget *action_bar;
 	GtkWidget *gears;
@@ -23,7 +23,7 @@ struct _Displaybar {
 	GtkWidget *offset;
 
 	/* We have to disconnect and reconnect these when imagewindow gets a new
-	 * tile_source.
+	 * tilesource.
 	 */
 	guint changed_sid;
 	guint tiles_changed_sid;
@@ -33,110 +33,110 @@ struct _Displaybar {
 G_DEFINE_TYPE(Displaybar, displaybar, GTK_TYPE_WIDGET);
 
 enum {
-	PROP_IMAGE_WINDOW = 1,
+	PROP_IMAGEWINDOW = 1,
 	PROP_REVEALED,
 
 	SIG_LAST
 };
 
 static void
-displaybar_tile_source_changed(TileSource *tile_source, Displaybar *displaybar)
+displaybar_tilesource_changed(Tilesource *tilesource, Displaybar *displaybar)
 {
 #ifdef DEBUG
-	printf("displaybar_tile_source_changed:\n");
+	printf("displaybar_tilesource_changed:\n");
 #endif /*DEBUG*/
 
-	g_assert(tile_source == displaybar->tile_source);
+	g_assert(tilesource == displaybar->tilesource);
 
-	if (TSLIDER(displaybar->scale)->value != tile_source->scale) {
-		TSLIDER(displaybar->scale)->value = tile_source->scale;
+	if (TSLIDER(displaybar->scale)->value != tilesource->scale) {
+		TSLIDER(displaybar->scale)->value = tilesource->scale;
 		tslider_changed(TSLIDER(displaybar->scale));
 	}
 
-	if (TSLIDER(displaybar->offset)->value != tile_source->offset) {
-		TSLIDER(displaybar->offset)->value = tile_source->offset;
+	if (TSLIDER(displaybar->offset)->value != tilesource->offset) {
+		TSLIDER(displaybar->offset)->value = tilesource->offset;
 		tslider_changed(TSLIDER(displaybar->offset));
 	}
 
 	gtk_spin_button_set_range(GTK_SPIN_BUTTON(displaybar->page),
-		0, tile_source->n_pages - 1);
+		0, tilesource->n_pages - 1);
 	gtk_widget_set_sensitive(displaybar->page,
-		tile_source->n_pages > 1 &&
-			tile_source->mode == TILE_SOURCE_MODE_MULTIPAGE);
+		tilesource->n_pages > 1 &&
+			tilesource->mode == TILESOURCE_MODE_MULTIPAGE);
 }
 
 static void
-displaybar_page_changed(TileSource *tile_source, Displaybar *displaybar)
+displaybar_page_changed(Tilesource *tilesource, Displaybar *displaybar)
 {
 #ifdef DEBUG
 	printf("displaybar_page_changed:\n");
 #endif /*DEBUG*/
 
-	g_assert(tile_source == displaybar->tile_source);
+	g_assert(tilesource == displaybar->tilesource);
 
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(displaybar->page),
-		tile_source->page);
+		tilesource->page);
 }
 
 static void
 displaybar_disconnect(Displaybar *displaybar)
 {
-	if (displaybar->tile_source) {
-		FREESID(displaybar->changed_sid, displaybar->tile_source);
-		FREESID(displaybar->tiles_changed_sid, displaybar->tile_source);
-		FREESID(displaybar->page_changed_sid, displaybar->tile_source);
+	if (displaybar->tilesource) {
+		FREESID(displaybar->changed_sid, displaybar->tilesource);
+		FREESID(displaybar->tiles_changed_sid, displaybar->tilesource);
+		FREESID(displaybar->page_changed_sid, displaybar->tilesource);
 
-		VIPS_UNREF(displaybar->tile_source);
+		VIPS_UNREF(displaybar->tilesource);
 	}
 }
 
-/* Imagewindow has a new tile_source.
+/* Imagewindow has a new tilesource.
  */
 static void
-displaybar_image_window_changed(ImageWindow *win, Displaybar *displaybar)
+displaybar_imagewindow_changed(Imagewindow *win, Displaybar *displaybar)
 {
 #ifdef DEBUG
-	printf("displaybar_image_window_changed:\n");
+	printf("displaybar_imagewindow_changed:\n");
 #endif /*DEBUG*/
 
 	displaybar_disconnect(displaybar);
 
-	TileSource *new_tile_source = image_window_get_tile_source(win);
-	if (new_tile_source) {
+	Tilesource *new_tilesource = imagewindow_get_tilesource(win);
+	if (new_tilesource) {
 		/* Set new source.
 		 */
-		displaybar->changed_sid = g_signal_connect(new_tile_source, 
+		displaybar->changed_sid = g_signal_connect(new_tilesource, 
 			"changed",
-			G_CALLBACK(displaybar_tile_source_changed), displaybar);
-		displaybar->tiles_changed_sid = g_signal_connect(new_tile_source, 
+			G_CALLBACK(displaybar_tilesource_changed), displaybar);
+		displaybar->tiles_changed_sid = g_signal_connect(new_tilesource, 
 			"tiles-changed",
-			G_CALLBACK(displaybar_tile_source_changed), displaybar);
-		displaybar->page_changed_sid = g_signal_connect(new_tile_source, 
+			G_CALLBACK(displaybar_tilesource_changed), displaybar);
+		displaybar->page_changed_sid = g_signal_connect(new_tilesource, 
 			"page-changed",
 			G_CALLBACK(displaybar_page_changed), displaybar);
 
-		displaybar->tile_source = new_tile_source;
-		g_object_ref(new_tile_source);
+		displaybar->tilesource = new_tilesource;
+		g_object_ref(new_tilesource);
 
 		/* Init from new source.
 		 */
-		displaybar_tile_source_changed(new_tile_source, displaybar);
-		displaybar_page_changed(new_tile_source, displaybar);
+		displaybar_tilesource_changed(new_tilesource, displaybar);
+		displaybar_page_changed(new_tilesource, displaybar);
 	}
 }
 
 static void
-displaybar_set_image_window(Displaybar *displaybar, ImageWindow *win)
+displaybar_set_imagewindow(Displaybar *displaybar, Imagewindow *win)
 {
 	/* No need to ref ... win holds a ref to us.
 	 */
 	displaybar->win = win;
 
 	g_signal_connect_object(win, "changed",
-		G_CALLBACK(displaybar_image_window_changed),
+		G_CALLBACK(displaybar_imagewindow_changed),
 		displaybar, 0);
 
-	displaybar_image_window_changed(win, displaybar);
+	displaybar_imagewindow_changed(win, displaybar);
 }
 
 static void
@@ -146,8 +146,8 @@ displaybar_set_property(GObject *object,
 	Displaybar *displaybar = (Displaybar *) object;
 
 	switch (prop_id) {
-	case PROP_IMAGE_WINDOW:
-		displaybar_set_image_window(displaybar,
+	case PROP_IMAGEWINDOW:
+		displaybar_set_imagewindow(displaybar,
 			g_value_get_object(value));
 		break;
 
@@ -171,7 +171,7 @@ displaybar_get_property(GObject *object,
 	GtkActionBar *action_bar = GTK_ACTION_BAR(displaybar->action_bar);
 
 	switch (prop_id) {
-	case PROP_IMAGE_WINDOW:
+	case PROP_IMAGEWINDOW:
 		g_value_set_object(value, displaybar->win);
 		break;
 
@@ -205,15 +205,15 @@ static void
 displaybar_page_value_changed(GtkSpinButton *spin_button,
 	Displaybar *displaybar)
 {
-	TileSource *tile_source = displaybar->tile_source;
+	Tilesource *tilesource = displaybar->tilesource;
 	int new_page = gtk_spin_button_get_value_as_int(spin_button);
 
 #ifdef DEBUG
 	printf("displaybar_page_value_changed: %d\n", new_page);
 #endif /*DEBUG*/
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"page", new_page,
 			NULL);
 }
@@ -221,10 +221,10 @@ displaybar_page_value_changed(GtkSpinButton *spin_button,
 static void
 displaybar_scale_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source = displaybar->tile_source;
+	Tilesource *tilesource = displaybar->tilesource;
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"scale", slider->value,
 			NULL);
 }
@@ -232,10 +232,10 @@ displaybar_scale_value_changed(Tslider *slider, Displaybar *displaybar)
 static void
 displaybar_offset_value_changed(Tslider *slider, Displaybar *displaybar)
 {
-	TileSource *tile_source = displaybar->tile_source;
+	Tilesource *tilesource = displaybar->tilesource;
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"offset", slider->value,
 			NULL);
 }
@@ -314,11 +314,11 @@ displaybar_class_init(DisplaybarClass *class)
 	gobject_class->set_property = displaybar_set_property;
 	gobject_class->get_property = displaybar_get_property;
 
-	g_object_class_install_property(gobject_class, PROP_IMAGE_WINDOW,
+	g_object_class_install_property(gobject_class, PROP_IMAGEWINDOW,
 		g_param_spec_object("image-window",
 			_("Image window"),
 			_("The image window we display"),
-			IMAGE_WINDOW_TYPE,
+			IMAGEWINDOW_TYPE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_REVEALED,
@@ -330,7 +330,7 @@ displaybar_class_init(DisplaybarClass *class)
 }
 
 Displaybar *
-displaybar_new(ImageWindow *win)
+displaybar_new(Imagewindow *win)
 {
 	Displaybar *displaybar;
 

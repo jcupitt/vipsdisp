@@ -1,40 +1,40 @@
-#ifndef __TILE_CACHE_H
-#define __TILE_CACHE_H
+#ifndef __TILECACHE_H
+#define __TILECACHE_H
 
 /* The background modes we support.
  */
-typedef enum _TileCacheBackground {
-	TILE_CACHE_BACKGROUND_CHECKERBOARD,
-	TILE_CACHE_BACKGROUND_WHITE,
-	TILE_CACHE_BACKGROUND_BLACK,
-	TILE_CACHE_BACKGROUND_LAST
-} TileCacheBackground;
+typedef enum _TilecacheBackground {
+	TILECACHE_BACKGROUND_CHECKERBOARD,
+	TILECACHE_BACKGROUND_WHITE,
+	TILECACHE_BACKGROUND_BLACK,
+	TILECACHE_BACKGROUND_LAST
+} TilecacheBackground;
 
-#define TILE_CACHE_TYPE (tile_cache_get_type())
-#define TILE_CACHE(obj) \
-	(G_TYPE_CHECK_INSTANCE_CAST((obj), TYPE_TILE_CACHE, TileCache))
-#define TILE_CACHE_CLASS(klass) \
-	(G_TYPE_CHECK_CLASS_CAST((klass), TYPE_TILE_CACHE, TileCacheClass))
-#define IS_TILE_CACHE(obj) \
-	(G_TYPE_CHECK_INSTANCE_TYPE((obj), TYPE_TILE_CACHE))
-#define IS_TILE_CACHE_CLASS(klass) \
-	(G_TYPE_CHECK_CLASS_TYPE((klass), TYPE_TILE_CACHE))
-#define TILE_CACHE_GET_CLASS(obj) \
-	(G_TYPE_INSTANCE_GET_CLASS((obj), TYPE_TILE_CACHE, TileCacheClass))
+#define TILECACHE_TYPE (tilecache_get_type())
+#define TILECACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST((obj), TYPE_TILECACHE, Tilecache))
+#define TILECACHE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_CAST((klass), TYPE_TILECACHE, TilecacheClass))
+#define IS_TILECACHE(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE((obj), TYPE_TILECACHE))
+#define IS_TILECACHE_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_TYPE((klass), TYPE_TILECACHE))
+#define TILECACHE_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS((obj), TYPE_TILECACHE, TilecacheClass))
 
-typedef struct _TileCache {
+typedef struct _Tilecache {
 	GObject parent_instance;
 
 	/* Background rendering style.
 	 */
-	TileCacheBackground background;
+	TilecacheBackground background;
 
 	/* Fetch tiles from here.
 	 */
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
 	/* The levels of the pyramid, indexed by z. 0 is the full res image.
-	 * These are RGB or RGBA images, filled by tile_source.
+	 * These are RGB or RGBA images, filled by tilesource.
 	 */
 	VipsImage **levels;
 	int n_levels;
@@ -59,24 +59,24 @@ typedef struct _TileCache {
 	 */
 	GdkTexture *background_texture;
 
-} TileCache;
+} Tilecache;
 
-typedef struct _TileCacheClass {
+typedef struct _TilecacheClass {
 	GObjectClass parent_class;
 
-} TileCacheClass;
+} TilecacheClass;
 
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(TileCache, g_object_unref)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(Tilecache, g_object_unref)
 
-GType tile_cache_get_type(void);
+GType tilecache_get_type(void);
 
-TileCache *tile_cache_new(TileSource *tile_source);
+Tilecache *tilecache_new(Tilesource *tilesource);
 
 /* Render the tiles to a snapshot.
  */
-void tile_cache_snapshot(TileCache *tile_cache, GtkSnapshot *snapshot,
+void tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	double scale, double x, double y,
 	VipsRect *paint_rect,
 	gboolean debug);
 
-#endif /*__TILE_CACHE_H*/
+#endif /*__TILECACHE_H*/

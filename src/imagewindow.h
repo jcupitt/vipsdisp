@@ -1,31 +1,31 @@
-#ifndef __IMAGE_WINDOW_H
-#define __IMAGE_WINDOW_H
+#ifndef __IMAGEWINDOW_H
+#define __IMAGEWINDOW_H
 
-#define IMAGE_WINDOW_TYPE (image_window_get_type())
-#define IMAGE_WINDOW(obj) \
-	(G_TYPE_CHECK_INSTANCE_CAST((obj), IMAGE_WINDOW_TYPE, ImageWindow))
-#define IMAGE_WINDOW_CLASS(klass) \
-	(G_TYPE_CHECK_CLASS_CAST((klass), IMAGE_WINDOW_TYPE, ImageWindowClass))
-#define IS_IMAGE_WINDOW(obj) \
-	(G_TYPE_CHECK_INSTANCE_TYPE((obj), IMAGE_WINDOW_TYPE))
-#define IS_IMAGE_WINDOW_CLASS(klass) \
-	(G_TYPE_CHECK_CLASS_TYPE((klass), IMAGE_WINDOW_TYPE))
-#define IMAGE_WINDOW_GET_CLASS(obj) \
-	(G_TYPE_INSTANCE_GET_CLASS((obj), IMAGE_WINDOW_TYPE, ImageWindowClass))
+#define IMAGEWINDOW_TYPE (imagewindow_get_type())
+#define IMAGEWINDOW(obj) \
+	(G_TYPE_CHECK_INSTANCE_CAST((obj), IMAGEWINDOW_TYPE, Imagewindow))
+#define IMAGEWINDOW_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_CAST((klass), IMAGEWINDOW_TYPE, ImagewindowClass))
+#define IS_IMAGEWINDOW(obj) \
+	(G_TYPE_CHECK_INSTANCE_TYPE((obj), IMAGEWINDOW_TYPE))
+#define IS_IMAGEWINDOW_CLASS(klass) \
+	(G_TYPE_CHECK_CLASS_TYPE((klass), IMAGEWINDOW_TYPE))
+#define IMAGEWINDOW_GET_CLASS(obj) \
+	(G_TYPE_INSTANCE_GET_CLASS((obj), IMAGEWINDOW_TYPE, ImagewindowClass))
 
-G_DECLARE_FINAL_TYPE(ImageWindow, image_window,
-	VIPSDISP, IMAGE_WINDOW, GtkApplicationWindow)
+G_DECLARE_FINAL_TYPE(Imagewindow, imagewindow,
+	VIPSDISP, IMAGEWINDOW, GtkApplicationWindow)
 
-ImageWindow *image_window_new(VipsdispApp *app);
-void image_window_open_files(ImageWindow *win, char **files, int n_files);
-void image_window_open_gfiles(ImageWindow *win, GFile **gfiles, int n_files);
-void image_window_open_list_gfiles(ImageWindow *win, GSList *gfiles);
-void image_window_open_image(ImageWindow *win, VipsImage *image);
-double image_window_get_scale(ImageWindow *win);
-void image_window_get_mouse_position(ImageWindow *win,
+Imagewindow *imagewindow_new(VipsdispApp *app);
+void imagewindow_open_files(Imagewindow *win, char **files, int n_files);
+void imagewindow_open_gfiles(Imagewindow *win, GFile **gfiles, int n_files);
+void imagewindow_open_list_gfiles(Imagewindow *win, GSList *gfiles);
+void imagewindow_open_image(Imagewindow *win, VipsImage *image);
+double imagewindow_get_zoom(Imagewindow *win);
+void imagewindow_get_mouse_position(Imagewindow *win,
 	double *image_x, double *image_y);
-TileSource *image_window_get_tile_source(ImageWindow *win);
-GtkWidget *image_window_get_main_box(ImageWindow *win);
-GSettings *image_window_get_settings(ImageWindow *win);
+Tilesource *imagewindow_get_tilesource(Imagewindow *win);
+GtkWidget *imagewindow_get_main_box(Imagewindow *win);
+GSettings *imagewindow_get_settings(Imagewindow *win);
 
-#endif /* __IMAGE_WINDOW_H */
+#endif /* __IMAGEWINDOW_H */

@@ -9,7 +9,7 @@
 struct _Properties {
 	GtkWidget parent_instance;
 
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
 	GtkWidget *revealer;
 	GtkWidget *properties;
@@ -28,7 +28,7 @@ struct _Properties {
 G_DEFINE_TYPE(Properties, properties, GTK_TYPE_WIDGET);
 
 enum {
-	PROP_TILE_SOURCE = 1,
+	PROP_TILESOURCE = 1,
 	PROP_REVEALED,
 
 	SIG_LAST
@@ -39,8 +39,8 @@ static const char *
 properties_property_name(guint prop_id)
 {
 	switch (prop_id) {
-	case PROP_TILE_SOURCE:
-		return "TILE_SOURCE";
+	case PROP_TILESOURCE:
+		return "TILESOURCE";
 		break;
 
 	case PROP_REVEALED:
@@ -142,8 +142,8 @@ properties_refresh(Properties *p)
 
 	properties_clear(p);
 
-	if (p->tile_source &&
-		(image = tile_source_get_image(p->tile_source))) {
+	if (p->tilesource &&
+		(image = tilesource_get_image(p->tilesource))) {
 		if (p->pattern) {
 			vips_image_map(image, properties_refresh_add_item_match_cb, p);
 
@@ -178,39 +178,39 @@ properties_refresh(Properties *p)
 	}
 }
 
-/* This is called when the TileSource changes. In particular, a new VipsImage
+/* This is called when the Tilesource changes. In particular, a new VipsImage
  * might have been loaded, or there might no image loaded. Clean up any
  * existing input widgets and create new ones. This is the callback for the
- * "changed" event on @p->image_window->tile_source.
+ * "changed" event on @p->imagewindow->tilesource.
  *
- * @tile_source		The new tile_source, which is currently held by
- * 			p->image_window.
+ * @tilesource		The new tilesource, which is currently held by
+ * 			p->imagewindow.
  *
  * @m	Properties *	this
  */
 static void
-properties_tile_source_changed(TileSource *tile_source, Properties *p)
+properties_tilesource_changed(Tilesource *tilesource, Properties *p)
 {
 #ifdef DEBUG
-	printf("properties_tile_source_changed:\n");
+	printf("properties_tilesource_changed:\n");
 #endif
 
 	properties_refresh(p);
 }
 
 static void
-properties_set_tile_source(Properties *p, TileSource *tile_source)
+properties_set_tilesource(Properties *p, Tilesource *tilesource)
 {
 #ifdef DEBUG
-	printf("properties_set_tile_source:\n");
+	printf("properties_set_tilesource:\n");
 #endif
 
 	/* No need to ref ... the enclosing window holds a ref to us.
 	 */
-	p->tile_source = tile_source;
+	p->tilesource = tilesource;
 
-	g_signal_connect_object(tile_source,
-		"changed", G_CALLBACK(properties_tile_source_changed),
+	g_signal_connect_object(tilesource,
+		"changed", G_CALLBACK(properties_tilesource_changed),
 		p, 0);
 }
 
@@ -266,9 +266,9 @@ properties_set_property(GObject *object, guint prop_id,
 #endif /*DEBUG*/
 
 	switch (prop_id) {
-	case PROP_TILE_SOURCE:
-		properties_set_tile_source(p,
-			TILE_SOURCE(g_value_get_object(value)));
+	case PROP_TILESOURCE:
+		properties_set_tilesource(p,
+			TILESOURCE(g_value_get_object(value)));
 		break;
 
 	case PROP_REVEALED: {
@@ -294,8 +294,8 @@ properties_get_property(GObject *p_,
 	Properties *p = PROPERTIES(p_);
 
 	switch (prop_id) {
-	case PROP_TILE_SOURCE:
-		g_value_set_object(value, p->tile_source);
+	case PROP_TILESOURCE:
+		g_value_set_object(value, p->tilesource);
 		break;
 
 	case PROP_REVEALED:
@@ -366,11 +366,11 @@ properties_class_init(PropertiesClass *class)
 	gobject_class->set_property = properties_set_property;
 	gobject_class->get_property = properties_get_property;
 
-	g_object_class_install_property(gobject_class, PROP_TILE_SOURCE,
+	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
 		g_param_spec_object("tile-source",
 			_("Tile source"),
 			_("The tile source whose properties we display"),
-			TILE_SOURCE_TYPE,
+			TILESOURCE_TYPE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_REVEALED,

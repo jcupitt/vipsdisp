@@ -10,7 +10,7 @@ struct _Infobar {
 
 	/* The imagewindow whose info we display.
 	 */
-	ImageWindow *win;
+	Imagewindow *win;
 
 	GtkWidget *action_bar;
 	GtkWidget *x;
@@ -27,7 +27,7 @@ struct _Infobar {
 G_DEFINE_TYPE(Infobar, infobar, GTK_TYPE_WIDGET);
 
 enum {
-	PROP_IMAGE_WINDOW = 1,
+	PROP_IMAGEWINDOW = 1,
 	PROP_REVEALED,
 
 	SIG_LAST
@@ -63,13 +63,13 @@ static const int infobar_label_width[] = {
 	18, /* double complex */
 };
 
-/* TileSource has a new image. We need a new number of band elements and
+/* Tilesource has a new image. We need a new number of band elements and
  * dimensions.
  */
 static void
-infobar_tile_source_changed(TileSource *tile_source, Infobar *infobar)
+infobar_tilesource_changed(Tilesource *tilesource, Infobar *infobar)
 {
-	VipsImage *image = tile_source->display;
+	VipsImage *image = tilesource->display;
 
 	GSList *p;
 	VipsBandFormat format;
@@ -80,7 +80,7 @@ infobar_tile_source_changed(TileSource *tile_source, Infobar *infobar)
 	int i;
 
 #ifdef DEBUG
-	printf("infobar_tile_source_changed:\n");
+	printf("infobar_tilesource_changed:\n");
 #endif /*DEBUG*/
 
 	/* Remove all existing children of infobar->values.
@@ -147,7 +147,7 @@ infobar_status_value_set_array(Infobar *infobar, double *d)
 typedef struct _PixelUpdate {
 	// what we update, where we get the pixel data
 	Infobar *infobar;
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
 	// fetch params
 	int image_x;
@@ -163,7 +163,7 @@ infobar_update_free(PixelUpdate *update)
 	update->infobar->updating = FALSE;
 
 	VIPS_UNREF(update->infobar);
-	VIPS_UNREF(update->tile_source);
+	VIPS_UNREF(update->tilesource);
 	VIPS_FREE(update->vector);
 	VIPS_FREE(update);
 }
@@ -188,7 +188,7 @@ infobar_get_pixel(void *a, void *b)
 {
 	PixelUpdate *update = (PixelUpdate *) a;
 
-	update->result = tile_source_get_pixel(update->tile_source,
+	update->result = tilesource_get_pixel(update->tilesource,
 		update->image_x, update->image_y, &update->vector, &update->n);
 
 	g_idle_add(infobar_update_pixel_cb, update);
@@ -199,22 +199,22 @@ static void
 infobar_update_pixel(Infobar *infobar)
 {
 	if (!infobar->updating) {
-		ImageWindow *win = infobar->win;
+		Imagewindow *win = infobar->win;
 		PixelUpdate *update = g_new0(PixelUpdate, 1);
 
 		double x_image;
 		double y_image;
 
 		update->infobar = infobar;
-		update->tile_source = image_window_get_tile_source(win);
-		image_window_get_mouse_position(infobar->win, &x_image, &y_image);
+		update->tilesource = imagewindow_get_tilesource(win);
+		imagewindow_get_mouse_position(infobar->win, &x_image, &y_image);
 		update->image_x = (int) x_image;
 		update->image_y = (int) y_image;
 		infobar->updating = TRUE;
 
 		// must stay valid until we are done
 		g_object_ref(update->infobar);
-		g_object_ref(update->tile_source);
+		g_object_ref(update->tilesource);
 
 		if (vips_thread_execute("pixel", infobar_get_pixel, update))
 			// if we can't run a bg task, we must free the update
@@ -225,10 +225,9 @@ infobar_update_pixel(Infobar *infobar)
 static void
 infobar_status_update(Infobar *infobar)
 {
-	double scale = image_window_get_scale(infobar->win);
-
 	char str[64];
 	VipsBuf buf = VIPS_BUF_STATIC(str);
+
 	double image_x;
 	double image_y;
 
@@ -236,7 +235,7 @@ infobar_status_update(Infobar *infobar)
 	printf("infobar_status_update:\n");
 #endif /*DEBUG*/
 
-	image_window_get_mouse_position(infobar->win, &image_x, &image_y);
+	imagewindow_get_mouse_position(infobar->win, &image_x, &image_y);
 
 	vips_buf_appendf(&buf, "%d", (int) image_x);
 	gtk_label_set_text(GTK_LABEL(infobar->x), vips_buf_all(&buf));
@@ -246,19 +245,19 @@ infobar_status_update(Infobar *infobar)
 	gtk_label_set_text(GTK_LABEL(infobar->y), vips_buf_all(&buf));
 	vips_buf_rewind(&buf);
 
-	vips_buf_appendf(&buf, "Magnification %d%%",
-		(int) VIPS_RINT(scale * 100));
+	double zoom = imagewindow_get_zoom(infobar->win);
+	vips_buf_appendf(&buf, "Magnification %d%%", (int) VIPS_RINT(zoom * 100));
 	gtk_label_set_text(GTK_LABEL(infobar->mag), vips_buf_all(&buf));
 
-	// queue bg update of pixel value
+	// queue bg update of pixel value (this must be off the GUI thread)
 	infobar_update_pixel(infobar);
 }
 
 static void
-infobar_status_changed(ImageWindow *win, Infobar *infobar)
+infobar_status_changed(Imagewindow *win, Infobar *infobar)
 {
 	if (!gtk_action_bar_get_revealed(GTK_ACTION_BAR(infobar->action_bar)) ||
-		!image_window_get_tile_source(infobar->win))
+		!imagewindow_get_tilesource(infobar->win))
 		return;
 
 #ifdef DEBUG
@@ -268,32 +267,32 @@ infobar_status_changed(ImageWindow *win, Infobar *infobar)
 	infobar_status_update(infobar);
 }
 
-/* Imagewindow has a new tile_source.
+/* Imagewindow has a new tilesource.
  */
 static void
-infobar_image_window_changed(ImageWindow *win, Infobar *infobar)
+infobar_imagewindow_changed(Imagewindow *win, Infobar *infobar)
 {
-	TileSource *tile_source;
+	Tilesource *tilesource;
 
-	if ((tile_source = image_window_get_tile_source(win))) {
-		g_signal_connect_object(tile_source, "changed",
-			G_CALLBACK(infobar_tile_source_changed),
+	if ((tilesource = imagewindow_get_tilesource(win))) {
+		g_signal_connect_object(tilesource, "changed",
+			G_CALLBACK(infobar_tilesource_changed),
 			infobar, 0);
-		g_signal_connect_object(tile_source, "page-changed",
+		g_signal_connect_object(tilesource, "page-changed",
 			G_CALLBACK(infobar_status_changed),
 			infobar, 0);
 	}
 }
 
 static void
-infobar_set_image_window(Infobar *infobar, ImageWindow *win)
+infobar_set_imagewindow(Infobar *infobar, Imagewindow *win)
 {
 	/* No need to ref ... win holds a ref to us.
 	 */
 	infobar->win = win;
 
 	g_signal_connect_object(win, "changed",
-		G_CALLBACK(infobar_image_window_changed),
+		G_CALLBACK(infobar_imagewindow_changed),
 		infobar, 0);
 
 	g_signal_connect_object(win, "status-changed",
@@ -308,9 +307,9 @@ infobar_set_property(GObject *object,
 	Infobar *infobar = (Infobar *) object;
 
 	switch (prop_id) {
-	case PROP_IMAGE_WINDOW:
-		infobar_set_image_window(infobar,
-			IMAGE_WINDOW(g_value_get_object(value)));
+	case PROP_IMAGEWINDOW:
+		infobar_set_imagewindow(infobar,
+			IMAGEWINDOW(g_value_get_object(value)));
 		break;
 
 	case PROP_REVEALED:
@@ -333,7 +332,7 @@ infobar_get_property(GObject *object,
 	GtkActionBar *action_bar = GTK_ACTION_BAR(infobar->action_bar);
 
 	switch (prop_id) {
-	case PROP_IMAGE_WINDOW:
+	case PROP_IMAGEWINDOW:
 		g_value_set_object(value, infobar->win);
 		break;
 
@@ -387,11 +386,11 @@ infobar_class_init(InfobarClass *class)
 	gobject_class->set_property = infobar_set_property;
 	gobject_class->get_property = infobar_get_property;
 
-	g_object_class_install_property(gobject_class, PROP_IMAGE_WINDOW,
+	g_object_class_install_property(gobject_class, PROP_IMAGEWINDOW,
 		g_param_spec_object("image-window",
 			_("Image window"),
 			_("The image window we display"),
-			IMAGE_WINDOW_TYPE,
+			IMAGEWINDOW_TYPE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_REVEALED,
@@ -403,7 +402,7 @@ infobar_class_init(InfobarClass *class)
 }
 
 Infobar *
-infobar_new(ImageWindow *win)
+infobar_new(Imagewindow *win)
 {
 	Infobar *infobar;
 

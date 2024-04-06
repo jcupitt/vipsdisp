@@ -159,7 +159,7 @@ copy_state(GtkWidget *to, GtkWidget *from, const char *name)
 void
 set_property_from_state(GObject *to, GtkWidget *from, const char *name)
 {
-	g_autoptr(GVariant) state = get_state(from, name);
+	GVariant *state = get_state(from, name);
 	g_auto(GValue) value = { 0 };
 	g_auto(GValue) to_value = { 0 };
 

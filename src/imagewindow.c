@@ -5,12 +5,12 @@
 #include "vipsdisp.h"
 
 /* We have a number of active imageui (open images) and look them up via the
- * tile_source filename or image pointer. 
+ * tilesource filename or image pointer. 
  *
  * Use these to flip back to an already open image.
  */
 typedef struct _Active {
-	ImageWindow *win;
+	Imagewindow *win;
 
 	/* This is a ref ... we can't just use the ref in the widget hierarchy or
 	 * it'll be freed during gtk_stack_remove() and cause chaos.
@@ -25,7 +25,26 @@ typedef struct _Active {
 	int timestamp;
 } Active;
 
-struct _ImageWindow {
+typedef struct _ViewSettings {
+	gboolean valid;
+
+	double scale;
+	double offset;
+	int page;
+	gboolean falsecolour;
+	gboolean log;
+	gboolean icc;
+	TilesourceMode mode;
+	gboolean active;
+
+	TilecacheBackground background;
+	gboolean zoom;
+	gboolean x;
+	gboolean y;
+
+} ViewSettings;
+
+struct _Imagewindow {
 	GtkApplicationWindow parent;
 
 	/* The imageui we are currently displaying, or NULL. This is not
@@ -70,20 +89,24 @@ struct _ImageWindow {
 	 */
 	GSList *active;
 
+	/* Keep recent view setting here on image change.
+	 */
+	ViewSettings view_settings;
+
 	GSettings *settings;
 };
 
-G_DEFINE_TYPE(ImageWindow, image_window, GTK_TYPE_APPLICATION_WINDOW);
+G_DEFINE_TYPE(Imagewindow, imagewindow, GTK_TYPE_APPLICATION_WINDOW);
 
 /* Our signals.
  */
 enum {
-	SIG_CHANGED,			/* A new imageui and tile_source */
+	SIG_CHANGED,			/* A new imageui and tilesource */
 	SIG_STATUS_CHANGED, 	/* New mouse position */
 	SIG_LAST
 };
 
-static guint image_window_signals[SIG_LAST] = { 0 };
+static guint imagewindow_signals[SIG_LAST] = { 0 };
 
 /* GTypes we handle in copy/paste and drag/drop paste ... these are in the
  * order we try, so a GFile is preferred to a simple string.
@@ -94,16 +117,16 @@ static guint image_window_signals[SIG_LAST] = { 0 };
  * Created in _class_init(), since some of these types are only defined at
  * runtime.
  */
-static GType *image_window_supported_types;
-static int image_window_n_supported_types;
+static GType *imagewindow_supported_types;
+static int imagewindow_n_supported_types;
 
 static void
-image_window_set_error(ImageWindow *win, const char *message)
+imagewindow_set_error(Imagewindow *win, const char *message)
 {
 	int i;
 
 #ifdef DEBUG
-	printf("image_window_set_error: %s\n", message);
+	printf("imagewindow_set_error: %s\n", message);
 #endif /*DEBUG*/
 
 	/* Remove any trailing \n.
@@ -117,26 +140,26 @@ image_window_set_error(ImageWindow *win, const char *message)
 }
 
 static void
-image_window_error(ImageWindow *win)
+imagewindow_error(Imagewindow *win)
 {
-	image_window_set_error(win, vips_error_buffer());
+	imagewindow_set_error(win, vips_error_buffer());
 	vips_error_clear();
 }
 
 static void
-image_window_gerror(ImageWindow *win, GError **error)
+imagewindow_gerror(Imagewindow *win, GError **error)
 {
 	if (error && *error) {
-		image_window_set_error(win, (*error)->message);
+		imagewindow_set_error(win, (*error)->message);
 		g_error_free(*error);
 	}
 }
 
 static void
-image_window_error_hide(ImageWindow *win)
+imagewindow_error_hide(Imagewindow *win)
 {
 #ifdef DEBUG
-	printf("image_window_error_hide:\n");
+	printf("imagewindow_error_hide:\n");
 #endif /*DEBUG*/
 
 	gtk_info_bar_set_revealed(GTK_INFO_BAR(win->error_bar), FALSE);
@@ -146,14 +169,14 @@ image_window_error_hide(ImageWindow *win)
  */
 
 static Active *
-image_window_active_lookup_by_filename(ImageWindow *win, const char *filename)
+imagewindow_active_lookup_by_filename(Imagewindow *win, const char *filename)
 {
 	for (GSList *p = win->active; p; p = p->next) {
 		Active *active = (Active *) p->data;
-		TileSource *tile_source = imageui_get_tile_source(active->imageui);
+		Tilesource *tilesource = imageui_get_tilesource(active->imageui);
 
-		if (tile_source->filename && 
-			g_str_equal(tile_source->filename, filename))
+		if (tilesource->filename && 
+			g_str_equal(tilesource->filename, filename))
 			return active;
 	}
 
@@ -161,7 +184,7 @@ image_window_active_lookup_by_filename(ImageWindow *win, const char *filename)
 }
 
 static void
-image_window_active_touch(ImageWindow *win, Active *active)
+imagewindow_active_touch(Imagewindow *win, Active *active)
 {
 	static int serial = 0;
 
@@ -169,7 +192,7 @@ image_window_active_touch(ImageWindow *win, Active *active)
 }
 
 static void
-image_window_active_remove(ImageWindow *win, Active *active)
+imagewindow_active_remove(Imagewindow *win, Active *active)
 {
 	gtk_stack_remove(GTK_STACK(win->stack), GTK_WIDGET(active->imageui));
 
@@ -184,17 +207,17 @@ image_window_active_remove(ImageWindow *win, Active *active)
 }
 
 static void
-image_window_active_remove_all(ImageWindow *win)
+imagewindow_active_remove_all(Imagewindow *win)
 {
 	while (win->active) {
 		Active *active = (Active *) win->active->data;
 
-		image_window_active_remove(win, active);
+		imagewindow_active_remove(win, active);
 	}
 }
 
 static void
-image_window_active_add(ImageWindow *win, Imageui *imageui)
+imagewindow_active_add(Imagewindow *win, Imageui *imageui)
 {
 	Active *active = VIPS_NEW(NULL, Active);
 	active->win = win;
@@ -205,7 +228,7 @@ image_window_active_add(ImageWindow *win, Imageui *imageui)
 
 	win->active = g_slist_prepend(win->active, active);
 
-	image_window_active_touch(win, active);
+	imagewindow_active_touch(win, active);
 
 	while (g_slist_length(win->active) > 3) {
 		Active *oldest;
@@ -219,7 +242,7 @@ image_window_active_add(ImageWindow *win, Imageui *imageui)
 				oldest = active;
 		}
 
-		image_window_active_remove(win, oldest);
+		imagewindow_active_remove(win, oldest);
 	}
 }
 
@@ -227,9 +250,9 @@ image_window_active_add(ImageWindow *win, Imageui *imageui)
  */
 
 static void
-image_window_files_free(ImageWindow *win)
+imagewindow_files_free(Imagewindow *win)
 {
-	image_window_active_remove_all(win);
+	imagewindow_active_remove_all(win);
 
 	VIPS_FREEF(g_strfreev, win->files);
 	win->n_files = 0;
@@ -237,12 +260,12 @@ image_window_files_free(ImageWindow *win)
 }
 
 static void
-image_window_files_set_list_gfiles(ImageWindow *win, GSList *files)
+imagewindow_files_set_list_gfiles(Imagewindow *win, GSList *files)
 {
 	GSList *p;
 	int i;
 
-	image_window_files_free(win);
+	imagewindow_files_free(win);
 
 	win->n_files = g_slist_length(files);
 	win->files = VIPS_ARRAY(NULL, win->n_files + 1, char *);
@@ -263,12 +286,12 @@ sort_filenames(const void *a, const void *b)
 }
 
 static void
-image_window_files_set_list(ImageWindow *win, GSList *files)
+imagewindow_files_set_list(Imagewindow *win, GSList *files)
 {
 	GSList *p;
 	int i;
 
-	image_window_files_free(win);
+	imagewindow_files_free(win);
 
 	win->n_files = g_slist_length(files);
 	win->files = VIPS_ARRAY(NULL, win->n_files + 1, char *);
@@ -276,12 +299,12 @@ image_window_files_set_list(ImageWindow *win, GSList *files)
 		win->files[i] = g_strdup((char *) p->data);
 
 #ifdef DEBUG
-	printf("image_window_files_set_list: %d files\n", win->n_files);
+	printf("imagewindow_files_set_list: %d files\n", win->n_files);
 #endif /*DEBUG*/
 }
 
 static void
-image_window_files_set_path(ImageWindow *win, char *path)
+imagewindow_files_set_path(Imagewindow *win, char *path)
 {
 	g_autofree char *dirname = g_path_get_dirname(path);
 	g_autoptr(GFile) file = g_file_new_for_path(path);
@@ -291,12 +314,12 @@ image_window_files_set_path(ImageWindow *win, char *path)
 	const char *filename;
 
 #ifdef DEBUG
-	printf("image_window_files_set_path:\n");
+	printf("imagewindow_files_set_path:\n");
 #endif /*DEBUG*/
 
 	g_autoptr(GDir) dir = g_dir_open(dirname, 0, &error);
 	if (!dir) {
-		image_window_gerror(win, &error);
+		imagewindow_gerror(win, &error);
 		return;
 	}
 
@@ -319,7 +342,7 @@ image_window_files_set_path(ImageWindow *win, char *path)
 
 	files = g_slist_sort(files, (GCompareFunc) sort_filenames);
 
-	image_window_files_set_list(win, files);
+	imagewindow_files_set_list(win, files);
 
 	// it's be great to use g_autoslist(), but I don't see how :(
 	g_slist_free_full(g_steal_pointer(&files), g_free);
@@ -335,12 +358,12 @@ image_window_files_set_path(ImageWindow *win, char *path)
 }
 
 static void
-image_window_files_set(ImageWindow *win, char **files, int n_files)
+imagewindow_files_set(Imagewindow *win, char **files, int n_files)
 {
-	image_window_files_free(win);
+	imagewindow_files_free(win);
 
 	if (n_files == 1)
-		image_window_files_set_path(win, files[0]);
+		imagewindow_files_set_path(win, files[0]);
 	else if (n_files > 1) {
 		win->n_files = n_files;
 		win->files = VIPS_ARRAY(NULL, n_files + 1, char *);
@@ -352,13 +375,22 @@ image_window_files_set(ImageWindow *win, char **files, int n_files)
 }
 
 double
-image_window_get_scale(ImageWindow *win)
+imagewindow_get_zoom(Imagewindow *win)
 {
-	return win->imageui ? imageui_get_scale(win->imageui) : 1.0;
+	double zoom;
+
+	if (win->imageui)
+		g_object_get(win->imageui,
+			"zoom", &zoom,
+			NULL);
+	else
+		zoom = 1.0;
+
+	return zoom;
 }
 
 void 
-image_window_get_mouse_position(ImageWindow *win,
+imagewindow_get_mouse_position(Imagewindow *win,
 	double *image_x, double *image_y)
 {
 	*image_x = 0.0;
@@ -367,21 +399,21 @@ image_window_get_mouse_position(ImageWindow *win,
 		imageui_get_mouse_position(win->imageui, image_x, image_y);
 }
 
-TileSource *
-image_window_get_tile_source(ImageWindow *win)
+Tilesource *
+imagewindow_get_tilesource(Imagewindow *win)
 {
-	return win->imageui ? imageui_get_tile_source(win->imageui) : NULL;
+	return win->imageui ? imageui_get_tilesource(win->imageui) : NULL;
 }
 
 static void
-image_window_reset_view(ImageWindow *win)
+imagewindow_reset_view(Imagewindow *win)
 {
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	printf("image_window_reset_view:\n");
+	printf("imagewindow_reset_view:\n");
 
-	if (tile_source) {
-		g_object_set(tile_source,
+	if (tilesource) {
+		g_object_set(tilesource,
 			"falsecolour", FALSE,
 			"log", FALSE,
 			"icc", FALSE,
@@ -392,23 +424,23 @@ image_window_reset_view(ImageWindow *win)
 }
 
 static void
-image_window_preeval(VipsImage *image,
-	VipsProgress *progress, ImageWindow *win)
+imagewindow_preeval(VipsImage *image,
+	VipsProgress *progress, Imagewindow *win)
 {
 	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), TRUE);
 }
 
 typedef struct _EvalUpdate {
-	ImageWindow *win;
+	Imagewindow *win;
 	int eta;
 	int percent;
 } EvalUpdate;
 
 static gboolean
-image_window_eval_idle(void *user_data)
+imagewindow_eval_idle(void *user_data)
 {
 	EvalUpdate *update = (EvalUpdate *) user_data;
-	ImageWindow *win = update->win;
+	Imagewindow *win = update->win;
 
 	char str[256];
 	VipsBuf buf = VIPS_BUF_STATIC(str);
@@ -429,8 +461,8 @@ image_window_eval_idle(void *user_data)
 }
 
 static void
-image_window_eval(VipsImage *image,
-	VipsProgress *progress, ImageWindow *win)
+imagewindow_eval(VipsImage *image,
+	VipsProgress *progress, Imagewindow *win)
 {
 	double time_now;
 	EvalUpdate *update;
@@ -449,7 +481,7 @@ image_window_eval(VipsImage *image,
 	win->last_progress_time = time_now;
 
 #ifdef DEBUG_VERBOSE
-	printf("image_window_eval: %d%%\n", progress->percent);
+	printf("imagewindow_eval: %d%%\n", progress->percent);
 #endif /*DEBUG_VERBOSE*/
 
 	/* This can come from the background load thread, so we can't update
@@ -467,161 +499,216 @@ image_window_eval(VipsImage *image,
 	 */
 	g_object_ref(win);
 
-	g_idle_add(image_window_eval_idle, update);
+	g_idle_add(imagewindow_eval_idle, update);
 }
 
 static void
-image_window_posteval(VipsImage *image,
-	VipsProgress *progress, ImageWindow *win)
+imagewindow_posteval(VipsImage *image,
+	VipsProgress *progress, Imagewindow *win)
 {
 	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), FALSE);
 }
 
-static void
-image_window_tile_source_changed(TileSource *tile_source, ImageWindow *win)
-{
-	GVariant *state;
+/* Save and restore view setttings.
+ */
 
+static void
+imagewindow_save_view_settings(Imagewindow *win, ViewSettings *view_settings)
+{
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
+	Imageui *imageui = win->imageui;
+
+	if (!tilesource || 
+		!imageui) {
+		view_settings->valid = FALSE;
+		return;
+	}
+
+	g_object_get(tilesource,
+		"scale", &view_settings->scale,
+		"offset", &view_settings->offset,
+		"page", &view_settings->page,
+		"falsecolour", &view_settings->falsecolour,
+		"log", &view_settings->log,
+		"icc", &view_settings->icc,
+		"mode", &view_settings->mode,
+		"active", &view_settings->active,
+		NULL);
+
+	g_object_get(imageui,
+		"background", &view_settings->background,
+		"zoom", &view_settings->zoom,
+		"x", &view_settings->x,
+		"y", &view_settings->y,
+		NULL);
+
+	view_settings->valid = TRUE;
+}
+
+static void
+imagewindow_restore_view_settings(Imagewindow *win, 
+	ViewSettings *view_settings)
+{
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
+	Imageui *imageui = win->imageui;
+
+	if (!view_settings->valid)
+		return;
+
+	if (tilesource)
+		g_object_set(tilesource,
+			"scale", view_settings->scale,
+			"offset", view_settings->offset,
+			"page", view_settings->page,
+			"falsecolour", view_settings->falsecolour,
+			"log", view_settings->log,
+			"icc", view_settings->icc,
+			"mode", view_settings->mode,
+			"active", view_settings->active,
+			NULL);
+
+	if (imageui) {
+		g_object_set(imageui,
+			"background", view_settings->background,
+			"zoom", view_settings->zoom,
+			NULL);
+
+		// must set zoom before xy
+		g_object_set(imageui,
+			"x", view_settings->x,
+			"y", view_settings->y,
+			NULL);
+	}
+}
+
+static void
+imagewindow_tilesource_changed(Tilesource *tilesource, Imagewindow *win)
+{
 #ifdef DEBUG
 #endif /*DEBUG*/
-	printf("image_window_tile_source_changed:\n");
+	printf("imagewindow_tilesource_changed:\n");
 
-	if (tile_source->load_error)
-		image_window_set_error(win, tile_source->load_message);
+	if (tilesource->load_error)
+		imagewindow_set_error(win, tilesource->load_message);
 
-	if (win->preserve) {
-		// update tile_source with our settings
-		set_property_from_state(G_OBJECT(tile_source), 
-			GTK_WIDGET(win), "falsecolour");
-		set_property_from_state(G_OBJECT(tile_source), 
-			GTK_WIDGET(win), "log");
-		set_property_from_state(G_OBJECT(tile_source), 
-			GTK_WIDGET(win), "icc");
-
-		set_property_from_state(G_OBJECT(tile_source), 
-			GTK_WIDGET(win), "mode");
-
-	}
+	if (win->preserve) 
+		// change the display to match our window settings
+		imagewindow_restore_view_settings(win, &win->view_settings);
 	else {
 		// update win settings from new tile source
-		printf("image_window_tile_source_changed: leaky!\n");
+		GVariant *state;
 
-		state = g_variant_new_boolean(tile_source->falsecolour);
+		state = g_variant_new_boolean(tilesource->falsecolour);
 		change_state(GTK_WIDGET(win), "falsecolour", state);
 
-		state = g_variant_new_boolean(tile_source->log);
+		state = g_variant_new_boolean(tilesource->log);
 		change_state(GTK_WIDGET(win), "log", state);
 
-		state = g_variant_new_boolean(tile_source->icc);
+		state = g_variant_new_boolean(tilesource->icc);
 		change_state(GTK_WIDGET(win), "icc", state);
 
-		const char *name = vips_enum_nick(TYPE_SOURCE_MODE, tile_source->mode);
+		const char *name = vips_enum_nick(TYPE_MODE, tilesource->mode);
 		state = g_variant_new_string(name);
 		change_state(GTK_WIDGET(win), "mode", state);
 	}
 }
 
 static void
-image_window_status_changed(ImageWindow *win)
+imagewindow_status_changed(Imagewindow *win)
 {
-	g_signal_emit(win, image_window_signals[SIG_STATUS_CHANGED], 0);
+	g_signal_emit(win, imagewindow_signals[SIG_STATUS_CHANGED], 0);
 }
 
 static void
-image_window_changed(ImageWindow *win)
+imagewindow_changed(Imagewindow *win)
 {
-	g_signal_emit(win, image_window_signals[SIG_CHANGED], 0);
+	g_signal_emit(win, imagewindow_signals[SIG_CHANGED], 0);
 }
 
 static void
-image_window_imageui_changed(Imageui *imageui, ImageWindow *win)
+imagewindow_imageui_changed(Imageui *imageui, Imagewindow *win)
 {
-	GVariant *state;
-	const char *str;
-
-	TileCacheBackground background;
+	TilecacheBackground background;
 	g_object_get(imageui, "background", &background, NULL);
-	if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
-		str = "checkerboard";
-	else if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
-		str = "white";
-	else if (background == TILE_CACHE_BACKGROUND_CHECKERBOARD)
-		str = "white";
-	else
-		str = NULL;
-	if (str) {
-		state = g_variant_new_string(str);
-		change_state(GTK_WIDGET(win), "background", state);
-	}
 
-	image_window_status_changed(win);
+	const char *str = vips_enum_string(TYPE_BACKGROUND, background);
+	if (str) {
+		GVariant * state = g_variant_new_string(str);
+		change_state(GTK_WIDGET(win), "background", state);
+
+		imagewindow_status_changed(win);
+	}
 }
 
 /* Add an imageui to the stack.
  */
 static void
-image_window_imageui_add(ImageWindow *win, Imageui *imageui) 
+imagewindow_imageui_add(Imagewindow *win, Imageui *imageui) 
 {
-	TileSource *tile_source = imageui_get_tile_source(imageui);
+	Tilesource *tilesource = imageui_get_tilesource(imageui);
 
-	g_signal_connect_object(tile_source, "preeval",
-		G_CALLBACK(image_window_preeval), win, 0);
-	g_signal_connect_object(tile_source, "eval",
-		G_CALLBACK(image_window_eval), win, 0);
-	g_signal_connect_object(tile_source, "posteval",
-		G_CALLBACK(image_window_posteval), win, 0);
+	g_signal_connect_object(tilesource, "preeval",
+		G_CALLBACK(imagewindow_preeval), win, 0);
+	g_signal_connect_object(tilesource, "eval",
+		G_CALLBACK(imagewindow_eval), win, 0);
+	g_signal_connect_object(tilesource, "posteval",
+		G_CALLBACK(imagewindow_posteval), win, 0);
 
-	g_signal_connect_object(tile_source, "changed",
-		G_CALLBACK(image_window_tile_source_changed), win, 0);
+	g_signal_connect_object(tilesource, "changed",
+		G_CALLBACK(imagewindow_tilesource_changed), win, 0);
 
 	g_signal_connect_object(imageui, "changed",
-		G_CALLBACK(image_window_imageui_changed), win, 0);
+		G_CALLBACK(imagewindow_imageui_changed), win, 0);
 
 	gtk_stack_add_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
-	image_window_active_add(win, imageui);
+	imagewindow_active_add(win, imageui);
 
 	// now it's in the UI, trigger a load
-	tile_source_background_load(tile_source);
+	tilesource_background_load(tilesource);
 }
 
 /* Change the image we are manipulating. The imageui is in the stack already.
  */
 static void
-image_window_imageui_set_visible(ImageWindow *win,
+imagewindow_imageui_set_visible(Imagewindow *win,
 	Imageui *imageui, GtkStackTransitionType transition)
 {
-	TileSource *old_tile_source = image_window_get_tile_source(win);
-	TileSource *new_tile_source = 
-		imageui ? imageui_get_tile_source(imageui) : NULL;
+	Tilesource *old_tilesource = imagewindow_get_tilesource(win);
+	Tilesource *new_tilesource = 
+		imageui ? imageui_get_tilesource(imageui) : NULL;
 
 	VipsImage *image;
 	char *title;
 
-	if (old_tile_source)
-		g_object_set(old_tile_source,
+	/* Save the current view settings in case we need to restore them.
+	 */
+	imagewindow_save_view_settings(win, &win->view_settings);
+
+	if (old_tilesource)
+		g_object_set(old_tilesource,
 			"visible", FALSE,
 			NULL);
 
 	g_object_set(win->properties,
-		"tile-source", new_tile_source,
+		"tile-source", new_tilesource,
 		NULL);
 
 	/* Update title and subtitle.
 	 */
-	title = new_tile_source ? 
-		(char *) tile_source_get_path(new_tile_source) : NULL;
-	title = (char *) tile_source_get_path(new_tile_source);
+	title = new_tilesource ? 
+		(char *) tilesource_get_path(new_tilesource) : NULL;
+	title = (char *) tilesource_get_path(new_tilesource);
 	gtk_label_set_text(GTK_LABEL(win->title), title ? title : "Untitled");
 
-	if (new_tile_source &&
-		(image = tile_source_get_base_image(new_tile_source))) {
+	if (new_tilesource &&
+		(image = tilesource_get_base_image(new_tilesource))) {
 		char str[256];
 		VipsBuf buf = VIPS_BUF_STATIC(str);
 
 		vips_buf_appendf(&buf, "%dx%d, ", image->Xsize, image->Ysize);
-		if (new_tile_source->n_pages > 1)
-			vips_buf_appendf(&buf, "%d pages, ", new_tile_source->n_pages);
+		if (new_tilesource->n_pages > 1)
+			vips_buf_appendf(&buf, "%d pages, ", new_tilesource->n_pages);
 		if (vips_image_get_coding(image) == VIPS_CODING_NONE)
 			vips_buf_appendf(&buf,
 				g_dngettext(GETTEXT_PACKAGE,
@@ -650,7 +737,7 @@ image_window_imageui_set_visible(ImageWindow *win,
 		g_autoptr(GVariant) control = 
 			g_settings_get_value(win->settings, "control");
 
-		g_object_set(new_tile_source,
+		g_object_set(new_tilesource,
 			"active", g_variant_get_boolean(control),
 			"visible", TRUE,
 			NULL);
@@ -660,20 +747,20 @@ image_window_imageui_set_visible(ImageWindow *win,
 	win->imageui = imageui;
 
 	// tell everyone there's a new imageui
-	image_window_changed(win);
+	imagewindow_changed(win);
 
 	// update the menus
-	image_window_tile_source_changed(new_tile_source, win);
+	imagewindow_tilesource_changed(new_tilesource, win);
 }
 
 static void
-image_window_open_current_file(ImageWindow *win,
+imagewindow_open_current_file(Imagewindow *win,
 	GtkStackTransitionType transition)
 {
-	image_window_error_hide(win);
+	imagewindow_error_hide(win);
 
 	if (!win->files)
-		image_window_imageui_set_visible(win, NULL, transition);
+		imagewindow_imageui_set_visible(win, NULL, transition);
 	else {
 		char *filename = win->files[win->current_file];
 
@@ -681,13 +768,13 @@ image_window_open_current_file(ImageWindow *win,
 		Active *active;
 
 #ifdef DEBUG
-		printf("image_window_open_current_file: %s:\n", filename);
+		printf("imagewindow_open_current_file: %s:\n", filename);
 #endif /*DEBUG*/
 
 		/* An old image selected again?
 		 */
 		imageui = NULL;
-		if ((active = image_window_active_lookup_by_filename(win, filename)))
+		if ((active = imagewindow_active_lookup_by_filename(win, filename)))
 			imageui = active->imageui;
 		else {
 			/* FIXME ... we only want to revalidate if eg. the timestamp has
@@ -697,63 +784,63 @@ image_window_open_current_file(ImageWindow *win,
 					"revalidate", TRUE, NULL )) )
 				VIPS_UNREF( image );
 			else
-				image_window_error( win );
+				imagewindow_error( win );
 			 */
 
-			g_autoptr(TileSource) tile_source =
-				tile_source_new_from_file(filename);
-			if (!tile_source) {
-				image_window_error(win);
+			g_autoptr(Tilesource) tilesource =
+				tilesource_new_from_file(filename);
+			if (!tilesource) {
+				imagewindow_error(win);
 				return;
 			}
 
-			imageui = imageui_new(tile_source);
+			imageui = imageui_new(tilesource);
 			if (!imageui) {
-				image_window_error(win);
+				imagewindow_error(win);
 				return;
 			}
 
-			image_window_imageui_add(win, imageui);
+			imagewindow_imageui_add(win, imageui);
 		}
 
-		image_window_imageui_set_visible(win, imageui, transition);
+		imagewindow_imageui_set_visible(win, imageui, transition);
 	}
 }
 
 static void
-image_window_dispose(GObject *object)
+imagewindow_dispose(GObject *object)
 {
-	ImageWindow *win = IMAGE_WINDOW(object);
+	Imagewindow *win = IMAGEWINDOW(object);
 
 #ifdef DEBUG
-	printf("image_window_dispose:\n");
+	printf("imagewindow_dispose:\n");
 #endif /*DEBUG*/
 
-	image_window_files_free(win);
+	imagewindow_files_free(win);
 
 	VIPS_UNREF(win->save_folder);
 	VIPS_UNREF(win->load_folder);
 	VIPS_FREEF(gtk_widget_unparent, win->right_click_menu);
 	VIPS_FREEF(g_timer_destroy, win->progress_timer);
 
-	G_OBJECT_CLASS(image_window_parent_class)->dispose(object);
+	G_OBJECT_CLASS(imagewindow_parent_class)->dispose(object);
 }
 
 static void
-image_window_cancel_clicked(GtkWidget *button, ImageWindow *win)
+imagewindow_cancel_clicked(GtkWidget *button, Imagewindow *win)
 {
-	TileSource *tile_source;
+	Tilesource *tilesource;
 	VipsImage *image;
 
-	if ((tile_source = image_window_get_tile_source(win)) &&
-		(image = tile_source_get_image(tile_source)))
+	if ((tilesource = imagewindow_get_tilesource(win)) &&
+		(image = tilesource_get_image(tilesource)))
 		vips_image_set_kill(image, TRUE);
 }
 
 static void
-image_window_error_response(GtkWidget *button, int response, ImageWindow *win)
+imagewindow_error_response(GtkWidget *button, int response, Imagewindow *win)
 {
-	image_window_error_hide(win);
+	imagewindow_error_hide(win);
 }
 
 static GdkTexture *
@@ -785,27 +872,27 @@ texture_new_from_image(VipsImage *image)
 }
 
 static void
-image_window_copy_action(GSimpleAction *action,
+imagewindow_copy_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
+	if (tilesource) {
 		GdkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win));
-		g_autoptr(GFile) file = tile_source_get_file(tile_source);
+		g_autoptr(GFile) file = tilesource_get_file(tilesource);
 
 		VipsImage *image;
 
 		if (file)
 			gdk_clipboard_set(clipboard, G_TYPE_FILE, file);
-		else if ((image = tile_source_get_base_image(tile_source))) {
+		else if ((image = tilesource_get_base_image(tilesource))) {
 			g_autoptr(GdkTexture) texture = texture_new_from_image(image);
 
 			if (texture)
 				gdk_clipboard_set(clipboard, GDK_TYPE_TEXTURE, texture);
 			else
-				image_window_error(win);
+				imagewindow_error(win);
 		}
 	}
 }
@@ -841,58 +928,58 @@ image_new_from_texture(GdkTexture *texture)
 }
 
 static void
-image_window_set_from_value(ImageWindow *win, const GValue *value)
+imagewindow_set_from_value(Imagewindow *win, const GValue *value)
 {
 	if (G_VALUE_TYPE(value) == GDK_TYPE_FILE_LIST) {
 		GdkFileList *file_list = g_value_get_boxed(value);
 		g_autoptr(GSList) files = gdk_file_list_get_files(file_list);
 
-		image_window_open_list_gfiles(win, files);
+		imagewindow_open_list_gfiles(win, files);
 	}
 	else if (G_VALUE_TYPE(value) == G_TYPE_FILE) {
 		GFile *file = g_value_get_object(value);
 
-		image_window_open_gfiles(win, &file, 1);
+		imagewindow_open_gfiles(win, &file, 1);
 	}
 	else if (G_VALUE_TYPE(value) == G_TYPE_STRING) {
 		// remove leading and trailing whitespace
 		// modifies the string in place, so we must dup
 		g_autofree char *text = g_strstrip(g_strdup(g_value_get_string(value)));
 
-		image_window_open_files(win, (char **) &text, 1);
+		imagewindow_open_files(win, (char **) &text, 1);
 	}
 	else if (G_VALUE_TYPE(value) == GDK_TYPE_TEXTURE) {
 		GdkTexture *texture = g_value_get_object(value);
 
 		g_autoptr(VipsImage) image = image_new_from_texture(texture);
 		if (image)
-			image_window_open_image(win, image);
+			imagewindow_open_image(win, image);
 		else
-			image_window_error(win);
+			imagewindow_error(win);
 	}
 }
 
 static void
-image_window_paste_action_ready(GObject *source_object,
+imagewindow_paste_action_ready(GObject *source_object,
 	GAsyncResult *res, gpointer user_data)
 {
 	GdkClipboard *clipboard = GDK_CLIPBOARD(source_object);
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	const GValue *value;
 	GError *error = NULL;
 	value = gdk_clipboard_read_value_finish(clipboard, res, &error);
 	if (error)
-		image_window_gerror(win, &error);
+		imagewindow_gerror(win, &error);
 	else if (value)
-		image_window_set_from_value(win, value);
+		imagewindow_set_from_value(win, value);
 }
 
 static void
-image_window_paste_action(GSimpleAction *action,
+imagewindow_paste_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 	GdkClipboard *clipboard = gtk_widget_get_clipboard(GTK_WIDGET(win));
 
 	GdkContentFormats *formats = gdk_clipboard_get_formats(clipboard);
@@ -907,13 +994,13 @@ image_window_paste_action(GSimpleAction *action,
 
 	gboolean handled = FALSE;
 	for (gsize i = 0; i < n_types; i++) {
-		for (int j = 0; j < image_window_n_supported_types; j++)
-			if (types[i] == image_window_supported_types[j]) {
+		for (int j = 0; j < imagewindow_n_supported_types; j++)
+			if (types[i] == imagewindow_supported_types[j]) {
 				gdk_clipboard_read_value_async(clipboard,
-					image_window_supported_types[j],
+					imagewindow_supported_types[j],
 					G_PRIORITY_DEFAULT,
 					NULL,
-					image_window_paste_action_ready,
+					imagewindow_paste_action_ready,
 					win);
 				handled = TRUE;
 				break;
@@ -925,73 +1012,73 @@ image_window_paste_action(GSimpleAction *action,
 }
 
 static void
-image_window_magin_action(GSimpleAction *action,
+imagewindow_magin_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	if (win->imageui)
 		imageui_magin(win->imageui);
 }
 
 static void
-image_window_magout_action(GSimpleAction *action,
+imagewindow_magout_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	if (win->imageui)
 		imageui_magout(win->imageui);
 }
 
 static void
-image_window_bestfit_action(GSimpleAction *action,
+imagewindow_bestfit_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	if (win->imageui)
 		imageui_bestfit(win->imageui);
 }
 
 static void
-image_window_oneone_action(GSimpleAction *action,
+imagewindow_oneone_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	if (win->imageui)
 		imageui_oneone(win->imageui);
 }
 
 static void
-image_window_reload_action(GSimpleAction *action,
+imagewindow_reload_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
-		g_autoptr(GFile) file = tile_source_get_file(tile_source);
+	if (tilesource) {
+		g_autoptr(GFile) file = tilesource_get_file(tilesource);
 
 		if (file)
-			image_window_open_gfiles(win, &file, 1);
+			imagewindow_open_gfiles(win, &file, 1);
 	}
 }
 
 static void
-image_window_duplicate_action(GSimpleAction *action,
+imagewindow_duplicate_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 	GtkStackTransitionType transition = GTK_STACK_TRANSITION_TYPE_NONE;
 
 	VipsdispApp *app;
-	ImageWindow *new_win;
+	Imagewindow *new_win;
 	int width, height;
 
 	g_object_get(win, "application", &app, NULL);
-	new_win = image_window_new(app);
+	new_win = imagewindow_new(app);
 
 	new_win->n_files = win->n_files;
 	new_win->files = g_strdupv(win->files);
@@ -1006,13 +1093,13 @@ image_window_duplicate_action(GSimpleAction *action,
 	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
 
 	if (win->imageui) {
-		TileSource *tile_source = imageui_get_tile_source(win->imageui);
-		g_autoptr(TileSource) new_tile_source = 
-			tile_source_duplicate(tile_source);
-		Imageui *new_imageui = imageui_duplicate(new_tile_source, win->imageui);
+		Tilesource *tilesource = imageui_get_tilesource(win->imageui);
+		g_autoptr(Tilesource) new_tilesource = 
+			tilesource_duplicate(tilesource);
+		Imageui *new_imageui = imageui_duplicate(new_tilesource, win->imageui);
 
-		image_window_imageui_add(new_win, new_imageui);
-		image_window_imageui_set_visible(new_win, new_imageui, transition);
+		imagewindow_imageui_add(new_win, new_imageui);
+		imagewindow_imageui_set_visible(new_win, new_imageui, transition);
 	}
 
 	gtk_window_present(GTK_WINDOW(new_win));
@@ -1027,10 +1114,10 @@ get_parent(GFile *file)
 }
 
 static void
-image_window_replace_result(GObject *source_object,
+imagewindow_replace_result(GObject *source_object,
 	GAsyncResult *res, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 	GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
 
 	g_autoptr(GListModel) list =
@@ -1050,8 +1137,8 @@ image_window_replace_result(GObject *source_object,
 				win->load_folder = get_parent(file);
 			}
 
-			image_window_error_hide(win);
-			image_window_open_gfiles(win, files, n_files);
+			imagewindow_error_hide(win);
+			imagewindow_open_gfiles(win, files, n_files);
 
 			for (int i = 0; i < n_files; i++)
 				VIPS_UNREF(files[i]);
@@ -1061,11 +1148,11 @@ image_window_replace_result(GObject *source_object,
 }
 
 static void
-image_window_replace_action(GSimpleAction *action,
+imagewindow_replace_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
 	GtkFileDialog *dialog;
 
@@ -1074,8 +1161,8 @@ image_window_replace_action(GSimpleAction *action,
 	gtk_file_dialog_set_accept_label(dialog, "Replace");
 	gtk_file_dialog_set_modal(dialog, TRUE);
 
-	if (tile_source) {
-		g_autoptr(GFile) file = tile_source_get_file(tile_source);
+	if (tilesource) {
+		g_autoptr(GFile) file = tilesource_get_file(tilesource);
 		if (file)
 			gtk_file_dialog_set_initial_file(dialog, file);
 	}
@@ -1083,11 +1170,11 @@ image_window_replace_action(GSimpleAction *action,
 		gtk_file_dialog_set_initial_folder(dialog, win->load_folder);
 
 	gtk_file_dialog_open_multiple(dialog, GTK_WINDOW(win), NULL,
-		image_window_replace_result, win);
+		imagewindow_replace_result, win);
 }
 
 static void
-image_window_saveas_options_response(GtkDialog *dialog,
+imagewindow_saveas_options_response(GtkDialog *dialog,
 	gint response, gpointer user_data)
 {
 	if (response == GTK_RESPONSE_ACCEPT ||
@@ -1099,15 +1186,15 @@ image_window_saveas_options_response(GtkDialog *dialog,
 }
 
 static void
-image_window_on_file_save_cb(GObject *source_object,
+imagewindow_on_file_save_cb(GObject *source_object,
 	GAsyncResult *res, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 	GtkFileDialog *dialog = GTK_FILE_DIALOG(source_object);
 
 	g_autoptr(GFile) file = gtk_file_dialog_save_finish(dialog, res, NULL);
-	if (file && tile_source) {
+	if (file && tilesource) {
 		SaveOptions *options;
 
 		// note the save directory for next time
@@ -1117,15 +1204,15 @@ image_window_on_file_save_cb(GObject *source_object,
 		g_autofree char *filename = g_file_get_path(file);
 
 		options = save_options_new(GTK_WINDOW(win),
-			tile_source_get_base_image(tile_source), filename);
+			tilesource_get_base_image(tilesource), filename);
 
 		if (!options) {
-			image_window_error(win);
+			imagewindow_error(win);
 			return;
 		}
 
 		g_signal_connect_object(options, "response",
-			G_CALLBACK(image_window_saveas_options_response),
+			G_CALLBACK(imagewindow_saveas_options_response),
 			NULL, 0);
 
 		gtk_window_present(GTK_WINDOW(options));
@@ -1133,44 +1220,44 @@ image_window_on_file_save_cb(GObject *source_object,
 }
 
 static void
-image_window_saveas_action(GSimpleAction *action,
+imagewindow_saveas_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
+	if (tilesource) {
 		GtkFileDialog *dialog;
 
 		dialog = gtk_file_dialog_new();
 		gtk_file_dialog_set_title(dialog, "Save file");
 		gtk_file_dialog_set_modal(dialog, TRUE);
 
-		g_autoptr(GFile) file = tile_source_get_file(tile_source);
+		g_autoptr(GFile) file = tilesource_get_file(tilesource);
 		if (file)
 			gtk_file_dialog_set_initial_file(dialog, file);
 		else if (win->save_folder)
 			gtk_file_dialog_set_initial_folder(dialog, win->save_folder);
 
 		gtk_file_dialog_save(dialog, GTK_WINDOW(win), NULL,
-			&image_window_on_file_save_cb, win);
+			&imagewindow_on_file_save_cb, win);
 	}
 }
 
 static void
-image_window_close_action(GSimpleAction *action,
+imagewindow_close_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	gtk_window_destroy(GTK_WINDOW(win));
 }
 
 static void
-image_window_fullscreen(GSimpleAction *action,
+imagewindow_fullscreen(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	g_object_set(win,
 		"fullscreened", g_variant_get_boolean(state),
@@ -1180,11 +1267,11 @@ image_window_fullscreen(GSimpleAction *action,
 }
 
 static void
-image_window_control(GSimpleAction *action,
+imagewindow_control(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
 	g_object_set(win->display_bar,
 		"revealed", g_variant_get_boolean(state),
@@ -1193,8 +1280,8 @@ image_window_control(GSimpleAction *action,
 	/* Disable most visualisation settings if the controls are hidden. It's
 	 * much too confusing.
 	 */
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"active", g_variant_get_boolean(state),
 			NULL);
 
@@ -1202,10 +1289,10 @@ image_window_control(GSimpleAction *action,
 }
 
 static void
-image_window_info(GSimpleAction *action,
+imagewindow_info(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	g_object_set(win->info_bar,
 		"revealed", g_variant_get_boolean(state),
@@ -1216,14 +1303,14 @@ image_window_info(GSimpleAction *action,
 
 // is an image being background-loaded?
 static gboolean
-image_window_loading(ImageWindow *win)
+imagewindow_loading(Imagewindow *win)
 {
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
+	if (tilesource) {
 		gboolean loaded;
 
-		g_object_get(tile_source, "loaded", &loaded, NULL);
+		g_object_get(tilesource, "loaded", &loaded, NULL);
 		return !loaded;
 	}
 
@@ -1231,94 +1318,94 @@ image_window_loading(ImageWindow *win)
 }
 
 static void
-image_window_next_image(GSimpleAction *action,
+imagewindow_next_image(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	// if there's a background load active, do nothing
 	// we want to prevent many bg loads queueing up
-	if (image_window_loading(win)) 
+	if (imagewindow_loading(win)) 
 		return;
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + 1) % win->n_files;
-		image_window_open_current_file(win,
+		imagewindow_open_current_file(win,
 			GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 	}
 }
 
 static void
-image_window_prev_image(GSimpleAction *action,
+imagewindow_prev_image(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	// if there's a background load active, then do nothing
 	// we want to prevent many bg loads queueing up
-	if (image_window_loading(win))
+	if (imagewindow_loading(win))
 		return;
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + win->n_files - 1) %
 			win->n_files;
-		image_window_open_current_file(win,
+		imagewindow_open_current_file(win,
 			GTK_STACK_TRANSITION_TYPE_ROTATE_RIGHT);
 	}
 }
 
 static void
-image_window_next(GSimpleAction *action, GVariant *state, gpointer user_data)
+imagewindow_next(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
-		int n_pages = tile_source->n_pages;
-		int page = VIPS_CLIP(0, tile_source->page, n_pages - 1);
+	if (tilesource) {
+		int n_pages = tilesource->n_pages;
+		int page = VIPS_CLIP(0, tilesource->page, n_pages - 1);
 
-		g_object_set(tile_source,
+		g_object_set(tilesource,
 			"page", (page + 1) % n_pages,
 			NULL);
 	}
 }
 
 static void
-image_window_prev(GSimpleAction *action, GVariant *state, gpointer user_data)
+imagewindow_prev(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source) {
-		int n_pages = tile_source->n_pages;
-		int page = VIPS_CLIP(0, tile_source->page, n_pages - 1);
+	if (tilesource) {
+		int n_pages = tilesource->n_pages;
+		int page = VIPS_CLIP(0, tilesource->page, n_pages - 1);
 
-		g_object_set(tile_source,
+		g_object_set(tilesource,
 			"page", page == 0 ? n_pages - 1 : page - 1,
 			NULL);
 	}
 }
 
 static void
-image_window_scale(GSimpleAction *action,
+imagewindow_scale(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	if (win->imageui) {
 		if (!imageui_scale(win->imageui))
-			image_window_error(win);
+			imagewindow_error(win);
 	}
 }
 
 static void
-image_window_log(GSimpleAction *action, GVariant *state, gpointer user_data)
+imagewindow_log(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"log", g_variant_get_boolean(state),
 			NULL);
 
@@ -1326,13 +1413,13 @@ image_window_log(GSimpleAction *action, GVariant *state, gpointer user_data)
 }
 
 static void
-image_window_icc(GSimpleAction *action, GVariant *state, gpointer user_data)
+imagewindow_icc(GSimpleAction *action, GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"icc", g_variant_get_boolean(state),
 			NULL);
 
@@ -1340,14 +1427,14 @@ image_window_icc(GSimpleAction *action, GVariant *state, gpointer user_data)
 }
 
 static void
-image_window_falsecolour(GSimpleAction *action,
+imagewindow_falsecolour(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"falsecolour", g_variant_get_boolean(state),
 			NULL);
 
@@ -1355,10 +1442,10 @@ image_window_falsecolour(GSimpleAction *action,
 }
 
 static void
-image_window_preserve(GSimpleAction *action,
+imagewindow_preserve(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	win->preserve = g_variant_get_boolean(state);
 
@@ -1366,17 +1453,16 @@ image_window_preserve(GSimpleAction *action,
 }
 
 static void
-image_window_mode(GSimpleAction *action,
+imagewindow_mode(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
-	TileSource *tile_source = image_window_get_tile_source(win);
+	Imagewindow *win = IMAGEWINDOW(user_data);
+	Tilesource *tilesource = imagewindow_get_tilesource(win);
 	const gchar *str = g_variant_get_string(state, NULL);
-	TileSourceMode mode = 
-		vips_enum_from_nick("vipsdisp", TYPE_SOURCE_MODE, str);
+	TilesourceMode mode = vips_enum_from_nick("vipsdisp", TYPE_MODE, str);
 
-	if (tile_source)
-		g_object_set(tile_source,
+	if (tilesource)
+		g_object_set(tilesource,
 			"mode", mode,
 			NULL);
 
@@ -1384,13 +1470,13 @@ image_window_mode(GSimpleAction *action,
 }
 
 static void
-image_window_background(GSimpleAction *action,
+imagewindow_background(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 	const gchar *str = g_variant_get_string(state, NULL);
-	TileCacheBackground background = 
-		vips_enum_from_nick("vipsdisp", TYPE_CACHE_BACKGROUND, str);
+	TilecacheBackground background = 
+		vips_enum_from_nick("vipsdisp", TYPE_BACKGROUND, str);
 
 	if(win->imageui)
 		g_object_set(win->imageui,
@@ -1401,23 +1487,23 @@ image_window_background(GSimpleAction *action,
 }
 
 static void
-image_window_reset(GSimpleAction *action,
+imagewindow_reset(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
-	image_window_reset_view(win);
+	imagewindow_reset_view(win);
 }
 
 static void
-image_window_properties(GSimpleAction *action,
+imagewindow_properties(GSimpleAction *action,
 	GVariant *state, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 	gboolean revealed = g_variant_get_boolean(state);
 
 #ifdef DEBUG
-	printf("image_window_properties:\n");
+	printf("imagewindow_properties:\n");
 #endif /*DEBUG*/
 
 	g_object_set(win->properties,
@@ -1427,48 +1513,48 @@ image_window_properties(GSimpleAction *action,
 	g_simple_action_set_state(action, state);
 }
 
-static GActionEntry image_window_entries[] = {
-	{ "copy", image_window_copy_action },
-	{ "paste", image_window_paste_action },
+static GActionEntry imagewindow_entries[] = {
+	{ "copy", imagewindow_copy_action },
+	{ "paste", imagewindow_paste_action },
 
-	{ "magin", image_window_magin_action },
-	{ "magout", image_window_magout_action },
-	{ "bestfit", image_window_bestfit_action },
-	{ "oneone", image_window_oneone_action },
+	{ "magin", imagewindow_magin_action },
+	{ "magout", imagewindow_magout_action },
+	{ "bestfit", imagewindow_bestfit_action },
+	{ "oneone", imagewindow_oneone_action },
 
-	{ "reload", image_window_reload_action },
-	{ "duplicate", image_window_duplicate_action },
-	{ "replace", image_window_replace_action },
-	{ "saveas", image_window_saveas_action },
-	{ "close", image_window_close_action },
+	{ "reload", imagewindow_reload_action },
+	{ "duplicate", imagewindow_duplicate_action },
+	{ "replace", imagewindow_replace_action },
+	{ "saveas", imagewindow_saveas_action },
+	{ "close", imagewindow_close_action },
 
-	{ "fullscreen", action_toggle, NULL, "false", image_window_fullscreen },
-	{ "control", action_toggle, NULL, "false", image_window_control },
-	{ "info", action_toggle, NULL, "false", image_window_info },
-	{ "properties", action_toggle, NULL, "false", image_window_properties },
+	{ "fullscreen", action_toggle, NULL, "false", imagewindow_fullscreen },
+	{ "control", action_toggle, NULL, "false", imagewindow_control },
+	{ "info", action_toggle, NULL, "false", imagewindow_info },
+	{ "properties", action_toggle, NULL, "false", imagewindow_properties },
 
-	{ "next_image", image_window_next_image },
-	{ "prev_image", image_window_prev_image },
+	{ "next_image", imagewindow_next_image },
+	{ "prev_image", imagewindow_prev_image },
 
-	{ "next", image_window_next },
-	{ "prev", image_window_prev },
-	{ "scale", image_window_scale },
-	{ "log", action_toggle, NULL, "false", image_window_log },
-	{ "icc", action_toggle, NULL, "false", image_window_icc },
-	{ "falsecolour", action_toggle, NULL, "false", image_window_falsecolour },
-	{ "preserve", action_toggle, NULL, "false", image_window_preserve },
-	{ "mode", action_radio, "s", "'multipage'", image_window_mode },
+	{ "next", imagewindow_next },
+	{ "prev", imagewindow_prev },
+	{ "scale", imagewindow_scale },
+	{ "log", action_toggle, NULL, "false", imagewindow_log },
+	{ "icc", action_toggle, NULL, "false", imagewindow_icc },
+	{ "falsecolour", action_toggle, NULL, "false", imagewindow_falsecolour },
+	{ "preserve", action_toggle, NULL, "false", imagewindow_preserve },
+	{ "mode", action_radio, "s", "'multipage'", imagewindow_mode },
 	{ "background", action_radio, "s", "'checkerboard'", 
-		image_window_background },
+		imagewindow_background },
 
-	{ "reset", image_window_reset },
+	{ "reset", imagewindow_reset },
 };
 
 static void
-image_window_properties_leave(GtkEventControllerFocus *self,
+imagewindow_properties_leave(GtkEventControllerFocus *self,
 	gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
 	gboolean revealed;
 
@@ -1482,23 +1568,23 @@ image_window_properties_leave(GtkEventControllerFocus *self,
 }
 
 static gboolean
-image_window_dnd_drop(GtkDropTarget *target,
+imagewindow_dnd_drop(GtkDropTarget *target,
 	const GValue *value, double x, double y, gpointer user_data)
 {
-	ImageWindow *win = IMAGE_WINDOW(user_data);
+	Imagewindow *win = IMAGEWINDOW(user_data);
 
-	image_window_set_from_value(win, value);
+	imagewindow_set_from_value(win, value);
 
 	return TRUE;
 }
 
 static void
-image_window_init(ImageWindow *win)
+imagewindow_init(Imagewindow *win)
 {
 	GtkEventController *controller;
 
 #ifdef DEBUG
-	puts("image_window_init");
+	puts("imagewindow_init");
 #endif /*DEBUG*/
 
 	win->progress_timer = g_timer_new();
@@ -1518,12 +1604,12 @@ image_window_init(ImageWindow *win)
 		NULL);
 
 	g_signal_connect_object(win->progress_cancel, "clicked",
-		G_CALLBACK(image_window_cancel_clicked), win, 0);
+		G_CALLBACK(imagewindow_cancel_clicked), win, 0);
 	g_signal_connect_object(win->error_bar, "response",
-		G_CALLBACK(image_window_error_response), win, 0);
+		G_CALLBACK(imagewindow_error_response), win, 0);
 
 	g_action_map_add_action_entries(G_ACTION_MAP(win),
-		image_window_entries, G_N_ELEMENTS(image_window_entries),
+		imagewindow_entries, G_N_ELEMENTS(imagewindow_entries),
 		win);
 
 	/* We need to know if the props pane has the focus so we can refocus on
@@ -1531,7 +1617,7 @@ image_window_init(ImageWindow *win)
 	 */
 	controller = GTK_EVENT_CONTROLLER(gtk_event_controller_focus_new());
 	g_signal_connect(controller, "leave",
-		G_CALLBACK(image_window_properties_leave), win);
+		G_CALLBACK(imagewindow_properties_leave), win);
 	gtk_widget_add_controller(win->properties, controller);
 
 	g_settings_bind(win->settings, "control",
@@ -1554,10 +1640,10 @@ image_window_init(ImageWindow *win)
 	controller = GTK_EVENT_CONTROLLER(
 		gtk_drop_target_new(G_TYPE_INVALID, GDK_ACTION_COPY));
 	gtk_drop_target_set_gtypes(GTK_DROP_TARGET(controller),
-		image_window_supported_types,
-		image_window_n_supported_types);
+		imagewindow_supported_types,
+		imagewindow_n_supported_types);
 	g_signal_connect(controller, "drop",
-		G_CALLBACK(image_window_dnd_drop), win);
+		G_CALLBACK(imagewindow_dnd_drop), win);
 	gtk_widget_add_controller(win->main_box, controller);
 
 	/* We can't be a drag source, we use drag for pan. Copy/paste images out
@@ -1577,8 +1663,8 @@ image_window_init(ImageWindow *win)
 }
 
 static void
-image_window_pressed_cb(GtkGestureClick *gesture,
-	guint n_press, double x, double y, ImageWindow *win)
+imagewindow_pressed_cb(GtkGestureClick *gesture,
+	guint n_press, double x, double y, Imagewindow *win)
 {
 	gtk_popover_set_pointing_to(GTK_POPOVER(win->right_click_menu),
 		&(const GdkRectangle){ x, y, 1, 1 });
@@ -1592,10 +1678,10 @@ image_window_pressed_cb(GtkGestureClick *gesture,
 
 #define BIND(field) \
 	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		ImageWindow, field);
+		Imagewindow, field);
 
 static void
-image_window_class_init(ImageWindowClass *class)
+imagewindow_class_init(ImagewindowClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
 
@@ -1618,11 +1704,11 @@ image_window_class_init(ImageWindowClass *class)
 	BIND(info_bar);
 
 	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		image_window_pressed_cb);
+		imagewindow_pressed_cb);
 
-	gobject_class->dispose = image_window_dispose;
+	gobject_class->dispose = imagewindow_dispose;
 
-	image_window_signals[SIG_STATUS_CHANGED] = g_signal_new(
+	imagewindow_signals[SIG_STATUS_CHANGED] = g_signal_new(
 		"status-changed",
 		G_TYPE_FROM_CLASS(class),
 		G_SIGNAL_RUN_LAST,
@@ -1630,7 +1716,7 @@ image_window_class_init(ImageWindowClass *class)
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
 
-	image_window_signals[SIG_CHANGED] = g_signal_new("changed",
+	imagewindow_signals[SIG_CHANGED] = g_signal_new("changed",
 		G_TYPE_FROM_CLASS(class),
 		G_SIGNAL_RUN_LAST,
 		0,
@@ -1645,84 +1731,84 @@ image_window_class_init(ImageWindowClass *class)
 		G_TYPE_STRING,
 	};
 
-	image_window_n_supported_types = VIPS_NUMBER(supported_types);
-	image_window_supported_types =
-		VIPS_ARRAY(NULL, image_window_n_supported_types + 1, GType);
-	for (int i = 0; i < image_window_n_supported_types; i++)
-		image_window_supported_types[i] = supported_types[i];
+	imagewindow_n_supported_types = VIPS_NUMBER(supported_types);
+	imagewindow_supported_types =
+		VIPS_ARRAY(NULL, imagewindow_n_supported_types + 1, GType);
+	for (int i = 0; i < imagewindow_n_supported_types; i++)
+		imagewindow_supported_types[i] = supported_types[i];
 }
 
-ImageWindow *
-image_window_new(VipsdispApp *app)
+Imagewindow *
+imagewindow_new(VipsdispApp *app)
 {
-	return g_object_new(IMAGE_WINDOW_TYPE, "application", app, NULL);
+	return g_object_new(IMAGEWINDOW_TYPE, "application", app, NULL);
 }
 
 GSettings *
-image_window_get_settings(ImageWindow *win)
+imagewindow_get_settings(Imagewindow *win)
 {
 	return win->settings;
 }
 
 void
-image_window_open_files(ImageWindow *win, char **files, int n_files)
+imagewindow_open_files(Imagewindow *win, char **files, int n_files)
 {
 #ifdef DEBUG
-	printf("image_window_open_files:\n");
+	printf("imagewindow_open_files:\n");
 #endif /*DEBUG*/
 
-	image_window_files_set(win, files, n_files);
-	image_window_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
+	imagewindow_files_set(win, files, n_files);
+	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 }
 
 void
-image_window_open_list_gfiles(ImageWindow *win, GSList *gfiles)
+imagewindow_open_list_gfiles(Imagewindow *win, GSList *gfiles)
 {
 #ifdef DEBUG
-	printf("image_window_open_list_gfiles:\n");
+	printf("imagewindow_open_list_gfiles:\n");
 #endif /*DEBUG*/
 
-	image_window_files_set_list_gfiles(win, gfiles);
-	image_window_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
+	imagewindow_files_set_list_gfiles(win, gfiles);
+	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
 }
 
 void
-image_window_open_gfiles(ImageWindow *win, GFile **gfiles, int n_files)
+imagewindow_open_gfiles(Imagewindow *win, GFile **gfiles, int n_files)
 {
 #ifdef DEBUG
-	printf("image_window_open_gfiles:\n");
+	printf("imagewindow_open_gfiles:\n");
 #endif /*DEBUG*/
 
 	g_auto(GStrv) files = VIPS_ARRAY(NULL, n_files + 1, char *);
 	for (int i = 0; i < n_files; i++)
 		files[i] = g_file_get_path(gfiles[i]);
 
-	image_window_open_files(win, files, n_files);
+	imagewindow_open_files(win, files, n_files);
 }
 
 void
-image_window_open_image(ImageWindow *win, VipsImage *image)
+imagewindow_open_image(Imagewindow *win, VipsImage *image)
 {
 #ifdef DEBUG
-	printf("image_window_open_image:\n");
+	printf("imagewindow_open_image:\n");
 #endif /*DEBUG*/
 
-	g_autoptr(TileSource) tile_source = tile_source_new_from_image(image);
-	if (!tile_source) {
-		image_window_error(win);
+	g_autoptr(Tilesource) tilesource = tilesource_new_from_image(image);
+	if (!tilesource) {
+		imagewindow_error(win);
 		return;
 	}
 
-	Imageui *imageui = imageui_new(tile_source);
+	Imageui *imageui = imageui_new(tilesource);
 	if (!imageui) {
-		image_window_error(win);
+		imagewindow_error(win);
 		return;
 	}
 
 	// no longer have a file backed image
-	image_window_files_free(win);
+	imagewindow_files_free(win);
 
-	image_window_imageui_add(win, imageui);
-	image_window_imageui_set_visible(win,
+	imagewindow_imageui_add(win, imageui);
+	imagewindow_imageui_set_visible(win,
 		imageui, GTK_STACK_TRANSITION_TYPE_SLIDE_DOWN);
 }

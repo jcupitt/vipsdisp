@@ -14,9 +14,9 @@ vipsdisp_app_init(VipsdispApp *app)
 static void
 vipsdisp_app_activate(GApplication *app)
 {
-	ImageWindow *win;
+	Imagewindow *win;
 
-	win = image_window_new(APP(app));
+	win = imagewindow_new(APP(app));
 	gtk_window_present(GTK_WINDOW(win));
 }
 
@@ -34,13 +34,13 @@ vipsdisp_app_new_activated(GSimpleAction *action,
 	vipsdisp_app_activate(G_APPLICATION(user_data));
 }
 
-static ImageWindow *
+static Imagewindow *
 vipsdisp_app_win(VipsdispApp *app)
 {
 	GList *windows = gtk_application_get_windows(GTK_APPLICATION(app));
 
 	if (windows)
-		return IMAGE_WINDOW(windows->data);
+		return IMAGEWINDOW(windows->data);
 	else
 		return NULL;
 }
@@ -50,7 +50,7 @@ vipsdisp_app_about_activated(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
 	VipsdispApp *app = APP(user_data);
-	ImageWindow *win = vipsdisp_app_win(app);
+	Imagewindow *win = vipsdisp_app_win(app);
 
 	static const char *authors[] = {
 		"jcupitt",
@@ -154,16 +154,16 @@ static void
 vipsdisp_app_open(GApplication *app,
 	GFile **files, int n_files, const char *hint)
 {
-	ImageWindow *win = image_window_new(APP(app));
+	Imagewindow *win = imagewindow_new(APP(app));
 
-	image_window_open_gfiles(win, files, n_files);
+	imagewindow_open_gfiles(win, files, n_files);
 	gtk_window_present(GTK_WINDOW(win));
 }
 
 static void
 vipsdisp_app_shutdown(GApplication *app)
 {
-	ImageWindow *win;
+	Imagewindow *win;
 
 #ifdef DEBUG
 	printf("vipsdisp_app_shutdown:\n");
