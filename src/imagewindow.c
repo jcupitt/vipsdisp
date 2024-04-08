@@ -38,9 +38,9 @@ typedef struct _ViewSettings {
 	gboolean active;
 
 	TilecacheBackground background;
-	gboolean zoom;
-	gboolean x;
-	gboolean y;
+	double zoom;
+	double x;
+	double y;
 
 } ViewSettings;
 
