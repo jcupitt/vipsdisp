@@ -585,8 +585,8 @@ static void
 imagewindow_tilesource_changed(Tilesource *tilesource, Imagewindow *win)
 {
 #ifdef DEBUG
-#endif /*DEBUG*/
 	printf("imagewindow_tilesource_changed:\n");
+#endif /*DEBUG*/
 
 	if (tilesource->load_error)
 		imagewindow_set_error(win, tilesource->load_message);
