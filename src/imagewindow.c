@@ -28,13 +28,13 @@ typedef struct _Active {
 typedef struct _ViewSettings {
 	gboolean valid;
 
+	// we don't save "mode", that's an image property, not a view property
 	double scale;
 	double offset;
 	int page;
 	gboolean falsecolour;
 	gboolean log;
 	gboolean icc;
-	TilesourceMode mode;
 	gboolean active;
 
 	TilecacheBackground background;
@@ -531,7 +531,6 @@ imagewindow_save_view_settings(Imagewindow *win, ViewSettings *view_settings)
 		"falsecolour", &view_settings->falsecolour,
 		"log", &view_settings->log,
 		"icc", &view_settings->icc,
-		"mode", &view_settings->mode,
 		"active", &view_settings->active,
 		NULL);
 
@@ -563,7 +562,6 @@ imagewindow_restore_view_settings(Imagewindow *win,
 			"falsecolour", view_settings->falsecolour,
 			"log", view_settings->log,
 			"icc", view_settings->icc,
-			"mode", view_settings->mode,
 			"active", view_settings->active,
 			NULL);
 
