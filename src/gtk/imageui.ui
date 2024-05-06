@@ -33,7 +33,6 @@
           </object>
         </child>
 
-
         <child>
           <object class="GtkEventControllerScroll">
             <property name="flags">vertical</property>

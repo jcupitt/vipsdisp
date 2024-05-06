@@ -720,7 +720,13 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 			vips_buf_appendf(&buf, "%s",
 				vips_enum_nick(VIPS_TYPE_CODING,
 					vips_image_get_coding(image)));
-		vips_buf_appendf(&buf, ", %g x %g p/mm", image->Xres, image->Yres);
+		vips_buf_appends(&buf, ", ");
+
+		vips_buf_append_size( &buf, 
+			(double) image->Ysize * VIPS_IMAGE_SIZEOF_LINE(image));
+		vips_buf_appends(&buf, ", ");
+
+		vips_buf_appendf(&buf, "%g x %g p/mm", image->Xres, image->Yres);
 		gtk_label_set_text(GTK_LABEL(win->subtitle), vips_buf_all(&buf));
 	}
 	else
