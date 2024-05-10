@@ -570,8 +570,8 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 
 	gtk_snapshot_pop(snapshot);
 
-	/* I wasn't able to get gtk_snapshot_render_focus() working. Draw
-	 * the focus rect ourselves.
+	/* I couldn't get gtkwindow to draw the focus rectangle for us, so draw it
+	 * ourselves.
 	 */
 	if (gtk_widget_has_focus(widget)) {
 		GskRoundedRect outline;
@@ -640,6 +640,8 @@ imagedisplay_init(Imagedisplay *imagedisplay)
 		G_CALLBACK(imagedisplay_resize), NULL);
 
 	gtk_widget_set_focusable(GTK_WIDGET(imagedisplay), TRUE);
+	gtk_widget_set_can_focus(GTK_WIDGET(imagedisplay), TRUE);
+
 	controller = gtk_event_controller_focus_new();
 	gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
 	g_signal_connect(controller, "notify::is-focus",
