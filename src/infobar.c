@@ -107,7 +107,9 @@ infobar_tilesource_changed(Tilesource *tilesource, Infobar *infobar)
 	}
 
 	label_width = infobar_label_width[format];
-	max_children = 40 / label_width;
+	// aim for up to 120 characters across the band display ... enough for 16
+	// ints
+	max_children = 120 / label_width;
 	n_children = VIPS_MIN(bands, max_children);
 
 	/* Add a new set of labels.
