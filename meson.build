@@ -5,6 +5,8 @@ project(
   meson_version: '>=0.56',
   default_options: [
     'c_std=c11',
+    # do a release (optimised) build by default
+    'buildtype=release',
     # turn off asserts etc. in release mode
     'b_ndebug=if-release'
   ]
