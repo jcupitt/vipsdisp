@@ -18,7 +18,7 @@ set_gentryv(GtkWidget *edit, const char *fmt, va_list ap)
 	if (!fmt)
 		fmt = "";
 
-	(void) vips_vsnprintf(buf, 1000, fmt, ap);
+	(void) g_vsnprintf(buf, 1000, fmt, ap);
 
 	/* Filter out /n and /t ... they confuse gtkentry terribly
 	 */

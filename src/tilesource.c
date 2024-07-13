@@ -1550,9 +1550,9 @@ tilesource_new_from_file(const char *filename)
 		for (level = 0; level < level_count; level++) {
 			char name[256];
 
-			vips_snprintf(name, 256, "openslide.level[%d].width", level);
+			g_snprintf(name, 256, "openslide.level[%d].width", level);
 			tilesource->level_width[level] = get_int(base, name, 0);
-			vips_snprintf(name, 256, "openslide.level[%d].height", level);
+			g_snprintf(name, 256, "openslide.level[%d].height", level);
 			tilesource->level_height[level] = get_int(base, name, 0);
 		}
 
