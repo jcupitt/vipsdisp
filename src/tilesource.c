@@ -164,7 +164,7 @@ tilesource_open(Tilesource *tilesource, int level)
 				"page", level,
 				NULL);
 	}
-	else  if (vips_isprefix("webp", tilesource->loader) ||
+	else if (vips_isprefix("webp", tilesource->loader) ||
 		vips_isprefix("gif", tilesource->loader) ||
 		vips_isprefix("jxl", tilesource->loader)) {
 		/* These formats have pages all the same size and support page and n.
@@ -210,7 +210,7 @@ tilesource_render_notify_idle(void *user_data)
 }
 
 /* Come here from the vips_sink_screen() background thread when a tile has been
- * calculated. This is a bbackground thread, so we add an idle callback
+ * calculated. This is a background thread, so we add an idle callback
  * which will be run by the main thread when it next hits the mainloop.
  */
 static void
@@ -783,7 +783,7 @@ tilesource_set_property(GObject *object,
 	int i;
 	double d;
 	gboolean b;
-    TilesourceMode mode;
+	TilesourceMode mode;
 
 #ifdef DEBUG
 	{
@@ -1228,9 +1228,9 @@ tilesource_print(Tilesource *tilesource)
 	printf("\tpages_same_size = %d\n", tilesource->pages_same_size);
 	printf("\tall_mono = %d\n", tilesource->all_mono);
 	printf("\ttype = %s\n", 
-			vips_enum_nick(TYPE_SOURCE_TYPE, tilesource->type));
+			vips_enum_nick(TYPE_TYPE, tilesource->type));
 	printf("\tmode = %s\n", 
-			vips_enum_nick(TYPE_SOURCE_MODE, tilesource->mode));
+			vips_enum_nick(TYPE_MODE, tilesource->mode));
 	printf("\tdelay = %p\n", tilesource->delay);
 	printf("\tn_delay = %d\n", tilesource->n_delay);
 	printf("\tdisplay_width = %d\n", tilesource->display_width);

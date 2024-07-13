@@ -509,7 +509,7 @@ imagewindow_posteval(VipsImage *image,
 	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->progress_bar), FALSE);
 }
 
-/* Save and restore view setttings.
+/* Save and restore view settings.
  */
 
 static void

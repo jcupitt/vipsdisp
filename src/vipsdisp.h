@@ -33,14 +33,14 @@
 G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
 #define FREESID(SID, OBJ) \
-    G_STMT_START \
+	G_STMT_START \
 	{ \
 		if ((SID) && (OBJ)) { \
 			g_signal_handler_disconnect((OBJ), (SID)); \
 			(SID) = 0; \
 		} \
-    } \
-    G_STMT_END
+	} \
+	G_STMT_END
 
 #include "enumtypes.h"
 #include "gtkutil.h"
