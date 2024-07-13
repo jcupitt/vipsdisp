@@ -733,7 +733,11 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
 
 	if (imageui) {
-		gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
+		printf("imagewindow_imageui_set_visible: FIXME ... "
+			"set_transition_type can stack overflow for some transitions\n");
+		// gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
+		gtk_stack_set_transition_type(GTK_STACK(win->stack), 
+                GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
 		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
 		/* Enable the control settings, if the displaycontrolbar is on.
