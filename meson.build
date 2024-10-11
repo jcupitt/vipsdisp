@@ -1,10 +1,10 @@
-project(
-  'vipsdisp', 'c',
+project('vipsdisp', 'c',
   version: '3.1.0',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
-    'c_std=c11',
+    # glib uses this, so we do too
+    'c_std=gnu11',
     # do a release (optimised) build by default
     'buildtype=release',
     # turn off asserts etc. in release mode
