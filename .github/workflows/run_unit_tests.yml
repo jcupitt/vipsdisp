@@ -1,0 +1,92 @@
+name: build and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build and run tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cc: gcc
+          - os: macos-latest
+            cc: clang
+          - os: windows-latest
+            cc: clang
+          - os: windows-latest
+            cc: cl
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install build and test dependencies (Linux)
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        export DEBCONF_NONINTERACTIVE_SEEN=true
+        sudo apt-get update
+        sudo apt-get install -y --no-install-suggests --no-install-recommends \
+          build-essential \
+          check \
+          clang \
+          llvm \
+          meson \
+          pkg-config \
+          uthash-dev \
+          valgrind
+        sudo apt-get clean
+
+    - name: Install build and test dependencies (macOS)
+      if: startsWith(matrix.os, 'macos')
+      run: brew install check meson uthash
+
+    - name: Install build and test dependencies (Windows)
+      if: startsWith(matrix.os, 'windows')
+      run: pip install meson ninja
+
+    - name: Build and install library
+      shell: bash
+      run: |
+        export CC=${{ matrix.cc }}
+        sudo=
+        case "${{ matrix.os }}" in
+        ubuntu*)
+            sudo=sudo
+            ;;
+        windows*)
+            case "${{ matrix.cc }}" in
+            cl)
+                # ignore CK_DIAGNOSTIC_POP warnings in check
+                setup_args="--vsenv -Dcheck:werror=false"
+                ;;
+            clang)
+                # Ignore unused parameter warnings from check.h
+                export CFLAGS=-Wno-unused-parameter
+                # https://github.com/mesonbuild/meson/issues/10022
+                export CC_LD=lld-link
+                ;;
+            esac
+            ;;
+        esac
+        meson setup builddir --werror $setup_args
+        DEBUG_DICT=1 meson compile -C builddir
+        $sudo meson install -C builddir
+
+    - name: Run unit tests
+      # Don't run tests for private copy of Check
+      run: meson test -C builddir --suite libdicom
+
+    - name: Print unit test logs
+      if: always()
+      run: cat builddir/meson-logs/testlog.txt
+
+    - name: Run valgrind
+      if: startsWith(matrix.os, 'ubuntu')
+      run: |
+        valgrind --leak-check=full dcm-dump ./data/test_files/sm_image.dcm > /dev/null

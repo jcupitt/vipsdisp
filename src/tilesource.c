@@ -165,7 +165,8 @@ tilesource_open(Tilesource *tilesource, int level)
 				NULL);
 	}
 	else  if (vips_isprefix("webp", tilesource->loader) ||
-		vips_isprefix("gif", tilesource->loader)) {
+		vips_isprefix("gif", tilesource->loader) ||
+		vips_isprefix("jxl", tilesource->loader)) {
 		/* These formats have pages all the same size and support page and n.
 		 */
 		image = vips_image_new_from_file(tilesource->filename,
