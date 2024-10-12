@@ -157,7 +157,7 @@ imageui_set_property(GObject *object,
 {
 	Imageui *imageui = (Imageui *) object;
 
-    double zoom;
+	double zoom;
 
 #ifdef DEBUG_VERBOSE
 	{
@@ -211,7 +211,7 @@ imageui_get_property(GObject *object,
 {
 	Imageui *imageui = IMAGEUI(object);
 
-    double zoom;
+	double zoom;
 
 	switch (prop_id) {
 	case PROP_TILESOURCE:
