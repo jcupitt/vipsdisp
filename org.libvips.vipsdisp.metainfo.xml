@@ -60,6 +60,15 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="3.1.0" date="2024-10-28">
+      <description>
+        <p>
+          Handle more image interpretations, add animated JXL, 
+          add "preserve view settings on new image" option, better window menu.
+        </p>
+      </description>
+    </release>
+
     <release version="3.0.4" date="2024-03-02">
       <description>
         <p>

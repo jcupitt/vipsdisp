@@ -1,4 +1,4 @@
-## master
+## 3.1.0 28/10/24
 
 - better behaviour for image interpretations like MATRIX
 - window menu has next-image / prev-image in the top line [euzada]
