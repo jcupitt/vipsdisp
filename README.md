@@ -244,6 +244,18 @@ then check the build status here:
 
 On success, merge to master.
 
+## Build for Windows
+
+Use the libvips Windows build system:
+
+https://github.com/libvips/build-win64-mxe/tree/master
+
+Clone and run:
+
+```
+./build.sh --with-disp all x86_64 shared
+```
+
 ## TODO
 
 - skip unknown files on next / prev?
