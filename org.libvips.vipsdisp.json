@@ -17,11 +17,13 @@
     ],
     "cleanup" : [
         "/include",
+        "/lib/debug",
+        "/lib/libheif",
+        "/lib/x86_64-linux-gnu",
         "/lib/girepository-1.0",
         "/lib/pkgconfig",
         "/lib/cmake",
         "/lib/openjpeg-*",
-        "/lib/libhdf5.settings",
         "/man",
         "/share/aclocal",
         "/share/doc",
@@ -354,44 +356,6 @@
                     "type" : "archive",
                     "url" : "https://github.com/openslide/openslide/releases/download/v4.0.0/openslide-4.0.0.tar.xz",
                     "sha256" : "cc227c44316abb65fb28f1c967706eb7254f91dbfab31e9ae6a48db6cf4ae562"
-                }
-            ]
-        },
-
-        {
-            "name" : "hdf5",
-            "builddir" : true,
-            "buildsystem" : "cmake-ninja",
-            "build-options" : {
-                "config-opts" : [
-                    "-DCMAKE_INSTALL_LIBDIR=lib"
-                ]
-            },
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "https://github.com/HDFGroup/hdf5.git",
-                    "tag" : "hdf5_1.14.5",
-                    "commit" : "0fe0459fc24d71be13d5f266513c2832b525671b"
-                }
-            ]
-        },
-
-        {
-            "name" : "matio",
-            "builddir" : true,
-            "buildsystem" : "cmake-ninja",
-            "build-options" : {
-                "config-opts" : [
-                    "-DCMAKE_INSTALL_LIBDIR=lib"
-                ]
-            },
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "https://github.com/tbeu/matio.git",
-                    "tag" : "v1.5.27",
-                    "commit" : "d3081fee28904f6b4c2e86ab617931f6604784a4"
                 }
             ]
         },
