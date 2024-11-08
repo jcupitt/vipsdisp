@@ -399,12 +399,7 @@
         {
             "name" : "cfitsio",
             "builddir" : true,
-            "buildsystem" : "cmake-ninja",
-            "build-options" : {
-                "config-opts" : [
-                    "-DCMAKE_INSTALL_LIBDIR=lib"
-                ]
-            },
+            "buildsystem" : "autotools",
             "sources" : [
                 {
                     "type" : "archive",
