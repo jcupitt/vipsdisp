@@ -16,13 +16,13 @@ very commented C.
 
 It all works, though see the TODO list below.
 
-[![Screenshot](images/shot1.png)](images/shot1.png)
+[![Screenshot](screenshots/overview.png)](screenshots/overview.png)
 
-[![Screenshot](images/shot2.png)](images/shot2.png)
+[![Screenshot](screenshots/screenshots/visualisation.png)](screenshots/visualisation.png)
 
-[![Screenshot](images/shot3.png)](images/shot3.png)
+[![Screenshot](screenshots/save-as.png)](screenshots/save-as.png)
 
-[![Screenshot](images/save-as.png)](images/save-as.png)
+[![Screenshot](screenshots/animation.png)](screenshots/animation.png)
 
 https://youtu.be/KSoBkO2_HtE
 

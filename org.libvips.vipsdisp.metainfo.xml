@@ -3,9 +3,13 @@
 <component type="desktop-application">
   <id>org.libvips.vipsdisp</id>
   <url type="homepage">https://github.com/jcupitt/vipsdisp</url>
+  <branding>
+    <color type="primary" scheme_preference="light">#d4b526</color>
+    <color type="primary" scheme_preference="dark">#6360d6</color>
+  </branding>
   <content_rating type="oars-1.1" />
   
-  <name>vipsdisp</name>
+  <name>Vipsdisp</name>
   <summary>Image viewer</summary>
   <developer_name>jcupitt</developer_name>
   
@@ -20,15 +24,16 @@
   
   <description>
     <p>
-vipsdisp can display huge (many, many GB) images quickly and without using much memory. 
+Vipsdisp can display huge (many, many gigabyte) images quickly and without
+using much memory.
 
-As well as the usual PNG, JPG, TIF, PDF, SVG, WEBP, JP2K, JXL and GIF,
+As well as the usual PNG, JPG, TIF, PDF, SVG, WEBP, JP2, JXL and GIF,
 it supports many scientific and technical image formats, including SVS,
-MRXS, OpenEXR, FITS, Matlab, NIfTI, Analyze, PFM, etc.
+MRXS, OpenEXR, FITS, Matlab, NIfTI, Analyze, and PFM.
 
-vipsdisp supports pixel types from 1 bit mono to 128-bit double precision
-complex, you can convert image formats, and it has a range of useful
-visualisation options and display modes.
+Vipsdisp supports pixel types from 1 bit mono to 128-bit double precision
+complex, you can convert image formats, it support copy-paste and drag-drop,
+and it has a range of useful visualisation tools and display modes.
     </p>
   </description>
 
@@ -37,22 +42,22 @@ visualisation options and display modes.
   <screenshots>
 
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot1.png</image>
+      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/screenshots/overview.png</image>
       <caption>Even very large images open quickly</caption>
     </screenshot> 
 
     <screenshot>
-      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot2.png</image>
+      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/screenshots/visualisation.png</image>
       <caption>Visualization tools let you explore technical images</caption>
     </screenshot> 
 
     <screenshot>
-      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/save-as.png</image>
+      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/screenshots/save-as.png</image>
       <caption>Save as lets you change image formats, and supports features like image pyramids</caption>
     </screenshot>
 
     <screenshot>
-      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/images/shot3.png</image>
+      <image>https://raw.githubusercontent.com/jcupitt/vipsdisp/master/screenshots/animation.png</image>
       <caption>Animated images with alpha channels are also supported</caption>
     </screenshot>
 
@@ -60,10 +65,18 @@ visualisation options and display modes.
 
   <releases>
 
+    <release version="3.1.1" date="2024-11-09">
+      <description>
+        <p>
+          Add FITS support, improve flathub metadata.
+        </p>
+      </description>
+    </release>
+
     <release version="3.1.0" date="2024-10-28">
       <description>
         <p>
-          Handle more image interpretations, add animated JXL, 
+          Handle more image interpretations, add animated JXL support, 
           add "preserve view settings on new image" option, better window menu.
         </p>
       </description>
