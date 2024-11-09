@@ -65,10 +65,18 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
-    <release version="3.1.1" date="2024-11-09">
+    <release version="3.1.0-2" date="2024-11-09">
       <description>
         <p>
-          Add FITS support, improve flathub metadata.
+          Improve flathub metadata.
+        </p>
+      </description>
+    </release>
+
+    <release version="3.1.0-1" date="2024-11-09">
+      <description>
+        <p>
+          Add FITS support to the flathub binary, improve flathub metadata.
         </p>
       </description>
     </release>
