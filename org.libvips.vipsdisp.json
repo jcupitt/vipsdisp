@@ -17,7 +17,6 @@
     ],
     "cleanup" : [
         "/include",
-        "/lib/debug",
         "/lib/libheif",
         "/lib/x86_64-linux-gnu",
         "/lib/girepository-1.0",
