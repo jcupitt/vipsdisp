@@ -456,7 +456,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v3.1.0-2"
+                    "tag" : "v3.1.0-3"
                 }
             ]
         }

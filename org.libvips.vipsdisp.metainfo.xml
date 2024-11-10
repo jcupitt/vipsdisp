@@ -65,6 +65,14 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
+    <release version="3.1.0-3" date="2024-11-10">
+      <description>
+        <p>
+          Improve flathub metadata.
+        </p>
+      </description>
+    </release>
+
     <release version="3.1.0-2" date="2024-11-09">
       <description>
         <p>
