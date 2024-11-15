@@ -18,7 +18,7 @@ It all works, though see the TODO list below.
 
 [![Screenshot](screenshots/overview.png)](screenshots/overview.png)
 
-[![Screenshot](screenshots/screenshots/visualisation.png)](screenshots/visualisation.png)
+[![Screenshot](screenshots/visualisation.png)](screenshots/visualisation.png)
 
 [![Screenshot](screenshots/save-as.png)](screenshots/save-as.png)
 
@@ -292,10 +292,7 @@ Clone and run:
 - tile read errors:
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
-
-        - (vipsdisp:110067): VIPS-WARNING **: 18:05:16.244: 
-            error in tile 0 x 256: tiff2vips: 
-                out of order read -- at line 3328, but line 256 requested
+    (vipsdisp:110067): VIPS-WARNING **: 18:05:16.244: error in tile 0 x 256: tiff2vips: out of order read -- at line 3328, but line 256 requested
 
     page 0, subifd 2 and subifd 3 are untiled!!!
 
@@ -310,16 +307,16 @@ Clone and run:
 
     $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
 
-        flip to last page, zoom, lots of repaint errors
+    flip to last page, zoom, lots of repaint errors
 
-        maybe join first N pages (while pages same size) in pages as bands 
-        mode?
+    maybe join first N pages (while pages same size) in pages as bands 
+    mode?
 
-        does not page flip to smaller pages correctly
+    does not page flip to smaller pages correctly
 
-            reset zoom/scroll on pageflip if the page size changes?
+    reset zoom/scroll on pageflip if the page size changes?
 
-        same for audi r8 pdf page flip I guess?
+    same for audi r8 pdf page flip I guess?
 
 - info bar:
 
