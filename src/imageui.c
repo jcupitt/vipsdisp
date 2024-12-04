@@ -539,8 +539,8 @@ imageui_find_scale(VipsImage *image,
 		vips_stats(t1, &t2, NULL))
 		return -1;
 
-	min = *VIPS_MATRIX(t1, 0, 0);
-	max = *VIPS_MATRIX(t1, 1, 0);
+	min = *VIPS_MATRIX(t2, 0, 0);
+	max = *VIPS_MATRIX(t2, 1, 0);
 	if (max == min) {
 		vips_error("Find scale", _("Min and max are equal"));
 		return -1;
