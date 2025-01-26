@@ -3,8 +3,8 @@
 /*
 #define DEBUG_VERBOSE
 #define DEBUG_RENDER_TIME
- */
 #define DEBUG
+ */
 
 enum {
 	/* Properties.
