@@ -365,10 +365,14 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		 * some layer other than the base one. Calculate the
 		 * subsample as (current_width / required_width).
 		 */
-		int subsample = image->Xsize /
-			(tilesource->display_width >> tilesource->current_z);
+		int width = 
+			VIPS_MAX(1, tilesource->display_width >> tilesource->current_z);
+		int height = 
+			VIPS_MAX(1, tilesource->display_height >> tilesource->current_z);
+		int xfac = image->Xsize / width; 
+		int yfac = image->Ysize / height; 
 
-		if (vips_subsample(image, &x, subsample, subsample, NULL))
+		if (vips_subsample(image, &x, xfac, yfac, NULL))
 			return NULL;
 		VIPS_UNREF(image);
 		image = x;

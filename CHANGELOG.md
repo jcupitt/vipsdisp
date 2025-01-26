@@ -1,3 +1,8 @@
+master
+
+- much better performance for images which are very tall and thin or very wide 
+  and narrow
+
 ## 3.1.0 28/10/24
 
 - better behaviour for image interpretations like MATRIX

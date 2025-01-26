@@ -1,10 +1,10 @@
 #include "vipsdisp.h"
 
 /*
-#define DEBUG
-#define DEBUG_RENDER_TIME
 #define DEBUG_VERBOSE
+#define DEBUG_RENDER_TIME
  */
+#define DEBUG
 
 enum {
 	/* Properties.
@@ -249,14 +249,15 @@ tilecache_build_pyramid(Tilecache *tilecache)
 
 	tilecache_free_pyramid(tilecache);
 
-	/* How many levels? Keep shrinking until we get down to one tile on
-	 * one axis.
+	/* How many levels? Keep shrinking until we get both axies in one tile. We
+	 * need to handle very lopsided images, like LUTs and multi-page images,
+	 * do we must shrink both dimensions.
 	 */
 	level_width = tilesource->display_width;
 	level_height = tilesource->display_height;
 	n_levels = 1;
 	for (;;) {
-		if (level_width <= TILE_SIZE ||
+		if (level_width <= TILE_SIZE &&
 			level_height <= TILE_SIZE)
 			break;
 
@@ -283,8 +284,8 @@ tilecache_build_pyramid(Tilecache *tilecache)
 			tilesource->rgb->Xres,
 			tilesource->rgb->Yres);
 
-		level_width >>= 1;
-		level_height >>= 1;
+		level_width = VIPS_MAX(1, level_width >> 1);
+		level_height = VIPS_MAX(1, level_height >> 1);
 	}
 
 	tilecache->tiles = VIPS_ARRAY(NULL, n_levels, GSList *);
