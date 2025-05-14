@@ -248,7 +248,7 @@ infobar_status_update(Infobar *infobar)
 	vips_buf_rewind(&buf);
 
 	double zoom = imagewindow_get_zoom(infobar->win);
-	vips_buf_appendf(&buf, "Magnification %d%%", (int) VIPS_RINT(zoom * 100));
+	vips_buf_appendf(&buf, "Magnification %d%%", (int) rint(zoom * 100));
 	gtk_label_set_text(GTK_LABEL(infobar->mag), vips_buf_all(&buf));
 
 	// queue bg update of pixel value (this must be off the GUI thread)
