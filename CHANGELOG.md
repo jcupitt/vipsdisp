@@ -2,6 +2,7 @@ master
 
 - much better performance for images which are very tall and thin or very wide 
   and narrow
+- better antialiasing [Linden6]
 
 ## 3.1.0 28/10/24
 
