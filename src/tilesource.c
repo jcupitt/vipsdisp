@@ -1979,12 +1979,6 @@ tilesource_get_pixel(Tilesource *tilesource, int image_x, int image_y,
 		!tilesource->image)
 		return FALSE;
 
-	/* x and y are in base image coordinates, so we need to scale by the
-	 * current z.
-	 */
-	image_x /= 1 << tilesource->current_z;
-	image_y /= 1 << tilesource->current_z;
-
 	/* Block outside the image.
 	 */
 	if (image_x < 0 ||

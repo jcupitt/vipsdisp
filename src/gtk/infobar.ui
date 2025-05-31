@@ -45,13 +45,21 @@
         </child>
 
         <child type="start">
-          <object class="GtkBox" id="values">
-            <property name="orientation">horizontal</property>
-            <property name="homogeneous">true</property>
-            <property name="spacing">3</property>
-            <!-- stops the info bar being clipped by any rounded 
-                 corners on the window -->
-            <property name="margin-bottom">5</property>
+	  <object class="GtkScrolledWindow">
+            <property name="halign">fill</property>
+            <property name="hexpand">true</property>
+            <property name="vscrollbar-policy">always</property>
+            <property name="vscrollbar-policy">never</property>
+            <child>
+
+              <object class="GtkBox" id="values">
+                <property name="halign">start</property>
+                <property name="orientation">horizontal</property>
+                <property name="homogeneous">true</property>
+                <property name="spacing">15</property>
+              </object>
+
+            </child>
           </object>
         </child>
 

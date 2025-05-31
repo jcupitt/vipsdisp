@@ -1,3 +1,36 @@
+/* a scrolled window containing an imagedisplay
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+ */
+
+/*
+#define DEBUG
+ */
+
 #include "vipsdisp.h"
 
 /*
@@ -17,6 +50,10 @@ struct _Imageui {
 	GtkWidget parent_instance;
 
 	Tilesource *tilesource;
+
+	/* The zoom factor that was used at load time, handy for scaling SVGs.
+	 */
+	double zoom_load;
 
 	/* Last known mouse position, in gtk coordinates. We keep these in gtk
 	 * cods so we don't need to update them on pan / zoom.
@@ -44,15 +81,17 @@ struct _Imageui {
 	double zoom_x;
 	double zoom_y;
 
-	/* Mouse panning.
-	 */
-	double drag_start_x;
-	double drag_start_y;
-
 	/* TRUE for an eased zoom (eg. magin), FALSE for a continuous zoom (eg.
 	 * 'i').
 	 */
 	gboolean eased;
+
+	/* Drag scroll.
+	 */
+	int window_left;	 	/* Window position at start of scroll */
+	int window_top;
+	int start_x; 			/* Mouse position at start of scroll */
+	int start_y;
 
 	GtkWidget *scrolled_window;
 	GtkWidget *imagedisplay;
@@ -78,12 +117,18 @@ enum {
 /* Our signals.
  */
 enum {
-	SIG_CHANGED,		/* New mouse position, magnification, etc. */
+	SIG_CHANGED, /* New mouse position, magnification, etc. */
 
 	SIG_LAST
 };
 
 static guint imageui_signals[SIG_LAST] = { 0 };
+
+void
+imageui_queue_draw(Imageui *imageui)
+{
+	gtk_widget_queue_draw(GTK_WIDGET(imageui->imagedisplay));
+}
 
 static void
 imageui_dispose(GObject *object)
@@ -107,17 +152,6 @@ imageui_changed(Imageui *imageui)
 #endif /*DEBUG_VERBOSE*/
 
 	g_signal_emit(imageui, imageui_signals[SIG_CHANGED], 0);
-}
-
-static void
-imageui_set_tilesource(Imageui *imageui, Tilesource *tilesource)
-{
-	// not a ref ... the real one is held by imagedisplay
-	imageui->tilesource = tilesource;
-
-	g_object_set(imageui->imagedisplay,
-		"tilesource", tilesource,
-		NULL);
 }
 
 #ifdef DEBUG_VERBOSE
@@ -169,12 +203,17 @@ imageui_set_property(GObject *object,
 
 	switch (prop_id) {
 	case PROP_TILESOURCE:
-		imageui_set_tilesource(imageui,
-			TILESOURCE(g_value_get_object(value)));
+		g_object_set_property(G_OBJECT(imageui->imagedisplay),
+			"tilesource", value);
+
+		// not a ref ... the real one is held by imagedisplay
+		imageui->tilesource = TILESOURCE(g_value_get_object(value));
+		if (imageui->tilesource)
+			imageui->zoom_load = imageui->tilesource->zoom;
 		break;
 
 	case PROP_BACKGROUND:
-		g_object_set_property(G_OBJECT(imageui->imagedisplay), 
+		g_object_set_property(G_OBJECT(imageui->imagedisplay),
 			"background", value);
 		break;
 
@@ -184,18 +223,18 @@ imageui_set_property(GObject *object,
 		zoom = g_value_get_double(value);
 		zoom /= imageui->tilesource->zoom;
 
-		g_object_set(imageui->imagedisplay, 
+		g_object_set(imageui->imagedisplay,
 			"zoom", zoom,
 			NULL);
 		break;
 
 	case PROP_X:
-		g_object_set_property(G_OBJECT(imageui->imagedisplay), 
+		g_object_set_property(G_OBJECT(imageui->imagedisplay),
 			"x", value);
 		break;
 
 	case PROP_Y:
-		g_object_set_property(G_OBJECT(imageui->imagedisplay), 
+		g_object_set_property(G_OBJECT(imageui->imagedisplay),
 			"y", value);
 		break;
 
@@ -219,7 +258,7 @@ imageui_get_property(GObject *object,
 		break;
 
 	case PROP_BACKGROUND:
-		g_object_get_property(G_OBJECT(imageui->imagedisplay), 
+		g_object_get_property(G_OBJECT(imageui->imagedisplay),
 			"background", value);
 		break;
 
@@ -230,10 +269,8 @@ imageui_get_property(GObject *object,
 
 		/* Scale by the zoom factor (SVG etc. zoom) we picked on load.
 		 */
-		zoom *= imageui->tilesource->zoom;
-
+		zoom *= imageui->zoom_load;
 		g_value_set_double(value, zoom);
-
 		break;
 
 	case PROP_X:
@@ -359,13 +396,13 @@ static void
 imageui_stop_animation(Imageui *imageui)
 {
 	if (imageui->tick_handler) {
-		gtk_widget_remove_tick_callback(GTK_WIDGET(imageui), 
+		gtk_widget_remove_tick_callback(GTK_WIDGET(imageui),
 			imageui->tick_handler);
 		imageui->tick_handler = 0;
 	}
 }
 
-static double
+double
 imageui_get_zoom(Imageui *imageui)
 {
 	double zoom;
@@ -383,9 +420,7 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 	Imageui *imageui = IMAGEUI(user_data);
 
 	gint64 frame_time = gdk_frame_clock_get_frame_time(frame_clock);
-	double dt = imageui->last_frame_time > 0 ? 
-		(double) (frame_time - imageui->last_frame_time) / G_TIME_SPAN_SECOND : 
-		1.0 / G_TIME_SPAN_SECOND;
+	double dt = imageui->last_frame_time > 0 ? (double) (frame_time - imageui->last_frame_time) / G_TIME_SPAN_SECOND : 1.0 / G_TIME_SPAN_SECOND;
 	double zoom = imageui_get_zoom(imageui);
 
 	double new_zoom;
@@ -401,8 +436,7 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 		// 0/1/etc. discrete zoom
 		imageui->zoom_progress += dt;
 
-		double duration = imageui->should_animate ? 
-			ZOOM_DURATION : imageui->zoom_progress;
+		double duration = imageui->should_animate ? ZOOM_DURATION : imageui->zoom_progress;
 
 		// 0-1 progress in zoom animation
 		double t = ease_out_cubic(imageui->zoom_progress / duration);
@@ -425,7 +459,7 @@ imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 			imageui_stop_animation(imageui);
 	}
 
-	imageui_set_zoom_position(imageui, 
+	imageui_set_zoom_position(imageui,
 		new_zoom, imageui->zoom_x, imageui->zoom_y);
 
 	imageui->last_frame_time = frame_time;
@@ -438,7 +472,7 @@ imageui_start_animation(Imageui *imageui)
 {
 	if (!imageui->tick_handler) {
 		imageui->last_frame_time = -1;
-		imageui->tick_handler = 
+		imageui->tick_handler =
 			gtk_widget_add_tick_callback(GTK_WIDGET(imageui),
 				imageui_tick, imageui, NULL);
 	}
@@ -455,7 +489,7 @@ imageui_zoom_to_eased(Imageui *imageui, double zoom_target)
 	imageui->zoom_start = imageui_get_zoom(imageui);
 	imageui->zoom_progress = 0.0;
 	imagedisplay_gtk_to_image(IMAGEDISPLAY(imageui->imagedisplay),
-		widget_width / 2, widget_height / 2, 
+		widget_width / 2, widget_height / 2,
 		&imageui->zoom_x, &imageui->zoom_y);
 
 	imageui_start_animation(imageui);
@@ -480,9 +514,9 @@ imageui_bestfit(Imageui *imageui)
 	int widget_width = gtk_widget_get_width(imageui->scrolled_window);
 	int widget_height = gtk_widget_get_height(imageui->scrolled_window);
 
-	double hzoom = (double) widget_width / 
+	double hzoom = (double) widget_width /
 		imageui->tilesource->display_width;
-	double vzoom = (double) widget_height / 
+	double vzoom = (double) widget_height /
 		imageui->tilesource->display_height;
 	double zoom = VIPS_MIN(hzoom, vzoom);
 
@@ -522,7 +556,7 @@ imageui_toggle_debug(Imageui *imageui)
 }
 
 static int
-imageui_find_scale(VipsImage *image, 
+imageui_find_scale(VipsImage *image,
 	int left, int top, int width, int height, double *scale, double *offset)
 {
 	double min, max;
@@ -574,7 +608,7 @@ imageui_scale(Imageui *imageui)
 		 * cached tiles we have.
 		 */
 		if (imageui_find_scale(image,
-				left, top, width, height, &scale, &offset)) 
+				left, top, width, height, &scale, &offset))
 			return FALSE;
 
 		g_object_set(imageui->tilesource,
@@ -614,7 +648,7 @@ imageui_key_pressed(GtkEventControllerKey *self,
 	guint keyval, guint keycode, GdkModifierType state, gpointer user_data)
 {
 	Imageui *imageui = IMAGEUI(user_data);
-	GtkScrolledWindow *scrolled_window = 
+	GtkScrolledWindow *scrolled_window =
 		GTK_SCROLLED_WINDOW(imageui->scrolled_window);
 
 	gboolean handled;
@@ -772,21 +806,21 @@ imageui_drag_begin(GtkEventControllerMotion *self,
 {
 	Imageui *imageui = IMAGEUI(user_data);
 
-	int window_left;
-	int window_top;
-	int window_width;
-	int window_height;
-
 #ifdef DEBUG_VERBOSE
 	printf("imageui_drag_begin: start_x = %g, start_y = %g\n",
 		start_x, start_y);
 #endif /*DEBUG_VERBOSE*/
 
+	int window_left;
+	int window_top;
+	int window_width;
+	int window_height;
 	imageui_get_position(imageui,
 		&window_left, &window_top, &window_width, &window_height);
-
-	imageui->drag_start_x = window_left;
-	imageui->drag_start_y = window_top;
+	imageui->window_left = window_left;
+	imageui->window_top = window_top;
+	imageui->start_x = start_x;
+	imageui->start_y = start_y;
 }
 
 static void
@@ -801,7 +835,7 @@ imageui_drag_update(GtkEventControllerMotion *self,
 #endif /*DEBUG_VERBOSE*/
 
 	imageui_set_position(imageui,
-		imageui->drag_start_x - offset_x, imageui->drag_start_y - offset_y);
+		imageui->window_left - offset_x, imageui->window_top - offset_y);
 }
 
 static void
@@ -856,55 +890,38 @@ imageui_init(Imageui *imageui)
 
 	imageui->zoom_rate = 1.0;
 
-	/* Uncomment to test animation disable
-	g_object_set( gtk_widget_get_settings( GTK_WIDGET( win ) ),
-		"gtk-enable-animations", FALSE, NULL );
+	/* Uncomment to test our animation disable
+	g_object_set(gtk_widget_get_settings(GTK_WIDGET(win)),
+		"gtk-enable-animations", FALSE, NULL);
 	 */
 
 	// read the gtk animation setting preference
 	imageui->should_animate = widget_should_animate(GTK_WIDGET(imageui));
 }
 
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Imageui, field);
-
 static void
 imageui_class_init(ImageuiClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
 	printf("imageui_class_init:\n");
 #endif /*DEBUG*/
 
-	G_OBJECT_CLASS(class)->dispose = imageui_dispose;
+	BIND_RESOURCE("imageui.ui");
+	BIND_LAYOUT();
 
-	gtk_widget_class_set_layout_manager_type(widget_class,
-		GTK_TYPE_BIN_LAYOUT);
-	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
-		APP_PATH "/imageui.ui");
+	BIND_VARIABLE(Imageui, scrolled_window);
+	BIND_VARIABLE(Imageui, imagedisplay);
 
-	BIND(scrolled_window);
-	BIND(imagedisplay);
+	BIND_CALLBACK(imageui_drag_begin);
+	BIND_CALLBACK(imageui_drag_update);
+	BIND_CALLBACK(imageui_key_pressed);
+	BIND_CALLBACK(imageui_key_released);
+	BIND_CALLBACK(imageui_motion);
+	BIND_CALLBACK(imageui_scroll);
 
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_drag_begin);
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_drag_update);
-
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_key_pressed);
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_key_released);
-
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_motion);
-
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imageui_scroll);
-
+	gobject_class->dispose = imageui_dispose;
 	gobject_class->set_property = imageui_set_property;
 	gobject_class->get_property = imageui_get_property;
 
@@ -912,7 +929,7 @@ imageui_class_init(ImageuiClass *class)
 		g_param_spec_object("tilesource",
 			_("Tile source"),
 			_("The tile source we display"),
-			TILESOURCE_TYPE, 
+			TILESOURCE_TYPE,
 			G_PARAM_READWRITE));
 
 	g_object_class_install_property(gobject_class, PROP_BACKGROUND,
@@ -951,7 +968,6 @@ imageui_class_init(ImageuiClass *class)
 		NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
-
 }
 
 Imageui *
@@ -1007,4 +1023,42 @@ imageui_gtk_to_image(Imageui *imageui,
 {
 	imagedisplay_gtk_to_image(IMAGEDISPLAY(imageui->imagedisplay),
 		x_gtk, y_gtk, x_image, y_image);
+}
+
+void
+imageui_image_to_gtk_rect(Imageui *imageui, VipsRect *in, VipsRect *out)
+{
+	VipsRect rect;
+	double x_gtk;
+	double y_gtk;
+
+	imageui_image_to_gtk(imageui, in->left, in->top, &x_gtk, &y_gtk);
+	rect.left = x_gtk;
+	rect.top = y_gtk;
+
+	imageui_image_to_gtk(imageui,
+		VIPS_RECT_RIGHT(in), VIPS_RECT_BOTTOM(in), &x_gtk, &y_gtk);
+	rect.width = ceil(x_gtk) - rect.left;
+	rect.height = ceil(y_gtk) - rect.top;
+
+	*out = rect;
+}
+
+void
+imageui_gtk_to_image_rect(Imageui *imageui, VipsRect *in, VipsRect *out)
+{
+	VipsRect rect;
+	double x_image;
+	double y_image;
+
+	imageui_gtk_to_image(imageui, in->left, in->top, &x_image, &y_image);
+	rect.left = x_image;
+	rect.top = y_image;
+
+	imageui_gtk_to_image(imageui,
+		VIPS_RECT_RIGHT(in), VIPS_RECT_BOTTOM(in), &x_image, &y_image);
+	rect.width = ceil(x_image) - rect.left;
+	rect.height = ceil(y_image) - rect.top;
+
+	*out = rect;
 }

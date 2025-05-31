@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+
   <template class="Imageui" parent="GtkWidget">
     <child>
       <object class="GtkScrolledWindow" id="scrolled_window">
@@ -42,5 +43,6 @@
 
       </object>
     </child>
+
   </template>
 </interface>

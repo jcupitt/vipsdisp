@@ -1,3 +1,32 @@
+/* a status bar for the image display window
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+*/
+
 #include "vipsdisp.h"
 
 /*
@@ -48,7 +77,8 @@ infobar_dispose(GObject *object)
 	G_OBJECT_CLASS(infobar_parent_class)->dispose(object);
 }
 
-/* For each format, the label width we need, in characters.
+/* For each format, the label width we need, in characters. Complex types are
+ * just double bands, so the same width for each band.
  */
 static const int infobar_label_width[] = {
 	3,	/* uchar */
@@ -58,9 +88,9 @@ static const int infobar_label_width[] = {
 	8,	/* uint */
 	9,	/* int */
 	10, /* float */
-	18, /* complex */
+	10, /* complex */
 	10, /* double */
-	18, /* double complex */
+	10, /* double complex */
 };
 
 /* Tilesource has a new image. We need a new number of band elements and
@@ -69,7 +99,7 @@ static const int infobar_label_width[] = {
 static void
 infobar_tilesource_changed(Tilesource *tilesource, Infobar *infobar)
 {
-	VipsImage *image = tilesource->display;
+	VipsImage *image = tilesource->image;
 
 	GSList *p;
 	VipsBandFormat format;
@@ -106,10 +136,12 @@ infobar_tilesource_changed(Tilesource *tilesource, Infobar *infobar)
 		break;
 	}
 
+	if (vips_band_format_iscomplex(image->BandFmt))
+		bands *= 2;
+
 	label_width = infobar_label_width[format];
-	// aim for up to 120 characters across the band display ... enough for 16
-	// ints
-	max_children = 120 / label_width;
+	// max of 500 chars ... need to cap it somewhere
+	max_children = 500 / label_width;
 	n_children = VIPS_MIN(bands, max_children);
 
 	/* Add a new set of labels.
@@ -121,8 +153,7 @@ infobar_tilesource_changed(Tilesource *tilesource, Infobar *infobar)
 		gtk_label_set_width_chars(GTK_LABEL(label), label_width);
 		gtk_label_set_xalign(GTK_LABEL(label), 1.0);
 		gtk_box_append(GTK_BOX(infobar->values), label);
-		infobar->value_widgets =
-			g_slist_append(infobar->value_widgets, label);
+		infobar->value_widgets = g_slist_append(infobar->value_widgets, label);
 	}
 }
 
@@ -172,7 +203,7 @@ infobar_update_free(PixelUpdate *update)
 
 // runs back in the main thread again ... update the screen
 static gboolean
-infobar_update_pixel_cb(void *a)
+infobar_update_pixel_idle(void *a)
 {
 	PixelUpdate *update = (PixelUpdate *) a;
 
@@ -193,25 +224,21 @@ infobar_get_pixel(void *a, void *b)
 	update->result = tilesource_get_pixel(update->tilesource,
 		update->image_x, update->image_y, &update->vector, &update->n);
 
-	g_idle_add(infobar_update_pixel_cb, update);
+	g_idle_add(infobar_update_pixel_idle, update);
 }
 
 // fetch the mouse position pixel and update the screen in a bg thread
 static void
-infobar_update_pixel(Infobar *infobar)
+infobar_update_pixel(Infobar *infobar,
+	Tilesource *tilesource, double image_x, double image_y)
 {
 	if (!infobar->updating) {
-		Imagewindow *win = infobar->win;
 		PixelUpdate *update = g_new0(PixelUpdate, 1);
 
-		double x_image;
-		double y_image;
-
 		update->infobar = infobar;
-		update->tilesource = imagewindow_get_tilesource(win);
-		imagewindow_get_mouse_position(infobar->win, &x_image, &y_image);
-		update->image_x = (int) x_image;
-		update->image_y = (int) y_image;
+		update->tilesource = tilesource;
+		update->image_x = image_x;
+		update->image_y = image_y;
 		infobar->updating = TRUE;
 
 		// must stay valid until we are done
@@ -237,7 +264,10 @@ infobar_status_update(Infobar *infobar)
 	printf("infobar_status_update:\n");
 #endif /*DEBUG*/
 
+	Tilesource *tilesource = imagewindow_get_tilesource(infobar->win);
 	imagewindow_get_mouse_position(infobar->win, &image_x, &image_y);
+	image_x = VIPS_CLIP(0, (int) image_x, tilesource->image->Xsize - 1);
+	image_y = VIPS_CLIP(0, (int) image_y, tilesource->image->Ysize - 1);
 
 	vips_buf_appendf(&buf, "%d", (int) image_x);
 	gtk_label_set_text(GTK_LABEL(infobar->x), vips_buf_all(&buf));
@@ -252,7 +282,7 @@ infobar_status_update(Infobar *infobar)
 	gtk_label_set_text(GTK_LABEL(infobar->mag), vips_buf_all(&buf));
 
 	// queue bg update of pixel value (this must be off the GUI thread)
-	infobar_update_pixel(infobar);
+	infobar_update_pixel(infobar, tilesource, image_x, image_y);
 }
 
 static void
@@ -278,11 +308,9 @@ infobar_imagewindow_changed(Imagewindow *win, Infobar *infobar)
 
 	if ((tilesource = imagewindow_get_tilesource(win))) {
 		g_signal_connect_object(tilesource, "changed",
-			G_CALLBACK(infobar_tilesource_changed),
-			infobar, 0);
+			G_CALLBACK(infobar_tilesource_changed), infobar, 0);
 		g_signal_connect_object(tilesource, "page-changed",
-			G_CALLBACK(infobar_status_changed),
-			infobar, 0);
+			G_CALLBACK(infobar_status_changed), infobar, 0);
 	}
 }
 
@@ -294,12 +322,10 @@ infobar_set_imagewindow(Infobar *infobar, Imagewindow *win)
 	infobar->win = win;
 
 	g_signal_connect_object(win, "changed",
-		G_CALLBACK(infobar_imagewindow_changed),
-		infobar, 0);
+		G_CALLBACK(infobar_imagewindow_changed), infobar, 0);
 
 	g_signal_connect_object(win, "status-changed",
-		G_CALLBACK(infobar_status_changed),
-		infobar, 0);
+		G_CALLBACK(infobar_status_changed), infobar, 0);
 }
 
 static void
@@ -358,33 +384,25 @@ infobar_init(Infobar *infobar)
 	gtk_widget_init_template(GTK_WIDGET(infobar));
 }
 
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Infobar, field);
-
 static void
 infobar_class_init(InfobarClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
 	printf("infobar_class_init:\n");
 #endif /*DEBUG*/
 
-	G_OBJECT_CLASS(class)->dispose = infobar_dispose;
+	BIND_RESOURCE("infobar.ui");
+	BIND_LAYOUT();
 
-	gtk_widget_class_set_layout_manager_type(widget_class,
-		GTK_TYPE_BIN_LAYOUT);
-	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
-		APP_PATH "/infobar.ui");
+	BIND_VARIABLE(Infobar, action_bar);
+	BIND_VARIABLE(Infobar, x);
+	BIND_VARIABLE(Infobar, y);
+	BIND_VARIABLE(Infobar, values);
+	BIND_VARIABLE(Infobar, mag);
 
-	BIND(action_bar);
-	BIND(x);
-	BIND(y);
-	BIND(values);
-	BIND(mag);
-
+	gobject_class->dispose = infobar_dispose;
 	gobject_class->set_property = infobar_set_property;
 	gobject_class->get_property = infobar_get_property;
 
