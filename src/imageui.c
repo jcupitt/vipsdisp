@@ -116,7 +116,7 @@ imageui_set_tilesource(Imageui *imageui, Tilesource *tilesource)
 	imageui->tilesource = tilesource;
 
 	g_object_set(imageui->imagedisplay,
-		"tile-source", tilesource,
+		"tilesource", tilesource,
 		NULL);
 }
 
@@ -909,7 +909,7 @@ imageui_class_init(ImageuiClass *class)
 	gobject_class->get_property = imageui_get_property;
 
 	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
-		g_param_spec_object("tile-source",
+		g_param_spec_object("tilesource",
 			_("Tile source"),
 			_("The tile source we display"),
 			TILESOURCE_TYPE, 
@@ -964,7 +964,7 @@ imageui_new(Tilesource *tilesource)
 #endif /*DEBUG*/
 
 	imageui = g_object_new(IMAGEUI_TYPE,
-		"tile-source", tilesource,
+		"tilesource", tilesource,
 		NULL);
 
 	return imageui;

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
+
   <menu id="displaybar-menu">
     <section>
       <item>
@@ -116,18 +117,27 @@
                 <property name="climb-rate">1</property>
                 <property name="digits">0</property>
                 <property name="numeric">true</property>
+		<property name="tooltip-text">Page select</property>
+		<signal name="value-changed"
+			handler="displaybar_page_value_changed"/>
 	      </object>
             </child>
 
             <child>
               <object class="Tslider" id="scale">
                 <property name="hexpand">True</property>
+		<property name="tooltip-text">Brightness scale factor</property>
+		<signal name="changed"
+			handler="displaybar_scale_value_changed"/>
               </object>
             </child>
 
             <child>
               <object class="Tslider" id="offset">
                 <property name="hexpand">True</property>
+		<property name="tooltip-text">Brightness offset</property>
+		<signal name="changed"
+			handler="displaybar_offset_value_changed"/>
               </object>
             </child>
 

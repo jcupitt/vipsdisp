@@ -1,8 +1,37 @@
+/* a sparse pyramid of tiles
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+ */
+
 #include "vipsdisp.h"
 
 /*
-#define DEBUG_VERBOSE
 #define DEBUG_RENDER_TIME
+#define DEBUG_VERBOSE
 #define DEBUG
  */
 
@@ -10,6 +39,7 @@ enum {
 	/* Properties.
 	 */
 	PROP_BACKGROUND = 1,
+	PROP_TILESOURCE,
 
 	/* Signals.
 	 */
@@ -62,10 +92,14 @@ tilecache_dispose(GObject *object)
 	printf("tilecache_dispose: %p\n", object);
 #endif /*DEBUG*/
 
-	tilecache_free_pyramid(tilecache);
-
+	FREESID(tilecache->tilesource_changed_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_loaded_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_tiles_changed_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_collect_sid, tilecache->tilesource);
 	VIPS_UNREF(tilecache->tilesource);
 	VIPS_UNREF(tilecache->background_texture);
+
+	tilecache_free_pyramid(tilecache);
 
 	G_OBJECT_CLASS(tilecache_parent_class)->dispose(object);
 }
@@ -140,97 +174,12 @@ tilecache_texture(TilecacheBackground background)
 static void
 tilecache_init(Tilecache *tilecache)
 {
+#ifdef DEBUG
+	printf("tilecache_init:\n");
+#endif /*DEBUG*/
+
 	tilecache->background = TILECACHE_BACKGROUND_CHECKERBOARD;
 	tilecache->background_texture = tilecache_texture(tilecache->background);
-}
-
-static void
-tilecache_set_property(GObject *object,
-	guint prop_id, const GValue *value, GParamSpec *pspec)
-{
-	Tilecache *tilecache = (Tilecache *) object;
-
-	int i;
-
-	switch (prop_id) {
-	case PROP_BACKGROUND:
-		i = g_value_get_int(value);
-		if (i >= 0 &&
-			i < TILECACHE_BACKGROUND_LAST &&
-			tilecache->background != i) {
-			tilecache->background = i;
-			VIPS_UNREF(tilecache->background_texture);
-			tilecache->background_texture =
-				tilecache_texture(tilecache->background);
-			tilecache_tiles_changed(tilecache);
-		}
-		break;
-
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
-		break;
-	}
-}
-
-static void
-tilecache_get_property(GObject *object,
-	guint prop_id, GValue *value, GParamSpec *pspec)
-{
-	Tilecache *tilecache = (Tilecache *) object;
-
-	switch (prop_id) {
-	case PROP_BACKGROUND:
-		g_value_set_int(value, tilecache->background);
-		break;
-
-	default:
-		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
-		break;
-	}
-}
-
-static void
-tilecache_class_init(TilecacheClass *class)
-{
-	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-
-	gobject_class->dispose = tilecache_dispose;
-	gobject_class->set_property = tilecache_set_property;
-	gobject_class->get_property = tilecache_get_property;
-
-	g_object_class_install_property(gobject_class, PROP_BACKGROUND,
-		g_param_spec_int("background",
-			_("Background"),
-			_("Background mode"),
-			0, TILECACHE_BACKGROUND_LAST - 1,
-			TILECACHE_BACKGROUND_CHECKERBOARD,
-			G_PARAM_READWRITE));
-
-	tilecache_signals[SIG_CHANGED] = g_signal_new("changed",
-		G_TYPE_FROM_CLASS(class),
-		G_SIGNAL_RUN_LAST,
-		0,
-		NULL, NULL,
-		g_cclosure_marshal_VOID__VOID,
-		G_TYPE_NONE, 0);
-
-	tilecache_signals[SIG_TILES_CHANGED] = g_signal_new("tiles-changed",
-		G_TYPE_FROM_CLASS(class),
-		G_SIGNAL_RUN_LAST,
-		0,
-		NULL, NULL,
-		g_cclosure_marshal_VOID__VOID,
-		G_TYPE_NONE, 0);
-
-	tilecache_signals[SIG_AREA_CHANGED] = g_signal_new("area-changed",
-		G_TYPE_FROM_CLASS(class),
-		G_SIGNAL_RUN_LAST,
-		0,
-		NULL, NULL,
-		vipsdisp_VOID__POINTER_INT,
-		G_TYPE_NONE, 2,
-		G_TYPE_POINTER,
-		G_TYPE_INT);
 }
 
 static void
@@ -246,6 +195,24 @@ tilecache_build_pyramid(Tilecache *tilecache)
 #ifdef DEBUG
 	printf("tilecache_build_pyramid:\n");
 #endif /*DEBUG*/
+
+	/* No image? Nothing to do.
+	 */
+	if (!tilesource ||
+		!tilesource->rgb)
+		return;
+
+	/* If we have a pyr with the same geometry, there's no need to rebuild.
+	 */
+	if (tilecache->levels &&
+		tilecache->levels[0] &&
+		tilesource->display_width == tilecache->levels[0]->Xsize &&
+		tilesource->display_height == tilecache->levels[0]->Ysize) {
+#ifdef DEBUG
+		printf("\tno geometry change, skipping pyr rebuild\n");
+#endif /*DEBUG*/
+		return;
+	}
 
 	tilecache_free_pyramid(tilecache);
 
@@ -300,6 +267,377 @@ tilecache_build_pyramid(Tilecache *tilecache)
 			tilecache->levels[i]->Xsize,
 			tilecache->levels[i]->Ysize);
 #endif /*DEBUG*/
+}
+
+/* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark
+ * all tiles invalid and reemit.
+ */
+void
+tilecache_source_tiles_changed(Tilesource *tilesource,
+	Tilecache *tilecache)
+{
+	int i;
+
+#ifdef DEBUG
+	printf("tilecache_source_tiles_changed: %p\n", tilecache);
+#endif /*DEBUG*/
+
+	for (i = 0; i < tilecache->n_levels; i++) {
+		GSList *p;
+
+		for (p = tilecache->tiles[i]; p; p = p->next) {
+			Tile *tile = TILE(p->data);
+
+			/* We must refetch.
+			 */
+			tile->valid = FALSE;
+		}
+	}
+
+	tilecache_tiles_changed(tilecache);
+}
+
+/* Everything has changed, eg. page turn and the image geometry has changed.
+ */
+static void
+tilecache_source_changed(Tilesource *tilesource, Tilecache *tilecache)
+{
+#ifdef DEBUG
+	printf("tilecache_source_changed:\n");
+#endif /*DEBUG*/
+
+	/* Junk all tiles on geometry change.
+	 */
+	tilecache_build_pyramid(tilecache);
+
+	/* All tiles must be invalidated.
+	 */
+	tilecache_source_tiles_changed(tilesource, tilecache);
+
+	/* All views must update.
+	 */
+	tilecache_changed(tilecache);
+}
+
+/* background load is done ... no pixels have changed, but we should repaint
+ * in casewe have any missing tiles.
+ */
+static void
+tilecache_source_loaded(Tilesource *tilesource, Tilecache *tilecache)
+{
+#ifdef DEBUG
+	printf("tilecache_source_loaded:\n");
+#endif /*DEBUG*/
+
+	/* Repaint to trigger a request (if necessary).
+	 */
+	tilecache_changed(tilecache);
+}
+
+static Tile *
+tilecache_find(Tilecache *tilecache, VipsRect *tile_rect, int z)
+{
+	GSList *p;
+	Tile *tile;
+
+	for (p = tilecache->tiles[z]; p; p = p->next) {
+		tile = TILE(p->data);
+
+		if (vips_rect_overlapsrect(&tile->bounds, tile_rect))
+			return tile;
+	}
+
+	return NULL;
+}
+
+/* Request a single tile. If we have this tile already, refresh if there are new
+ * pixels available.
+ */
+static void
+tilecache_request(Tilecache *tilecache, VipsRect *tile_rect, int z)
+{
+	Tile *tile;
+
+	/* Look for an existing tile, or make a new one.
+	 *
+	 * FIXME ... this could be a hash. Could other lookups be hashes as
+	 * well, if we rescale x/y for changes in z?
+	 */
+	if (!(tile = tilecache_find(tilecache, tile_rect, z))) {
+		if (!(tile = tile_new(tilecache->levels[z],
+				  tile_rect->left >> z, tile_rect->top >> z, z)))
+			return;
+
+		tilecache->tiles[z] = g_slist_prepend(tilecache->tiles[z], tile);
+	}
+
+	if (!tile->valid) {
+#ifdef DEBUG_VERBOSE
+		printf("tilecache_request: fetching left = %d, top = %d, "
+			   "width = %d, height = %d, z = %d\n",
+			tile_rect->left, tile_rect->top,
+			tile_rect->width, tile_rect->height,
+			z);
+#endif /*DEBUG_VERBOSE*/
+
+		tilesource_request_tile(tilecache->tilesource, tile);
+	}
+}
+
+/* Request tiles from an area. If they are not in cache, they will be computed
+ * in the bg and delivered via _collect().
+ *
+ * render processes tiles in FIFO order, so we need to add in reverse order
+ * of processing. We want repaint to happen in a spiral from the centre out,
+ * so we have to add in a spiral from the outside in.
+ *
+ * We must be careful not to change tilesource if we have all these tiles
+ * already (very common for thumbnails, for example).
+ */
+static void
+tilecache_request_area(Tilecache *tilecache, VipsRect *viewport, int z)
+{
+	int size0 = TILE_SIZE << z;
+
+	// no image ready for paint? try again later
+	if (!tilecache->tilesource ||
+		!tilecache->tilesource->rgb)
+		return;
+
+	/* All the tiles rect touches in this pyr level.
+	 */
+	int left = VIPS_ROUND_DOWN(viewport->left, size0);
+	int top = VIPS_ROUND_DOWN(viewport->top, size0);
+	int right = VIPS_ROUND_UP(VIPS_RECT_RIGHT(viewport), size0);
+	int bottom = VIPS_ROUND_UP(VIPS_RECT_BOTTOM(viewport), size0);
+
+	/* Do the four edges, then step in. Loop until the centre is empty.
+	 */
+	for (;;) {
+		VipsRect tile_rect;
+		int x, y;
+
+		tile_rect.width = size0;
+		tile_rect.height = size0;
+
+		if (right - left <= 0 ||
+			bottom - top <= 0)
+			break;
+
+		/* Top edge.
+		 */
+		for (x = left; x < right; x += size0) {
+			tile_rect.left = x;
+			tile_rect.top = top;
+			tilecache_request(tilecache, &tile_rect, z);
+		}
+
+		top += size0;
+		if (right - left <= 0 ||
+			bottom - top <= 0)
+			break;
+
+		/* Bottom edge.
+		 */
+		for (x = left; x < right; x += size0) {
+			tile_rect.left = x;
+			tile_rect.top = bottom - size0;
+			tilecache_request(tilecache, &tile_rect, z);
+		}
+
+		bottom -= size0;
+		if (right - left <= 0 ||
+			bottom - top <= 0)
+			break;
+
+		/* Left edge.
+		 */
+		for (y = top; y < bottom; y += size0) {
+			tile_rect.left = left;
+			tile_rect.top = y;
+			tilecache_request(tilecache, &tile_rect, z);
+		}
+
+		left += size0;
+		if (right - left <= 0 ||
+			bottom - top <= 0)
+			break;
+
+		/* Right edge.
+		 */
+		for (y = top; y < bottom; y += size0) {
+			tile_rect.left = right - size0;
+			tile_rect.top = y;
+			tilecache_request(tilecache, &tile_rect, z);
+		}
+
+		right -= size0;
+		if (right - left <= 0 ||
+			bottom - top <= 0)
+			break;
+	}
+}
+
+/* A new tile is available from the bg render and must be collected.
+ */
+static void
+tilecache_source_collect(Tilesource *tilesource,
+	VipsRect *dirty, int z, Tilecache *tilecache)
+{
+#ifdef DEBUG_VERBOSE
+	printf("tilecache_source_collect: left = %d, top = %d, "
+		   "width = %d, height = %d, z = %d\n",
+		dirty->left, dirty->top,
+		dirty->width, dirty->height, z);
+#endif /*DEBUG_VERBOSE*/
+
+	Tile *tile = tilecache_find(tilecache, dirty, z);
+	if (tile &&
+		!tile->valid) {
+		tilesource_collect_tile(tilecache->tilesource, tile);
+
+		// things displaying us will need to redraw
+		tilecache_area_changed(tilecache, dirty, z);
+	}
+}
+
+static void
+tilecache_set_tilesource(Tilecache *tilecache, Tilesource *tilesource)
+{
+	FREESID(tilecache->tilesource_changed_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_loaded_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_tiles_changed_sid, tilecache->tilesource);
+	FREESID(tilecache->tilesource_collect_sid, tilecache->tilesource);
+	VIPS_UNREF(tilecache->tilesource);
+
+	tilecache->tilesource = tilesource;
+	if (tilesource) {
+		g_object_ref(tilesource);
+
+		// this will only rebuild if the image geometry has changed
+		tilecache_build_pyramid(tilecache);
+
+		tilecache->tilesource_changed_sid =
+			g_signal_connect(tilesource, "changed",
+				G_CALLBACK(tilecache_source_changed), tilecache);
+		tilecache->tilesource_loaded_sid =
+			g_signal_connect(tilesource, "loaded",
+				G_CALLBACK(tilecache_source_loaded), tilecache);
+		tilecache->tilesource_tiles_changed_sid =
+			g_signal_connect(tilesource, "tiles-changed",
+				G_CALLBACK(tilecache_source_tiles_changed), tilecache);
+		tilecache->tilesource_collect_sid =
+			g_signal_connect(tilesource, "collect",
+				G_CALLBACK(tilecache_source_collect), tilecache);
+
+		/* Any tiles must be invalidated.
+		 */
+		tilecache_source_tiles_changed(tilesource, tilecache);
+	}
+}
+
+static void
+tilecache_set_property(GObject *object,
+	guint prop_id, const GValue *value, GParamSpec *pspec)
+{
+	Tilecache *tilecache = (Tilecache *) object;
+
+	int i;
+
+	switch (prop_id) {
+	case PROP_BACKGROUND:
+		i = g_value_get_int(value);
+		if (i >= 0 &&
+			i < TILECACHE_BACKGROUND_LAST &&
+			tilecache->background != i) {
+			tilecache->background = i;
+			VIPS_UNREF(tilecache->background_texture);
+			tilecache->background_texture =
+				tilecache_texture(tilecache->background);
+			tilecache_tiles_changed(tilecache);
+		}
+		break;
+
+	case PROP_TILESOURCE:
+		tilecache_set_tilesource(tilecache, g_value_get_object(value));
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+		break;
+	}
+}
+
+static void
+tilecache_get_property(GObject *object,
+	guint prop_id, GValue *value, GParamSpec *pspec)
+{
+	Tilecache *tilecache = (Tilecache *) object;
+
+	switch (prop_id) {
+	case PROP_BACKGROUND:
+		g_value_set_int(value, tilecache->background);
+		break;
+
+	case PROP_TILESOURCE:
+		g_value_set_object(value, tilecache->tilesource);
+		break;
+
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
+		break;
+	}
+}
+
+static void
+tilecache_class_init(TilecacheClass *class)
+{
+	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
+
+	gobject_class->dispose = tilecache_dispose;
+	gobject_class->set_property = tilecache_set_property;
+	gobject_class->get_property = tilecache_get_property;
+
+	g_object_class_install_property(gobject_class, PROP_BACKGROUND,
+		g_param_spec_int("background",
+			_("Background"),
+			_("Background mode"),
+			0, TILECACHE_BACKGROUND_LAST - 1,
+			TILECACHE_BACKGROUND_CHECKERBOARD,
+			G_PARAM_READWRITE));
+
+	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
+		g_param_spec_object("tilesource",
+			_("Tile source"),
+			_("The tile source to be displayed"),
+			TILESOURCE_TYPE,
+			G_PARAM_READWRITE));
+
+	tilecache_signals[SIG_CHANGED] = g_signal_new("changed",
+		G_TYPE_FROM_CLASS(class),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0);
+
+	tilecache_signals[SIG_TILES_CHANGED] = g_signal_new("tiles-changed",
+		G_TYPE_FROM_CLASS(class),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0);
+
+	tilecache_signals[SIG_AREA_CHANGED] = g_signal_new("area-changed",
+		G_TYPE_FROM_CLASS(class),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		vipsdisp_VOID__POINTER_INT,
+		G_TYPE_NONE, 2,
+		G_TYPE_POINTER,
+		G_TYPE_INT);
 }
 
 /* Expand a rect out to the set of tiles it touches on this level.
@@ -463,6 +801,13 @@ tilecache_compute_visibility(Tilecache *tilecache,
 	 */
 	tilecache_tiles_for_rect(tilecache, viewport, z, &touches);
 
+#ifdef DEBUG_VERBOSE
+	printf("viewport in level0 coordinates: left = %d, top = %d, "
+			   "width = %d, height = %d\n",
+			touches.left, touches.top,
+			touches.width, touches.height);
+#endif /*DEBUG_VERBOSE*/
+
 	/* Search for the highest res tile for every position in the
 	 * viewport.
 	 */
@@ -484,9 +829,7 @@ tilecache_compute_visibility(Tilecache *tilecache,
 			Tile *tile = TILE(p->data);
 
 			if (tile->time < start_time)
-				tilecache->free[i] =
-					g_slist_prepend(tilecache->free[i],
-						tile);
+				tilecache->free[i] = g_slist_prepend(tilecache->free[i], tile);
 		}
 	}
 
@@ -503,227 +846,10 @@ tilecache_compute_visibility(Tilecache *tilecache,
 #endif /*DEBUG_VERBOSE*/
 }
 
-static Tile *
-tilecache_find(Tilecache *tilecache, VipsRect *tile_rect, int z)
-{
-	GSList *p;
-	Tile *tile;
-
-	for (p = tilecache->tiles[z]; p; p = p->next) {
-		tile = TILE(p->data);
-
-		if (vips_rect_overlapsrect(&tile->bounds, tile_rect))
-			return tile;
-	}
-
-	return NULL;
-}
-
-/* Fetch a single tile. If we have this tile already, refresh if there are new
- * pixels available.
- */
-static void
-tilecache_get(Tilecache *tilecache, VipsRect *tile_rect, int z)
-{
-	Tile *tile;
-
-	/* Look for an existing tile, or make a new one.
-	 *
-	 * FIXME ... this could be a hash. Could other lookups be hashes as
-	 * well, if we rescale x/y for changes in z?
-	 */
-	if (!(tile = tilecache_find(tilecache, tile_rect, z))) {
-		if (!(tile = tile_new(tilecache->levels[z],
-				  tile_rect->left >> z, tile_rect->top >> z, z)))
-			return;
-
-		tilecache->tiles[z] = g_slist_prepend(tilecache->tiles[z], tile);
-	}
-
-	if (!tile->valid) {
-		/* The tile might have no pixels, or might need refreshing
-		 * because the bg render has finished with it.
-		 */
-#ifdef DEBUG_VERBOSE
-		printf("tilecache_get: fetching left = %d, top = %d, "
-			   "width = %d, height = %d, z = %d\n",
-			tile_rect->left, tile_rect->top,
-			tile_rect->width, tile_rect->height,
-			z);
-#endif /*DEBUG_VERBOSE*/
-
-		tilesource_fill_tile(tilecache->tilesource, tile);
-	}
-}
-
-/* Fetch the tiles in an area.
- *
- * render processes tiles in FIFO order, so we need to add in reverse order
- * of processing. We want repaint to happen in a spiral from the centre out,
- * so we have to add in a spiral from the outside in.
- */
-static void
-tilecache_fetch_area(Tilecache *tilecache, VipsRect *viewport, int z)
-{
-	int size0 = TILE_SIZE << z;
-
-	/* All the tiles rect touches in this pyr level.
-	 */
-	int left = VIPS_ROUND_DOWN(viewport->left, size0);
-	int top = VIPS_ROUND_DOWN(viewport->top, size0);
-	int right = VIPS_ROUND_UP(VIPS_RECT_RIGHT(viewport), size0);
-	int bottom = VIPS_ROUND_UP(VIPS_RECT_BOTTOM(viewport), size0);
-
-	/* Do the four edges, then step in. Loop until the centre is empty.
-	 */
-	for (;;) {
-		VipsRect tile_rect;
-		int x, y;
-
-		tile_rect.width = size0;
-		tile_rect.height = size0;
-
-		if (right - left <= 0 ||
-			bottom - top <= 0)
-			break;
-
-		/* Top edge.
-		 */
-		for (x = left; x < right; x += size0) {
-			tile_rect.left = x;
-			tile_rect.top = top;
-			tilecache_get(tilecache, &tile_rect, z);
-		}
-
-		top += size0;
-		if (right - left <= 0 ||
-			bottom - top <= 0)
-			break;
-
-		/* Bottom edge.
-		 */
-		for (x = left; x < right; x += size0) {
-			tile_rect.left = x;
-			tile_rect.top = bottom - size0;
-			tilecache_get(tilecache, &tile_rect, z);
-		}
-
-		bottom -= size0;
-		if (right - left <= 0 ||
-			bottom - top <= 0)
-			break;
-
-		/* Left edge.
-		 */
-		for (y = top; y < bottom; y += size0) {
-			tile_rect.left = left;
-			tile_rect.top = y;
-			tilecache_get(tilecache, &tile_rect, z);
-		}
-
-		left += size0;
-		if (right - left <= 0 ||
-			bottom - top <= 0)
-			break;
-
-		/* Right edge.
-		 */
-		for (y = top; y < bottom; y += size0) {
-			tile_rect.left = right - size0;
-			tile_rect.top = y;
-			tilecache_get(tilecache, &tile_rect, z);
-		}
-
-		right -= size0;
-		if (right - left <= 0 ||
-			bottom - top <= 0)
-			break;
-	}
-}
-
-/* Everything has changed, eg. page turn and the image geometry has changed.
- */
-static void
-tilecache_source_changed(Tilesource *tilesource, Tilecache *tilecache)
-{
-#ifdef DEBUG
-	printf("tilecache_source_changed:\n");
-#endif /*DEBUG*/
-
-	/* This will junk all tiles.
-	 */
-	tilecache_build_pyramid(tilecache);
-
-	tilecache_changed(tilecache);
-}
-
-/* All tiles need refetching, perhaps after eg. "falsecolour" etc. Mark
- * all tiles invalid and reemit.
- */
-void
-tilecache_source_tiles_changed(Tilesource *tilesource,
-	Tilecache *tilecache)
-{
-	int i;
-
-#ifdef DEBUG
-	printf("tilecache_source_tiles_changed:\n");
-#endif /*DEBUG*/
-
-	for (i = 0; i < tilecache->n_levels; i++) {
-		GSList *p;
-
-		for (p = tilecache->tiles[i]; p; p = p->next) {
-			Tile *tile = TILE(p->data);
-
-			/* We must refetch.
-			 */
-			tile->valid = FALSE;
-		}
-	}
-
-	tilecache_tiles_changed(tilecache);
-}
-
-/* The bg render thread says some tiles have fresh pixels.
- */
-static void
-tilecache_source_area_changed(Tilesource *tilesource,
-	VipsRect *dirty, int z, Tilecache *tilecache)
-{
-#ifdef DEBUG_VERBOSE
-	printf("tilecache_source_area_changed: left = %d, top = %d, "
-		   "width = %d, height = %d, z = %d\n",
-		dirty->left, dirty->top,
-		dirty->width, dirty->height, z);
-#endif /*DEBUG_VERBOSE*/
-
-	/* Immediately fetch the updated tile. If we wait for snapshot, the
-	 * animation page may have changed.
-	 */
-	tilecache_fetch_area(tilecache, dirty, z);
-
-	tilecache_area_changed(tilecache, dirty, z);
-}
-
 Tilecache *
-tilecache_new(Tilesource *tilesource)
+tilecache_new(void)
 {
 	Tilecache *tilecache = g_object_new(TILECACHE_TYPE, NULL);
-
-	tilecache->tilesource = tilesource;
-	g_object_ref(tilesource);
-
-	g_signal_connect_object(tilesource, "changed",
-		G_CALLBACK(tilecache_source_changed), tilecache, 0);
-	g_signal_connect_object(tilesource, "tiles-changed",
-		G_CALLBACK(tilecache_source_tiles_changed), tilecache, 0);
-	g_signal_connect_object(tilesource, "area-changed",
-		G_CALLBACK(tilecache_source_area_changed), tilecache, 0);
-
-	/* Don't build the pyramid yet -- the source probably hasn't loaded.
-	 * Wait for "changed".
-	 */
 
 	return tilecache;
 }
@@ -803,14 +929,16 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	GTimer *snapshot_timer = g_timer_new();
 #endif /*DEBUG_RENDER_TIME*/
 
+	g_assert(tilecache->n_levels > 0);
+
 	if (debug) {
 		gtk_snapshot_translate(snapshot, &debug_offset);
 		gtk_snapshot_scale(snapshot, debug_scale, debug_scale);
 	}
 
 #ifdef DEBUG
-	printf("tilecache_snapshot: scale = %g, x = %g, y = %g\n",
-		scale, x, y);
+	printf("tilecache_snapshot: %p scale = %g, x = %g, y = %g\n",
+		tilecache, scale, x, y);
 #endif /*DEBUG*/
 
 #ifdef DEBUG_VERBOSE
@@ -820,6 +948,11 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 		paint_rect->width, paint_rect->height);
 #endif /*DEBUG_VERBOSE*/
 
+#ifdef DEBUG_VERBOSE
+	printf("tilecache_snapshot: %p tiles are:\n", tilecache);
+	tilecache_print(tilecache);
+#endif /*DEBUG_VERBOSE*/
+
 	/* Pick a pyramid layer. For enlarging, we leave the z at 0
 	 * (the highest res layer).
 	 */
@@ -827,9 +960,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 		scale == 0)
 		z = 0;
 	else
-		z = VIPS_CLIP(0,
-			log(1.0 / scale) / log(2.0),
-			tilecache->n_levels - 1);
+		z = VIPS_CLIP(0, log(1.0 / scale) / log(2.0), tilecache->n_levels - 1);
 
 	/* paint_rect in level0 coordinates.
 	 */
@@ -841,7 +972,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	/* Fetch any tiles we are missing, update any tiles we have that have
 	 * been flagged as having pixels ready for fetching.
 	 */
-	tilecache_fetch_area(tilecache, &viewport, z);
+	tilecache_request_area(tilecache, &viewport, z);
 
 	/* Find the set of visible tiles, sorted back to front.
 	 *
@@ -852,7 +983,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 	/* If there's an alpha, we'll need a backdrop.
 	 */
-	if (vips_image_hasalpha(tilecache->tilesource->image)) {
+	if (vips_image_hasalpha(tilecache->levels[0])) {
 		graphene_rect_t bounds;
 
 #ifdef DEBUG_VERBOSE
@@ -884,15 +1015,14 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 		for (p = tilecache->visible[i]; p; p = p->next) {
 			Tile *tile = TILE(p->data);
 
-			graphene_rect_t bounds;
-
-#if GTK_CHECK_VERSION(4, 10, 0)
 			/* If we are zooming in beyond 1:1, we want nearest so we don't
 			 * blur the image. For zooming out, we want trilinear to get
 			 * mipmaps and antialiasing.
 			 */
 			GskScalingFilter filter = scale > 1.0 ?
 				GSK_SCALING_FILTER_NEAREST : GSK_SCALING_FILTER_TRILINEAR;
+
+			graphene_rect_t bounds;
 
 			// add a margin along the right and bottom to prevent black seams
 			// at tile joins
@@ -902,18 +1032,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			bounds.size.height = tile->bounds.height * scale + 2;
 
 			gtk_snapshot_append_scaled_texture(snapshot,
-				tile_get_texture(tile),
-				filter,
-				&bounds);
-#else
-			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
-			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
-			bounds.size.width = tile->bounds.width * scale + 0.5;
-			bounds.size.height = tile->bounds.height * scale + 0.5;
-
-			gtk_snapshot_append_texture(snapshot,
-				tile_get_texture(tile), &bounds);
-#endif
+				tile_get_texture(tile), filter, &bounds);
 
 			/* In debug mode, draw the edges and add text for the
 			 * tile pointer and age.

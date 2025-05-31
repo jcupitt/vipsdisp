@@ -14,6 +14,7 @@ headers = files (
     'displaybar.h',
     'fuzzy.h',
     'gtkutil.h',
+    'ientry.h',
     'imagedisplay.h',
     'imageui.h',
     'imagewindow.h',
@@ -31,20 +32,21 @@ headers = files (
 
 sources = files (
     'displaybar.c',
+    'fuzzy.c',
     'gtkutil.c',
+    'ientry.c',
     'imagedisplay.c',
-    'imagewindow.c',
     'imageui.c',
+    'imagewindow.c',
     'infobar.c',
     'main.c',
+    'properties.c',
+    'saveoptions.c',
     'tile.c',
     'tilecache.c',
     'tilesource.c',
     'tslider.c',
     'vipsdispapp.c',
-    'saveoptions.c',
-    'fuzzy.c',
-    'properties.c',
 )
 
 enumtypes = gnome.mkenums(

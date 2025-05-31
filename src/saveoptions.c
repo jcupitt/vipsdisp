@@ -1,3 +1,32 @@
+/* show image save options
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+*/
+
 /*
 #define DEBUG
  */
@@ -5,7 +34,7 @@
 #include "vipsdisp.h"
 
 struct _SaveOptions {
-	GtkDialog parent_instance;
+	GtkApplicationWindow parent_instance;
 
 	VipsImage *image;
 	VipsOperation *save_operation;
@@ -16,10 +45,9 @@ struct _SaveOptions {
 	// the progress and error indicators we show
 	GtkWidget *progress_bar;
 	GtkWidget *progress;
-	GtkWidget *progress_cancel;
 	GtkWidget *error_bar;
 	GtkWidget *error_label;
-	GtkWidget *ok_button;
+	GtkWidget *title;
 
 	// hash property names to the widget for that property ... we fetch
 	// values from here when we make the saver
@@ -32,10 +60,10 @@ struct _SaveOptions {
 };
 
 struct _SaveOptionsClass {
-	GtkDialogClass parent_class;
+	GtkApplicationWindowClass parent_class;
 };
 
-G_DEFINE_TYPE(SaveOptions, save_options, GTK_TYPE_DIALOG);
+G_DEFINE_TYPE(SaveOptions, save_options, GTK_TYPE_APPLICATION_WINDOW);
 
 static void
 save_options_dispose(GObject *object)
@@ -53,30 +81,21 @@ save_options_dispose(GObject *object)
 static void
 save_options_error(SaveOptions *options)
 {
-	int i;
-
 	/* Remove any trailing \n.
 	 */
 	g_autofree char *err = vips_error_buffer_copy();
 	vips_error_clear();
-	for (i = strlen(err); i > 0 && err[i - 1] == '\n'; i--)
+	for (int i = strlen(err); i > 0 && err[i - 1] == '\n'; i--)
 		err[i - 1] = '\0';
 	gtk_label_set_text(GTK_LABEL(options->error_label), err);
 
-	gtk_info_bar_set_revealed(GTK_INFO_BAR(options->error_bar), TRUE);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->error_bar), TRUE);
 }
 
 static void
-save_options_error_hide(SaveOptions *options)
+save_options_error_clicked(GtkButton *button, SaveOptions *options)
 {
-	gtk_info_bar_set_revealed(GTK_INFO_BAR(options->error_bar), FALSE);
-}
-
-static void
-save_options_error_response(GtkWidget *button, int response,
-	SaveOptions *options)
-{
-	save_options_error_hide(options);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(options->error_bar), FALSE);
 }
 
 static void
@@ -141,20 +160,16 @@ save_options_fetch_option(SaveOptions *options, GParamSpec *pspec)
 	 */
 	if (G_IS_PARAM_SPEC_STRING(pspec)) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING(pspec);
-		GtkEntryBuffer *buffer = gtk_entry_get_buffer(GTK_ENTRY(t));
-		const char *value = gtk_entry_buffer_get_text(buffer);
+		g_autofree char *value = NULL;
+		const char *def = pspec_string->default_value;
 
 		/* Only if the value has changed.
 		 */
-		if ((!pspec_string->default_value &&
-				strcmp(value, "") != 0) ||
-			(pspec_string->default_value &&
-				strcmp(value, pspec_string->default_value) != 0)) {
-
-			g_object_set(options->save_operation,
-				name, value,
-				NULL);
-		}
+		g_object_get(t, "text", &value, NULL);
+		if (value)
+			if ((!def && !g_str_equal(value, "")) ||
+				(def && !g_str_equal(value, def)))
+				g_object_set(options->save_operation, name, value, NULL);
 	}
 	else if (G_IS_PARAM_SPEC_BOOLEAN(pspec)) {
 		gboolean value = gtk_check_button_get_active(GTK_CHECK_BUTTON(t));
@@ -263,7 +278,7 @@ save_options_fetch_option(SaveOptions *options, GParamSpec *pspec)
 }
 
 static void *
-save_options_response_map_fn(VipsObject *operation,
+save_options_set_argument(VipsObject *operation,
 	GParamSpec *pspec, VipsArgumentClass *argument_class,
 	VipsArgumentInstance *argument_instance, void *a, void *b)
 {
@@ -283,73 +298,79 @@ save_options_response_map_fn(VipsObject *operation,
 }
 
 static void
-save_options_response(GtkWidget *dialog, int response, void *user_data)
+save_options_ok_action(GSimpleAction *action,
+	GVariant *parameter, gpointer user_data)
 {
-	SaveOptions *options = SAVE_OPTIONS(dialog);
+	SaveOptions *options = SAVE_OPTIONS(user_data);
 
-	if (response == GTK_RESPONSE_OK) {
-		vips_argument_map(VIPS_OBJECT(options->save_operation),
-			save_options_response_map_fn, options, NULL);
+	vips_argument_map(VIPS_OBJECT(options->save_operation),
+		save_options_set_argument, options, NULL);
 
-		// this will trigger the save and loop while we write ... the
-		// UI will stay live thanks to event processing in the eval
-		// handler
-		if (vips_cache_operation_buildp(&options->save_operation))
-			save_options_error(options);
-		else
-			// everything worked, we can post success back to
-			// our caller
-			gtk_dialog_response(GTK_DIALOG(dialog), GTK_RESPONSE_ACCEPT);
-	}
+	// this will trigger the save and loop while we write ... the
+	// UI will stay live thanks to event processing in the eval
+	// handler
+	if (vips_cache_operation_buildp(&options->save_operation))
+		save_options_error(options);
+	else
+		// everything worked, we can post success back to
+		// our caller
+		gtk_window_destroy(GTK_WINDOW(options));
 }
 
 static void
-save_options_cancel_clicked(GtkWidget *button, SaveOptions *options)
+save_options_cancel_action(GSimpleAction *action,
+	GVariant *parameter, gpointer user_data)
 {
-	vips_image_set_kill(options->image, TRUE);
+	SaveOptions *options = SAVE_OPTIONS(user_data);
+
+	gtk_window_destroy(GTK_WINDOW(options));
 }
+
+static GActionEntry save_options_entries[] = {
+	{ "ok", save_options_ok_action },
+	{ "cancel", save_options_cancel_action },
+};
 
 static void
 save_options_init(SaveOptions *options)
 {
 	gtk_widget_init_template(GTK_WIDGET(options));
 
-	g_signal_connect_object(options->progress_cancel, "clicked",
-		G_CALLBACK(save_options_cancel_clicked), options, 0);
-
-	g_signal_connect_object(options->error_bar, "response",
-		G_CALLBACK(save_options_error_response), options, 0);
+	g_action_map_add_action_entries(G_ACTION_MAP(options),
+		save_options_entries, G_N_ELEMENTS(save_options_entries),
+		options);
 
 	options->value_widgets = g_hash_table_new(g_str_hash, g_str_equal);
 
 	options->progress_timer = g_timer_new();
-
-	g_signal_connect_object(options, "response",
-		G_CALLBACK(save_options_response), options, 0);
 }
 
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		SaveOptions, field);
+static void
+save_options_cancel_clicked(GtkWidget *button, gpointer user_data)
+{
+	SaveOptions *options = SAVE_OPTIONS(user_data);
+
+	vips_image_set_kill(options->image, TRUE);
+}
 
 static void
 save_options_class_init(SaveOptionsClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 	gobject_class->dispose = save_options_dispose;
 
-	gtk_widget_class_set_template_from_resource(widget_class,
-		APP_PATH "/saveoptions.ui");
+	BIND_RESOURCE("saveoptions.ui");
 
-	BIND(progress_bar);
-	BIND(progress);
-	BIND(progress_cancel);
-	BIND(error_bar);
-	BIND(error_label);
-	BIND(options_grid);
-	BIND(ok_button);
+	BIND_VARIABLE(SaveOptions, progress_bar);
+	BIND_VARIABLE(SaveOptions, progress);
+	BIND_VARIABLE(SaveOptions, error_bar);
+	BIND_VARIABLE(SaveOptions, error_label);
+	BIND_VARIABLE(SaveOptions, options_grid);
+	BIND_VARIABLE(SaveOptions, title);
+
+	BIND_CALLBACK(save_options_cancel_clicked);
+	BIND_CALLBACK(save_options_error_clicked);
 }
 
 /* This function is used by:
@@ -379,10 +400,8 @@ save_options_add_option(SaveOptions *options, GParamSpec *pspec, int *row)
 	 */
 	if (G_IS_PARAM_SPEC_STRING(pspec)) {
 		GParamSpecString *pspec_string = G_PARAM_SPEC_STRING(pspec);
-		GtkEntryBuffer *buffer =
-			gtk_entry_buffer_new(pspec_string->default_value, -1);
-
-		t = gtk_entry_new_with_buffer(buffer);
+		t = GTK_WIDGET(ientry_new());
+		g_object_set(t, "text", pspec_string->default_value, NULL);
 	}
 	else if (G_IS_PARAM_SPEC_BOOLEAN(pspec)) {
 		GParamSpecBoolean *pspec_boolean = G_PARAM_SPEC_BOOLEAN(pspec);
@@ -557,22 +576,23 @@ save_options_new(GtkWindow *parent_window,
 	VipsImage *image, const char *filename)
 {
 	const char *saver;
-	SaveOptions *options;
+	if (!(saver = vips_foreign_find_save(filename)))
+		return NULL;
+
+	g_autoptr(SaveOptions) options = g_object_new(SAVE_OPTIONS_TYPE,
+		"transient-for", parent_window,
+		"application", gtk_window_get_application(parent_window),
+		NULL);
 
 	g_autofree char *base = g_path_get_basename(filename);
-	g_autofree char *title = g_strdup_printf("Save image to \"%s\"", base);
-	options = g_object_new(SAVE_OPTIONS_TYPE,
-		// we have to set this here, not in the ui file, for some reason
-		"use-header-bar", true,
-		"transient-for", parent_window,
-		"title", title,
-		NULL);
+	set_glabel(options->title, "Save image to \"%s\"", base);
 
 	options->image = image;
 	g_object_ref(image);
 
 	if (options->image) {
 		vips_image_set_progress(options->image, TRUE);
+
 		g_signal_connect_object(options->image, "preeval",
 			G_CALLBACK(save_options_preeval), options, 0);
 		g_signal_connect_object(options->image, "eval",
@@ -581,10 +601,8 @@ save_options_new(GtkWindow *parent_window,
 			G_CALLBACK(save_options_posteval), options, 0);
 	}
 
-	if (!(saver = vips_foreign_find_save(filename)))
-		save_options_error(options);
-
-	if (saver && options->image) {
+	if (saver &&
+		options->image) {
 		int row;
 
 		options->save_operation = vips_operation_new(saver);
@@ -598,7 +616,5 @@ save_options_new(GtkWindow *parent_window,
 			save_options_add_options_fn, options, &row);
 	}
 
-	gtk_widget_grab_focus(options->ok_button);
-
-	return options;
+	return g_steal_pointer(&options);
 }

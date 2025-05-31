@@ -17,25 +17,27 @@
             <property name="orientation">vertical</property>
             <property name="hexpand">false</property>
             <property name="vexpand">true</property>
-    
+
             <child>
               <object class="GtkSearchEntry" id="search_entry">
                 <property name="margin-top">10px</property>
                 <property name="margin-bottom">10px</property>
                 <property name="hexpand">true</property>
                 <property name="placeholder-text">Filter properties</property>
+		<signal name="search-changed"
+			handler="properties_search_changed"/>
               </object>
             </child>
-    
+
             <child>
               <object class="GtkScrolledWindow" id="scrolled_window">
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
                 <property name="hscrollbar-policy">never</property>
-    
+
               </object>
             </child>
-    
+
           </object>
         </child>
 

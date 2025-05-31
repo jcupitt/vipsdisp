@@ -1,3 +1,32 @@
+/* a slider with an editable value
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+*/
+
 #include "vipsdisp.h"
 
 /*
@@ -6,10 +35,11 @@
  */
 
 enum {
-	CHANGED,
-	ACTIVATE,
-	SLIDER_CHANGED,
-	TEXT_CHANGED,
+	SIG_CHANGED,
+	SIG_CANCEL,
+	SIG_ACTIVATE,
+	SIG_SLIDER_CHANGED,
+	SIG_TEXT_CHANGED,
 
 	LAST
 };
@@ -93,26 +123,21 @@ static void
 tslider_real_changed(Tslider *tslider)
 {
 	GtkAdjustment *adj = tslider->adj;
-	GtkWidget *entry = tslider->entry;
+	GtkWidget *ientry = tslider->entry;
 
 #ifdef DEBUG
-	printf("tslider_real_changed: %p, val = %g\n",
-		tslider, tslider->value);
+	printf("tslider_real_changed: %p, val = %g\n", tslider, tslider->value);
 #endif /*DEBUG*/
 
 	if (tslider->auto_link)
-		tslider->svalue = tslider_value_to_slider(tslider,
-			tslider->value);
+		tslider->svalue = tslider_value_to_slider(tslider, tslider->value);
 
 	g_signal_handlers_block_matched(G_OBJECT(adj),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider);
-	g_signal_handlers_block_matched(G_OBJECT(entry),
+	g_signal_handlers_block_matched(G_OBJECT(ientry),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider);
 
-	/* Some libc's hate out-of-bounds precision, so clip, just in case.
-	 */
-	set_gentry(tslider->entry, "%.*f",
-		VIPS_CLIP(0, tslider->digits, 100), tslider->value);
+	ientry_set_double(IENTRY(ientry), tslider->digits, tslider->value);
 	gtk_scale_set_digits(GTK_SCALE(tslider->scale), tslider->digits);
 
 	if (!DEQ(tslider->from, tslider->last_from) ||
@@ -130,12 +155,14 @@ tslider_real_changed(Tslider *tslider)
 		tslider->last_from = tslider->from;
 	}
 
-	if (!DEQ(tslider->svalue, tslider->last_svalue))
+	// we can get nan here during init
+	if (!isnan(tslider->svalue) &&
+		!DEQ(tslider->svalue, tslider->last_svalue))
 		gtk_adjustment_set_value(adj, tslider->svalue);
 
 	g_signal_handlers_unblock_matched(G_OBJECT(adj),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider);
-	g_signal_handlers_unblock_matched(G_OBJECT(entry),
+	g_signal_handlers_unblock_matched(G_OBJECT(ientry),
 		G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, tslider);
 }
 
@@ -148,7 +175,7 @@ tslider_changed(Tslider *tslider)
 	printf("tslider_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider), tslider_signals[CHANGED], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[SIG_CHANGED], 0);
 }
 
 /* Activated!
@@ -160,10 +187,11 @@ tslider_activate(Tslider *tslider)
 	printf("tslider_activate\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider), tslider_signals[ACTIVATE], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[SIG_ACTIVATE], 0);
 }
 
-/* Just the slider changed.
+/* Just the slider changed, our caller will need to do some work to map svalue
+ * to value.
  */
 static void
 tslider_slider_changed(Tslider *tslider)
@@ -172,7 +200,7 @@ tslider_slider_changed(Tslider *tslider)
 	printf("tslider_slider_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider), tslider_signals[SLIDER_CHANGED], 0);
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[SIG_SLIDER_CHANGED], 0);
 }
 
 /* Text has been touched.
@@ -184,64 +212,28 @@ tslider_text_changed(Tslider *tslider)
 	printf("tslider_text_changed\n");
 #endif /*DEBUG*/
 
-	g_signal_emit(G_OBJECT(tslider), tslider_signals[TEXT_CHANGED], 0);
-}
-
-/* Enter in entry widget
- */
-static void
-tslider_value_activate_cb(GtkWidget *entry, Tslider *tslider)
-{
-	double value;
-
-#ifdef DEBUG
-	printf("tslider_value_activate_cb:\n");
-#endif /*DEBUG*/
-
-	if (get_geditable_double(entry, &value) &&
-		tslider->value != value) {
-		tslider->value = value;
-
-		if (tslider->auto_link)
-			tslider_changed(tslider);
-		else
-			tslider_activate(tslider);
-	}
+	g_signal_emit(G_OBJECT(tslider), tslider_signals[SIG_TEXT_CHANGED], 0);
 }
 
 /* Drag on slider.
  */
 static void
-tslider_value_changed_cb(GtkAdjustment *adj, Tslider *tslider)
+tslider_value_changed(GtkAdjustment *adj, Tslider *tslider)
 {
 #ifdef DEBUG
-	printf("tslider_value_changed_cb:\n");
+	printf("tslider_value_changed:\n");
 #endif /*DEBUG*/
 
 	if (tslider->svalue != gtk_adjustment_get_value(adj)) {
 		tslider->svalue = gtk_adjustment_get_value(adj);
 
 		if (tslider->auto_link) {
-			tslider->value = tslider_slider_to_value(
-				tslider, tslider->svalue);
-
+			tslider->value = tslider_slider_to_value( tslider, tslider->svalue);
 			tslider_changed(tslider);
 		}
 		else
 			tslider_slider_changed(tslider);
 	}
-}
-
-/* Text has changed (and may need to be scanned later).
- */
-static void
-tslider_text_changed_cb(GtkWidget *widget, Tslider *tslider)
-{
-#ifdef DEBUG
-	printf("tslider_text_changed_cb:\n");
-#endif /*DEBUG*/
-
-	tslider_text_changed(tslider);
 }
 
 /* Default identity conversion.
@@ -272,13 +264,8 @@ tslider_init(Tslider *tslider)
 
 	gtk_widget_init_template(GTK_WIDGET(tslider));
 
-	g_signal_connect(tslider->entry, "activate",
-		G_CALLBACK(tslider_value_activate_cb), tslider);
-	g_signal_connect(tslider->entry, "changed",
-		G_CALLBACK(tslider_text_changed_cb), tslider);
-
 	g_signal_connect(tslider->adj, "value_changed",
-		G_CALLBACK(tslider_value_changed_cb), tslider);
+		G_CALLBACK(tslider_value_changed), tslider);
 
 	tslider->auto_link = TRUE;
 	tslider->slider_to_value = tslider_conversion_id;
@@ -287,15 +274,36 @@ tslider_init(Tslider *tslider)
 	tslider_changed(tslider);
 }
 
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Tslider, field);
+static void
+tslider_ientry_changed(iEntry *ientry, Tslider *tslider)
+{
+	tslider_text_changed(tslider);
+}
+
+static void
+tslider_ientry_activate(iEntry *ientry, Tslider *tslider)
+{
+	double value;
+
+#ifdef DEBUG
+	printf("tslider_ientry_activate:\n");
+#endif /*DEBUG*/
+
+	if (ientry_get_double(ientry, &value) &&
+		tslider->value != value) {
+		tslider->value = value;
+
+		if (tslider->auto_link)
+			tslider_changed(tslider);
+		else
+			tslider_activate(tslider);
+	}
+}
 
 static void
 tslider_class_init(TsliderClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
 	printf("tslider_class_init:\n");
@@ -305,38 +313,49 @@ tslider_class_init(TsliderClass *class)
 
 	class->changed = tslider_real_changed;
 
-	gtk_widget_class_set_layout_manager_type(widget_class,
-		GTK_TYPE_BOX_LAYOUT);
-	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
-		APP_PATH "/tslider.ui");
+	BIND_RESOURCE("tslider.ui");
+	BIND_LAYOUT();
 
-	BIND(adj);
-	BIND(box);
-	BIND(entry);
-	BIND(scale);
+	BIND_VARIABLE(Tslider, adj);
+	BIND_VARIABLE(Tslider, box);
+	BIND_VARIABLE(Tslider, entry);
+	BIND_VARIABLE(Tslider, scale);
+
+	BIND_CALLBACK(tslider_ientry_changed);
+	BIND_CALLBACK(tslider_ientry_activate);
 
 	/* Create signals.
 	 */
-	tslider_signals[CHANGED] = g_signal_new("changed",
+	tslider_signals[SIG_CHANGED] = g_signal_new("changed",
 		G_OBJECT_CLASS_TYPE(gobject_class),
 		G_SIGNAL_RUN_FIRST,
 		G_STRUCT_OFFSET(TsliderClass, changed),
 		NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
-	tslider_signals[ACTIVATE] = g_signal_new("activate",
+	tslider_signals[SIG_ACTIVATE] = g_signal_new("activate",
 		G_OBJECT_CLASS_TYPE(gobject_class),
 		G_SIGNAL_RUN_FIRST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
-	tslider_signals[SLIDER_CHANGED] = g_signal_new("slider_changed",
+	tslider_signals[SIG_SLIDER_CHANGED] = g_signal_new("slider_changed",
 		G_OBJECT_CLASS_TYPE(gobject_class),
 		G_SIGNAL_RUN_FIRST,
 		0, NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
-	tslider_signals[TEXT_CHANGED] = g_signal_new("text_changed",
+	tslider_signals[SIG_TEXT_CHANGED] = g_signal_new("text_changed",
+		G_OBJECT_CLASS_TYPE(gobject_class),
+		G_SIGNAL_RUN_FIRST,
+		0, NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0);
+
+	/* We never emit this, but we have it so that tslider has the same set of
+	 * signals as ientry and we can use the same code to link to them.
+	 */
+	tslider_signals[SIG_CANCEL] = g_signal_new("cancel",
 		G_OBJECT_CLASS_TYPE(gobject_class),
 		G_SIGNAL_RUN_FIRST,
 		0, NULL, NULL,
@@ -344,8 +363,8 @@ tslider_class_init(TsliderClass *class)
 		G_TYPE_NONE, 0);
 }
 
-Tslider *
-tslider_new(void)
+GtkWidget *
+tslider_new(double from, double to, int digits)
 {
 	Tslider *tslider;
 
@@ -354,8 +373,11 @@ tslider_new(void)
 #endif /*DEBUG*/
 
 	tslider = g_object_new(TSLIDER_TYPE, NULL);
+	tslider->from = from;
+	tslider->to = to;
+	tslider->digits = digits;
 
-	return tslider;
+	return GTK_WIDGET(tslider);
 }
 
 void

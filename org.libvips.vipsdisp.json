@@ -439,7 +439,7 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://github.com/libvips/libvips/releases/download/v8.16.0/vips-8.16.0.tar.xz",
+                    "url" : "https://github.com/libvips/libvips/releases/download/v8.17.0-test4/vips-8.17.0-test4.tar.xz",
                     "sha256" : "6eca46c6ba5fac86224fd69007741012b0ea1f9aa1fcb9256b0cbc2faf768563"
                 }
             ]

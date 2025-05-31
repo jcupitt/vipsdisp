@@ -1,3 +1,32 @@
+/* the display control widgets
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+*/
+
 #include "vipsdisp.h"
 
 /*
@@ -12,7 +41,7 @@ struct _Displaybar {
 	 */
 	Imagewindow *win;
 
-	/* A ref to the tilesource we are currently controlling. 
+	/* A ref to the tilesource we are currently controlling.
 	 */
 	Tilesource *tilesource;
 
@@ -105,13 +134,13 @@ displaybar_imagewindow_changed(Imagewindow *win, Displaybar *displaybar)
 	if (new_tilesource) {
 		/* Set new source.
 		 */
-		displaybar->changed_sid = g_signal_connect(new_tilesource, 
+		displaybar->changed_sid = g_signal_connect(new_tilesource,
 			"changed",
 			G_CALLBACK(displaybar_tilesource_changed), displaybar);
-		displaybar->tiles_changed_sid = g_signal_connect(new_tilesource, 
+		displaybar->tiles_changed_sid = g_signal_connect(new_tilesource,
 			"tiles-changed",
 			G_CALLBACK(displaybar_tilesource_changed), displaybar);
-		displaybar->page_changed_sid = g_signal_connect(new_tilesource, 
+		displaybar->page_changed_sid = g_signal_connect(new_tilesource,
 			"page-changed",
 			G_CALLBACK(displaybar_page_changed), displaybar);
 
@@ -147,13 +176,11 @@ displaybar_set_property(GObject *object,
 
 	switch (prop_id) {
 	case PROP_IMAGEWINDOW:
-		displaybar_set_imagewindow(displaybar,
-			g_value_get_object(value));
+		displaybar_set_imagewindow(displaybar, g_value_get_object(value));
 		break;
 
 	case PROP_REVEALED:
-		gtk_action_bar_set_revealed(
-			GTK_ACTION_BAR(displaybar->action_bar),
+		gtk_action_bar_set_revealed(GTK_ACTION_BAR(displaybar->action_bar),
 			g_value_get_boolean(value));
 		break;
 
@@ -251,8 +278,6 @@ displaybar_init(Displaybar *displaybar)
 
 	gtk_widget_init_template(GTK_WIDGET(displaybar));
 
-	set_tooltip(GTK_WIDGET(displaybar->page), _("Page select"));
-
 	tslider = TSLIDER(displaybar->scale);
 	tslider_set_conversions(tslider,
 		tslider_log_value_to_slider, tslider_log_slider_to_value);
@@ -262,55 +287,40 @@ displaybar_init(Displaybar *displaybar)
 	tslider->svalue = 128;
 	tslider->digits = 3;
 	tslider_changed(tslider);
-	set_tooltip(GTK_WIDGET(tslider), _("Brightness scale factor"));
 
 	tslider = TSLIDER(displaybar->offset);
 	tslider->from = -128;
 	tslider->to = 128;
 	tslider->value = 0;
 	tslider->svalue = 0;
-	tslider->digits = 1;
+	tslider->digits = 4;
 	tslider_changed(tslider);
-	set_tooltip(GTK_WIDGET(tslider), _("Brightness offset"));
-
-	g_signal_connect(displaybar->page, "value-changed",
-		G_CALLBACK(displaybar_page_value_changed),
-		displaybar);
-	g_signal_connect(displaybar->scale, "changed",
-		G_CALLBACK(displaybar_scale_value_changed),
-		displaybar);
-	g_signal_connect(displaybar->offset, "changed",
-		G_CALLBACK(displaybar_offset_value_changed),
-		displaybar);
 }
-
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Displaybar, field);
 
 static void
 displaybar_class_init(DisplaybarClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
 	printf("displaybar_class_init:\n");
 #endif /*DEBUG*/
 
-	G_OBJECT_CLASS(class)->dispose = displaybar_dispose;
+	BIND_RESOURCE("displaybar.ui");
+	BIND_LAYOUT();
 
-	gtk_widget_class_set_layout_manager_type(widget_class,
-		GTK_TYPE_BIN_LAYOUT);
-	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
-		APP_PATH "/displaybar.ui");
+	BIND_VARIABLE(Displaybar, action_bar);
+	BIND_VARIABLE(Displaybar, gears);
+	BIND_VARIABLE(Displaybar, page);
+	BIND_VARIABLE(Displaybar, scale);
+	BIND_VARIABLE(Displaybar, offset);
+	BIND_VARIABLE(Displaybar, offset);
 
-	BIND(action_bar);
-	BIND(gears);
-	BIND(page);
-	BIND(scale);
-	BIND(offset);
+	BIND_CALLBACK(displaybar_page_value_changed);
+	BIND_CALLBACK(displaybar_scale_value_changed);
+	BIND_CALLBACK(displaybar_offset_value_changed);
 
+	gobject_class->dispose = displaybar_dispose;
 	gobject_class->set_property = displaybar_set_property;
 	gobject_class->get_property = displaybar_get_property;
 

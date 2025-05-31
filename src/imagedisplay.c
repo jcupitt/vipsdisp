@@ -1,3 +1,32 @@
+/* display an image in a drawingarea
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+ */
+
 #include "vipsdisp.h"
 
 /*
@@ -57,6 +86,11 @@ struct _Imagedisplay {
 	/* _layout will pick a scale to fit the image to the window.
 	 */
 	gboolean bestfit;
+
+	/* This is set to enable screen paints, for example if a widget is
+	 * mapped or has been scrolled into view.
+	 */
+	gboolean enable;
 };
 
 /* imagedisplay is actually a drawing area the size of the widget on screen: we
@@ -66,7 +100,7 @@ G_DEFINE_TYPE_WITH_CODE(Imagedisplay, imagedisplay, GTK_TYPE_DRAWING_AREA,
 	G_IMPLEMENT_INTERFACE(GTK_TYPE_SCROLLABLE, NULL));
 
 enum {
-	/* Set the tilecache we display.
+	/* Set the tilesource we display.
 	 */
 	PROP_TILESOURCE = 1,
 
@@ -77,7 +111,7 @@ enum {
 	PROP_VADJUSTMENT,
 	PROP_VSCROLL_POLICY,
 
-	/* We need bestfit off for eg. suplicate.
+	/* We need bestfit off for eg. duplicate.
 	 */
 	PROP_BESTFIT,
 
@@ -95,7 +129,8 @@ enum {
 };
 
 enum {
-	SIG_CHANGED, /* x/y/scale has changed */
+	SIG_CHANGED,  /* x/y/scale has changed */
+	SIG_SNAPSHOT, /* draw overlays */
 	SIG_LAST
 };
 
@@ -120,6 +155,14 @@ static void
 imagedisplay_changed(Imagedisplay *imagedisplay)
 {
 	g_signal_emit(imagedisplay, imagedisplay_signals[SIG_CHANGED], 0);
+}
+
+static void
+imagedisplay_overlay_snapshot(Imagedisplay *imagedisplay,
+	GtkSnapshot *snapshot)
+{
+	g_signal_emit(imagedisplay,
+		imagedisplay_signals[SIG_SNAPSHOT], 0, snapshot);
 }
 
 static void
@@ -264,13 +307,6 @@ imagedisplay_layout(Imagedisplay *imagedisplay)
 		!imagedisplay->widget_rect.height)
 		return;
 
-	/* If there's no image yet, we can't do anything.
-	 */
-	if (!imagedisplay->tilecache)
-		return;
-
-	/* Do this the first time we have the image.
-	 */
 	if (imagedisplay->bestfit) {
 		double hscale = (double) imagedisplay->widget_rect.width /
 			imagedisplay->image_rect.width;
@@ -286,8 +322,6 @@ imagedisplay_layout(Imagedisplay *imagedisplay)
 		printf("imagedisplay_layout: bestfit sets scale = %g\n",
 			imagedisplay->scale);
 #endif /*DEBUG*/
-
-		imagedisplay->bestfit = FALSE;
 	}
 
 	imagedisplay->paint_rect.width = VIPS_MIN(
@@ -344,54 +378,110 @@ imagedisplay_tilecache_tiles_changed(Tilecache *tilecache,
 
 static void
 imagedisplay_tilecache_area_changed(Tilecache *tilecache,
-	VipsRect *dirty, int z, Imagedisplay *imagedisplay)
+       VipsRect *dirty, int z, Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG_VERBOSE
-	printf("imagedisplay_tilecache_area_changed: "
-		   "at %d x %d, size %d x %d, z = %d\n",
-		dirty->left, dirty->top,
-		dirty->width, dirty->height,
-		z);
+       printf("imagedisplay_tilecache_area_changed: "
+                  "at %d x %d, size %d x %d, z = %d\n",
+               dirty->left, dirty->top,
+               dirty->width, dirty->height,
+               z);
 #endif /*DEBUG_VERBOSE*/
 
-	/* Sadly, gtk4 only has this and we can't redraw areas. Perhaps we
-	 * could just regenerate part of the snapshot?
+       /* Sadly, gtk4 only has this and we can't redraw areas. Perhaps we
+        * could just regenerate part of the snapshot?
+        */
+       gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
+}
+
+static void
+imagedisplay_set_tilesource(Imagedisplay *imagedisplay, Tilesource *tilesource)
+{
+	VIPS_UNREF(imagedisplay->tilesource);
+
+	if (tilesource) {
+		imagedisplay->tilesource = tilesource;
+		g_object_ref(imagedisplay->tilesource);
+	}
+
+	if (imagedisplay->tilecache)
+		g_object_set(imagedisplay->tilecache,
+			"tilesource", tilesource,
+			NULL);
+
+	/* Do initial paint.
 	 */
 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
 }
 
-static void
-imagedisplay_set_tilesource(Imagedisplay *imagedisplay,
-	Tilesource *tilesource)
+#ifdef DEBUG
+static const char *
+imagedisplay_property_name(guint prop_id)
 {
-	VIPS_UNREF(imagedisplay->tilecache);
-	VIPS_UNREF(imagedisplay->tilesource);
+	switch (prop_id) {
+	case PROP_TILESOURCE:
+		return "TILESOURCE";
+		break;
 
-	imagedisplay->tilesource = tilesource;
-	g_object_ref(imagedisplay->tilesource);
+	case PROP_HADJUSTMENT:
+		return "HADJUSTMENT";
+		break;
 
-	imagedisplay->tilecache = tilecache_new(imagedisplay->tilesource);
+	case PROP_HSCROLL_POLICY:
+		return "HSCROLL_POLICY";
+		break;
 
-	g_signal_connect_object(imagedisplay->tilecache, "changed",
-		G_CALLBACK(imagedisplay_tilecache_changed),
-		imagedisplay, 0);
-	g_signal_connect_object(imagedisplay->tilecache, "tiles-changed",
-		G_CALLBACK(imagedisplay_tilecache_tiles_changed),
-		imagedisplay, 0);
-	g_signal_connect_object(imagedisplay->tilecache, "area-changed",
-		G_CALLBACK(imagedisplay_tilecache_area_changed),
-		imagedisplay, 0);
+	case PROP_VADJUSTMENT:
+		return "VADJUSTMENT";
+		break;
 
-	/* Do initial change to init.
-	 */
-	imagedisplay_tilecache_changed(imagedisplay->tilecache, imagedisplay);
+	case PROP_VSCROLL_POLICY:
+		return "VSCROLL_POLICY";
+		break;
+
+	case PROP_BESTFIT:
+		return "BESTFIT";
+		break;
+
+	case PROP_BACKGROUND:
+		return "BACKGROUND";
+		break;
+
+	case PROP_ZOOM:
+		return "ZOOM";
+		break;
+
+	case PROP_X:
+		return "X";
+		break;
+
+	case PROP_Y:
+		return "Y";
+		break;
+
+	case PROP_DEBUG:
+		return "DEBUG";
+		break;
+
+	default:
+		return "<unknown>";
+	}
 }
+#endif /*DEBUG*/
 
 static void
 imagedisplay_set_property(GObject *object,
 	guint prop_id, const GValue *value, GParamSpec *pspec)
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) object;
+
+#ifdef DEBUG
+	{
+		g_autofree char *str = g_strdup_value_contents(value);
+		printf("imagedisplay_set_property: %s = %s\n",
+			imagedisplay_property_name(prop_id), str);
+	}
+#endif /*DEBUG*/
 
 	switch (prop_id) {
 	case PROP_HADJUSTMENT:
@@ -451,6 +541,7 @@ imagedisplay_set_property(GObject *object,
 		break;
 
 	case PROP_ZOOM:
+		g_object_set(imagedisplay, "bestfit", FALSE, NULL);
 		imagedisplay_set_transform(imagedisplay,
 			g_value_get_double(value),
 			imagedisplay->x,
@@ -460,6 +551,7 @@ imagedisplay_set_property(GObject *object,
 		break;
 
 	case PROP_X:
+		g_object_set(imagedisplay, "bestfit", FALSE, NULL);
 		imagedisplay_set_transform(imagedisplay,
 			imagedisplay->scale,
 			g_value_get_double(value),
@@ -468,6 +560,7 @@ imagedisplay_set_property(GObject *object,
 		break;
 
 	case PROP_Y:
+		g_object_set(imagedisplay, "bestfit", FALSE, NULL);
 		imagedisplay_set_transform(imagedisplay,
 			imagedisplay->scale,
 			imagedisplay->x,
@@ -568,10 +661,13 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 			&imagedisplay->paint_rect,
 			imagedisplay->debug);
 
+	// draw any overlays
+	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
+
 	gtk_snapshot_pop(snapshot);
 
-	/* I couldn't get gtkwindow to draw the focus rectangle for us, so draw it
-	 * ourselves.
+	/* It's unclear how to do this :( maybe we're supposed to get the base
+	 * widget class to do it? Draw it ourselves for now.
 	 */
 	if (gtk_widget_has_focus(widget)) {
 		GskRoundedRect outline;
@@ -640,8 +736,6 @@ imagedisplay_init(Imagedisplay *imagedisplay)
 		G_CALLBACK(imagedisplay_resize), NULL);
 
 	gtk_widget_set_focusable(GTK_WIDGET(imagedisplay), TRUE);
-	gtk_widget_set_can_focus(GTK_WIDGET(imagedisplay), TRUE);
-
 	controller = gtk_event_controller_focus_new();
 	gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
 	g_signal_connect(controller, "notify::is-focus",
@@ -653,6 +747,20 @@ imagedisplay_init(Imagedisplay *imagedisplay)
 	gtk_widget_add_controller(GTK_WIDGET(imagedisplay), controller);
 
 	imagedisplay->bestfit = TRUE;
+
+	// the tilesource attaches to the tilecache in
+	// imagedisplay_set_tilesource()
+	imagedisplay->tilecache = tilecache_new();
+
+	g_signal_connect_object(imagedisplay->tilecache, "changed",
+		G_CALLBACK(imagedisplay_tilecache_changed),
+		imagedisplay, 0);
+	g_signal_connect_object(imagedisplay->tilecache, "tiles-changed",
+		G_CALLBACK(imagedisplay_tilecache_tiles_changed),
+		imagedisplay, 0);
+	g_signal_connect_object(imagedisplay->tilecache, "area-changed",
+		G_CALLBACK(imagedisplay_tilecache_area_changed),
+		imagedisplay, 0);
 }
 
 static void
@@ -672,7 +780,7 @@ imagedisplay_class_init(ImagedisplayClass *class)
 	widget_class->snapshot = imagedisplay_snapshot;
 
 	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
-		g_param_spec_object("tile-source",
+		g_param_spec_object("tilesource",
 			_("Tile source"),
 			_("The tile source to be displayed"),
 			TILESOURCE_TYPE,
@@ -737,6 +845,15 @@ imagedisplay_class_init(ImagedisplayClass *class)
 		NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
+
+	imagedisplay_signals[SIG_SNAPSHOT] = g_signal_new("snapshot",
+		G_TYPE_FROM_CLASS(class),
+		G_SIGNAL_RUN_LAST,
+		0,
+		NULL, NULL,
+		g_cclosure_marshal_VOID__OBJECT,
+		G_TYPE_NONE, 1,
+		GTK_TYPE_SNAPSHOT);
 }
 
 Imagedisplay *
@@ -749,7 +866,7 @@ imagedisplay_new(Tilesource *tilesource)
 #endif /*DEBUG*/
 
 	imagedisplay = g_object_new(imagedisplay_get_type(),
-		"tile-source", tilesource,
+		"tilesource", tilesource,
 		NULL);
 
 	return imagedisplay;
@@ -766,11 +883,9 @@ imagedisplay_image_to_gtk(Imagedisplay *imagedisplay,
 	double x_image, double y_image, double *x_gtk, double *y_gtk)
 {
 	*x_gtk = x_image * imagedisplay->scale -
-		imagedisplay->x +
-		imagedisplay->paint_rect.left;
+		imagedisplay->x + imagedisplay->paint_rect.left;
 	*y_gtk = y_image * imagedisplay->scale -
-		imagedisplay->y +
-		imagedisplay->paint_rect.top;
+		imagedisplay->y + imagedisplay->paint_rect.top;
 }
 
 void
@@ -778,16 +893,12 @@ imagedisplay_gtk_to_image(Imagedisplay *imagedisplay,
 	double x_gtk, double y_gtk, double *x_image, double *y_image)
 {
 	*x_image = (imagedisplay->x +
-				   x_gtk -
-				   imagedisplay->paint_rect.left) /
+				   x_gtk - imagedisplay->paint_rect.left) /
 		imagedisplay->scale;
 	*y_image = (imagedisplay->y +
-				   y_gtk -
-				   imagedisplay->paint_rect.top) /
+				   y_gtk - imagedisplay->paint_rect.top) /
 		imagedisplay->scale;
 
-	*x_image = VIPS_CLIP(0, *x_image,
-		imagedisplay->image_rect.width - 1);
-	*y_image = VIPS_CLIP(0, *y_image,
-		imagedisplay->image_rect.height - 1);
+	*x_image = VIPS_CLIP(0, *x_image, imagedisplay->image_rect.width - 1);
+	*y_image = VIPS_CLIP(0, *y_image, imagedisplay->image_rect.height - 1);
 }

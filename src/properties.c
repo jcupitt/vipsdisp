@@ -1,3 +1,32 @@
+/* show image properties
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+*/
+
 /*
 #define DEBUG
  */
@@ -324,15 +353,7 @@ properties_init(Properties *p)
 #endif
 
 	gtk_widget_init_template(GTK_WIDGET(p));
-
-	g_signal_connect(p->search_entry,
-		"search-changed",
-		G_CALLBACK(properties_search_changed), p);
 }
-
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Properties, field);
 
 /* Initialize PropertiesClass, which GObject defines for us if we used the
  * boilerplate macros and code correctly.
@@ -345,29 +366,27 @@ static void
 properties_class_init(PropertiesClass *class)
 {
 	GObjectClass *gobject_class = G_OBJECT_CLASS(class);
-	GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(class);
 
 #ifdef DEBUG
 	printf("properties_class_init:\n");
 #endif
 
+	BIND_RESOURCE("properties.ui");
+	BIND_LAYOUT();
+
+	BIND_VARIABLE(Properties, revealer);
+	BIND_VARIABLE(Properties, properties);
+	BIND_VARIABLE(Properties, search_entry);
+	BIND_VARIABLE(Properties, scrolled_window);
+
+	BIND_CALLBACK(properties_search_changed);
+
 	gobject_class->dispose = properties_dispose;
-
-	gtk_widget_class_set_layout_manager_type(widget_class,
-		GTK_TYPE_BIN_LAYOUT);
-	gtk_widget_class_set_template_from_resource(widget_class,
-		APP_PATH "/properties.ui");
-
-	BIND(revealer);
-	BIND(properties);
-	BIND(search_entry);
-	BIND(scrolled_window);
-
 	gobject_class->set_property = properties_set_property;
 	gobject_class->get_property = properties_get_property;
 
 	g_object_class_install_property(gobject_class, PROP_TILESOURCE,
-		g_param_spec_object("tile-source",
+		g_param_spec_object("tilesource",
 			_("Tile source"),
 			_("The tile source whose properties we display"),
 			TILESOURCE_TYPE,

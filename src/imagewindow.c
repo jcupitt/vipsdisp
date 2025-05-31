@@ -410,8 +410,6 @@ imagewindow_reset_view(Imagewindow *win)
 {
 	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
-	printf("imagewindow_reset_view:\n");
-
 	if (tilesource) {
 		g_object_set(tilesource,
 			"falsecolour", FALSE,
@@ -689,7 +687,7 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 			NULL);
 
 	g_object_set(win->properties,
-		"tile-source", new_tilesource,
+		"tilesource", new_tilesource,
 		NULL);
 
 	/* Update title and subtitle.
@@ -718,8 +716,7 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 				vips_enum_nick(VIPS_TYPE_INTERPRETATION, image->Type));
 		else
 			vips_buf_appendf(&buf, "%s",
-				vips_enum_nick(VIPS_TYPE_CODING,
-					vips_image_get_coding(image)));
+				vips_enum_nick(VIPS_TYPE_CODING, vips_image_get_coding(image)));
 		vips_buf_appends(&buf, ", ");
 
 		vips_buf_append_size( &buf, 
@@ -733,8 +730,7 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 		gtk_label_set_text(GTK_LABEL(win->subtitle), "");
 
 	if (imageui) {
-		printf("imagewindow_imageui_set_visible: FIXME ... "
-			"set_transition_type can stack overflow for some transitions\n");
+		// set_transition_type can stack overflow for some transitions
 		// gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
 		gtk_stack_set_transition_type(GTK_STACK(win->stack), 
                 GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
@@ -1074,45 +1070,6 @@ imagewindow_reload_action(GSimpleAction *action,
 	}
 }
 
-static void
-imagewindow_duplicate_action(GSimpleAction *action,
-	GVariant *parameter, gpointer user_data)
-{
-	Imagewindow *win = IMAGEWINDOW(user_data);
-	GtkStackTransitionType transition = GTK_STACK_TRANSITION_TYPE_NONE;
-
-	VipsdispApp *app;
-	Imagewindow *new_win;
-	int width, height;
-
-	g_object_get(win, "application", &app, NULL);
-	new_win = imagewindow_new(app);
-
-	new_win->n_files = win->n_files;
-	new_win->files = g_strdupv(win->files);
-	new_win->current_file = win->current_file;
-
-	gtk_window_get_default_size(GTK_WINDOW(win), &width, &height);
-	gtk_window_set_default_size(GTK_WINDOW(new_win), width, height);
-
-	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "control");
-	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "info");
-	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "properties");
-	copy_state(GTK_WIDGET(new_win), GTK_WIDGET(win), "background");
-
-	if (win->imageui) {
-		Tilesource *tilesource = imageui_get_tilesource(win->imageui);
-		g_autoptr(Tilesource) new_tilesource = 
-			tilesource_duplicate(tilesource);
-		Imageui *new_imageui = imageui_duplicate(new_tilesource, win->imageui);
-
-		imagewindow_imageui_add(new_win, new_imageui);
-		imagewindow_imageui_set_visible(new_win, new_imageui, transition);
-	}
-
-	gtk_window_present(GTK_WINDOW(new_win));
-}
-
 static GFile *
 get_parent(GFile *file)
 {
@@ -1182,18 +1139,6 @@ imagewindow_replace_action(GSimpleAction *action,
 }
 
 static void
-imagewindow_saveas_options_response(GtkDialog *dialog,
-	gint response, gpointer user_data)
-{
-	if (response == GTK_RESPONSE_ACCEPT ||
-		response == GTK_RESPONSE_CANCEL)
-		gtk_window_destroy(GTK_WINDOW(dialog));
-
-	// other return codes are intermediate stages of processing and we
-	// should do nothing
-}
-
-static void
 imagewindow_on_file_save_cb(GObject *source_object,
 	GAsyncResult *res, gpointer user_data)
 {
@@ -1203,31 +1148,25 @@ imagewindow_on_file_save_cb(GObject *source_object,
 
 	g_autoptr(GFile) file = gtk_file_dialog_save_finish(dialog, res, NULL);
 	if (file && tilesource) {
-		SaveOptions *options;
-
 		// note the save directory for next time
 		VIPS_UNREF(win->save_folder);
 		win->save_folder = get_parent(file);
 
 		g_autofree char *filename = g_file_get_path(file);
 
-		options = save_options_new(GTK_WINDOW(win),
-			tilesource_get_base_image(tilesource), filename);
-
+		VipsImage *image = tilesource_get_base_image(tilesource);
+		SaveOptions *options = 
+			save_options_new(GTK_WINDOW(win), image, filename);
 		if (!options) {
 			imagewindow_error(win);
 			return;
 		}
 
-		g_signal_connect_object(options, "response",
-			G_CALLBACK(imagewindow_saveas_options_response),
-			NULL, 0);
-
 		gtk_window_present(GTK_WINDOW(options));
 	}
 }
 
-static void
+void
 imagewindow_saveas_action(GSimpleAction *action,
 	GVariant *parameter, gpointer user_data)
 {
@@ -1235,9 +1174,7 @@ imagewindow_saveas_action(GSimpleAction *action,
 	Tilesource *tilesource = imagewindow_get_tilesource(win);
 
 	if (tilesource) {
-		GtkFileDialog *dialog;
-
-		dialog = gtk_file_dialog_new();
+		GtkFileDialog *dialog = gtk_file_dialog_new();
 		gtk_file_dialog_set_title(dialog, "Save file");
 		gtk_file_dialog_set_modal(dialog, TRUE);
 
@@ -1531,7 +1468,6 @@ static GActionEntry imagewindow_entries[] = {
 	{ "oneone", imagewindow_oneone_action },
 
 	{ "reload", imagewindow_reload_action },
-	{ "duplicate", imagewindow_duplicate_action },
 	{ "replace", imagewindow_replace_action },
 	{ "saveas", imagewindow_saveas_action },
 	{ "close", imagewindow_close_action },

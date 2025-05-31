@@ -44,6 +44,7 @@ G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
 #include "enumtypes.h"
 #include "gtkutil.h"
+#include "ientry.h"
 #include "tslider.h"
 #include "vipsdispapp.h"
 #include "vipsdispmarshal.h"

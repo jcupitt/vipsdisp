@@ -4,15 +4,19 @@
   </object>
 
   <template class="Tslider" parent="GtkWidget">
+    <!-- no point going smaller than this -->
+    <property name="width-request">150</property>
+
     <child>
       <object class="GtkBox" id="box">
         <property name="orientation">horizontal</property>
         <property name="spacing">2</property>
 
         <child>
-          <object class="GtkEntry" id="entry">
-            <property name="max-width-chars">5</property>
-            <property name="input-purpose">digits</property>
+          <object class="iEntry" id="entry">
+            <property name="width-chars">5</property>
+            <signal name="changed" handler="tslider_ientry_changed"/>
+            <signal name="activate" handler="tslider_ientry_activate"/>
           </object>
         </child>
 

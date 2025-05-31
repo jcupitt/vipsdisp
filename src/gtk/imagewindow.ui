@@ -46,10 +46,6 @@
         <attribute name='action'>app.new</attribute>
       </item>
       <item>
-        <attribute name='label' translatable='yes'>Duplicate window</attribute>
-        <attribute name='action'>win.duplicate</attribute>
-      </item>
-      <item>
         <attribute name='label' translatable='yes'>Next page</attribute>
         <attribute name='action'>win.next</attribute>
       </item>

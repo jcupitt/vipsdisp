@@ -1,3 +1,32 @@
+/* generate tiles
+ */
+
+/*
+
+	Copyright (C) 1991-2003 The National Gallery
+
+	This program is free software; you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation; either version 2 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License along
+	with this program; if not, write to the Free Software Foundation, Inc.,
+	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+ */
+
+/*
+
+	These files are distributed with VIPS - http://www.vips.ecs.soton.ac.uk
+
+ */
+
 #ifndef __TILESOURCE_H
 #define __TILESOURCE_H
 
@@ -107,6 +136,10 @@ typedef struct _Tilesource {
 	VipsImage *image;
 	VipsRegion *image_region;
 
+	/* If set, there's no background display.
+	 */
+	gboolean synchronous;
+
 	/* What sort of image we have, and how we are displaying it.
 	 */
 	TilesourceType type;
@@ -121,11 +154,15 @@ typedef struct _Tilesource {
 	gboolean page_pyramid;
 
 	/* Basic image geometry. The tilecache pyramid is based on this.
+	 *
+	 * This is after things like hist_plot, so width and height may not match
+	 * image->XSize etc.
 	 */
 	int width;
 	int height;
 	int bands;
 	int n_pages;
+	int page_height;
 	int n_subifds;
 	int *delay;
 	int n_delay;
@@ -200,6 +237,10 @@ typedef struct _Tilesource {
 	int load_error;
 	char *load_message;
 
+	/* Render priority ... lower for thumbnails.
+	 */
+	int priority;
+
 } Tilesource;
 
 typedef struct _TilesourceClass {
@@ -221,14 +262,20 @@ typedef struct _TilesourceClass {
 	 */
 	void (*tiles_changed)(Tilesource *tilesource);
 
-	/* A set of tiles on a certain level have new pixels now that a
-	 * background render has completed.
+	/* A tile has been computed by a bg worker and must be collected from the
+	 * end of the pipeline.
 	 */
-	void (*area_changed)(Tilesource *tilesource, VipsRect *area, int z);
+	void (*collect)(Tilesource *tilesource, VipsRect *area, int z);
 
 	/* The page has changed. Just for updating the page number display.
 	 */
 	void (*page_changed)(Tilesource *tilesource);
+
+	/* The image has loaded and you can fetch pixels (ie. you should repaint,
+	 * but don't invalidate any cache, since the pixels will not have changed
+	 * since last time).
+	 */
+	void (*loaded)(Tilesource *tilesource);
 
 } TilesourceClass;
 
@@ -241,7 +288,8 @@ Tilesource *tilesource_new_from_image(VipsImage *image);
 
 void tilesource_background_load(Tilesource *tilesource);
 
-int tilesource_fill_tile(Tilesource *tilesource, Tile *tile);
+int tilesource_request_tile(Tilesource *tilesource, Tile *tile);
+int tilesource_collect_tile(Tilesource *tilesource, Tile *tile);
 
 const char *tilesource_get_path(Tilesource *tilesource);
 GFile *tilesource_get_file(Tilesource *tilesource);
@@ -252,5 +300,7 @@ gboolean tilesource_get_pixel(Tilesource *tilesource,
 	int image_x, int image_y, double **vector, int *n);
 Tilesource *tilesource_duplicate(Tilesource *tilesource);
 void tilesource_changed(Tilesource *tilesource);
+
+void tilesource_set_synchronous(Tilesource *source, gboolean synchronous);
 
 #endif /*__TILESOURCE_H*/
