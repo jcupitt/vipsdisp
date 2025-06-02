@@ -1,8 +1,11 @@
 master
 
+## 4.0.0 31/05/25
+
 - much better performance for images which are very tall and thin or very wide 
   and narrow
 - better antialiasing [Linden6]
+- copy over improvements from nip4 development
 
 ## 3.1.0 28/10/24
 
