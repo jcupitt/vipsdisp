@@ -180,7 +180,7 @@ infobar_status_value_set_array(Infobar *infobar, double *d)
 typedef struct _PixelUpdate {
 	// what we update, where we get the pixel data
 	Infobar *infobar;
-	Tilesource *tilesource;
+	VipsImage *image;
 
 	// fetch params
 	int image_x;
@@ -196,7 +196,7 @@ infobar_update_free(PixelUpdate *update)
 	update->infobar->updating = FALSE;
 
 	VIPS_UNREF(update->infobar);
-	VIPS_UNREF(update->tilesource);
+	VIPS_UNREF(update->image);
 	VIPS_FREE(update->vector);
 	VIPS_FREE(update);
 }
@@ -220,9 +220,22 @@ static void
 infobar_get_pixel(void *a, void *b)
 {
 	PixelUpdate *update = (PixelUpdate *) a;
+	VipsImage *image = update->image;
 
-	update->result = tilesource_get_pixel(update->tilesource,
-		update->image_x, update->image_y, &update->vector, &update->n);
+	/* Block outside the image.
+	 */
+	if (update->image_x >= 0 &&
+		update->image_y >= 0 &&
+		update->image_x < image->Xsize &&
+		update->image_y < image->Ysize)
+		/* Fetch from image, even though this can be very slow.
+		 * This is run in a bg thread, so speed should not matter too much.
+		 */
+		update->result = !vips_getpoint(image,
+				&update->vector, &update->n,
+				update->image_x, update->image_y,
+				"unpack_complex", TRUE,
+				NULL);
 
 	g_idle_add(infobar_update_pixel_idle, update);
 }
@@ -232,18 +245,24 @@ static void
 infobar_update_pixel(Infobar *infobar,
 	Tilesource *tilesource, double image_x, double image_y)
 {
-	if (!infobar->updating) {
-		PixelUpdate *update = g_new0(PixelUpdate, 1);
-
-		update->infobar = infobar;
-		update->tilesource = tilesource;
-		update->image_x = image_x;
-		update->image_y = image_y;
+	if (!infobar->updating &&
+		tilesource->image) {
 		infobar->updating = TRUE;
+
+		PixelUpdate *update = g_new0(PixelUpdate, 1);
+		update->infobar = infobar;
+		update->image = tilesource->image;
+
+		/* Currently in level0 image coordinates ... we will fetch from
+		 * tilesource->image, the current pyr layer.
+		 */
+		int factor = tilesource->image_width / tilesource->image->Xsize;
+		update->image_x = image_x / factor;
+		update->image_y = image_y / factor;
 
 		// must stay valid until we are done
 		g_object_ref(update->infobar);
-		g_object_ref(update->tilesource);
+		g_object_ref(update->image);
 
 		if (vips_thread_execute("pixel", infobar_get_pixel, update))
 			// if we can't run a bg task, we must free the update
@@ -266,16 +285,16 @@ infobar_status_update(Infobar *infobar)
 
 	Tilesource *tilesource = imagewindow_get_tilesource(infobar->win);
 	imagewindow_get_mouse_position(infobar->win, &image_x, &image_y);
-	image_x = VIPS_CLIP(0, (int) image_x, tilesource->image->Xsize - 1);
-	image_y = VIPS_CLIP(0, (int) image_y, tilesource->image->Ysize - 1);
 
-	vips_buf_appendf(&buf, "%d", (int) image_x);
-	gtk_label_set_text(GTK_LABEL(infobar->x), vips_buf_all(&buf));
-	vips_buf_rewind(&buf);
+	if (tilesource->image) {
+		vips_buf_appendf(&buf, "%d", (int) image_x);
+		gtk_label_set_text(GTK_LABEL(infobar->x), vips_buf_all(&buf));
+		vips_buf_rewind(&buf);
 
-	vips_buf_appendf(&buf, "%d", (int) image_y);
-	gtk_label_set_text(GTK_LABEL(infobar->y), vips_buf_all(&buf));
-	vips_buf_rewind(&buf);
+		vips_buf_appendf(&buf, "%d", (int) image_y);
+		gtk_label_set_text(GTK_LABEL(infobar->y), vips_buf_all(&buf));
+		vips_buf_rewind(&buf);
+	}
 
 	double zoom = imagewindow_get_zoom(infobar->win);
 	vips_buf_appendf(&buf, "Magnification %d%%", (int) rint(zoom * 100));

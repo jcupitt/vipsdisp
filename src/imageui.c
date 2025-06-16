@@ -46,6 +46,19 @@
  */
 #define ZOOM_DURATION (0.5)
 
+/* Snap if closer than this.
+ */
+const int imageui_snap_threshold = 10;
+
+/* Drag state machine.
+ */
+typedef enum {
+	IMAGEUI_WAIT,	/* Waiting for left down */
+	IMAGEUI_SELECT, /* Manipulating a selected region */
+	IMAGEUI_SCROLL, /* Drag-scrolling the iamge */
+	IMAGEUI_CREATE, /* Dragging out a new region */
+} ImageuiState;
+
 struct _Imageui {
 	GtkWidget parent_instance;
 
@@ -81,16 +94,18 @@ struct _Imageui {
 	double zoom_x;
 	double zoom_y;
 
+	/* Interaction state.
+	 */
+	ImageuiState state;
+
 	/* TRUE for an eased zoom (eg. magin), FALSE for a continuous zoom (eg.
 	 * 'i').
 	 */
 	gboolean eased;
 
-	/* Drag scroll.
-	 */
-	int window_left;	 	/* Window position at start of scroll */
+	int window_left;		/* Window position at start of scroll */
 	int window_top;
-	int start_x; 			/* Mouse position at start of scroll */
+	int start_x;			/* Mouse position at start of scroll */
 	int start_y;
 
 	GtkWidget *scrolled_window;
@@ -514,10 +529,8 @@ imageui_bestfit(Imageui *imageui)
 	int widget_width = gtk_widget_get_width(imageui->scrolled_window);
 	int widget_height = gtk_widget_get_height(imageui->scrolled_window);
 
-	double hzoom = (double) widget_width /
-		imageui->tilesource->display_width;
-	double vzoom = (double) widget_height /
-		imageui->tilesource->display_height;
+	double hzoom = (double) widget_width / imageui->tilesource->image_width;
+	double vzoom = (double) widget_height / imageui->tilesource->image_height;
 	double zoom = VIPS_MIN(hzoom, vzoom);
 
 	imageui_zoom_to_eased(imageui, zoom * imageui->tilesource->zoom);
@@ -592,21 +605,30 @@ imageui_scale(Imageui *imageui)
 	VipsImage *image;
 
 	if ((image = tilesource_get_image(imageui->tilesource))) {
-		double image_zoom;
+		/* Get the view rect in level0 coordinates.
+		 */
+		double image_zoom = imageui_get_zoom(imageui);
 		int left, top, width, height;
-		double scale, offset;
-
-		image_zoom = imageui_get_zoom(imageui);
 		imageui_get_position(imageui, &left, &top, &width, &height);
+
 		left /= image_zoom;
 		top /= image_zoom;
 		width /= image_zoom;
 		height /= image_zoom;
 
+		/* image is scaled down by current_z, so we must scale the rect by
+		 * that.
+		 */
+		left /= 1 << imageui->tilesource->current_z;
+		top /= 1 << imageui->tilesource->current_z;
+		width /= 1 << imageui->tilesource->current_z;
+		height /= 1 << imageui->tilesource->current_z;
+
 		/* FIXME ... this will be incredibly slow, esp. for large
 		 * images. Instead, it would be better to just search the
 		 * cached tiles we have.
 		 */
+		double scale, offset;
 		if (imageui_find_scale(image,
 				left, top, width, height, &scale, &offset))
 			return FALSE;
@@ -834,8 +856,35 @@ imageui_drag_update(GtkEventControllerMotion *self,
 		offset_x, offset_y);
 #endif /*DEBUG_VERBOSE*/
 
-	imageui_set_position(imageui,
-		imageui->window_left - offset_x, imageui->window_top - offset_y);
+	switch (imageui->state) {
+	case IMAGEUI_WAIT:
+		if (fabs(offset_x) > 5 ||
+			fabs(offset_y) > 5)
+			imageui->state = IMAGEUI_SCROLL;
+		break;
+
+	case IMAGEUI_SCROLL:
+		imageui_set_position(imageui,
+			imageui->window_left - offset_x, imageui->window_top - offset_y);
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void
+imageui_drag_end(GtkEventControllerMotion *self,
+	gdouble offset_x, gdouble offset_y, gpointer user_data)
+{
+	Imageui *imageui = IMAGEUI(user_data);
+
+#ifdef DEBUG_VERBOSE
+	printf("imageui_drag_end: offset_x = %g, offset_y = %g\n",
+		offset_x, offset_y);
+#endif /*DEBUG_VERBOSE*/
+
+	imageui->state = IMAGEUI_WAIT;
 }
 
 static void
@@ -916,6 +965,7 @@ imageui_class_init(ImageuiClass *class)
 
 	BIND_CALLBACK(imageui_drag_begin);
 	BIND_CALLBACK(imageui_drag_update);
+	BIND_CALLBACK(imageui_drag_end);
 	BIND_CALLBACK(imageui_key_pressed);
 	BIND_CALLBACK(imageui_key_released);
 	BIND_CALLBACK(imageui_motion);
@@ -968,6 +1018,7 @@ imageui_class_init(ImageuiClass *class)
 		NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
+
 }
 
 Imageui *

@@ -59,16 +59,26 @@
  *
  *	All pages are the identical, so we open as a single, tall, thin strip
  *	and the viewer does any presenting as pages / animation / etc. during
- *	conversion to the screen display image.
+ *	conversion to image image.
+ *
  *	These images can have subifd pyramids.
+ *
+ * IMAGE
+ *
+ *  We've been given a VipsImage* to display, held in @base.
  */
 typedef enum _TilesourceType {
 	TILESOURCE_TYPE_MULTIPAGE,
 	TILESOURCE_TYPE_PAGE_PYRAMID,
 	TILESOURCE_TYPE_TOILET_ROLL,
+	TILESOURCE_TYPE_IMAGE,
 } TilesourceType;
 
 /* The modes of image display we support.
+ *
+ * UNSET
+ *
+ *  No saved value (should be set by sniffing the image).
  *
  * TOILET_ROLL
  *
@@ -77,7 +87,7 @@ typedef enum _TilesourceType {
  *
  * MULTIPAGE
  *
- *	Behaviour depends on TilesourceImage:
+ *	Behaviour depends on TilesourceType:
  *
  *	TILESOURCE_TYPE_PAGE_PYRAMID
  *
@@ -98,11 +108,12 @@ typedef enum _TilesourceType {
  *
  * PAGES_AS_BANDS
  *
- *	Just like toilet roll, exccept that we chop the image into pages and
+ *	Just like toilet roll, except that we chop the image into pages and
  *	bandjoin them all. Handy for OME-TIFF, which has a one-band image
  *	in each page.
  */
 typedef enum _TilesourceMode {
+	TILESOURCE_MODE_UNSET,
 	TILESOURCE_MODE_TOILET_ROLL,
 	TILESOURCE_MODE_MULTIPAGE,
 	TILESOURCE_MODE_ANIMATED,
@@ -117,33 +128,43 @@ typedef enum _TilesourceMode {
 typedef struct _Tilesource {
 	GObject parent_instance;
 
+	/* We have four versions of the image we are supplying tiles for :(
+	 *
+	 * - base ... the VipsImage we were given to display, or the result of a
+	 *   plain vips_image_new_from_file() on the filename, if we were given a
+	 *   filename to display. See tilesource_new_from_file() and
+	 *   tilesource_new_from_image().
+	 *
+	 * - image ... an image for the highest res pyr level, so after view mode
+	 *   transforms like histplot, or pages-to-bands. This is used for the
+	 *   infobar pixel display. width/height/bands/format etc can be
+	 *   different
+	 *
+	 * - display ... the image that makes tiles for the currently loaded
+	 *   level.
+	 *
+	 * - rgb ... the display image converted to rgb or rgba.
+	 */
+
 	/* The loader and the file we have loaded from. We may need to reload
-	 * on a zoom or page change.
-	 *
-	 * We can't use a VipsSource since they are not cached and we'd get
-	 * repeated decode on page change.
-	 *
-	 * We can also display a VipsImage, but we can't reload those, of
-	 * course.
+	 * on a zoom or page change. We can't use a VipsSource since they are not
+	 * cached and we'd get repeated decode on page change.
 	 */
 	const char *loader;
 	char *filename;
+
+	/* Either the VipsImage we were given to display, or the result of a
+	 * no-param vips_image_new_from_file() on the filename we are displaying.
+	 *
+	 * Some properties of this base image
+	 */
 	VipsImage *base;
-
-	/* The image we are displaying, and something to fetch pixels from it
-	 * with.
-	 */
-	VipsImage *image;
-	VipsRegion *image_region;
-
-	/* If set, there's no background display.
-	 */
-	gboolean synchronous;
-
-	/* What sort of image we have, and how we are displaying it.
-	 */
-	TilesourceType type;
-	TilesourceMode mode;
+	TilesourceType type;			// what general type of image we have
+	int n_pages;
+	int page_height;
+	int n_subifds;
+	int *delay;
+	int n_delay;
 
 	/* This is a TIFF subifd pyramid.
 	 */
@@ -152,21 +173,6 @@ typedef struct _Tilesource {
 	/* This is a page pyramid (TIFF, jp2k etc.).
 	 */
 	gboolean page_pyramid;
-
-	/* Basic image geometry. The tilecache pyramid is based on this.
-	 *
-	 * This is after things like hist_plot, so width and height may not match
-	 * image->XSize etc.
-	 */
-	int width;
-	int height;
-	int bands;
-	int n_pages;
-	int page_height;
-	int n_subifds;
-	int *delay;
-	int n_delay;
-	double zoom;
 
 	/* If all the pages are the same size and format, we can load as a
 	 * toilet roll.
@@ -178,12 +184,17 @@ typedef struct _Tilesource {
 	 */
 	gboolean all_mono;
 
-	/* For pyramidal formats, we need to read out the size of each level.
-	 * Largest level first.
+	/* The pyramid structure in the file. This isn't the same as the pyr of
+	 * the image being displayed -- OME-TIFFs can be multipage and pyr, for
+	 * example.
 	 */
 	int level_count;
 	int level_width[MAX_LEVELS];
 	int level_height[MAX_LEVELS];
+
+	/* Our display mode.
+	 */
+	TilesourceMode mode;
 
 	/* Display transform parameters.
 	 */
@@ -195,28 +206,42 @@ typedef struct _Tilesource {
 	gboolean log;
 	gboolean icc;
 
-	/* The size of the image with this view mode. So in toilet-roll mode
-	 * (for example), display_height is height * n_pages.
-	 */
-	int display_width;
-	int display_height;
-
-	/* The current z for display, mask, rgb. We need to rebuild the
-	 * pipeline on z changes.
+	/* The current z for image. We need to rebuild the pipeline on z changes.
 	 */
 	int current_z;
 
-	/* The image resized for the display, ie. including shrink & zoom, and
-	 * a cache mask.
+	/* If set, there's no background display. Synchronous mode is used by eg.
+	 * the Colour widget to convert between colourspaces.
 	 */
-	VipsImage *display;
-	VipsImage *mask;
+	gboolean synchronous;
 
-	/* The display image converted to display RGB for painting.
+	/* When we load an SVG we need to pick a base scale to fir it within 32k x
+	 * 32k. Pyr level scales need to be relative to this.
+	 */
+	double zoom;
+
+	/* The base image after the first stage of conversion for display (just
+	 * geometric conversion, no conversion to rgb).
+	 *
+	 * Plus a region to fetch pixel values for the infobar. Except for
+	 * histograms! We need to fetch pixels from base for them.
+	 */
+	VipsImage *image;
+	VipsImage *mask;
+	VipsRegion *image_region;
+	VipsRegion *mask_region;
+
+	/* The size of the level0 image in the current view mode. This is not the
+	 * same as level_width[0], since eg. we might be looking at one page of a
+	 * larger image.
+	 */
+	int image_width;
+	int image_height;
+
+	/* @image converted to rgb for painting.
 	 */
 	VipsImage *rgb;
 	VipsRegion *rgb_region;
-	VipsRegion *mask_region;
 
 	/* For animations, the timeout we use for page flip.
 	 */
@@ -296,8 +321,6 @@ GFile *tilesource_get_file(Tilesource *tilesource);
 
 VipsImage *tilesource_get_image(Tilesource *tilesource);
 VipsImage *tilesource_get_base_image(Tilesource *tilesource);
-gboolean tilesource_get_pixel(Tilesource *tilesource,
-	int image_x, int image_y, double **vector, int *n);
 Tilesource *tilesource_duplicate(Tilesource *tilesource);
 void tilesource_changed(Tilesource *tilesource);
 

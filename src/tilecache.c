@@ -107,22 +107,19 @@ tilecache_dispose(GObject *object)
 static void
 tilecache_changed(Tilecache *tilecache)
 {
-	g_signal_emit(tilecache,
-		tilecache_signals[SIG_CHANGED], 0);
+	g_signal_emit(tilecache, tilecache_signals[SIG_CHANGED], 0);
 }
 
 static void
 tilecache_tiles_changed(Tilecache *tilecache)
 {
-	g_signal_emit(tilecache,
-		tilecache_signals[SIG_TILES_CHANGED], 0);
+	g_signal_emit(tilecache, tilecache_signals[SIG_TILES_CHANGED], 0);
 }
 
 static void
 tilecache_area_changed(Tilecache *tilecache, VipsRect *dirty, int z)
 {
-	g_signal_emit(tilecache,
-		tilecache_signals[SIG_AREA_CHANGED], 0, dirty, z);
+	g_signal_emit(tilecache, tilecache_signals[SIG_AREA_CHANGED], 0, dirty, z);
 }
 
 static void
@@ -190,7 +187,6 @@ tilecache_build_pyramid(Tilecache *tilecache)
 	int n_levels;
 	int level_width;
 	int level_height;
-	int i;
 
 #ifdef DEBUG
 	printf("tilecache_build_pyramid:\n");
@@ -206,8 +202,8 @@ tilecache_build_pyramid(Tilecache *tilecache)
 	 */
 	if (tilecache->levels &&
 		tilecache->levels[0] &&
-		tilesource->display_width == tilecache->levels[0]->Xsize &&
-		tilesource->display_height == tilecache->levels[0]->Ysize) {
+		tilesource->image_width == tilecache->levels[0]->Xsize &&
+		tilesource->image_height == tilecache->levels[0]->Ysize) {
 #ifdef DEBUG
 		printf("\tno geometry change, skipping pyr rebuild\n");
 #endif /*DEBUG*/
@@ -216,12 +212,12 @@ tilecache_build_pyramid(Tilecache *tilecache)
 
 	tilecache_free_pyramid(tilecache);
 
-	/* How many levels? Keep shrinking until we get both axies in one tile. We
+	/* How many levels? Keep shrinking until we get both axes in one tile. We
 	 * need to handle very lopsided images, like LUTs and multi-page images,
 	 * do we must shrink both dimensions.
 	 */
-	level_width = tilesource->display_width;
-	level_height = tilesource->display_height;
+	level_width = tilesource->image_width;
+	level_height = tilesource->image_height;
 	n_levels = 1;
 	for (;;) {
 		if (level_width <= TILE_SIZE &&
@@ -236,9 +232,9 @@ tilecache_build_pyramid(Tilecache *tilecache)
 	tilecache->n_levels = n_levels;
 
 	tilecache->levels = VIPS_ARRAY(NULL, n_levels, VipsImage *);
-	level_width = tilesource->display_width;
-	level_height = tilesource->display_height;
-	for (i = 0; i < n_levels; i++) {
+	level_width = tilesource->image_width;
+	level_height = tilesource->image_height;
+	for (int i = 0; i < n_levels; i++) {
 		tilecache->levels[i] = vips_image_new();
 
 		vips_image_init_fields(tilecache->levels[i],
@@ -261,7 +257,7 @@ tilecache_build_pyramid(Tilecache *tilecache)
 
 #ifdef DEBUG
 	printf("	 %d pyr levels\n", n_levels);
-	for (i = 0; i < n_levels; i++)
+	for (int i = 0; i < n_levels; i++)
 		printf("	 %d) %d x %d\n",
 			i,
 			tilecache->levels[i]->Xsize,

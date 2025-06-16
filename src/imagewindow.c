@@ -136,7 +136,7 @@ imagewindow_set_error(Imagewindow *win, const char *message)
 		err[i - 1] = '\0';
 	gtk_label_set_text(GTK_LABEL(win->error_label), err);
 
-	gtk_info_bar_set_revealed(GTK_INFO_BAR(win->error_bar), TRUE);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->error_bar), TRUE);
 }
 
 static void
@@ -162,7 +162,7 @@ imagewindow_error_hide(Imagewindow *win)
 	printf("imagewindow_error_hide:\n");
 #endif /*DEBUG*/
 
-	gtk_info_bar_set_revealed(GTK_INFO_BAR(win->error_bar), FALSE);
+	gtk_action_bar_set_revealed(GTK_ACTION_BAR(win->error_bar), FALSE);
 }
 
 /* Manage the set of active views.
@@ -839,12 +839,6 @@ imagewindow_cancel_clicked(GtkWidget *button, Imagewindow *win)
 	if ((tilesource = imagewindow_get_tilesource(win)) &&
 		(image = tilesource_get_image(tilesource)))
 		vips_image_set_kill(image, TRUE);
-}
-
-static void
-imagewindow_error_response(GtkWidget *button, int response, Imagewindow *win)
-{
-	imagewindow_error_hide(win);
 }
 
 static GdkTexture *
@@ -1549,8 +1543,6 @@ imagewindow_init(Imagewindow *win)
 
 	g_signal_connect_object(win->progress_cancel, "clicked",
 		G_CALLBACK(imagewindow_cancel_clicked), win, 0);
-	g_signal_connect_object(win->error_bar, "response",
-		G_CALLBACK(imagewindow_error_response), win, 0);
 
 	g_action_map_add_action_entries(G_ACTION_MAP(win),
 		imagewindow_entries, G_N_ELEMENTS(imagewindow_entries),
@@ -1620,6 +1612,12 @@ imagewindow_pressed_cb(GtkGestureClick *gesture,
 	gtk_popover_popup(GTK_POPOVER(win->right_click_menu));
 }
 
+static void
+imagewindow_error_clicked(GtkWidget *button, Imagewindow *win)
+{
+    imagewindow_error_hide(win);
+}
+
 #define BIND(field) \
 	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
 		Imagewindow, field);
@@ -1647,8 +1645,8 @@ imagewindow_class_init(ImagewindowClass *class)
 	BIND(display_bar);
 	BIND(info_bar);
 
-	gtk_widget_class_bind_template_callback(GTK_WIDGET_CLASS(class),
-		imagewindow_pressed_cb);
+	BIND_CALLBACK(imagewindow_pressed_cb);
+	BIND_CALLBACK(imagewindow_error_clicked);
 
 	gobject_class->dispose = imagewindow_dispose;
 

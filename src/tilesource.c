@@ -29,8 +29,8 @@
 
 /*
 #define DEBUG_VERBOSE
-#define DEBUG
 #define DEBUG_MAKE
+#define DEBUG
  */
 
 #include "vipsdisp.h"
@@ -87,12 +87,11 @@ tilesource_dispose(GObject *object)
 
 	VIPS_UNREF(tilesource->base);
 	VIPS_UNREF(tilesource->image);
-	VIPS_UNREF(tilesource->image_region);
-	VIPS_UNREF(tilesource->display);
 	VIPS_UNREF(tilesource->mask);
+	VIPS_UNREF(tilesource->image_region);
+	VIPS_UNREF(tilesource->mask_region);
 	VIPS_UNREF(tilesource->rgb);
 	VIPS_UNREF(tilesource->rgb_region);
-	VIPS_UNREF(tilesource->mask_region);
 
 	VIPS_FREE(tilesource->delay);
 	VIPS_FREE(tilesource->load_message);
@@ -142,8 +141,9 @@ typedef struct _TilesourceUpdate {
 static VipsImage *
 tilesource_open(Tilesource *tilesource, int level)
 {
-	/* In toilet-roll and pages-as-bands modes, we open all pages
-	 * together.
+	/* We open all pages of toilet roll images. We open ->page of multipage
+	 * images, since pages can vary in size (eg. PDF or TIFF) and we can't
+	 * open everything.
 	 */
 	gboolean all_pages = tilesource->type == TILESOURCE_TYPE_TOILET_ROLL;
 	int n = all_pages ? -1 : 1;
@@ -151,7 +151,7 @@ tilesource_open(Tilesource *tilesource, int level)
 
 	VipsImage *image;
 
-	/* Only for tiles_source which have something you can reopen.
+	/* We only come here for tiles_source which have something you can reopen.
 	 */
 	g_assert(tilesource->filename);
 
@@ -189,10 +189,8 @@ tilesource_open(Tilesource *tilesource, int level)
 				"n", n,
 				NULL);
 	}
-	else if (vips_isprefix("jp2k", tilesource->loader) ||
-		vips_isprefix("pdf", tilesource->loader)) {
-		/* These formats only have "page", or have pages that can vary in
-		 * size, making "n" not always useful.
+	else if (vips_isprefix("jp2k", tilesource->loader)) {
+		/* These formats only have "page", no "n".
 		 */
 		if (all_pages)
 			image = NULL;
@@ -201,6 +199,17 @@ tilesource_open(Tilesource *tilesource, int level)
 				"page", level,
 				NULL);
 	}
+	else if (vips_isprefix("pdf", tilesource->loader)) {
+		/* Pages can vary in size, so "n" won't always work.
+		 *
+		 * FIXME ... we should support scale too, see SVG.
+		 */
+		image = vips_image_new_from_file(tilesource->filename,
+			"page", page,
+			"n", n,
+			NULL);
+	}
+
 	else if (vips_isprefix("webp", tilesource->loader) ||
 		vips_isprefix("jxl", tilesource->loader) ||
 		vips_isprefix("gif", tilesource->loader)) {
@@ -213,6 +222,7 @@ tilesource_open(Tilesource *tilesource, int level)
 	}
 	else if (vips_isprefix("svg", tilesource->loader)) {
 		image = vips_image_new_from_file(tilesource->filename,
+			// we need to scale the page by the zoom we picked for this SVG
 			"scale", tilesource->zoom / (1 << level),
 			NULL);
 	}
@@ -236,10 +246,10 @@ tilesource_render_notify_idle(void *user_data)
 	/* Only bother fetching the updated tile if it's from our current
 	 * pipeline.
 	 */
-	if (update->image == tilesource->display)
+	if (update->image == tilesource->image)
 		tilesource_collect(tilesource, &update->rect, update->z);
 
-	/* The update that's just for this one event needs freeing.
+	/* Matches the g_new() in tilesource_render_notify().
 	 */
 	g_free(update);
 
@@ -247,7 +257,7 @@ tilesource_render_notify_idle(void *user_data)
 }
 
 /* Come here from the vips_sink_screen() background thread when a tile has been
- * calculated. This is a bbackground thread, so we add an idle callback
+ * calculated. This is a background thread, so we add an idle callback
  * which will be run by the main thread when it next hits the mainloop.
  */
 static void
@@ -255,7 +265,7 @@ tilesource_render_notify(VipsImage *image, VipsRect *rect, void *client)
 {
 	TilesourceUpdate *update = (TilesourceUpdate *) client;
 
-	/* We're passed an update made by tilesource_display_image() to track
+	/* We're passed an update made by tilesource_image() to track
 	 * just this image. We need one dedicated to this single event.
 	 */
 	TilesourceUpdate *new_update = g_new(TilesourceUpdate, 1);
@@ -271,23 +281,41 @@ tilesource_render_notify(VipsImage *image, VipsRect *rect, void *client)
 	g_idle_add(tilesource_render_notify_idle, new_update);
 }
 
-/* Build the first half of the render pipeline. This ends in the sink_screen
- * which will issue any repaints.
+/* Build the first half of the render pipeline, from @base (or filename) to
+ * @image.
+ *
+ * This ends in the sink_screen which will issue any repaints.
  */
 static VipsImage *
-tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
+tilesource_image(Tilesource *tilesource, VipsImage **mask_out, int current_z)
 {
 	VipsImage *x;
 	VipsImage *mask;
 
 	g_assert(mask_out);
 
+#ifdef DEBUG
+	printf("tilesource_image: current_z = %d\n", current_z);
+#endif /*DEBUG*/
+
 	g_autoptr(VipsImage) image = NULL;
-	if (tilesource->level_count) {
-		/* There's a pyramid ... compute the size of image we need,
-		 * then find the layer which is one larger.
+
+	/* Open the image with any shrink-on-load tricks.
+	 */
+	if (tilesource->type == TILESOURCE_TYPE_IMAGE) {
+		/* We are displaying a VipsImage* and there's no reopen possible.
 		 */
-		int required_width = tilesource->width >> tilesource->current_z;
+		image = tilesource->base;
+		g_object_ref(image);
+
+		tilesource->image_width = image->Xsize;
+		tilesource->image_height = image->Ysize;
+	}
+	else if (tilesource->level_count > 1) {
+		/* There's a pyr, load the best level. This will open all pages, if
+		 * possible.
+		 */
+		int required_width = tilesource->level_width[0] >> current_z;
 
 		int i;
 		int level;
@@ -297,73 +325,95 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 				break;
 		level = VIPS_CLIP(0, i - 1, tilesource->level_count - 1);
 
-#ifdef DEBUG
-		printf("tilesource_display_image: loading level %d\n", level);
-#endif /*DEBUG*/
-
 		if (!(image = tilesource_open(tilesource, level)))
 			return NULL;
-	}
-	else if (tilesource->type == TILESOURCE_TYPE_MULTIPAGE) {
-#ifdef DEBUG
-		printf("tilesource_display_image: loading page %d\n",
-			tilesource->page);
-#endif /*DEBUG*/
 
-		if (!(image = tilesource_open(tilesource, tilesource->page)))
-			return NULL;
+		tilesource->image_width = tilesource->level_width[0];
+		tilesource->image_height = tilesource->level_height[0];
+
+#ifdef DEBUG
+		printf("\tloading level %d\n", level);
+		printf("\t(image->Xsize = %d, image->Ysize = %d)\n",
+			image->Xsize, image->Ysize);
+#endif /*DEBUG*/
 	}
 	else {
-		image = tilesource->image;
-		g_object_ref(image);
+		/* A non-pyramidal image from a file.
+		 */
+
+		// will open all pages, or tilesource->page if this is a multipage
+		// image whose pages vary in size
+		if (!(image = tilesource_open(tilesource, 0)))
+			return NULL;
+
+		tilesource->image_width = image->Xsize;
+		tilesource->image_height = image->Ysize;
+
+#ifdef DEBUG
+		printf("\tloading page %d\n", tilesource->page);
+		printf("\t(image->Xsize = %d, image->Ysize = %d)\n",
+			image->Xsize, image->Ysize);
+#endif /*DEBUG*/
 	}
 
-	/* In multipage display mode, crop out the page we want.
+#ifdef DEBUG
+	printf("\timage_width = %d\n", tilesource->image_width);
+	printf("\timage_height = %d\n", tilesource->image_height);
+#endif /*DEBUG*/
+
+	/* If we have a toilet roll source and we are displaying multipage or
+	 * animated, crop out the page we want.
 	 *
 	 * We need to crop using the page size on image, since it might have
 	 * been shrunk by shrink-on-load above ^^
 	 */
 	if (tilesource->type == TILESOURCE_TYPE_TOILET_ROLL &&
 		(tilesource->mode == TILESOURCE_MODE_MULTIPAGE ||
-			tilesource->mode == TILESOURCE_MODE_ANIMATED)) {
-		int page_width = image->Xsize;
+		 tilesource->mode == TILESOURCE_MODE_ANIMATED)) {
+		// loaders will adjust page_height for shrink-on-load, so we can just
+		// use that
 		int page_height = vips_image_get_page_height(image);
 
 		VipsImage *x;
 
 		if (vips_crop(image, &x,
 				0, tilesource->page * page_height,
-				page_width, page_height, NULL))
+				image->Xsize, page_height, NULL))
 			return NULL;
 		VIPS_UNREF(image);
 		image = x;
+
+		// only showing one page now
+		tilesource->image_height /= tilesource->n_pages;
+
+#ifdef DEBUG
+		printf("\tcropping page %d\n", tilesource->page);
+		printf("\t(image->Xsize = %d, image->Ysize = %d)\n",
+			image->Xsize, image->Ysize);
+#endif /*DEBUG*/
 	}
 
 	/* In pages-as-bands mode, crop out all pages and join band-wise.
-	 *
-	 * We need to crop using the page size on image, since it might
-	 * have been shrunk by shrink-on-load above ^^
 	 */
 	if (tilesource->type == TILESOURCE_TYPE_TOILET_ROLL &&
 		tilesource->mode == TILESOURCE_MODE_PAGES_AS_BANDS) {
-		int page_width = image->Xsize;
+		// loaders will adjust page_height for shrink-on-load, so we can just
+		// use that
 		int page_height = vips_image_get_page_height(image);
-		// not too many pages or we can have terrible performance problems
-		// more than 3 for the info bar
-		int n_pages = VIPS_MIN(10, tilesource->n_pages);
+
+		// there's probably no alpha, so just go to rgb or mono
+		int n_pages = tilesource->n_pages >= 3 ? 3 : 1;
 
 		g_autoptr(VipsObject) context = VIPS_OBJECT(vips_image_new());
 		VipsImage **t = (VipsImage **)
 			vips_object_local_array(context, n_pages);
 
-		int page;
-		VipsImage *x;
-
-		for (page = 0; page < n_pages; page++)
+		for (int page = 0; page < n_pages; page++)
 			if (vips_crop(image, &t[page],
-					0, page * page_height, page_width, page_height,
+					0, page * page_height, image->Xsize, page_height,
 					NULL))
 				return NULL;
+		VipsImage *x;
 		if (vips_bandjoin(t, &x, n_pages, NULL))
 			return NULL;
 		VIPS_UNREF(image);
@@ -372,10 +422,32 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		/* Pick an interpretation ... one of the RGB types, if we
 		 * can.
 		 */
-		if (image->Bands < 3)
-			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? VIPS_INTERPRETATION_GREY16 : VIPS_INTERPRETATION_B_W;
-		else
-			image->Type = image->BandFmt == VIPS_FORMAT_USHORT ? VIPS_INTERPRETATION_RGB16 : VIPS_INTERPRETATION_sRGB;
+		switch (image->BandFmt) {
+		case VIPS_FORMAT_USHORT:
+			image->Type = image->Bands == 3 ?
+				VIPS_INTERPRETATION_RGB16 : VIPS_INTERPRETATION_GREY16;
+			break;
+
+		case VIPS_FORMAT_FLOAT:
+			// quite common for OME-TIFF
+			image->Type = image->Bands == 3 ?
+				VIPS_INTERPRETATION_scRGB : VIPS_INTERPRETATION_B_W;
+			break;
+
+		default:
+			image->Type = image->Bands == 3 ?
+				VIPS_INTERPRETATION_sRGB : VIPS_INTERPRETATION_B_W;
+			break;
+		}
+
+		// only showing one page now
+		tilesource->image_height /= tilesource->n_pages;
+
+#ifdef DEBUG
+		printf("\tjoining n_pages %d\n", n_pages);
+		printf("\t(image->Xsize = %d, image->Ysize = %d)\n",
+			image->Xsize, image->Ysize);
+#endif /*DEBUG*/
 	}
 
 	/* Histogram type ... plot the histogram.
@@ -396,11 +468,7 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		image = t[3];
 		g_object_ref(image);
 
-		// we've changed the size of the image we need to display
-		tilesource->width = image->Xsize;
-		tilesource->height = image->Ysize;
-		tilesource->display_width = tilesource->width;
-		tilesource->display_height = tilesource->height;
+		tilesource->image_height = image->Ysize;
 	}
 
 	/* This has to be before the sink_screen since we need to find the image
@@ -419,15 +487,15 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		image = x;
 	}
 
-	if (tilesource->current_z > 0) {
+	if (current_z > 0) {
         /* We may have already zoomed out a bit because we've loaded
          * some layer other than the base one. Calculate the
          * subsample as (current_width / required_width).
          */
-        int width = VIPS_MAX(1, tilesource->width >> tilesource->current_z);
-        int height = VIPS_MAX(1, tilesource->height >> tilesource->current_z);
-        int xfac = image->Xsize / width;
-        int yfac = image->Ysize / height;
+        int width = VIPS_MAX(1, tilesource->image_width >> current_z);
+        int height = VIPS_MAX(1, tilesource->image_height >> current_z);
+        int xfac = VIPS_MAX(1, image->Xsize / width);
+        int yfac = VIPS_MAX(1, image->Ysize / height);
 
         if (vips_subsample(image, &x, xfac, yfac, NULL))
             return NULL;
@@ -448,7 +516,7 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		 */
 		TilesourceUpdate *update = VIPS_NEW(image, TilesourceUpdate);
 		update->tilesource = tilesource;
-		update->z = tilesource->current_z;
+		update->z = current_z;
 
 		x = vips_image_new();
 		mask = vips_image_new();
@@ -467,11 +535,18 @@ tilesource_display_image(Tilesource *tilesource, VipsImage **mask_out)
 		*mask_out = mask;
 	}
 
+#ifdef DEBUG
+	printf("\timage_width = %d\n", tilesource->image_width);
+	printf("\timage_height = %d\n", tilesource->image_height);
+	printf("\timage->Xsize = %d\n", image->Xsize);
+	printf("\timage->Ysize = %d\n", image->Ysize);
+#endif /*DEBUG*/
+
 	return g_steal_pointer(&image);
 }
 
 static VipsImage *
-tilesource_image_log(VipsImage *image)
+tilesource_log(VipsImage *image)
 {
 	static const double power = 0.25;
 	const double scale = 255.0 / log10(1.0 + pow(255.0, power));
@@ -525,11 +600,11 @@ tilesource_n_colour(VipsImage *image)
 	}
 }
 
-/* Build the second half of the image pipeline. This ends with an RGB or RGBA
- * image we can make textures from.
+/* Build the second half of the image pipeline. This ends with an 8-bit
+ * RGB or RGBA image we can use to make textures.
  */
 static VipsImage *
-tilesource_rgb_image(Tilesource *tilesource, VipsImage *in)
+tilesource_rgb(Tilesource *tilesource, VipsImage *in)
 {
 	VipsImage *x;
 	int n_bands;
@@ -567,7 +642,7 @@ tilesource_rgb_image(Tilesource *tilesource, VipsImage *in)
 	}
 
 	/* Visualisation controls ... the scale and offset values must be applied
-	 * in terms of the original image values, so we can't go to RGB first.
+	 * to the original image values, so this has to be before we go to RGB.
 	 */
 	if (tilesource->active &&
 		(tilesource->scale != 1.0 ||
@@ -575,7 +650,7 @@ tilesource_rgb_image(Tilesource *tilesource, VipsImage *in)
 			tilesource->falsecolour ||
 			tilesource->log)) {
 		if (tilesource->log) {
-			if (!(x = tilesource_image_log(image)))
+			if (!(x = tilesource_log(image)))
 				return NULL;
 			VIPS_UNREF(image);
 			image = x;
@@ -689,11 +764,11 @@ tilesource_update_rgb(Tilesource *tilesource)
 	printf("tilesource_update_rgb:\n");
 #endif /*DEBUG*/
 
-	if (tilesource->display) {
+	if (tilesource->image) {
 		VipsImage *rgb;
 
-		if (!(rgb = tilesource_rgb_image(tilesource, tilesource->display))) {
-			printf("tilesource_rgb_image failed!\n");
+		if (!(rgb = tilesource_rgb(tilesource, tilesource->image))) {
+			printf("tilesource_rgb failed!\n");
 			return -1;
 		}
 		VIPS_UNREF(tilesource->rgb);
@@ -701,45 +776,56 @@ tilesource_update_rgb(Tilesource *tilesource)
 
 		VIPS_UNREF(tilesource->rgb_region);
 		tilesource->rgb_region = vips_region_new(tilesource->rgb);
+		vips__region_no_ownership(tilesource->rgb_region);
 	}
 
 	return 0;
 }
 
 /* Rebuild the entire display pipeline eg. after a page flip, or if current_z
- * changes.
+ * changes, or mode changes.
  */
 static int
-tilesource_update_display(Tilesource *tilesource)
+tilesource_update_image(Tilesource *tilesource)
 {
-	VipsImage *display;
+	VipsImage *image;
 	VipsImage *mask;
 
 #ifdef DEBUG
-	printf("tilesource_update_display:\n");
+	printf("tilesource_update_image:\n");
 #endif /*DEBUG*/
 
 	/* Don't update if we're still loading.
 	 */
 	if (!tilesource->loaded ||
-		!tilesource->image)
+		!tilesource->base)
 		return 0;
 
-	if (!(display = tilesource_display_image(tilesource, &mask))) {
+	if (!(image = tilesource_image(tilesource, &mask, tilesource->current_z))) {
 #ifdef DEBUG
-		printf("tilesource_update_display: build failed\n");
+		printf("tilesource_update_image: build failed\n");
 #endif /*DEBUG*/
 		return -1;
 	}
 
-	VIPS_UNREF(tilesource->display);
+#ifdef DEBUG
+	printf("tilesource_update_image: new image of %d x %d\n",
+		image->Xsize, image->Ysize);
+#endif /*DEBUG*/
+
+	VIPS_UNREF(tilesource->image);
 	VIPS_UNREF(tilesource->mask);
-	tilesource->display = display;
-	tilesource->mask = mask;
-
+	VIPS_UNREF(tilesource->image_region);
 	VIPS_UNREF(tilesource->mask_region);
-	tilesource->mask_region = vips_region_new(tilesource->mask);
 
+	tilesource->image = image;
+	tilesource->mask = mask;
+	tilesource->image_region = vips_region_new(tilesource->image);
+	vips__region_no_ownership(tilesource->image_region);
+	tilesource->mask_region = vips_region_new(mask);
+	vips__region_no_ownership(tilesource->mask_region);
+
+	// update downstream as well
 	if (tilesource_update_rgb(tilesource))
 		return -1;
 
@@ -872,12 +958,8 @@ tilesource_set_property(GObject *object,
 			mode < TILESOURCE_MODE_LAST &&
 			tilesource->mode != mode) {
 			tilesource->mode = mode;
-			tilesource->display_width = tilesource->width;
-			tilesource->display_height = tilesource->height;
-			if (tilesource->mode == TILESOURCE_MODE_TOILET_ROLL)
-				tilesource->display_height *= tilesource->n_pages;
 
-			tilesource_update_display(tilesource);
+			tilesource_update_image(tilesource);
 
 			tilesource_changed(tilesource);
 
@@ -920,7 +1002,7 @@ tilesource_set_property(GObject *object,
 			i <= 1000000 &&
 			tilesource->page != i) {
 			tilesource->page = i;
-			tilesource_update_display(tilesource);
+			tilesource_update_image(tilesource);
 
 			/* If all pages have the same size, we can flip pages
 			 * without rebuilding the pyramid.
@@ -975,7 +1057,7 @@ tilesource_set_property(GObject *object,
 		b = g_value_get_boolean(value);
 		if (tilesource->loaded != b) {
 			tilesource->loaded = b;
-			tilesource_update_display(tilesource);
+			tilesource_update_image(tilesource);
 			tilesource_changed(tilesource);
 		}
 		break;
@@ -1077,14 +1159,14 @@ tilesource_init(Tilesource *tilesource)
 static int
 tilesource_force_load(Tilesource *tilesource)
 {
-	if (tilesource->image &&
+	if (tilesource->base &&
 		!tilesource->loaded) {
 		/* We can't just call prepare on image_region -- this will get region
 		 * ownership tangled up. Crop and average a pixel.
 		 */
 		g_autoptr(VipsImage) pixel = NULL;
 		double d;
-		if (vips_crop(tilesource->image, &pixel, 0, 0, 1, 1, NULL) ||
+		if (vips_crop(tilesource->base, &pixel, 0, 0, 1, 1, NULL) ||
 			vips_avg(pixel, &d, NULL))
 			return -1;
 	}
@@ -1105,13 +1187,13 @@ tilesource_background_load_done_idle(void *user_data)
 	printf("tilesource_background_load_done_cb: ... unreffing\n");
 #endif /*DEBUG*/
 
-	/* You can now fetch pixels.
+	/* You can now fetch pixels from abse and rebuild image.
 	 */
 	g_object_set(tilesource,
 		"loaded", TRUE,
 		"visible", TRUE,
 		NULL);
-	tilesource_update_display(tilesource);
+	tilesource_update_image(tilesource);
 	tilesource_loaded(tilesource);
 
 	/* Drop the ref that kept this tilesource alive during load, see
@@ -1133,7 +1215,7 @@ tilesource_background_load_worker(void *data, void *user_data)
 	printf("tilesource_background_load_worker: starting ...\n");
 #endif /*DEBUG*/
 
-	g_assert(tilesource->image_region);
+	g_assert(tilesource->base);
 
 	if (tilesource_force_load(tilesource)) {
 		tilesource->load_error = TRUE;
@@ -1316,61 +1398,52 @@ tilesource_print(Tilesource *tilesource)
 	int i;
 
 	printf("tilesource: %p\n", tilesource);
+	printf("\ttype = %s\n",
+		vips_enum_nick(TILESOURCE_TYPE_TYPE, tilesource->type));
 	printf("\tloader = %s\n", tilesource->loader);
-	printf("\twidth = %d\n", tilesource->width);
-	printf("\theight = %d\n", tilesource->height);
 	printf("\tn_pages = %d\n", tilesource->n_pages);
+	printf("\tpage_height = %d\n", tilesource->page_height);
 	printf("\tn_subifds = %d\n", tilesource->n_subifds);
+	printf("\tdelay = %p\n", tilesource->delay);
+	printf("\tn_delay = %d\n", tilesource->n_delay);
+
 	printf("\tsubifd_pyramid = %d\n", tilesource->subifd_pyramid);
 	printf("\tpage_pyramid = %d\n", tilesource->page_pyramid);
-	printf("\tlevel_count = %d\n", tilesource->level_count);
+	printf("\tpages_same_size = %d\n", tilesource->pages_same_size);
+	printf("\tall_mono = %d\n", tilesource->all_mono);
 
+	printf("\tlevel_count = %d\n", tilesource->level_count);
 	for (i = 0; i < tilesource->level_count; i++)
 		printf("\t%2d) %d x %d\n",
 			i,
 			tilesource->level_width[i],
 			tilesource->level_height[i]);
 
-	printf("\tpages_same_size = %d\n", tilesource->pages_same_size);
-	printf("\tall_mono = %d\n", tilesource->all_mono);
-	printf("\ttype = %s\n",
-		vips_enum_nick(TILESOURCE_TYPE_TYPE, tilesource->type));
 	printf("\tmode = %s\n",
 		vips_enum_nick(TILESOURCE_MODE_TYPE, tilesource->mode));
-	printf("\tdelay = %p\n", tilesource->delay);
-	printf("\tn_delay = %d\n", tilesource->n_delay);
-	printf("\tdisplay_width = %d\n", tilesource->display_width);
-	printf("\tdisplay_height = %d\n", tilesource->display_height);
 }
 #endif /*DEBUG*/
 
-/* Sniff basic properties from an image.
+/* Set a VipsImage as the source of a tilesource.
  */
 static int
-tilesource_set_image(Tilesource *tilesource, VipsImage *image)
+tilesource_set_base(Tilesource *tilesource, VipsImage *base)
 {
 #ifdef DEBUG
-	printf("tilesource_set_image:\n");
+	printf("tilesource_set_base:\n");
 #endif /*DEBUG*/
 
-	/* Note the base open ... this gets used for eg. the titlebar.
-	 */
 	g_assert(!tilesource->base);
-	tilesource->base = image;
+	tilesource->base = base;
 	g_object_ref(tilesource->base);
 
-	tilesource->width = image->Xsize;
-	tilesource->height = vips_image_get_page_height(image);
-	tilesource->bands = image->Bands;
-	tilesource->n_subifds = vips_image_get_n_subifds(image);
-	tilesource->type = TILESOURCE_TYPE_TOILET_ROLL;
+	tilesource->n_subifds = vips_image_get_n_subifds(base);
 
-	if (vips_image_get_typeof(image, "delay")) {
+	if (vips_image_get_typeof(base, "delay")) {
 		int *delay;
 		int n_delay;
 
-		if (vips_image_get_array_int(image, "delay",
-				&delay, &n_delay))
+		if (vips_image_get_array_int(base, "delay", &delay, &n_delay))
 			return -1;
 
 		tilesource->delay = g_new(int, n_delay);
@@ -1416,23 +1489,29 @@ tilesource_new_from_image(VipsImage *image)
 {
 	g_autoptr(Tilesource) tilesource = g_object_new(TILESOURCE_TYPE, NULL);
 
-	if (tilesource_set_image(tilesource, image))
+	if (tilesource_set_base(tilesource, image))
 		return NULL;
 
-	/* No reopen, so we get n_pages from the image geometry.
-	 */
-	tilesource->n_pages = image->Ysize % tilesource->height == 0 ?
-		image->Ysize / tilesource->height : 1;
+	tilesource->type = TILESOURCE_TYPE_IMAGE;
 
-	tilesource->image = image;
-	g_object_ref(image);
-	tilesource->image_region = vips_region_new(tilesource->image);
+	tilesource->level_count = 1;
+	tilesource->level_width[0] = image->Xsize;;
+	tilesource->level_height[0] = image->Ysize;;
 
-	/* image_region is used by the bg load thread.
+	/* Sanity-check and set up the page geometry.
 	 */
-	vips__region_no_ownership(tilesource->image_region);
+	tilesource->page_height = vips_image_get_page_height(image);
+	if (image->Ysize % tilesource->page_height == 0)
+		tilesource->n_pages = image->Ysize / tilesource->page_height;
+	else {
+		tilesource->page_height = image->Ysize;
+		tilesource->n_pages = 1;
+	}
 
 	tilesource_default_mode(tilesource);
+
+	if (tilesource->mode == TILESOURCE_MODE_TOILET_ROLL)
+		tilesource->page = -1;
 
 	return g_steal_pointer(&tilesource);
 }
@@ -1449,45 +1528,39 @@ tilesource_get_pyramid_subifd(Tilesource *tilesource)
 #endif /*DEBUG*/
 
 	for (i = 0; i < tilesource->n_subifds; i++) {
-		int level_width;
-		int level_height;
 		int expected_level_width;
 		int expected_level_height;
 
-		/* Just bail out if there are too many levels.
-		 */
 		if (i >= MAX_LEVELS)
 			break;
 
 		g_autoptr(VipsImage) level = tilesource_open(tilesource, i);
 		if (!level)
-			return;
-		level_width = level->Xsize;
-		level_height = level->Ysize;
+			// some OMEs have strange tile sizes for some levels, ignore them
+			break;
+		tilesource->level_width[i] = level->Xsize;
+		tilesource->level_height[i] = level->Ysize;
 
-		expected_level_width = tilesource->width / (1 << i);
-		expected_level_height = tilesource->height / (1 << i);
+		expected_level_width = tilesource->level_width[0] / (1 << i);
+		expected_level_height = tilesource->level_height[0] / (1 << i);
 
 		/* This won't be exact due to rounding etc.
 		 */
-		if (abs(level_width - expected_level_width) > 5 ||
-			level_width < 2 ||
-			abs(level_height - expected_level_height) > 5 ||
-			level_height < 2) {
+		if (abs(level->Xsize - expected_level_width) > 5 ||
+			level->Xsize < 2 ||
+			abs(level->Ysize - expected_level_height) > 5 ||
+			level->Ysize < 2) {
 #ifdef DEBUG
 			printf("  bad subifd level %d\n", i);
 #endif /*DEBUG*/
 			return;
 		}
-
-		tilesource->level_width[i] = level_width;
-		tilesource->level_height[i] = level_height;
 	}
 
 	/* Tag as a subifd pyramid.
 	 */
 	tilesource->subifd_pyramid = TRUE;
-	tilesource->level_count = tilesource->n_subifds;
+	tilesource->level_count = i;
 }
 
 /* Detect a pyramid made of pages following a roughly /2 shrink. Can be eg.
@@ -1508,8 +1581,6 @@ tilesource_get_pyramid_page(Tilesource *tilesource)
 		return;
 
 	for (i = 0; i < tilesource->n_pages; i++) {
-		int level_width;
-		int level_height;
 		int expected_level_width;
 		int expected_level_height;
 
@@ -1521,11 +1592,11 @@ tilesource_get_pyramid_page(Tilesource *tilesource)
 		g_autoptr(VipsImage) level = tilesource_open(tilesource, i);
 		if (!level)
 			return;
-		level_width = level->Xsize;
-		level_height = level->Ysize;
+		tilesource->level_width[i] = level->Xsize;
+		tilesource->level_height[i] = level->Ysize;
 
-		expected_level_width = tilesource->width / (1 << i);
-		expected_level_height = tilesource->height / (1 << i);
+		expected_level_width = tilesource->level_width[0] / (1 << i);
+		expected_level_height = tilesource->level_height[0] / (1 << i);
 
 		/* We've found enough levels, and the levels have become very
 		 * small.
@@ -1537,15 +1608,12 @@ tilesource_get_pyramid_page(Tilesource *tilesource)
 
 		/* This won't be exact due to rounding etc.
 		 */
-		if (abs(level_width - expected_level_width) > 5 ||
-			level_width < 2)
+		if (abs(level->Xsize - expected_level_width) > 5 ||
+			level->Xsize < 2)
 			return;
-		if (abs(level_height - expected_level_height) > 5 ||
-			level_height < 2)
+		if (abs(level->Ysize - expected_level_height) > 5 ||
+			level->Ysize < 2)
 			return;
-
-		tilesource->level_width[i] = level_width;
-		tilesource->level_height[i] = level_height;
 	}
 
 	/* Tag as a page pyramid.
@@ -1558,24 +1626,21 @@ static void
 tilesource_preeval(VipsImage *image,
 	VipsProgress *progress, Tilesource *tilesource)
 {
-	g_signal_emit(tilesource,
-		tilesource_signals[SIG_PREEVAL], 0, progress);
+	g_signal_emit(tilesource, tilesource_signals[SIG_PREEVAL], 0, progress);
 }
 
 static void
 tilesource_eval(VipsImage *image,
 	VipsProgress *progress, Tilesource *tilesource)
 {
-	g_signal_emit(tilesource,
-		tilesource_signals[SIG_EVAL], 0, progress);
+	g_signal_emit(tilesource, tilesource_signals[SIG_EVAL], 0, progress);
 }
 
 static void
 tilesource_posteval(VipsImage *image,
 	VipsProgress *progress, Tilesource *tilesource)
 {
-	g_signal_emit(tilesource,
-		tilesource_signals[SIG_POSTEVAL], 0, progress);
+	g_signal_emit(tilesource, tilesource_signals[SIG_POSTEVAL], 0, progress);
 }
 
 static void
@@ -1585,12 +1650,12 @@ tilesource_attach_progress(Tilesource *tilesource)
 	printf("tilesource_attach_progress:\n");
 #endif /*DEBUG*/
 
-	vips_image_set_progress(tilesource->image, TRUE);
-	g_signal_connect_object(tilesource->image, "preeval",
+	vips_image_set_progress(tilesource->base, TRUE);
+	g_signal_connect_object(tilesource->base, "preeval",
 		G_CALLBACK(tilesource_preeval), tilesource, 0);
-	g_signal_connect_object(tilesource->image, "eval",
+	g_signal_connect_object(tilesource->base, "eval",
 		G_CALLBACK(tilesource_eval), tilesource, 0);
-	g_signal_connect_object(tilesource->image, "posteval",
+	g_signal_connect_object(tilesource->base, "posteval",
 		G_CALLBACK(tilesource_posteval), tilesource, 0);
 }
 
@@ -1632,36 +1697,31 @@ tilesource_new_from_file(const char *filename)
 	 */
 	tilesource->loader = vips_nickname_find(g_type_from_name(loader));
 
-	/* A very basic open to fetch image properties.
+	/* A very plain open to fetch image metadata.
 	 */
-	g_autoptr(VipsImage) base = vips_image_new_from_file(filename, NULL);
-	if (!base)
-		return NULL;
-	if (tilesource_set_image(tilesource, base))
+	g_autoptr(VipsImage) plain = vips_image_new_from_file(filename, NULL);
+	if (!plain)
 		return NULL;
 
-	/* We can reopen this image, so we can use get_n_pages (number of pages in
-	 * the underlying image file).
-	 */
-	tilesource->n_pages = vips_image_get_n_pages(base);
+	tilesource->n_subifds = vips_image_get_n_subifds(plain);
 
 	/* For openslide, we can read out the level structure directly.
 	 */
-	if (vips_image_get_typeof(base, "openslide.level-count")) {
-		int level_count;
-		int level;
+	if (vips_image_get_typeof(plain, "openslide.level-count")) {
+		int level_count =
+			VIPS_CLIP(1,
+				get_int(plain, "openslide.level-count", 1),
+				MAX_LEVELS);
 
-		level_count = get_int(base, "openslide.level-count", 1);
-		level_count = VIPS_CLIP(1, level_count, MAX_LEVELS);
 		tilesource->level_count = level_count;
 
-		for (level = 0; level < level_count; level++) {
+		for (int level = 0; level < level_count; level++) {
 			char name[256];
 
 			g_snprintf(name, 256, "openslide.level[%d].width", level);
-			tilesource->level_width[level] = get_int(base, name, 0);
+			tilesource->level_width[level] = get_int(plain, name, 0);
 			g_snprintf(name, 256, "openslide.level[%d].height", level);
-			tilesource->level_height[level] = get_int(base, name, 0);
+			tilesource->level_height[level] = get_int(plain, name, 0);
 		}
 
 		/* Some openslide images don't have levels on x2 boundaries. SVS and
@@ -1672,7 +1732,7 @@ tilesource_new_from_file(const char *filename)
 		 * Check the levels and only use the ones which are on power of two
 		 * boundaries.
 		 */
-		for (level = 1; level < level_count; level++) {
+		for (int level = 1; level < level_count; level++) {
 			double downsample = (double) tilesource->level_width[0] /
 				tilesource->level_width[level];
 			double power = log(downsample) / log(2);
@@ -1693,13 +1753,13 @@ tilesource_new_from_file(const char *filename)
 		int level;
 
 		/* Compute a zoom (scale) factor which will keep us under 32k
-		 * pixels per axis.
+		 * pixels on the longest axis.
 		 *
 		 * Very large scales produce very large performance problems in
 		 * librsvg.
 		 */
 		tilesource->zoom = VIPS_CLIP(1,
-			32767.0 / VIPS_MAX(base->Xsize, base->Ysize),
+			32767.0 / VIPS_MAX(plain->Xsize, plain->Ysize),
 			200);
 
 		/* Apply the zoom and build the pyramid.
@@ -1707,21 +1767,19 @@ tilesource_new_from_file(const char *filename)
 		g_autoptr(VipsImage) x = vips_image_new_from_file(filename,
 			"scale", tilesource->zoom,
 			NULL);
-		tilesource->width = x->Xsize;
-		tilesource->height = x->Ysize;
 
 		/* Fake the pyramid geometry. No sense going smaller than
 		 * a tile.
 		 */
-		size = VIPS_MAX(tilesource->width, tilesource->height);
+		size = VIPS_MAX(x->Xsize, x->Ysize);
 		n_levels = ceil(log2(size));
 		tile_levels = ceil(log2(TILE_SIZE));
 		tilesource->level_count =
 			VIPS_CLIP(1, n_levels - tile_levels, MAX_LEVELS);
 
 		for (level = 0; level < tilesource->level_count; level++) {
-			tilesource->level_width[level] = tilesource->width / (1 << level);
-			tilesource->level_height[level] = tilesource->height / (1 << level);
+			tilesource->level_width[level] = x->Xsize / (1 << level);
+			tilesource->level_height[level] = x->Ysize / (1 << level);
 		}
 	}
 
@@ -1729,7 +1787,7 @@ tilesource_new_from_file(const char *filename)
 	 * page_size are sane too.
 	 */
 #ifdef DEBUG
-	printf("tilesource_new_from_source: test toilet-roll mode\n");
+	printf("tilesource_new_from_file: test toilet-roll mode\n");
 #endif /*DEBUG*/
 
 	/* Block error messages from eg. page-pyramidal TIFFs where pages
@@ -1742,35 +1800,28 @@ tilesource_new_from_file(const char *filename)
 	if (x) {
 		/* Toilet-roll mode worked. We can update n_pages.
 		 */
-		if (x->Ysize % tilesource->height == 0) {
-			tilesource->n_pages = x->Ysize / tilesource->height;
+		tilesource->page_height = vips_image_get_page_height(x);
+		if (x->Ysize % tilesource->page_height == 0) {
+			tilesource->n_pages = x->Ysize / tilesource->page_height;
 			tilesource->pages_same_size = TRUE;
 		}
 		else {
 #ifdef DEBUG
-			printf("tilesource_new_from_source: bad page layout\n");
+			printf("tilesource_new_from_file: bad page layout\n");
 #endif /*DEBUG*/
 
 			tilesource->n_pages = 1;
-			tilesource->height = x->Ysize;
 			VIPS_FREE(tilesource->delay);
 			tilesource->n_delay = 0;
 		}
 	}
-
-	/* Back to plain multipage for the rest of the sniff period. For
-	 * example, subifd pyramid needs single page opening.
-	 *
-	 * We reset this at the end.
-	 */
-	tilesource->type = TILESOURCE_TYPE_MULTIPAGE;
 
 	/* Are all pages the same size and format, and also all mono (one
 	 * band)? We can display pages-as-bands.
 	 */
 	tilesource->all_mono =
 		tilesource->pages_same_size &&
-		tilesource->bands == 1;
+		plain->Bands == 1;
 
 	/* Test for a subifd pyr first, since we can do that from just
 	 * one page.
@@ -1802,34 +1853,43 @@ tilesource_new_from_file(const char *filename)
 			tilesource->type = TILESOURCE_TYPE_MULTIPAGE;
 	}
 
-#ifdef DEBUG
-	printf("tilesource_new_from_source: after sniff\n");
-	tilesource_print(tilesource);
-#endif /*DEBUG*/
-
 	/* And now we can reopen in the correct mode.
 	 */
-	VipsImage *image = tilesource_open(tilesource, 0);
-	if (!image)
+	VipsImage *base = tilesource_open(tilesource, 0);
+	if (!base)
 		return NULL;
-	g_assert(!tilesource->image);
-	g_assert(!tilesource->image_region);
-	tilesource->image = image;
-	tilesource->image_region = vips_region_new(tilesource->image);
+	if (tilesource_set_base(tilesource, base))
+		return NULL;
 
-	/* image_region is used by the bg load thread.
+	/* If we never found a pyr, init as a one-level one.
 	 */
-	vips__region_no_ownership(tilesource->image_region);
+	if (!tilesource->level_count) {
+		tilesource->level_count = 1;
+		tilesource->level_width[0] = base->Xsize;;
+		tilesource->level_height[0] = base->Ysize;;
+	}
+
+	/* Default page geometry if we've not found any other way to set it.
+	 */
+	if (tilesource->n_pages == 0) {
+		tilesource->n_pages = 1;
+		tilesource->page_height = tilesource->level_height[0];
+	}
 
 	tilesource_default_mode(tilesource);
 
 	tilesource_attach_progress(tilesource);
 
+#ifdef DEBUG
+	printf("tilesource_new_from_file: after sniff\n");
+	tilesource_print(tilesource);
+#endif /*DEBUG*/
+
 	return g_steal_pointer(&tilesource);
 }
 
 /* Call this some time after tilesource_new_from_file() or
- * tilesource_new_from_source(), and once all callbacks have been
+ * tilesource_new_from_file(), and once all callbacks have been
  * attached, to trigger a bg load.
  */
 void
@@ -1860,9 +1920,9 @@ tilesource_request_tile(Tilesource *tilesource, Tile *tile)
 	/* Change z if necessary.
 	 */
 	if (tilesource->current_z != tile->z ||
-		!tilesource->display) {
+		!tilesource->image) {
 		tilesource->current_z = tile->z;
-		tilesource_update_display(tilesource);
+		tilesource_update_image(tilesource);
 	}
 
 	if (vips_region_prepare(tilesource->mask_region, &tile->region->valid))
@@ -1969,33 +2029,6 @@ VipsImage *
 tilesource_get_base_image(Tilesource *tilesource)
 {
 	return tilesource->base;
-}
-
-gboolean
-tilesource_get_pixel(Tilesource *tilesource, int image_x, int image_y,
-	double **vector, int *n)
-{
-	if (!tilesource->loaded ||
-		!tilesource->image)
-		return FALSE;
-
-	/* Block outside the image.
-	 */
-	if (image_x < 0 ||
-		image_y < 0 ||
-		image_x >= tilesource->image->Xsize ||
-		image_y >= tilesource->image->Ysize)
-		return FALSE;
-
-	/* Fetch from image (not ->display), even though this can be very slow.
-	 * This is run in a bg thread, so speed should not matter too much.
-	 */
-	if (vips_getpoint(tilesource->image, vector, n, image_x, image_y,
-			"unpack_complex", TRUE,
-			NULL))
-		return FALSE;
-
-	return TRUE;
 }
 
 void

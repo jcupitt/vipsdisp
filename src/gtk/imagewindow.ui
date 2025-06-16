@@ -222,18 +222,28 @@
         </child>
 
         <child>
-          <object class="GtkInfoBar" id="error_bar">
-            <property name="message-type">error</property>
-            <property name="show-close-button">true</property>
+          <object class="GtkActionBar" id="error_bar">
             <property name="revealed">false</property>
-            <child>
+
+            <child type="center">
               <object class="GtkLabel" id="error_label">
+                <property name="hexpand">true</property>
                 <property name="ellipsize">middle</property>
+                <property name="xalign">0.0</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
+
               </object>
             </child>
+
+            <child type="end">
+              <object class="GtkButton">
+                <property name="label">OK</property>
+                <signal name="clicked" handler="imagewindow_error_clicked"/>
+              </object>
+            </child>
+
           </object>
         </child>
 

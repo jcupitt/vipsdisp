@@ -353,11 +353,13 @@ imagedisplay_tilecache_changed(Tilecache *tilecache,
 	Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG
-	printf("imagedisplay_tilecache_changed:\n");
+	printf("imagedisplay_tilecache_changed: %d x %d\n",
+		tilecache->tilesource->image_width,
+		tilecache->tilesource->image_height);
 #endif /*DEBUG*/
 
-	imagedisplay->image_rect.width = tilecache->tilesource->display_width;
-	imagedisplay->image_rect.height = tilecache->tilesource->display_height;
+	imagedisplay->image_rect.width = tilecache->tilesource->image_width;
+	imagedisplay->image_rect.height = tilecache->tilesource->image_height;
 	imagedisplay_layout(imagedisplay);
 
 	gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
@@ -647,6 +649,8 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	printf("imagedisplay_snapshot:\n");
 #endif /*DEBUG*/
 
+	GTK_WIDGET_CLASS(imagedisplay_parent_class)->snapshot(widget, snapshot);
+
 	/* Clip to the widget area, or we may paint over the display control
 	 * bar.
 	 */
@@ -668,7 +672,6 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 
 	/* It's unclear how to do this :( maybe we're supposed to get the base
 	 * widget class to do it? Draw it ourselves for now.
-	 */
 	if (gtk_widget_has_focus(widget)) {
 		GskRoundedRect outline;
 
@@ -685,6 +688,7 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 			(float[4]){ 2, 2, 2, 2 },
 			(GdkRGBA[4]){ BORDER, BORDER, BORDER, BORDER });
 	}
+	 */
 }
 
 static void
