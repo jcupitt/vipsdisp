@@ -391,7 +391,7 @@ tilecache_request(Tilecache *tilecache, VipsRect *tile_rect, int z)
  * already (very common for thumbnails, for example).
  */
 static void
-tilecache_request_area(Tilecache *tilecache, VipsRect *viewport, int z)
+tilecache_request_area(Tilecache *tilecache, graphene_rect_t *grect, int z)
 {
 	int size0 = TILE_SIZE << z;
 
@@ -400,12 +400,19 @@ tilecache_request_area(Tilecache *tilecache, VipsRect *viewport, int z)
 		!tilecache->tilesource->rgb)
 		return;
 
+	/* Only interested in bounding int pixel coordinates.
+	 */
+	graphene_rect_t bounds;
+	graphene_rect_round_extents(grect, &bounds);
+
 	/* All the tiles rect touches in this pyr level.
 	 */
-	int left = VIPS_ROUND_DOWN(viewport->left, size0);
-	int top = VIPS_ROUND_DOWN(viewport->top, size0);
-	int right = VIPS_ROUND_UP(VIPS_RECT_RIGHT(viewport), size0);
-	int bottom = VIPS_ROUND_UP(VIPS_RECT_BOTTOM(viewport), size0);
+	int left = VIPS_ROUND_DOWN((int) bounds.origin.x, size0);
+	int top = VIPS_ROUND_DOWN((int) bounds.origin.y, size0);
+	int right =
+		VIPS_ROUND_UP((int) (bounds.origin.x + bounds.size.width), size0);
+	int bottom =
+		VIPS_ROUND_UP((int) (bounds.origin.y + bounds.size.height), size0);
 
 	/* Do the four edges, then step in. Loop until the centre is empty.
 	 */
@@ -771,7 +778,7 @@ tilecache_print(Tilecache *tilecache)
 
 static void
 tilecache_compute_visibility(Tilecache *tilecache,
-	VipsRect *viewport, int z)
+	graphene_rect_t *grect, int z)
 {
 	int size0 = TILE_SIZE << z;
 	int start_time = tile_get_time();
@@ -786,6 +793,16 @@ tilecache_compute_visibility(Tilecache *tilecache,
 	printf("tilecache_compute_visibility: z = %d\n", z);
 #endif /*DEBUG_VERBOSE*/
 
+	/* Only interested in bounding int pixel coordinates.
+	 */
+	graphene_rect_t bounding_grect;
+	graphene_rect_round_extents(grect, &bounding_grect);
+	VipsRect viewport;
+	viewport.left = bounding_grect.origin.x;
+	viewport.top = bounding_grect.origin.y;
+	viewport.width = bounding_grect.size.width;
+	viewport.height = bounding_grect.size.height;
+
 	/* We're rebuilding these.
 	 */
 	for (i = 0; i < tilecache->n_levels; i++) {
@@ -795,13 +812,13 @@ tilecache_compute_visibility(Tilecache *tilecache,
 
 	/* The rect of tiles touched by the viewport.
 	 */
-	tilecache_tiles_for_rect(tilecache, viewport, z, &touches);
+	tilecache_tiles_for_rect(tilecache, &viewport, z, &touches);
 
 #ifdef DEBUG_VERBOSE
 	printf("viewport in level0 coordinates: left = %d, top = %d, "
-			   "width = %d, height = %d\n",
-			touches.left, touches.top,
-			touches.width, touches.height);
+		   "width = %d, height = %d\n",
+		touches.left, touches.top,
+		touches.width, touches.height);
 #endif /*DEBUG_VERBOSE*/
 
 	/* Search for the highest res tile for every position in the
@@ -908,11 +925,9 @@ tilecache_draw_bounds(GtkSnapshot *snapshot,
  */
 void
 tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
-	double scale, double x, double y,
-	VipsRect *paint_rect,
-	gboolean debug)
+	double scale, double x, double y, graphene_rect_t *paint, gboolean debug)
 {
-	VipsRect viewport;
+	graphene_rect_t viewport;
 	int z;
 	int i;
 
@@ -938,10 +953,10 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 #endif /*DEBUG*/
 
 #ifdef DEBUG_VERBOSE
-	printf("  paint_rect left = %d, top = %d, "
-		   "width = %d, height = %d\n",
-		paint_rect->left, paint_rect->top,
-		paint_rect->width, paint_rect->height);
+	printf("  paint x = %g, y = %g, "
+		   "width = %g, height = %g\n",
+		paint->origin.x, paint->origin.y,
+		paint->size.width, paint->size.height);
 #endif /*DEBUG_VERBOSE*/
 
 #ifdef DEBUG_VERBOSE
@@ -960,10 +975,10 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 	/* paint_rect in level0 coordinates.
 	 */
-	viewport.left = x / scale;
-	viewport.top = y / scale;
-	viewport.width = VIPS_MAX(1, paint_rect->width / scale);
-	viewport.height = VIPS_MAX(1, paint_rect->height / scale);
+	viewport.origin.x = x / scale;
+	viewport.origin.y = y / scale;
+	viewport.size.width = VIPS_MAX(1, paint->size.width / scale);
+	viewport.size.height = VIPS_MAX(1, paint->size.height / scale);
 
 	/* Fetch any tiles we are missing, update any tiles we have that have
 	 * been flagged as having pixels ready for fetching.
@@ -986,10 +1001,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 		printf("tilecache_snapshot: drawing background\n");
 #endif /*DEBUG_VERBOSE*/
 
-		bounds.origin.x = paint_rect->left;
-		bounds.origin.y = paint_rect->top;
-		bounds.size.width = paint_rect->width;
-		bounds.size.height = paint_rect->height;
+		bounds = *paint;
 		gtk_snapshot_push_repeat(snapshot, &bounds, NULL);
 
 		bounds.origin.x = 0;
@@ -1020,12 +1032,11 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 			graphene_rect_t bounds;
 
-			// add a margin along the right and bottom to prevent black seams
-			// at tile joins
-			bounds.origin.x = tile->bounds.left * scale - x + paint_rect->left;
-			bounds.origin.y = tile->bounds.top * scale - y + paint_rect->top;
-			bounds.size.width = tile->bounds.width * scale + 2;
-			bounds.size.height = tile->bounds.height * scale + 2;
+			// +1 to hide tile boundaries
+			bounds.origin.x = tile->bounds.left * scale - x + paint->origin.x;
+			bounds.origin.y = tile->bounds.top * scale - y + paint->origin.y;
+			bounds.size.width = tile->bounds.width * scale + 1;
+			bounds.size.height = tile->bounds.height * scale + 1;
 
 			gtk_snapshot_append_scaled_texture(snapshot,
 				tile_get_texture(tile), filter, &bounds);
@@ -1047,10 +1058,10 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 		gsk_rounded_rect_init_from_rect(&outline,
 			&GRAPHENE_RECT_INIT(
-				viewport.left * scale - x + paint_rect->left,
-				viewport.top * scale - y + paint_rect->top,
-				viewport.width * scale,
-				viewport.height * scale),
+				viewport.origin.x * scale - x + paint->origin.x,
+				viewport.origin.y * scale - y + paint->origin.y,
+				viewport.size.width * scale,
+				viewport.size.height * scale),
 			0);
 
 		gtk_snapshot_append_border(snapshot,

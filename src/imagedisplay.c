@@ -658,12 +658,17 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 		&GRAPHENE_RECT_INIT(0, 0,
 			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
 
+	graphene_rect_t paint;
+	paint.origin.x = imagedisplay->paint_rect.left;
+	paint.origin.y = imagedisplay->paint_rect.top;
+	paint.size.width = imagedisplay->paint_rect.width;
+	paint.size.height = imagedisplay->paint_rect.height;
+
 	if (imagedisplay->tilecache &&
 		imagedisplay->tilecache->tiles)
 		tilecache_snapshot(imagedisplay->tilecache, snapshot,
 			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
-			&imagedisplay->paint_rect,
-			imagedisplay->debug);
+			&paint, imagedisplay->debug);
 
 	// draw any overlays
 	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
