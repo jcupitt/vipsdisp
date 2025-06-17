@@ -65,6 +65,16 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
+    <release version="4.0.0" date="2025-05-31">
+      <description>
+        <p>
+          Redone based on the revised image view widget in nip4. It should be 
+          faster, smoother, with better quality output for more image 
+          sources and in more image view modes.
+        </p>
+      </description>
+    </release>
+
     <release version="3.1.0-5" date="2024-11-15">
       <description>
         <p>

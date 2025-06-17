@@ -1,7 +1,7 @@
 {
     "app-id" : "org.libvips.vipsdisp",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "47",
+    "runtime-version" : "48",
     "sdk" : "org.gnome.Sdk",
     "command" : "vipsdisp",
     "finish-args" : [
@@ -84,14 +84,13 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/google/highway.git",
-                    "tag" : "1.2.0",
-                    "commit" : "457c891775a7397bdb0376bb1031e6e027af1c48"
+                    "tag" : "1.2.0"
                 }
             ]
         },
 
         {
-            "name" : "libdeflate",
+            "name" : "zlib-ng",
             "builddir" : true,
             "buildsystem" : "cmake-ninja",
             "build-options" : {
@@ -102,9 +101,8 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "https://github.com/ebiggers/libdeflate.git",
-                    "tag" : "v1.22",
-                    "commit" : "2335c047e91cac6fd04cb0fd2769380395149f15"
+                    "url" : "https://github.com/zlib-ng/zlib-ng.git",
+                    "tag" : "2.2.4"
                 }
             ]
         },
@@ -130,8 +128,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libjxl/libjxl.git",
-                    "tag" : "v0.11.0",
-                    "commit" : "4df1e9eccdf86b8df4c0c7c08f529263906f9c4f"
+                    "tag" : "v0.11.1"
                 }
             ]
         },
@@ -149,8 +146,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/uclouvain/openjpeg.git",
-                    "tag" : "v2.5.2",
-                    "commit" : "39e8c50a2f9bdcf36810ee3d41bcbf1cc78968ae"
+                    "tag" : "v2.5.3"
                 }
             ]
         },
@@ -175,8 +171,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/ImageOptim/libimagequant.git",
-                    "tag" : "2.15.1",
-                    "commit" : "2cf79d535d86daeb9983e5d037fc544b4354f3b1"
+                    "tag" : "2.15.1"
                 }
             ]
         },
@@ -194,8 +189,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/randy408/libspng.git",
-                    "tag" : "v0.7.4",
-                    "commit" : "fb768002d4288590083a476af628e51c3f1d47cd"
+                    "tag" : "v0.7.4"
                 }
             ]
         },
@@ -213,8 +207,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libarchive/libarchive.git",
-                    "tag" : "v3.7.7",
-                    "commit" : "b439d586f53911c84be5e380445a8a259e19114c"
+                    "tag" : "v3.8.1"
                 }
             ]
         },
@@ -263,9 +256,9 @@
             "sources" : [
                 {
                     "type" : "archive",
-                    "url" : "https://poppler.freedesktop.org/poppler-24.10.0.tar.xz",
+                    "url" : "https://poppler.freedesktop.org/poppler-25.06.0.tar.xz",
 
-                    "sha256" : "58ed1849810f04a10b37c7ff6f3e411845c8a57d731d599d0045acc7a7fff09d"
+                    "sha256" : "8199532d38984fab46dbd0020ec9c40f20e928e33e9b4cc6043572603a821d83"
                 }
             ]
         },
@@ -283,8 +276,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/AcademySoftwareFoundation/Imath.git",
-                    "tag" : "v3.1.12",
-                    "commit" : "c0396a055a01bc537d32f435aee11a9b7ed6f0b5"
+                    "tag" : "v3.1.12"
                 }
             ]
         },
@@ -302,8 +294,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/AcademySoftwareFoundation/openexr.git",
-                    "tag" : "v3.3.1",
-                    "commit" : "f723c3940fff287c0a26b425b90a8e764823bfd4"
+                    "tag" : "v3.3.1"
                 }
             ]
         },
@@ -336,8 +327,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/ImagingDataCommons/libdicom.git",
-                    "tag" : "v1.1.0",
-                    "commit" : "60f291dea0fd464e34d693b1ad55c46f9f2ee69a"
+                    "tag" : "v1.2.0"
                 }
             ]
         },
@@ -365,45 +355,9 @@
             "buildsystem" : "autotools",
             "sources" : [
                 {
-                    "type" : "archive",
-                    "url" : "https://heasarc.gsfc.nasa.gov/FTP/software/fitsio/c/cfitsio-4.5.0.tar.gz",
-                    "sha256" : "e4854fc3365c1462e493aa586bfaa2f3d0bb8c20b75a524955db64c27427ce09"
-                }
-            ]
-        },
-
-        {
-            "name" : "libde265",
-            "builddir" : true,
-            "buildsystem" : "cmake-ninja",
-            "build-options" : {
-                "config-opts" : [
-                    "-DCMAKE_INSTALL_LIBDIR=lib"
-                ]
-            },
-            "sources" : [
-                {
-                    "type" : "archive",
-                    "url" : "https://github.com/strukturag/libde265/releases/download/v1.0.15/libde265-1.0.15.tar.gz",
-                    "sha256" : "00251986c29d34d3af7117ed05874950c875dd9292d016be29d3b3762666511d"
-                }
-            ]
-        },
-
-        {
-            "name" : "libheif",
-            "builddir" : true,
-            "buildsystem" : "cmake-ninja",
-            "build-options" : {
-                "config-opts" : [
-                    "-DCMAKE_INSTALL_LIBDIR=lib"
-                ]
-            },
-            "sources" : [
-                {
-                    "type" : "archive",
-                    "url" : "https://github.com/strukturag/libheif/releases/download/v1.18.2/libheif-1.18.2.tar.gz",
-                    "sha256" : "c4002a622bec9f519f29d84bfdc6024e33fd67953a5fb4dc2c2f11f67d5e45bf"
+                    "type" : "git",
+                    "url" : "https://github.com/HEASARC/cfitsio.git",
+                    "tag" : "cfitsio-4.6.2"
                 }
             ]
         },
@@ -420,8 +374,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/dloebl/cgif.git",
-                    "tag" : "v0.4.1",
-                    "commit" : "025ac5e56ea35be1d4c02d014e6d26e2eb9ccfa9"
+                    "tag" : "v0.5.0"
                 }
             ]
         },
@@ -438,9 +391,9 @@
             ],
             "sources" : [
                 {
-                    "type" : "archive",
-                    "url" : "https://github.com/libvips/libvips/releases/download/v8.17.0-test4/vips-8.17.0-test4.tar.xz",
-                    "sha256" : "6eca46c6ba5fac86224fd69007741012b0ea1f9aa1fcb9256b0cbc2faf768563"
+                    "type" : "git",
+                    "url" : "https://github.com/libvips/libvips.git",
+                    "tag" : "v8.17.0"
                 }
             ]
         },
@@ -456,7 +409,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v3.1.0-5"
+                    "tag" : "v4.0.0"
                 }
             ]
         }
