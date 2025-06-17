@@ -90,7 +90,7 @@
         },
 
         {
-            "name" : "zlib-ng",
+            "name" : "libdeflate",
             "builddir" : true,
             "buildsystem" : "cmake-ninja",
             "build-options" : {
@@ -101,8 +101,8 @@
             "sources" : [
                 {
                     "type" : "git",
-                    "url" : "https://github.com/zlib-ng/zlib-ng.git",
-                    "tag" : "2.2.4"
+                    "url" : "https://github.com/ebiggers/libdeflate.git",
+                    "tag" : "v1.24"
                 }
             ]
         },
