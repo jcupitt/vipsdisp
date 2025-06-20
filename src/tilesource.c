@@ -1855,7 +1855,7 @@ tilesource_new_from_file(const char *filename)
 
 	/* And now we can reopen in the correct mode.
 	 */
-	VipsImage *base = tilesource_open(tilesource, 0);
+	g_autoptr(VipsImage) base = tilesource_open(tilesource, 0);
 	if (!base)
 		return NULL;
 	if (tilesource_set_base(tilesource, base))

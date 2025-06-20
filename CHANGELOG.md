@@ -1,5 +1,7 @@
 master
 
+- fix a ref leak in tilesource_new_from_file()
+
 ## 4.0.0 31/05/25
 
 - much better performance for images which are very tall and thin or very wide 
