@@ -55,7 +55,7 @@ const int imageui_snap_threshold = 10;
 typedef enum {
 	IMAGEUI_WAIT,	/* Waiting for left down */
 	IMAGEUI_SELECT, /* Manipulating a selected region */
-	IMAGEUI_SCROLL, /* Drag-scrolling the iamge */
+	IMAGEUI_SCROLL, /* Drag-scrolling the image */
 	IMAGEUI_CREATE, /* Dragging out a new region */
 } ImageuiState;
 
