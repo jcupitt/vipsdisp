@@ -70,12 +70,11 @@ typedef struct _Tile {
 
 	/* Pixels going out to the scene graph.
 	 *
-	 * pixbuf and texture won't make a copy of the data, so we must make a
+	 * bytes and texture won't make a copy of the data, so we must make a
 	 * copy ourselves, in case a later fetch from the same region produces
 	 * invalid data.
 	 */
-	VipsPel *data_copy;
-	GdkPixbuf *pixbuf;
+	GBytes *bytes;
 	GdkTexture *texture;
 
 } Tile;
