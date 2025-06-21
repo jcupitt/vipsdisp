@@ -12,6 +12,10 @@ difficult. See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for
 a minimal example --- that's a libvips image viewer in about 300 lines of
 very commented C.
 
+The vipsdisp image widget is [used by the image processing spreadsheet
+nip4](https://github.com/jcupitt/nip4) for image display, so that might be
+a better program if you want to do more than just view images.
+
 ## Screenshots
 
 It all works, though see the TODO list below.
@@ -253,7 +257,8 @@ https://github.com/libvips/build-win64-mxe/tree/master
 Clone and run:
 
 ```
-./build.sh --with-disp all x86_64 shared
+./build.sh --target x86_64-w64-mingw32.shared vipsdisp
+
 ```
 
 ## TODO
