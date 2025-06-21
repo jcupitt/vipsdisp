@@ -122,12 +122,6 @@ tilecache_area_changed(Tilecache *tilecache, VipsRect *dirty, int z)
 	g_signal_emit(tilecache, tilecache_signals[SIG_AREA_CHANGED], 0, dirty, z);
 }
 
-static void
-tilecache_checkerboard_destroy_notify(guchar *pixels, gpointer data)
-{
-	g_free(pixels);
-}
-
 /* Make a GdkTexture for the checkerboard pattern we use for compositing.
  */
 static GdkTexture *
@@ -159,13 +153,10 @@ tilecache_texture(TilecacheBackground background)
 				data[y * TILE_SIZE * 3 + x * 3 + z] = v;
 			}
 
-	g_autoptr(GdkPixbuf) pixbuf = gdk_pixbuf_new_from_data(data,
-		GDK_COLORSPACE_RGB,
-		FALSE, 8,
-		TILE_SIZE, TILE_SIZE, TILE_SIZE * 3,
-		tilecache_checkerboard_destroy_notify, NULL);
+	g_autoptr(GBytes) bytes = g_bytes_new_take(data, TILE_SIZE * TILE_SIZE * 3);
 
-	return gdk_texture_new_for_pixbuf(pixbuf);
+	return gdk_memory_texture_new(
+		TILE_SIZE, TILE_SIZE, GDK_MEMORY_R8G8B8, bytes, TILE_SIZE * 3);
 }
 
 static void

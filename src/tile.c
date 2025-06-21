@@ -50,8 +50,7 @@ tile_dispose(GObject *object)
 #endif /*DEBUG*/
 
 	VIPS_UNREF(tile->texture);
-	VIPS_UNREF(tile->pixbuf);
-	VIPS_FREE(tile->data_copy);
+	VIPS_FREEF(g_bytes_unref, tile->bytes);
 	VIPS_UNREF(tile->region);
 
 	G_OBJECT_CLASS(tile_parent_class)->dispose(object);
@@ -145,31 +144,32 @@ tile_get_texture(Tile *tile)
 	 *	1. We must make a copy of the pixel data from libvips, to stop
 	 *	   it being changed under our feet.
 	 *
-	 *	2. Wrap a pixbuf around that copy.
+	 *	2. Wrap a GBytes around that copy.
 	 *
 	 *	3. Tag it as a texture that may need upload to the GPU.
 	 */
 	if (!tile->texture) {
-		VIPS_FREE(tile->data_copy);
-		tile->data_copy = g_memdup2(
+		gpointer copy = g_memdup2(
 			VIPS_REGION_ADDR(tile->region,
 				tile->region->valid.left,
 				tile->region->valid.top),
 			VIPS_REGION_SIZEOF_LINE(tile->region) *
 				tile->region->valid.height);
 
-		VIPS_UNREF(tile->pixbuf);
-		tile->pixbuf = gdk_pixbuf_new_from_data(
-			tile->data_copy,
-			GDK_COLORSPACE_RGB,
-			tile->region->im->Bands == 4,
-			8,
+		VIPS_FREEF(g_bytes_unref, tile->bytes);
+		tile->bytes = g_bytes_new_take(
+			copy,
+			VIPS_REGION_SIZEOF_LINE(tile->region) *
+				tile->region->valid.height);
+
+		tile->texture = gdk_memory_texture_new(
 			tile->region->valid.width,
 			tile->region->valid.height,
-			VIPS_REGION_LSKIP(tile->region),
-			NULL, NULL);
-
-		tile->texture = gdk_texture_new_for_pixbuf(tile->pixbuf);
+			tile->region->im->Bands == 4
+				? GDK_MEMORY_R8G8B8A8
+				: GDK_MEMORY_R8G8B8,
+			tile->bytes,
+			VIPS_REGION_LSKIP(tile->region));
 	}
 
 	return tile->texture;
@@ -184,5 +184,5 @@ tile_free_texture(Tile *tile)
 	g_assert(tile->valid);
 
 	VIPS_UNREF(tile->texture);
-	VIPS_UNREF(tile->pixbuf);
+	VIPS_FREEF(g_bytes_unref, tile->bytes);
 }
