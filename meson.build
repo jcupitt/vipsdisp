@@ -34,6 +34,10 @@ add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
 # so it can find config.h
 add_project_arguments('-I.', language: 'c')
 
+gtk_dep = dependency('gtk4', version: '>=4.14')
+# use this to fix tile alignment, not yet merged
+config_h.set('HAVE_GTK_SNAPSHOT_SET_SNAP', cc.has_header_symbol('gtk.h', 'gtk_snapshot_set_snap', dependencies: gtk_dep))
+
 configure_file(
   output: 'config.h',
   configuration: config_h,
@@ -41,10 +45,9 @@ configure_file(
 
 # need vips_thread_execute()
 vips_dep = dependency('vips', version: '>=8.17')
-glib_dep = dependency('glib-2.0')
-gtk_dep = dependency('gtk4')
 m_dep = cc.find_library('m')
 
+glib_dep = dependency('glib-2.0')
 if not cc.has_header_symbol('glib.h', 'g_autofree', dependencies : glib_dep)
   error('vipsdisp requires the GNU C "cleanup" attribute.')
 endif

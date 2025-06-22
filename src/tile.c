@@ -87,7 +87,7 @@ tile_touch(Tile *tile)
 }
 
 /* Make a tile on an image. left/top in this image's coordinates (not level0
- * coordfinates).
+ * coordinates).
  */
 Tile *
 tile_new(VipsImage *level, int left, int top, int z)

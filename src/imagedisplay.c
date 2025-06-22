@@ -651,6 +651,13 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 
 	GTK_WIDGET_CLASS(imagedisplay_parent_class)->snapshot(widget, snapshot);
 
+#ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
+	/* Round tile bounds to the closest pixel edge on all sides to prevent
+	 * seams.
+	 */
+	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
+#endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
+
 	/* Clip to the widget area, or we may paint over the display control
 	 * bar.
 	 */
