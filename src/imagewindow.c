@@ -731,9 +731,7 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 
 	if (imageui) {
 		// set_transition_type can stack overflow for some transitions
-		// gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
-		gtk_stack_set_transition_type(GTK_STACK(win->stack), 
-                GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT_RIGHT);
+		gtk_stack_set_transition_type(GTK_STACK(win->stack), transition);
 		gtk_stack_set_visible_child(GTK_STACK(win->stack), GTK_WIDGET(imageui));
 
 		/* Enable the control settings, if the displaycontrolbar is on.
@@ -1269,8 +1267,8 @@ imagewindow_next_image(GSimpleAction *action,
 
 	if (win->n_files > 0) {
 		win->current_file = (win->current_file + 1) % win->n_files;
-		imagewindow_open_current_file(win,
-			GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
+		imagewindow_open_current_file(win, 
+			GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT);
 	}
 }
 
@@ -1289,7 +1287,7 @@ imagewindow_prev_image(GSimpleAction *action,
 		win->current_file = (win->current_file + win->n_files - 1) %
 			win->n_files;
 		imagewindow_open_current_file(win,
-			GTK_STACK_TRANSITION_TYPE_ROTATE_RIGHT);
+			GTK_STACK_TRANSITION_TYPE_SLIDE_RIGHT);
 	}
 }
 
@@ -1700,7 +1698,7 @@ imagewindow_open_files(Imagewindow *win, char **files, int n_files)
 #endif /*DEBUG*/
 
 	imagewindow_files_set(win, files, n_files);
-	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
+	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT);
 }
 
 void
@@ -1711,7 +1709,7 @@ imagewindow_open_list_gfiles(Imagewindow *win, GSList *gfiles)
 #endif /*DEBUG*/
 
 	imagewindow_files_set_list_gfiles(win, gfiles);
-	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_ROTATE_LEFT);
+	imagewindow_open_current_file(win, GTK_STACK_TRANSITION_TYPE_SLIDE_LEFT);
 }
 
 void
