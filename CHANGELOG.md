@@ -1,6 +1,7 @@
 master
 
 - fix a ref leak in tilesource_new_from_file()
+- much better focus indicator in imagedisplay
 
 ## 4.0.0 31/05/25
 

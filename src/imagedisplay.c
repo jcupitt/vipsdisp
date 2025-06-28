@@ -863,6 +863,8 @@ imagedisplay_class_init(ImagedisplayClass *class)
 		g_cclosure_marshal_VOID__OBJECT,
 		G_TYPE_NONE, 1,
 		GTK_TYPE_SNAPSHOT);
+
+	gtk_widget_class_set_css_name(widget_class, "imagedisplay");
 }
 
 Imagedisplay *

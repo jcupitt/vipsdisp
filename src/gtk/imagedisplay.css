@@ -1,0 +1,15 @@
+
+imagedisplay {
+  transition-property: outline-offset, outline-color;
+  transition-duration: 300ms;
+  animation-timing-function: ease-in-out;
+  border-radius: 7px;
+  outline-offset: 4px;
+  outline: 2px solid transparent;
+}
+
+imagedisplay:focus:focus-visible {
+  outline-offset: -3px;
+  outline-color: @theme_selected_bg_color;
+}
+
