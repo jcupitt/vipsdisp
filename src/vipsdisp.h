@@ -28,10 +28,6 @@
  */
 #define MAX_TILES (2 * (4096 / TILE_SIZE) * (2048 / TILE_SIZE))
 
-/* We GtkInfoBar, which is going away in gtk5.
- */
-G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-
 #define FREESID(SID, OBJ) \
 	G_STMT_START \
 	{ \

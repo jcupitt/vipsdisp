@@ -1023,12 +1023,17 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 			graphene_rect_t bounds;
 
-			// +1 to hide tile boundaries
 			bounds.origin.x = tile->bounds.left * scale - x + paint->origin.x;
 			bounds.origin.y = tile->bounds.top * scale - y + paint->origin.y;
+#ifdef GSK_RECT_SNAP_ROUND
+			// gtk_snapshot_set_snap() is available
+			bounds.size.width = tile->bounds.width * scale;
+			bounds.size.height = tile->bounds.height * scale;
+#else
+			// +1 to hide tile boundaries
 			bounds.size.width = tile->bounds.width * scale + 1;
 			bounds.size.height = tile->bounds.height * scale + 1;
-
+#endif
 			gtk_snapshot_append_scaled_texture(snapshot,
 				tile_get_texture(tile), filter, &bounds);
 

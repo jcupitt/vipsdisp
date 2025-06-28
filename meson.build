@@ -41,10 +41,10 @@ configure_file(
 
 # need vips_thread_execute()
 vips_dep = dependency('vips', version: '>=8.17')
-glib_dep = dependency('glib-2.0')
-gtk_dep = dependency('gtk4')
+gtk_dep = dependency('gtk4', version: '>=4.10')
 m_dep = cc.find_library('m')
 
+glib_dep = dependency('glib-2.0')
 if not cc.has_header_symbol('glib.h', 'g_autofree', dependencies : glib_dep)
   error('vipsdisp requires the GNU C "cleanup" attribute.')
 endif
