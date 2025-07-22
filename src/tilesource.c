@@ -1737,7 +1737,7 @@ tilesource_new_from_file(const char *filename)
 				tilesource->level_width[level];
 			double power = log(downsample) / log(2);
 
-			if (fabs(power - floor(power)) > 0.01) {
+			if (fabs(power - rint(power)) > 0.01) {
 				// too far away from a power of two, ignore any remaining
 				// frames
 				tilesource->level_count = level;
