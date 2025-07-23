@@ -61,27 +61,27 @@ typedef struct _Tilecache {
 	 */
 	Tilesource *tilesource;
 
-	/* The levels of the pyramid, indexed by z. 0 is the full res image.
-	 * These are RGB or RGBA images, filled by tilesource.
+	/* The pyramid levels, with 0 as the full res.
 	 */
-	VipsImage **levels;
+	int level_width[MAX_LEVELS];
+	int level_height[MAX_LEVELS];
 	int n_levels;
 
-	/* For each level, a list of all the tiles on that level. This is the
+	/* For each level, a list of all the RGBA tiles on that level. This is the
 	 * list that holds the tile references.
 	 */
-	GSList **tiles;
+	GSList *tiles[MAX_LEVELS];
 
 	/* The result of the visibility test: for each level, the list of
 	 * valid tiles which touch the viewport and which are not
 	 * obscured.
 	 */
-	GSList **visible;
+	GSList *visible[MAX_LEVELS];
 
 	/* For each level, the valid but invisible tiles we are
 	 * keeping for now on LRU.
 	 */
-	GSList **free;
+	GSList *free[MAX_LEVELS];
 
 	/* Paint the backdrop with this.
 	 */

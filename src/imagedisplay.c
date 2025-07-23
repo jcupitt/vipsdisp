@@ -353,9 +353,8 @@ imagedisplay_tilecache_changed(Tilecache *tilecache,
 	Imagedisplay *imagedisplay)
 {
 #ifdef DEBUG
-	printf("imagedisplay_tilecache_changed: %d x %d\n",
-		tilecache->tilesource->image_width,
-		tilecache->tilesource->image_height);
+	printf("imagedisplay_tilecache_changed: imagedisplay = %p\n",
+		imagedisplay);
 #endif /*DEBUG*/
 
 	imagedisplay->image_rect.width = tilecache->tilesource->image_width;
@@ -527,8 +526,7 @@ imagedisplay_set_property(GObject *object,
 		break;
 
 	case PROP_TILESOURCE:
-		imagedisplay_set_tilesource(imagedisplay,
-			g_value_get_object(value));
+		imagedisplay_set_tilesource(imagedisplay, g_value_get_object(value));
 		break;
 
 	case PROP_BESTFIT:
@@ -652,9 +650,6 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	GTK_WIDGET_CLASS(imagedisplay_parent_class)->snapshot(widget, snapshot);
 
 #ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
-	/* Round tile bounds to the closest pixel edge on all sides to prevent
-	 * seams.
-	 */
 	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
 #endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
@@ -672,7 +667,7 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	paint.size.height = imagedisplay->paint_rect.height;
 
 	if (imagedisplay->tilecache &&
-		imagedisplay->tilecache->tiles)
+		imagedisplay->tilecache->n_levels > 0)
 		tilecache_snapshot(imagedisplay->tilecache, snapshot,
 			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
 			&paint, imagedisplay->debug);
@@ -681,26 +676,6 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
 
 	gtk_snapshot_pop(snapshot);
-
-	/* It's unclear how to do this :( maybe we're supposed to get the base
-	 * widget class to do it? Draw it ourselves for now.
-	if (gtk_widget_has_focus(widget)) {
-		GskRoundedRect outline;
-
-		gsk_rounded_rect_init_from_rect(&outline,
-			&GRAPHENE_RECT_INIT(
-				3,
-				3,
-				gtk_widget_get_width(widget) - 6,
-				gtk_widget_get_height(widget) - 6),
-			5);
-
-		gtk_snapshot_append_border(snapshot,
-			&outline,
-			(float[4]){ 2, 2, 2, 2 },
-			(GdkRGBA[4]){ BORDER, BORDER, BORDER, BORDER });
-	}
-	 */
 }
 
 static void
@@ -891,7 +866,7 @@ imagedisplay_new(Tilesource *tilesource)
 }
 
 /* image	level0 image coordinates ... this is the coordinate space we
- *		pass down to tilecache
+ *			pass down to tilecache
  *
  * gtk		screen cods, so the coordinates we use to render tiles
  */

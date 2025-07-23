@@ -222,9 +222,6 @@ typedef struct _Tilesource {
 
 	/* The base image after the first stage of conversion for display (just
 	 * geometric conversion, no conversion to rgb).
-	 *
-	 * Plus a region to fetch pixel values for the infobar. Except for
-	 * histograms! We need to fetch pixels from base for them.
 	 */
 	VipsImage *image;
 	VipsImage *mask;

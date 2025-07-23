@@ -51,7 +51,6 @@ tile_dispose(GObject *object)
 
 	VIPS_UNREF(tile->texture);
 	VIPS_FREEF(g_bytes_unref, tile->bytes);
-	VIPS_UNREF(tile->region);
 
 	G_OBJECT_CLASS(tile_parent_class)->dispose(object);
 }
@@ -59,7 +58,6 @@ tile_dispose(GObject *object)
 static void
 tile_init(Tile *tile)
 {
-	tile->time = tile_ticks++;
 }
 
 static void
@@ -78,6 +76,15 @@ tile_get_time(void)
 	return tile_ticks;
 }
 
+/* The pixels in the region have changed. We must regenerate the texture on
+ * next use.
+ */
+void
+tile_invalidate(Tile *tile)
+{
+	tile->valid = FALSE;
+}
+
 /* Update the timestamp on a tile.
  */
 void
@@ -86,103 +93,84 @@ tile_touch(Tile *tile)
 	tile->time = tile_ticks++;
 }
 
-/* Make a tile on an image. left/top in this image's coordinates (not level0
- * coordinates).
+/* Make a tile on an image. left/top are in level0 coordinates.
  */
 Tile *
-tile_new(VipsImage *level, int left, int top, int z)
+tile_new(int left, int top, int z)
 {
 	g_autoptr(Tile) tile = g_object_new(TYPE_TILE, NULL);
 
-	VipsRect tile_bounds;
-	VipsRect image_bounds;
-
-	tile->region = vips_region_new(level);
 	tile->z = z;
-
-	image_bounds.left = 0;
-	image_bounds.top = 0;
-	image_bounds.width = level->Xsize;
-	image_bounds.height = level->Ysize;
-	tile_bounds.left = left;
-	tile_bounds.top = top;
-	tile_bounds.width = TILE_SIZE;
-	tile_bounds.height = TILE_SIZE;
-	vips_rect_intersectrect(&image_bounds, &tile_bounds, &tile_bounds);
-	if (vips_region_buffer(tile->region, &tile_bounds))
-		return NULL;
-
-	/* Tile bounds in level 0 coordinates.
-	 */
-	tile->bounds.left = tile_bounds.left << z;
-	tile->bounds.top = tile_bounds.top << z;
-	tile->bounds.width = tile_bounds.width << z;
-	tile->bounds.height = tile_bounds.height << z;
+	tile->bounds.left = left >> z;
+	tile->bounds.top = top >> z;
+	tile->bounds.width = TILE_SIZE;
+	tile->bounds.height = TILE_SIZE;
+	tile->bounds0.left = left;
+	tile->bounds0.top = top;
+	tile->bounds0.width = TILE_SIZE << z;
+	tile->bounds0.height = TILE_SIZE << z;
+	tile->valid = FALSE;
 
 	tile_touch(tile);
 
 	return g_steal_pointer(&tile);
 }
 
-/* NULL means pixels have not arrived from libvips yet.
+/* Set the texture from the pixels in a VipsRegion. The region can be less
+ * than TILE_SIZE x TILE_SIZE for edge tiles, and can be RGB or RGBA (we
+ * always make full size RGBA textures).
  */
+void
+tile_set_texture(Tile *tile, VipsRegion *region)
+{
+	g_assert(region->valid.left == tile->bounds.left);
+	g_assert(region->valid.top == tile->bounds.top);
+	g_assert(region->valid.width <= tile->bounds.width);
+	g_assert(region->valid.height <= tile->bounds.height);
+	g_assert(region->im->Bands == 3 || region->im->Bands == 4);
+	g_assert(region->im->BandFmt == VIPS_FORMAT_UCHAR);
+	g_assert(region->im->Type == VIPS_INTERPRETATION_sRGB);
+
+	// textures are immutable, we we must always reallocate, we can't update
+	VIPS_FREEF(g_bytes_unref, tile->bytes);
+	VIPS_UNREF(tile->texture);
+
+	// always a full tile of RGBA pixels
+	gsize length = TILE_SIZE * TILE_SIZE * 4;
+	unsigned char *data = g_malloc0(length);
+
+	for (int y = 0; y < region->valid.height; y++) {
+		VipsPel *p =
+			VIPS_REGION_ADDR(region, region->valid.left, region->valid.top + y);
+		VipsPel *q = data + 4 * TILE_SIZE * y;
+
+		if (region->im->Bands == 4)
+			memcpy(q, p, VIPS_REGION_SIZEOF_LINE(region));
+		else
+			// RGB to RGBA
+			for (int x = 0; x < region->valid.width; x++) {
+				q[0] = p[0];
+				q[1] = p[1];
+				q[2] = p[2];
+				q[3] = 255;
+
+				q += 4;
+				p += 3;
+			}
+	}
+
+	tile->bytes = g_bytes_new_take(data, length);
+	tile->texture = gdk_memory_texture_new(TILE_SIZE, TILE_SIZE,
+		GDK_MEMORY_R8G8B8A8, tile->bytes, 4 * TILE_SIZE);
+
+	tile->valid = TRUE;
+	tile_touch(tile);
+}
+
 GdkTexture *
 tile_get_texture(Tile *tile)
 {
-	/* This mustn't be a completely empty tile -- there must be either
-	 * fresh, valid pixels, or an old texture.
-	 */
-	g_assert(tile->texture ||
-		tile->valid);
-
-	/* The tile is being shown, so it must be useful.
-	 */
 	tile_touch(tile);
 
-	/* It's three steps to make the texture:
-	 *
-	 *	1. We must make a copy of the pixel data from libvips, to stop
-	 *	   it being changed under our feet.
-	 *
-	 *	2. Wrap a GBytes around that copy.
-	 *
-	 *	3. Tag it as a texture that may need upload to the GPU.
-	 */
-	if (!tile->texture) {
-		gpointer copy = g_memdup2(
-			VIPS_REGION_ADDR(tile->region,
-				tile->region->valid.left,
-				tile->region->valid.top),
-			VIPS_REGION_SIZEOF_LINE(tile->region) *
-				tile->region->valid.height);
-
-		VIPS_FREEF(g_bytes_unref, tile->bytes);
-		tile->bytes = g_bytes_new_take(
-			copy,
-			VIPS_REGION_SIZEOF_LINE(tile->region) *
-				tile->region->valid.height);
-
-		tile->texture = gdk_memory_texture_new(
-			tile->region->valid.width,
-			tile->region->valid.height,
-			tile->region->im->Bands == 4
-				? GDK_MEMORY_R8G8B8A8
-				: GDK_MEMORY_R8G8B8,
-			tile->bytes,
-			VIPS_REGION_LSKIP(tile->region));
-	}
-
 	return tile->texture;
-}
-
-/* The pixels in the region have changed. We must regenerate the texture on
- * next use.
- */
-void
-tile_free_texture(Tile *tile)
-{
-	g_assert(tile->valid);
-
-	VIPS_UNREF(tile->texture);
-	VIPS_FREEF(g_bytes_unref, tile->bytes);
 }

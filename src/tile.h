@@ -49,34 +49,21 @@ typedef struct _Tile {
 	 */
 	guint time;
 
-	/* RGB or RGBA pixels coming in from libvips. A memory region, with
-	 * data copied in from the end of the pipeline.
-	 */
-	VipsRegion *region;
-
 	/* The z layer the tile sits at.
 	 */
 	int z;
 
-	/* The tile rect, in level 0 coordinates. region->valid is the rect in
-	 * level z coordinates.
+	/* The tile rect, in leval coordinates and in level0 coordinates.
 	 */
 	VipsRect bounds;
+	VipsRect bounds0;
 
-	/* TRUE if the region contains real pixels from the image. FALSE if
-	 * eg. we're waiting for computation.
+	/* TRUE if we think the texture is up to date.
 	 */
 	gboolean valid;
 
-	/* Pixels going out to the scene graph.
-	 *
-	 * bytes and texture won't make a copy of the data, so we must make a
-	 * copy ourselves, in case a later fetch from the same region produces
-	 * invalid data.
-	 */
 	GBytes *bytes;
-	GdkTexture *texture;
-
+    GdkTexture *texture;
 } Tile;
 
 typedef struct _TileClass {
@@ -88,25 +75,20 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC(Tile, g_object_unref)
 
 GType tile_get_type(void);
 
-/* Get the current time.
- */
 int tile_get_time(void);
-
-/* Update the time on a tile.
- */
+void tile_invalidate(Tile *tile);
 void tile_touch(Tile *tile);
 
-/* Make a new tile on the level.
+/* Make a new tile on the level. left and top are in level0 coordinates.
  */
-Tile *tile_new(VipsImage *level, int x, int y, int z);
+Tile *tile_new(int left, int top, int z);
+
+/* Set the texture from the data on a region.
+ */
+void tile_set_texture(Tile *tile, VipsRegion *region);
 
 /* texture lifetime run by tile ... don't unref.
  */
 GdkTexture *tile_get_texture(Tile *tile);
-
-/* Free the texture to force regeneration on next use. Call this if the region
- * changes.
- */
-void tile_free_texture(Tile *tile);
 
 #endif /*__TILE_H*/

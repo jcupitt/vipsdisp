@@ -86,6 +86,8 @@ void action_radio(GSimpleAction *action,
 
 int get_dpi(void);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(VipsRect, g_free);
+
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(cairo_t, cairo_destroy)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(cairo_surface_t, cairo_surface_destroy)
 
@@ -107,3 +109,5 @@ gboolean value_to_filename(const GValue *value,
 
 void weakref_set(GObject **pointer, GObject *object);
 #define WEAKREF_SET(A, B) weakref_set((GObject **) &(A), (GObject *) (B));
+
+VipsRect *rect_graphene_to_vips(graphene_rect_t *graphene, VipsRect *vips);

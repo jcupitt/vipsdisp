@@ -2,6 +2,8 @@ master
 
 - fix a ref leak in tilesource_new_from_file()
 - much better focus indicator in imagedisplay
+- update from nip4 again to get faster and prettier repaints
+- better complex image display
 
 ## 4.0.0 31/05/25
 
