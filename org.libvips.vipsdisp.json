@@ -424,6 +424,12 @@
             "name" : "libraw",
             "builddir" : true,
             "buildsystem" : "autotools",
+            "config-opts" : [
+                "--enable-openmp",
+                "--enable-jpeg",
+                "--enable-zlib",
+                "--enable-lcms"
+            ],
             "sources" : [
                 {
                     "type" : "archive",
