@@ -65,6 +65,17 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
+    <release version="4.1.0" date="2025-07-26">
+      <description>
+        <p>
+          Updated from nip4 again, so there should be further improvements to 
+          image repaint speed and quality. There's a much better focus 
+          indicator, better complex image display, and much better handling 
+          of next / previous / reload.
+        </p>
+      </description>
+    </release>
+
     <release version="4.0.0" date="2025-05-31">
       <description>
         <p>

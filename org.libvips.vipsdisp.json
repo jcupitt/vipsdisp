@@ -17,13 +17,26 @@
     ],
     "cleanup" : [
         "/include",
-        "/lib/libheif",
-        "/lib/x86_64-linux-gnu",
-        "/lib/girepository-1.0",
-        "/lib/pkgconfig",
+
         "/lib/cmake",
-        "/lib/openjpeg-*",
+        "/lib/girepository-1.0",
+        "/lib/libarchive.a",
+        "/lib/libcfitsio.a",
+        "/lib/libcfitsio.la",
+        "/lib/libdeflate.a",
+        "/lib/libheif",
+        "/lib/libhwy.a",
+        "/lib/libimagequant.a",
+        "/lib/libopenjp2.a",
+        "/lib/libraw.a",
+        "/lib/libraw.la",
+        "/lib/libraw_r.a",
+        "/lib/libraw_r.la",
+        "/lib/libspng_static.a",
+        "/lib/pkgconfig",
+
         "/man",
+
         "/share/aclocal",
         "/share/doc",
         "/share/gir-1.0",
@@ -39,31 +52,59 @@
         "/share/COPYING",
         "/share/RELEASE.txt",
         "/share/cmake",
-        "/bin/a*",
-        "/bin/b*",
-        "/bin/c*",
-        "/bin/d*",
-        "/bin/e*",
-        "/bin/f*",
-        "/bin/g*",
-        "/bin/h*",
-        "/bin/i*",
-        "/bin/l*",
-        "/bin/m*",
-        "/bin/o*",
-        "/bin/p*",
-        "/bin/r*",
-        "/bin/s*",
-        "/bin/t*",
-        "/bin/x*",
+
+        "/bin/4channels",
+        "/bin/brotli",
+        "/bin/bsdcat",
+        "/bin/bsdcpio",
+        "/bin/bsdtar",
+        "/bin/bsdunzip",
+        "/bin/cookbook",
+        "/bin/dcm-dump",
+        "/bin/dcm-getframe",
+        "/bin/dcraw_emu",
+        "/bin/dcraw_half",
+        "/bin/exr2aces",
+        "/bin/exrenvmap",
+        "/bin/exrheader",
+        "/bin/exrinfo",
+        "/bin/exrmakepreview",
+        "/bin/exrmaketiled",
+        "/bin/exrmanifest",
+        "/bin/exrmetrics",
+        "/bin/exrmultipart",
+        "/bin/exrmultiview",
+        "/bin/exrstdattr",
+        "/bin/fitscopy",
+        "/bin/fitsverify",
+        "/bin/fpack",
+        "/bin/funpack",
+        "/bin/half_mt",
+        "/bin/imcopy",
+        "/bin/libdeflate-gunzip",
+        "/bin/libdeflate-gzip",
+        "/bin/mem_image",
+        "/bin/multirender_test",
+        "/bin/openslide-quickhash1sum",
+        "/bin/openslide-show-properties",
+        "/bin/openslide-write-png",
+        "/bin/opj_compress",
+        "/bin/opj_decompress",
+        "/bin/opj_dump",
+        "/bin/postprocessing_benchmark",
+        "/bin/raw-identify",
+        "/bin/rawtextdump",
+        "/bin/simple_dcraw",
+        "/bin/slidetool",
+        "/bin/smem",
+        "/bin/speed",
+        "/bin/unprocessed_raw",
         "/bin/vips",
-        "/bin/vipsheader",
         "/bin/vipsedit",
+        "/bin/vipsheader",
         "/bin/vipsprofile",
-        "/bin/vipsthumbnail",
-        "/bin/jxlinfo",
-        "*.la",
-        "*.a"
+        "/bin/vipsthumbnail"
+
     ],
     "modules" : [
 
@@ -380,12 +421,24 @@
         },
 
         {
+            "name" : "libraw",
+            "builddir" : true,
+            "buildsystem" : "autotools",
+            "sources" : [
+                {
+                    "type" : "archive",
+                    "url" : "https://www.libraw.org/data/LibRaw-0.21.4.tar.gz",
+                    "sha256" : "6be43f19397e43214ff56aab056bf3ff4925ca14012ce5a1538a172406a09e63"
+                }
+            ]
+        },
+
+        {
             "name" : "libvips",
             "builddir" : true,
             "buildsystem" : "meson",
             "config-opts" : [
                 "--libdir=lib",
-                "--buildtype=release",
                 "-Ddeprecated=false",
                 "-Dmodules=disabled"
             ],
@@ -393,7 +446,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/libvips/libvips.git",
-                    "tag" : "v8.17.0"
+                    "tag" : "v8.18.0-test1"
                 }
             ]
         },
@@ -402,14 +455,11 @@
             "name" : "vipsdisp",
             "builddir" : true,
             "buildsystem" : "meson",
-            "config-opts" : [
-                "--buildtype=release"
-            ],
             "sources" : [
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v4.0.0"
+                    "tag" : "v4.1.0-rc1"
                 }
             ]
         }

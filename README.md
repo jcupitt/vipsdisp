@@ -272,13 +272,9 @@ Clone and run:
 
     - need to *not* do this if only one file specified, eg. `vipsdisp x.txt`
 
-- PDF page change does not change image size if pages vary in size
-
 - ^C during a slow load leaves a file in /tmp, can we improve this?
 
 - batch save?
-
-- pass revalidate down to `new_from_file` on F5
 
 - have a look at the new 4.14 `gtk_print_dialog_new()`
 
@@ -294,41 +290,10 @@ Clone and run:
     very difficult with the current structure -- we'd need to separate
     tilesource and tilecache completely, and perhaps link them with signals
 
-- tile read errors:
-
-    $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
-    (vipsdisp:110067): VIPS-WARNING **: 18:05:16.244: error in tile 0 x 256: tiff2vips: out of order read -- at line 3328, but line 256 requested
-
-    page 0, subifd 2 and subifd 3 are untiled!!!
-
-    we need to decompress the whole layer before we view :( 
-
 - need to separate page and zoom for ome-tiff, since we have many-page
   subifd pyramids
 
     - useful for fixing PDF zoom in the way we fixed SVG zoom too
-
-- pages as bands
-
-    $ ./src/vipsdisp ~/pics/ome/LuCa-7color_Scan1.ome.tiff 
-
-    flip to last page, zoom, lots of repaint errors
-
-    maybe join first N pages (while pages same size) in pages as bands 
-    mode?
-
-    does not page flip to smaller pages correctly
-
-    reset zoom/scroll on pageflip if the page size changes?
-
-    same for audi r8 pdf page flip I guess?
-
-- info bar:
-
-    - pages as bands ... info bar displays only one band
-
-    - will not display complex numbers correctly ... need to unpack to bands,
-      or does getpoint do this already?
 
 - zooming:
 
