@@ -141,7 +141,7 @@
         </child>
 
         <child type="start">
-          <object class="GtkButton">
+          <object class="GtkButton" id="prev">
             <property name="icon-name">go-previous-symbolic</property>
             <property name="action-name">win.prev_image</property>
             <property name="tooltip-text">Previous image</property>
@@ -149,7 +149,7 @@
         </child>
 
         <child type="start">
-          <object class="GtkButton">
+          <object class="GtkButton" id="next">
             <property name="icon-name">go-next-symbolic</property>
             <property name="action-name">win.next_image</property>
             <property name="tooltip-text">Next image</property>
@@ -157,7 +157,7 @@
         </child>
 
         <child type="start">
-          <object class="GtkButton">
+          <object class="GtkButton" id="refresh">
             <property name="icon-name">view-refresh-symbolic</property>
             <property name="action-name">win.reload</property>
             <property name="tooltip-text">Reload</property>

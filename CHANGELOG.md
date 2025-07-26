@@ -4,6 +4,7 @@ master
 - much better focus indicator in imagedisplay
 - update from nip4 again to get faster and prettier repaints
 - better complex image display
+- much better prev / next / refresh handling
 
 ## 4.0.0 31/05/25
 

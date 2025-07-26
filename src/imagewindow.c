@@ -65,6 +65,9 @@ struct _Imagewindow {
 	GFile *load_folder;
 
 	GtkWidget *right_click_menu;
+	GtkWidget *prev;
+	GtkWidget *next;
+	GtkWidget *refresh;
 	GtkWidget *title;
 	GtkWidget *subtitle;
 	GtkWidget *gears;
@@ -753,6 +756,11 @@ imagewindow_imageui_set_visible(Imagewindow *win,
 
 	// update the menus
 	imagewindow_tilesource_changed(new_tilesource, win);
+
+	// update sensitivity of titlebar buttons
+    gtk_widget_set_sensitive(win->prev, win->n_files > 1);
+    gtk_widget_set_sensitive(win->next, win->n_files > 1);
+    gtk_widget_set_sensitive(win->refresh, win->n_files > 0);
 }
 
 static void
@@ -1616,10 +1624,6 @@ imagewindow_error_clicked(GtkWidget *button, Imagewindow *win)
     imagewindow_error_hide(win);
 }
 
-#define BIND(field) \
-	gtk_widget_class_bind_template_child(GTK_WIDGET_CLASS(class), \
-		Imagewindow, field);
-
 static void
 imagewindow_class_init(ImagewindowClass *class)
 {
@@ -1628,20 +1632,23 @@ imagewindow_class_init(ImagewindowClass *class)
 	gtk_widget_class_set_template_from_resource(GTK_WIDGET_CLASS(class),
 		APP_PATH "/imagewindow.ui");
 
-	BIND(right_click_menu);
-	BIND(title);
-	BIND(subtitle);
-	BIND(gears);
-	BIND(progress_bar);
-	BIND(progress);
-	BIND(progress_cancel);
-	BIND(error_bar);
-	BIND(error_label);
-	BIND(main_box);
-	BIND(stack);
-	BIND(properties);
-	BIND(display_bar);
-	BIND(info_bar);
+	BIND_VARIABLE(Imagewindow, right_click_menu);
+	BIND_VARIABLE(Imagewindow, prev);
+    BIND_VARIABLE(Imagewindow, next);
+    BIND_VARIABLE(Imagewindow, refresh);
+	BIND_VARIABLE(Imagewindow, title);
+	BIND_VARIABLE(Imagewindow, subtitle);
+	BIND_VARIABLE(Imagewindow, gears);
+	BIND_VARIABLE(Imagewindow, progress_bar);
+	BIND_VARIABLE(Imagewindow, progress);
+	BIND_VARIABLE(Imagewindow, progress_cancel);
+	BIND_VARIABLE(Imagewindow, error_bar);
+	BIND_VARIABLE(Imagewindow, error_label);
+	BIND_VARIABLE(Imagewindow, main_box);
+	BIND_VARIABLE(Imagewindow, stack);
+	BIND_VARIABLE(Imagewindow, properties);
+	BIND_VARIABLE(Imagewindow, display_bar);
+	BIND_VARIABLE(Imagewindow, info_bar);
 
 	BIND_CALLBACK(imagewindow_pressed_cb);
 	BIND_CALLBACK(imagewindow_error_clicked);
