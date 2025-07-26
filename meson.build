@@ -36,7 +36,7 @@ add_project_arguments('-I.', language: 'c')
 
 gtk_dep = dependency('gtk4', version: '>=4.14')
 # use this to fix tile alignment, not yet merged
-config_h.set('HAVE_GTK_SNAPSHOT_SET_SNAP', cc.has_header_symbol('gtk.h', 'gtk_snapshot_set_snap', dependencies: gtk_dep))
+config_h.set('HAVE_GTK_SNAPSHOT_SET_SNAP', cc.has_function('gtk_snapshot_set_snap', prefix: '#include <gtk/gtk.h>', dependencies: gtk_dep))
 
 configure_file(
   output: 'config.h',
