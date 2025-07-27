@@ -45,8 +45,8 @@ flatpak install flathub org.libvips.vipsdisp
 ## Features
 
 * It supports many scientific and technical image formats, including TIFF,
-  WEBP, JP2K, JXL, HEIC, AVIF, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG,
-  FITS, Matlab, NIfTI, Analyze, etc. It supports many numeric pixel types,
+  WEBP, JP2K, JXL, RAW, HEIC, AVIF, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, 
+  SVG, FITS, Matlab, NIfTI, Analyze, etc. It supports many numeric pixel types,
   any number of image bands, many colour spaces.
 
 * It doesn't need to keep the whole image in memory. It will only read parts 

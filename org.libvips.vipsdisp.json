@@ -425,6 +425,7 @@
             "builddir" : true,
             "buildsystem" : "autotools",
             "config-opts" : [
+                "--disable-examples",
                 "--enable-openmp",
                 "--enable-jpeg",
                 "--enable-zlib",
@@ -465,7 +466,7 @@
                 {
                     "type" : "git",
                     "url" : "https://github.com/jcupitt/vipsdisp.git",
-                    "tag" : "v4.1.0-rc1"
+                    "tag" : "v4.1.0"
                 }
             ]
         }
