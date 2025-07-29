@@ -946,6 +946,9 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	backdrop.origin.y = 0;
 	backdrop.size.width = TILE_SIZE;
 	backdrop.size.height = TILE_SIZE;
+#ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
+	tilecache_snap_rect_to_boundary(&backdrop, pixel_size);
+#endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 	gtk_snapshot_append_texture(snapshot,
 		tilecache->background_texture, &backdrop);
 
@@ -973,8 +976,6 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			bounds.size.height = tile->bounds0.height * scale;
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-			/* Without gtk snap, we have to snap tiles edges ourselves.
-			 */
 			tilecache_snap_rect_to_boundary(&bounds, pixel_size);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
