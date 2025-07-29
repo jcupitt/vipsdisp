@@ -835,15 +835,41 @@ tilecache_draw_bounds(GtkSnapshot *snapshot,
 	}
 }
 
+#ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
+/* Snap a graphene rect to a hardware pixel boundary on the output surface. We
+ * need to do this if the gtk snap mechachanism is missing or we'll get thin
+ * white lines on tile edges.
+ */
+static void
+tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double scale)
+{
+	double left = rint(bounds->origin.x * scale) / scale;
+	double top = rint(bounds->origin.y * scale) / scale;
+	double right = 
+		rint((bounds->origin.x + bounds->size.width) * scale) / scale;
+	double bottom = 
+		rint((bounds->origin.y + bounds->size.height) * scale) / scale;
+
+	bounds->origin.x = left;
+	bounds->origin.y = top;
+	bounds->size.width = right - left;
+	bounds->size.height = bottom - top;
+}
+#endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
+
 /* Scale is how much the level0 image has been scaled, x/y is the position of
- * the top-left corner of the paint_rect area in the scaled image.
+ * the top-left corner of @paint in the scaled image.
  *
- * paint_rect is the pixel area in gtk coordinates that we paint in the widget.
+ * @pixel_scale is gdk_surface_get_scale() for the surface this snapshot will
+ * be rendered to.
+ *
+ * @paint is the pixel area in gtk coordinates that we paint in the widget.
  *
  * Set debug to draw tile boundaries for debugging.
  */
 void
 tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
+	double scale_factor,
 	double scale, double x, double y, graphene_rect_t *paint, gboolean debug)
 {
 	/* In debug mode, scale and offset so we can see tile clipping.
@@ -947,11 +973,9 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			bounds.size.height = tile->bounds0.height * scale;
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-			/* Without set snap, we have to hide tile edges by expanding the
-			 * tile.
+			/* Without gtk snap, we have to snap tiles edges ourselves.
 			 */
-			bounds.size.width += 1;
-			bounds.size.height += 1;
+			tilecache_snap_rect_to_boundary(&bounds, scale_factor);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
 			gtk_snapshot_append_scaled_texture(snapshot,
