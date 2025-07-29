@@ -841,14 +841,14 @@ tilecache_draw_bounds(GtkSnapshot *snapshot,
  * white lines on tile edges.
  */
 static void
-tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double scale)
+tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double pixel_size)
 {
-	double left = rint(bounds->origin.x * scale) / scale;
-	double top = rint(bounds->origin.y * scale) / scale;
+	double left = rint(bounds->origin.x * pixel_size) / pixel_size;
+	double top = rint(bounds->origin.y * pixel_size) / pixel_size;
 	double right = 
-		rint((bounds->origin.x + bounds->size.width) * scale) / scale;
+		rint((bounds->origin.x + bounds->size.width) * pixel_size) / pixel_size;
 	double bottom = 
-		rint((bounds->origin.y + bounds->size.height) * scale) / scale;
+		rint((bounds->origin.y + bounds->size.height) * pixel_size) / pixel_size;
 
 	bounds->origin.x = left;
 	bounds->origin.y = top;
@@ -869,7 +869,7 @@ tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double scale)
  */
 void
 tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
-	double scale_factor,
+	double pixel_size,
 	double scale, double x, double y, graphene_rect_t *paint, gboolean debug)
 {
 	/* In debug mode, scale and offset so we can see tile clipping.
@@ -975,7 +975,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
 			/* Without gtk snap, we have to snap tiles edges ourselves.
 			 */
-			tilecache_snap_rect_to_boundary(&bounds, scale_factor);
+			tilecache_snap_rect_to_boundary(&bounds, pixel_size);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
 			gtk_snapshot_append_scaled_texture(snapshot,
