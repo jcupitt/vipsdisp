@@ -940,15 +940,15 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	/* Paint the backdrop.
 	 */
 	graphene_rect_t backdrop = *paint;
+#ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
+	tilecache_snap_rect_to_boundary(&backdrop, pixel_size);
+#endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 	gtk_snapshot_push_repeat(snapshot, &backdrop, NULL);
 
 	backdrop.origin.x = 0;
 	backdrop.origin.y = 0;
 	backdrop.size.width = TILE_SIZE;
 	backdrop.size.height = TILE_SIZE;
-#ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-	tilecache_snap_rect_to_boundary(&backdrop, pixel_size);
-#endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 	gtk_snapshot_append_texture(snapshot,
 		tilecache->background_texture, &backdrop);
 
