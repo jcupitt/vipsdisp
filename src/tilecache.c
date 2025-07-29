@@ -860,8 +860,9 @@ tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double pixel_size)
 /* Scale is how much the level0 image has been scaled, x/y is the position of
  * the top-left corner of @paint in the scaled image.
  *
- * @pixel_scale is gdk_surface_get_scale() for the surface this snapshot will
- * be rendered to.
+ * @pixel_size is the size of hardware pixels, so at 200% desktop scaling,
+ * for example, this will be 0.5. In this case, we'd need to draw tiles half 
+ * size to get 1 image pixel == 1 display pixel. 
  *
  * @paint is the pixel area in gtk coordinates that we paint in the widget.
  *
@@ -893,12 +894,12 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 		tilecache, scale, x, y);
 #endif /*DEBUG*/
 
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG
 	printf("  paint x = %g, y = %g, "
 		   "width = %g, height = %g\n",
 		paint->origin.x, paint->origin.y,
 		paint->size.width, paint->size.height);
-#endif /*DEBUG_VERBOSE*/
+#endif /*DEBUG*/
 
 #ifdef DEBUG_VERBOSE
 	printf("tilecache_snapshot: %p tiles are:\n", tilecache);
@@ -915,13 +916,23 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	else
 		z = VIPS_CLIP(0, log(1.0 / scale) / log(2.0), tilecache->n_levels - 1);
 
-	/* paint_rect in level0 coordinates.
+	/* paint_rect in image level0 coordinates. We want 1 image pixel == 1
+	 * display hardware pixel, so we need to also scale by pixel_size.
 	 */
 	graphene_rect_t viewport;
-	viewport.origin.x = x / scale;
-	viewport.origin.y = y / scale;
-	viewport.size.width = VIPS_MAX(1, paint->size.width / scale);
-	viewport.size.height = VIPS_MAX(1, paint->size.height / scale);
+	viewport.origin.x = x / (scale * pixel_size);
+	viewport.origin.y = y / (scale * pixel_size);
+	viewport.size.width = 
+		VIPS_MAX(1, paint->size.width / (scale * pixel_size));
+	viewport.size.height = 
+		VIPS_MAX(1, paint->size.height / (scale * pixel_size));
+
+#ifdef DEBUG
+	printf("  viewport image0 coordinates x = %g, y = %g, "
+		   "width = %g, height = %g\n",
+		viewport.origin.x, viewport.origin.y,
+		viewport.size.width, viewport.size.height);
+#endif /*DEBUG*/
 
 	/* Fetch any tiles we are missing, update any tiles we have that have
 	 * been flagged as having pixels ready for fetching.
@@ -964,16 +975,18 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			/* If we are zooming in beyond 1:1, we want nearest so we don't
 			 * blur the image. For zooming out, we want trilinear to get
 			 * mipmaps and antialiasing.
-			 */
 			GskScalingFilter filter = scale > 1.0 ?
 				GSK_SCALING_FILTER_NEAREST : GSK_SCALING_FILTER_TRILINEAR;
+			 */
+			GskScalingFilter filter = GSK_SCALING_FILTER_NEAREST;
 
 			graphene_rect_t bounds;
-
-			bounds.origin.x = tile->bounds0.left * scale - x + paint->origin.x;
-			bounds.origin.y = tile->bounds0.top * scale - y + paint->origin.y;
-			bounds.size.width = tile->bounds0.width * scale;
-			bounds.size.height = tile->bounds0.height * scale;
+			bounds.origin.x = 
+				tile->bounds0.left * scale * pixel_size - x + paint->origin.x;
+			bounds.origin.y = 
+				tile->bounds0.top * scale * pixel_size - y + paint->origin.y;
+			bounds.size.width = tile->bounds0.width * scale * pixel_size;
+			bounds.size.height = tile->bounds0.height * scale * pixel_size;
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
 			tilecache_snap_rect_to_boundary(&bounds, pixel_size);
