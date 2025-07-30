@@ -965,7 +965,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			 * blur the image. For zooming out, we want trilinear to get
 			 * mipmaps and antialiasing.
 			 */
-			GskScalingFilter filter = scale > 1.0 ?
+			GskScalingFilter filter = scale >= pixel_size ?
 				GSK_SCALING_FILTER_NEAREST : GSK_SCALING_FILTER_TRILINEAR;
 
 			graphene_rect_t bounds;
