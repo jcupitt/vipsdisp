@@ -32,8 +32,8 @@
 /*
 #define DEBUG_RENDER_TIME
 #define DEBUG_VERBOSE
-#define DEBUG
  */
+#define DEBUG
 
 enum {
 	/* Properties.
@@ -978,7 +978,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			GskScalingFilter filter = scale > 1.0 ?
 				GSK_SCALING_FILTER_NEAREST : GSK_SCALING_FILTER_TRILINEAR;
 			 */
-			GskScalingFilter filter = GSK_SCALING_FILTER_TRILINEAR;
+			GskScalingFilter filter = GSK_SCALING_FILTER_NEAREST;
 
 			graphene_rect_t bounds;
 			bounds.origin.x = 
