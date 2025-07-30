@@ -110,6 +110,7 @@ Tilecache *tilecache_new();
 /* Render the tiles to a snapshot.
  */
 void tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
+	double pixel_size,
 	double scale, double x, double y, graphene_rect_t *paint, gboolean debug);
 
 #endif /*__TILECACHE_H*/

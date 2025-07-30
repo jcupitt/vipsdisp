@@ -666,9 +666,17 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	paint.size.width = imagedisplay->paint_rect.width;
 	paint.size.height = imagedisplay->paint_rect.height;
 
+	/* If there's no gtk snapping, we do our own based on the hardware pixel
+	 * size for the surface this snapshot will be rendered to.
+	 */
+	GtkNative *native = gtk_widget_get_native(widget);
+	GdkSurface *surface = gtk_native_get_surface(native);
+	double pixel_size = 1.0 / gdk_surface_get_scale_factor(surface);
+
 	if (imagedisplay->tilecache &&
 		imagedisplay->tilecache->n_levels > 0)
 		tilecache_snapshot(imagedisplay->tilecache, snapshot,
+			pixel_size,
 			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
 			&paint, imagedisplay->debug);
 
