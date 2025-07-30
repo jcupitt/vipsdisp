@@ -109,5 +109,3 @@ gboolean value_to_filename(const GValue *value,
 
 void weakref_set(GObject **pointer, GObject *object);
 #define WEAKREF_SET(A, B) weakref_set((GObject **) &(A), (GObject *) (B));
-
-VipsRect *rect_graphene_to_vips(graphene_rect_t *graphene, VipsRect *vips);
