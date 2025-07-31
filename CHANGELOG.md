@@ -2,6 +2,7 @@ master
 
 - do our own tile snapping if gtk has no snap mechanism 
 - high-dpi support
+- fix TIFF pyr detection [euzada]
 
 ## 4.1.0 26/07/25
 

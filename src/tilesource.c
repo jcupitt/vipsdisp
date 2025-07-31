@@ -1409,8 +1409,7 @@ tilesource_print(Tilesource *tilesource)
 	int i;
 
 	printf("tilesource: %p\n", tilesource);
-	printf("\ttype = %s\n",
-		vips_enum_nick(TILESOURCE_TYPE_TYPE, tilesource->type));
+	printf("\ttype = %s\n", vips_enum_nick(TYPE_TYPE, tilesource->type));
 	printf("\tloader = %s\n", tilesource->loader);
 	printf("\tn_pages = %d\n", tilesource->n_pages);
 	printf("\tpage_height = %d\n", tilesource->page_height);
@@ -1431,7 +1430,7 @@ tilesource_print(Tilesource *tilesource)
 			tilesource->level_height[i]);
 
 	printf("\tmode = %s\n",
-		vips_enum_nick(TILESOURCE_MODE_TYPE, tilesource->mode));
+		vips_enum_nick(TYPE_MODE, tilesource->mode));
 }
 #endif /*DEBUG*/
 
@@ -1447,8 +1446,6 @@ tilesource_set_base(Tilesource *tilesource, VipsImage *base)
 	g_assert(!tilesource->base);
 	tilesource->base = base;
 	g_object_ref(tilesource->base);
-
-	tilesource->n_subifds = vips_image_get_n_subifds(base);
 
 	if (vips_image_get_typeof(base, "delay")) {
 		int *delay;
@@ -1719,6 +1716,7 @@ tilesource_new_from_file(const char *filename)
 		return NULL;
 
 	tilesource->n_subifds = vips_image_get_n_subifds(plain);
+	tilesource->n_pages = vips_image_get_n_pages(plain);
 
 	/* For openslide, we can read out the level structure directly.
 	 */
@@ -2050,7 +2048,6 @@ tilesource_set_synchronous(Tilesource *tilesource, gboolean synchronous)
 	if (tilesource->synchronous != synchronous) {
 #ifdef DEBUG
 		printf("tilesource_set_synchronous: %d", synchronous);
-		iobject_print(IOBJECT(tilesource));
 #endif /*DEBUG*/
 
 		tilesource->synchronous = synchronous;
