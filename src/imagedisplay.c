@@ -679,11 +679,13 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	double pixel_size = 1.0 / gdk_surface_get_scale_factor(surface);
 	g_object_set(imagedisplay, "pixel-size", pixel_size, NULL);
 
-	gtk_snapshot_scale(snapshot, pixel_size, pixel_size);
+	gtk_snapshot_save(snapshot);
 
 #ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
 	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
 #endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
+
+	gtk_snapshot_scale(snapshot, pixel_size, pixel_size);
 
 	/* Clip to the widget area, or we may paint over the display control
 	 * bar.
@@ -707,10 +709,13 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 			imagedisplay->y / pixel_size,
 			&paint, imagedisplay->debug);
 
+	// end of clip
+	gtk_snapshot_pop(snapshot);
+
+	gtk_snapshot_restore(snapshot);
+
 	// draw any overlays
 	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
-
-	gtk_snapshot_pop(snapshot);
 }
 
 static void
