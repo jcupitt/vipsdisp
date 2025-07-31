@@ -836,12 +836,8 @@ tilecache_draw_bounds(GtkSnapshot *snapshot,
 }
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-/* Snap a graphene rect to a hardware pixel boundary on the output surface. We
- * need to do this if the gtk snap mechachanism is missing or we'll get thin
- * white lines on tile edges.
- */
 static void
-tilecache_snap_rect_to_boundary(graphene_rect_t *bounds)
+tilecache_snap_rect(graphene_rect_t *bounds)
 {
 	double left = rint(bounds->origin.x);
 	double top = rint(bounds->origin.y);
@@ -935,7 +931,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	 */
 	graphene_rect_t backdrop = *paint;
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-	tilecache_snap_rect_to_boundary(&backdrop);
+	tilecache_snap_rect(&backdrop);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 	gtk_snapshot_push_repeat(snapshot, &backdrop, NULL);
 
@@ -970,9 +966,8 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			bounds.size.height = tile->bounds0.height * scale;
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-			tilecache_snap_rect_to_boundary(&bounds);
+			tilecache_snap_rect(&bounds);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
-
 			gtk_snapshot_append_scaled_texture(snapshot,
 				tile_get_texture(tile), filter, &bounds);
 
