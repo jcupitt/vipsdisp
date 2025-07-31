@@ -444,6 +444,18 @@ imageui_get_zoom(Imageui *imageui)
 	return zoom;
 }
 
+double
+imageui_get_pixel_size(Imageui *imageui)
+{
+	double pixel_size;
+
+	g_object_get(imageui,
+		"pixel-size", &pixel_size,
+		NULL);
+
+	return pixel_size;
+}
+
 static gboolean
 imageui_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer user_data)
 {
@@ -566,7 +578,7 @@ imageui_magout(Imageui *imageui)
 void
 imageui_oneone(Imageui *imageui)
 {
-	imageui_zoom_to_eased(imageui, 1.0);
+	imageui_zoom_to_eased(imageui, imageui_get_pixel_size(imageui));
 }
 
 static void
@@ -800,7 +812,8 @@ imageui_key_pressed(GtkEventControllerKey *self,
 				if (state & GDK_CONTROL_MASK)
 					zoom = 1.0 / zoom;
 
-				imageui_zoom_to_eased(imageui, zoom);
+				imageui_zoom_to_eased(imageui, 
+					zoom * imageui_get_pixel_size(imageui));
 
 				handled = TRUE;
 				break;
