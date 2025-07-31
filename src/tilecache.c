@@ -709,7 +709,7 @@ tilecache_print(Tilecache *tilecache)
 
 static void
 tilecache_compute_visibility(Tilecache *tilecache,
-	graphene_rect_t *grect, int z)
+	VipsRect *viewport, int z)
 {
 	int size0 = TILE_SIZE << z;
 	int start_time = tile_get_time();
@@ -727,10 +727,8 @@ tilecache_compute_visibility(Tilecache *tilecache,
 
 	/* The rect of tiles touched by the viewport.
 	 */
-	VipsRect viewport;
-	rect_graphene_to_vips(grect, &viewport);
 	VipsRect touches;
-	tilecache_tiles_for_rect(tilecache, &viewport, z, &touches);
+	tilecache_tiles_for_rect(tilecache, viewport, z, &touches);
 
 #ifdef DEBUG_VERBOSE
 	printf("viewport in level0 coordinates: left = %d, top = %d, "
@@ -907,18 +905,21 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 	/* paint_rect in level0 coordinates.
 	 */
-	graphene_rect_t viewport;
-	viewport.origin.x = x / scale;
-	viewport.origin.y = y / scale;
-	viewport.size.width = VIPS_MAX(1, paint->size.width / scale);
-	viewport.size.height = VIPS_MAX(1, paint->size.height / scale);
+	double left = floor(x / scale);
+	double top = floor(y / scale);
+	double right = ceil((x + paint->size.width) / scale);
+	double bottom = ceil((y + paint->size.height) / scale);
+
+	VipsRect viewport;
+	viewport.left = left;
+	viewport.top = top;
+	viewport.width = VIPS_MAX(1, right - left);
+	viewport.height = VIPS_MAX(1, bottom - top);
 
 	/* Fetch any tiles we are missing, update any tiles we have that have
 	 * been flagged as having pixels ready for fetching.
 	 */
-	VipsRect bounds;
-	tilecache_request_area(tilecache,
-		rect_graphene_to_vips(&viewport, &bounds), z);
+	tilecache_request_area(tilecache, &viewport, z);
 
 	/* Find the set of visible tiles, sorted back to front.
 	 *
@@ -987,10 +988,10 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 
 		gsk_rounded_rect_init_from_rect(&outline,
 			&GRAPHENE_RECT_INIT(
-				viewport.origin.x * scale - x + paint->origin.x,
-				viewport.origin.y * scale - y + paint->origin.y,
-				viewport.size.width * scale,
-				viewport.size.height * scale),
+				viewport.left * scale - x + paint->origin.x,
+				viewport.top * scale - y + paint->origin.y,
+				viewport.width * scale,
+				viewport.height * scale),
 			0);
 
 		gtk_snapshot_append_border(snapshot,

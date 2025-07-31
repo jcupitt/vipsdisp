@@ -538,18 +538,3 @@ weakref_set(GObject **pointer, GObject *object)
 
 #define WEAKREF_SET(A, B) weakref_set((GObject **) &(A), (GObject *) (B));
 
-VipsRect *
-rect_graphene_to_vips(graphene_rect_t *graphene, VipsRect *vips)
-{
-    // round out to enclosing int area
-    graphene_rect_t bounds;
-    graphene_rect_round_extents(graphene, &bounds);
-
-    vips->left = bounds.origin.x;
-    vips->top = bounds.origin.y;
-    vips->width = bounds.size.width;
-    vips->height = bounds.size.height;
-
-    return vips;
-}
-
