@@ -79,6 +79,11 @@ struct _Imagedisplay {
 	double scale;
 	double x, y;
 
+	/* The size of physical display pixels in gtk coordinates, eg. for a 200%
+	 * desktop this would be 0.5.
+	 */
+	double pixel_size;
+
 	/* Draw the screen in debug mode.
 	 */
 	gboolean debug;
@@ -126,6 +131,9 @@ enum {
 	 */
 	PROP_DEBUG,
 
+	/* Read out display density with this.
+	 */
+	PROP_PIXEL_SIZE,
 };
 
 enum {
@@ -476,6 +484,8 @@ imagedisplay_set_property(GObject *object,
 {
 	Imagedisplay *imagedisplay = (Imagedisplay *) object;
 
+	double d;
+
 #ifdef DEBUG
 	{
 		g_autofree char *str = g_strdup_value_contents(value);
@@ -573,6 +583,15 @@ imagedisplay_set_property(GObject *object,
 		gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
 		break;
 
+	case PROP_PIXEL_SIZE:
+		d = g_value_get_double(value);
+		if (imagedisplay->pixel_size != d) {
+			imagedisplay->pixel_size = d;
+			imagedisplay_layout(imagedisplay);
+			gtk_widget_queue_draw(GTK_WIDGET(imagedisplay));
+		}
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
@@ -632,6 +651,10 @@ imagedisplay_get_property(GObject *object,
 		g_value_set_boolean(value, imagedisplay->debug);
 		break;
 
+	case PROP_PIXEL_SIZE:
+		g_value_set_double(value, imagedisplay->pixel_size);
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
@@ -649,10 +672,6 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 
 	GTK_WIDGET_CLASS(imagedisplay_parent_class)->snapshot(widget, snapshot);
 
-#ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
-	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
-#endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
-
 	/* Clip to the widget area, or we may paint over the display control
 	 * bar.
 	 */
@@ -660,29 +679,42 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 		&GRAPHENE_RECT_INIT(0, 0,
 			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
 
-	graphene_rect_t paint;
-	paint.origin.x = imagedisplay->paint_rect.left;
-	paint.origin.y = imagedisplay->paint_rect.top;
-	paint.size.width = imagedisplay->paint_rect.width;
-	paint.size.height = imagedisplay->paint_rect.height;
+	gtk_snapshot_save(snapshot);
 
-	/* If there's no gtk snapping, we do our own based on the hardware pixel
-	 * size for the surface this snapshot will be rendered to.
+	/* This can change on each repaint as windows are dragged.
 	 */
 	GtkNative *native = gtk_widget_get_native(widget);
 	GdkSurface *surface = gtk_native_get_surface(native);
-	double pixel_size = 1.0 / gdk_surface_get_scale_factor(surface);
+	double pixel_size = 1.0 / gdk_surface_get_scale(surface);
+	g_object_set(imagedisplay, "pixel-size", pixel_size, NULL);
+
+#ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
+	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
+#endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
+
+	gtk_snapshot_scale(snapshot, pixel_size, pixel_size);
+
+	graphene_rect_t paint;
+	paint.origin.x = imagedisplay->paint_rect.left / pixel_size;
+	paint.origin.y = imagedisplay->paint_rect.top / pixel_size;
+	paint.size.width = imagedisplay->paint_rect.width / pixel_size;
+	paint.size.height = imagedisplay->paint_rect.height / pixel_size;
 
 	if (imagedisplay->tilecache &&
 		imagedisplay->tilecache->n_levels > 0)
 		tilecache_snapshot(imagedisplay->tilecache, snapshot,
-			pixel_size,
-			imagedisplay->scale, imagedisplay->x, imagedisplay->y,
+			imagedisplay->scale / pixel_size, 
+			imagedisplay->x / pixel_size, 
+			imagedisplay->y / pixel_size,
 			&paint, imagedisplay->debug);
 
-	// draw any overlays
+	// undo snap and scale
+	gtk_snapshot_restore(snapshot);
+
+	// draw any overlays back in the regular coordinate space
 	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
 
+	// end of clip
 	gtk_snapshot_pop(snapshot);
 }
 
@@ -826,6 +858,13 @@ imagedisplay_class_init(ImagedisplayClass *class)
 			_("Debug"),
 			_("Render snapshot in debug mode"),
 			FALSE,
+			G_PARAM_READWRITE));
+
+	g_object_class_install_property(gobject_class, PROP_PIXEL_SIZE,
+		g_param_spec_double("pixel-size",
+			_("Pixel size"),
+			_("Size of hardware display pixels in gtk coordinates"),
+			0.0, 10.0, 0.0,
 			G_PARAM_READWRITE));
 
 	g_object_class_override_property(gobject_class,
