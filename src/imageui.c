@@ -125,6 +125,7 @@ enum {
 	PROP_ZOOM,
 	PROP_X,
 	PROP_Y,
+	PROP_PIXEL_SIZE,
 
 	PROP_LAST
 };
@@ -194,6 +195,10 @@ imageui_property_name(guint prop_id)
 		return "Y";
 		break;
 
+	case PROP_PIXEL_SIZE:
+		return "PIXEL_SIZE";
+		break;
+
 	default:
 		return "<unknown>";
 	}
@@ -253,6 +258,11 @@ imageui_set_property(GObject *object,
 			"y", value);
 		break;
 
+	case PROP_PIXEL_SIZE:
+		g_object_set_property(G_OBJECT(imageui->imagedisplay),
+			"pixel-size", value);
+		break;
+
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
 		break;
@@ -294,6 +304,11 @@ imageui_get_property(GObject *object,
 
 	case PROP_Y:
 		g_object_get_property(G_OBJECT(imageui->imagedisplay), "y", value);
+		break;
+
+	case PROP_PIXEL_SIZE:
+		g_object_get_property(G_OBJECT(imageui->imagedisplay), 
+			"pixel-size", value);
 		break;
 
 	default:
@@ -1009,6 +1024,13 @@ imageui_class_init(ImageuiClass *class)
 			_("y"),
 			_("Vertical position of viewport"),
 			-VIPS_MAX_COORD, VIPS_MAX_COORD, 0,
+			G_PARAM_READWRITE));
+
+	g_object_class_install_property(gobject_class, PROP_PIXEL_SIZE,
+		g_param_spec_double("pixel_size",
+			_("Pixel size"),
+			_("Size of hardware display pixels in gtk coordinates"),
+			0.0, 10.0, 0.0,
 			G_PARAM_READWRITE));
 
 	imageui_signals[SIG_CHANGED] = g_signal_new("changed",

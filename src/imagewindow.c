@@ -377,11 +377,13 @@ imagewindow_files_set(Imagewindow *win, char **files, int n_files)
 	}
 }
 
+/* Get the effective zoom, ie. the zoom considering the hardware pixel display
+ * density.
+ */
 double
 imagewindow_get_zoom(Imagewindow *win)
 {
 	double zoom;
-
 	if (win->imageui)
 		g_object_get(win->imageui,
 			"zoom", &zoom,
@@ -389,7 +391,15 @@ imagewindow_get_zoom(Imagewindow *win)
 	else
 		zoom = 1.0;
 
-	return zoom;
+	double pixel_size;
+	if (win->imageui)
+		g_object_get(win->imageui,
+			"pixel_size", &pixel_size,
+			NULL);
+	else
+		pixel_size = 1.0;
+
+	return zoom / pixel_size;
 }
 
 void 
