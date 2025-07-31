@@ -841,14 +841,12 @@ tilecache_draw_bounds(GtkSnapshot *snapshot,
  * white lines on tile edges.
  */
 static void
-tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double pixel_size)
+tilecache_snap_rect_to_boundary(graphene_rect_t *bounds)
 {
-	double left = rint(bounds->origin.x * pixel_size) / pixel_size;
-	double top = rint(bounds->origin.y * pixel_size) / pixel_size;
-	double right = 
-		rint((bounds->origin.x + bounds->size.width) * pixel_size) / pixel_size;
-	double bottom = 
-		rint((bounds->origin.y + bounds->size.height) * pixel_size) / pixel_size;
+	double left = rint(bounds->origin.x);
+	double top = rint(bounds->origin.y);
+	double right = rint(bounds->origin.x + bounds->size.width);
+	double bottom = rint(bounds->origin.y + bounds->size.height);
 
 	bounds->origin.x = left;
 	bounds->origin.y = top;
@@ -860,16 +858,12 @@ tilecache_snap_rect_to_boundary(graphene_rect_t *bounds, double pixel_size)
 /* Scale is how much the level0 image has been scaled, x/y is the position of
  * the top-left corner of @paint in the scaled image.
  *
- * @pixel_scale is gdk_surface_get_scale() for the surface this snapshot will
- * be rendered to.
- *
  * @paint is the pixel area in gtk coordinates that we paint in the widget.
  *
  * Set debug to draw tile boundaries for debugging.
  */
 void
 tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
-	double pixel_size,
 	double scale, double x, double y, graphene_rect_t *paint, gboolean debug)
 {
 	/* In debug mode, scale and offset so we can see tile clipping.
@@ -941,7 +935,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 	 */
 	graphene_rect_t backdrop = *paint;
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-	tilecache_snap_rect_to_boundary(&backdrop, pixel_size);
+	tilecache_snap_rect_to_boundary(&backdrop);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 	gtk_snapshot_push_repeat(snapshot, &backdrop, NULL);
 
@@ -965,7 +959,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			 * blur the image. For zooming out, we want trilinear to get
 			 * mipmaps and antialiasing.
 			 */
-			GskScalingFilter filter = scale >= pixel_size ?
+			GskScalingFilter filter = scale >= 1.0 ?
 				GSK_SCALING_FILTER_NEAREST : GSK_SCALING_FILTER_TRILINEAR;
 
 			graphene_rect_t bounds;
@@ -976,7 +970,7 @@ tilecache_snapshot(Tilecache *tilecache, GtkSnapshot *snapshot,
 			bounds.size.height = tile->bounds0.height * scale;
 
 #ifndef HAVE_GTK_SNAPSHOT_SET_SNAP
-			tilecache_snap_rect_to_boundary(&bounds, pixel_size);
+			tilecache_snap_rect_to_boundary(&bounds);
 #endif /*!HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
 			gtk_snapshot_append_scaled_texture(snapshot,
