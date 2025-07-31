@@ -672,6 +672,15 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 
 	GTK_WIDGET_CLASS(imagedisplay_parent_class)->snapshot(widget, snapshot);
 
+	/* Clip to the widget area, or we may paint over the display control
+	 * bar.
+	 */
+	gtk_snapshot_push_clip(snapshot,
+		&GRAPHENE_RECT_INIT(0, 0,
+			gtk_widget_get_width(widget), gtk_widget_get_height(widget)));
+
+	gtk_snapshot_save(snapshot);
+
 	/* This can change on each repaint as windows are dragged.
 	 */
 	GtkNative *native = gtk_widget_get_native(widget);
@@ -679,21 +688,11 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	double pixel_size = 1.0 / gdk_surface_get_scale(surface);
 	g_object_set(imagedisplay, "pixel-size", pixel_size, NULL);
 
-	gtk_snapshot_save(snapshot);
-
 #ifdef HAVE_GTK_SNAPSHOT_SET_SNAP
 	gtk_snapshot_set_snap(snapshot, GSK_RECT_SNAP_ROUND);
 #endif /*HAVE_GTK_SNAPSHOT_SET_SNAP*/
 
 	gtk_snapshot_scale(snapshot, pixel_size, pixel_size);
-
-	/* Clip to the widget area, or we may paint over the display control
-	 * bar.
-	 */
-	gtk_snapshot_push_clip(snapshot,
-		&GRAPHENE_RECT_INIT(0, 0,
-			gtk_widget_get_width(widget) / pixel_size, 
-			gtk_widget_get_height(widget) / pixel_size));
 
 	graphene_rect_t paint;
 	paint.origin.x = imagedisplay->paint_rect.left / pixel_size;
@@ -709,13 +708,14 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 			imagedisplay->y / pixel_size,
 			&paint, imagedisplay->debug);
 
-	// end of clip
-	gtk_snapshot_pop(snapshot);
-
+	// undo snap and scale
 	gtk_snapshot_restore(snapshot);
 
-	// draw any overlays
+	// draw any overlays back in the regular coordinate space
 	imagedisplay_overlay_snapshot(imagedisplay, snapshot);
+
+	// end of clip
+	gtk_snapshot_pop(snapshot);
 }
 
 static void
