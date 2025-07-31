@@ -258,19 +258,9 @@ Clone and run:
 
 ```
 ./build.sh --target x86_64-w64-mingw32.shared vipsdisp
-
 ```
 
 ## TODO
-
-- add high-DPI support
-
-    for 2900% desktop scale (for example) we probably need to render our
-    256x256 tiles as 128x128 gtk pixels
-
-    however, this seems to cause filtering problems, mysteriously, see 
-    https://github.com/jcupitt/vipsdisp/tree/add-high-dpi for a quick test
-    hack
 
 - skip unknown files on next / prev?
 

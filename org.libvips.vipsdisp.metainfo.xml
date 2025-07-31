@@ -65,6 +65,15 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
+    <release version="4.1.1" date="2025-07-31">
+      <description>
+        <p>
+          This adds high DPI support, fixes borders in tiled rendering, and 
+          fixes TIFF page pyramid detection. 
+        </p>
+      </description>
+    </release>
+
     <release version="4.1.0" date="2025-07-26">
       <description>
         <p>
