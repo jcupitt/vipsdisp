@@ -676,7 +676,7 @@ imagedisplay_snapshot(GtkWidget *widget, GtkSnapshot *snapshot)
 	 */
 	GtkNative *native = gtk_widget_get_native(widget);
 	GdkSurface *surface = gtk_native_get_surface(native);
-	double pixel_size = 1.0 / gdk_surface_get_scale_factor(surface);
+	double pixel_size = 1.0 / gdk_surface_get_scale(surface);
 	g_object_set(imagedisplay, "pixel-size", pixel_size, NULL);
 
 	gtk_snapshot_save(snapshot);
