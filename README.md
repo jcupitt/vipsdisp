@@ -1,11 +1,11 @@
 # vipsdisp
 
-This program displays an image with libvips and gtk4. This is supposed
-to be a slightly useful image viewer. It can display huge (many, many GB)
-images quickly and without using much memory. It supports many scientific
-and technical image formats, including TIFF, WEBP, JP2K, JXL, AVIF, HEIC, PNG,
-JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab, NIfTI, Analyze, etc. It
-supports pixel types from 1 bit mono to 128-bit double precision complex.
+This program displays an image with libvips and gtk4. It can display huge
+(many, many GB) images quickly and without using much memory. It supports
+many scientific and technical image formats, including TIFF, WEBP, JP2K,
+JXL, AVIF, HEIC, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab,
+NIfTI, Analyze, etc. It supports pixel types from 1 bit mono to 128-bit
+double precision complex. 
 
 All of the UI can make finding the details of image display in the sourcecode
 difficult. See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for
