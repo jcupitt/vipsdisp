@@ -56,11 +56,19 @@ enumtypes = gnome.mkenums(
     c_template: 'enumtypes.c.in',
 )
 
+resources = []
+if target_machine.system() == 'windows'
+  windows = import('windows')
+  # this picks up windres from the WINDRES env var
+  resources += windows.compile_resources('vipsdisp.rc', args: '-O coff', depend_files: 'vipsdisp.ico')
+endif
+
 executable('vipsdisp', [
         enumtypes,
         marshal,
         resources,
         sources,
+        resources,
     ],
     dependencies: vipsdisp_deps,
     win_subsystem: 'windows',
