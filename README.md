@@ -1,16 +1,12 @@
 # vipsdisp
 
-This program displays an image with libvips and gtk4. It can display huge
-(many, many GB) images quickly and without using much memory. It supports
-many scientific and technical image formats, including TIFF, WEBP, JP2K,
-JXL, AVIF, HEIC, PNG, JPEG, SVS, MRXS, OpenEXR, GIF, PDF, SVG, FITS, Matlab,
-NIfTI, Analyze, etc. It supports pixel types from 1 bit mono to 128-bit
-double precision complex. 
-
-All of the UI can make finding the details of image display in the sourcecode
-difficult. See [vipsdisp-tiny](https://github.com/libvips/vipsdisp-tiny) for
-a minimal example --- that's a libvips image viewer in about 300 lines of
-very commented C.
+Vipsdisp can display huge (many, many gigabyte) images quickly and without
+using much memory. As well as the usual PNG, JPG, TIF, PDF, SVG, WEBP,
+JP2, JXL and GIF, it supports many scientific and technical image formats,
+including RAW, SVS, MRXS, OpenEXR, FITS, Matlab, NIfTI, Analyze, and
+PFM. Vipsdisp supports pixel types from 1 bit mono to 128-bit double precision
+complex, you can convert image formats, it support copy-paste and drag-drop,
+and it has a range of useful visualisation tools and display modes.
 
 The vipsdisp image widget is [used by the image processing spreadsheet
 nip4](https://github.com/jcupitt/nip4) for image display, so that might be
@@ -57,13 +53,15 @@ flatpak install flathub org.libvips.vipsdisp
   computed in the background by a pool of workers. The interface stays live
   even under very heavy load.
 
-* It keeps a sparse pyramid of computed tiles as textures on the GPU. Each 
-  frame,
-  it computes the set of visible tiles, and then the GPU scales, positions and
-  composites just those tiles to the screen. CPU load should be low (except
-  for the background workers heh). Hold down i (for "in") or + to do a smooth
-  zoom on the cursor. If you press "d" it toggles a debug display mode which
-  shows the tiles being computed.
+* It keeps a sparse pyramid of computed tiles as textures on the GPU. Each
+  frame, it computes the set of visible tiles, and then the GPU scales,
+  positions and composites just those tiles to the screen. CPU load should
+  be low (except for the background workers heh). Hold down i (for "in")
+  or + to do a smooth zoom on the cursor. If you press "d" it toggles a
+  debug display mode which shows the tiles being computed.
+
+* It supports high-DPI displays, so selecting 1:1 zoom will map one image
+  pixel to one display hardware pixel. 
 
 * Select *Display control bar* from the top-right menu and a useful
   set of visualization options appear. It supports four main display modes:
