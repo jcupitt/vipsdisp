@@ -14,5 +14,7 @@
     <file>imagedisplay.css</file>
     <file>saveoptions.css</file>
     <file>properties.css</file>
+
+    <file>lion.svg</file>
   </gresource>
 </gresources>

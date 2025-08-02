@@ -256,6 +256,16 @@
                 <property name="hexpand">true</property>
                 <property name="vexpand">true</property>
 
+		<child>
+                  <object class="GtkImage">
+                    <property name="hexpand">true</property>
+                    <property name="vexpand">true</property>
+                    <property name="opacity">0.3</property>
+		    <property name="resource">/org/libvips/vipsdisp/lion.svg</property>
+                  </object>
+                </child>
+		  
+
                   <!-- Imageui go in here -->
               </object>
             </child>
