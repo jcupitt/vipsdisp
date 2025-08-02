@@ -12,9 +12,10 @@ resources = gnome.compile_resources(
 
 if host_machine.system() == 'windows'
   windows = import('windows')
-  resources += windows.compile_resources('vipsdisp.rc', 
-    args: ['-O', 'coff'], 
-    depend_files: 'vipsdisp.ico')
+  resources += windows.compile_resources(
+      'vipsdisp.rc',
+      depend_files: 'vipsdisp.ico',
+  )
 endif
 
 headers = files (
