@@ -10,6 +10,13 @@ resources = gnome.compile_resources(
     source_dir: 'gtk',
 )
 
+if target_machine.system() == 'windows'
+  windows = import('windows')
+  resources += windows.compile_resources('vipsdisp.rc', 
+    args: ['-O', 'coff'], 
+    depend_files: 'vipsdisp.ico')
+endif
+
 headers = files (
     'displaybar.h',
     'fuzzy.h',

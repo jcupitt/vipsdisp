@@ -1,5 +1,7 @@
 master
 
+- add an icon to the exe on windows
+
 ## 4.1.1 31/07/25
 
 - do our own tile snapping if gtk has no snap mechanism 
