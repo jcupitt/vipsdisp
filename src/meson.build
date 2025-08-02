@@ -10,11 +10,12 @@ resources = gnome.compile_resources(
     source_dir: 'gtk',
 )
 
-if target_machine.system() == 'windows'
+if host_machine.system() == 'windows'
   windows = import('windows')
-  resources += windows.compile_resources('vipsdisp.rc', 
-    args: ['-O', 'coff'], 
-    depend_files: 'vipsdisp.ico')
+  resources += windows.compile_resources(
+      'vipsdisp.rc',
+      depend_files: 'vipsdisp.ico',
+  )
 endif
 
 headers = files (
