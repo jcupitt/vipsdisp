@@ -65,6 +65,14 @@ and it has a range of useful visualisation tools and display modes.
 
   <releases>
 
+    <release version="4.1.2" date="2025-08-02">
+      <description>
+        <p>
+          This adds an icon to the Windows build.
+        </p>
+      </description>
+    </release>
+
     <release version="4.1.1" date="2025-07-31">
       <description>
         <p>

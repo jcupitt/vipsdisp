@@ -1,5 +1,7 @@
 master
 
+## 4.1.2 02/08/25
+
 - add an icon to the exe on windows
 
 ## 4.1.1 31/07/25

@@ -1,5 +1,5 @@
 project('vipsdisp', 'c',
-  version: '4.1.1',
+  version: '4.1.2',
   license: 'MIT',
   meson_version: '>=0.56',
   default_options: [
