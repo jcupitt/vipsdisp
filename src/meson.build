@@ -12,7 +12,6 @@ resources = gnome.compile_resources(
 
 if target_machine.system() == 'windows'
   windows = import('windows')
-  # this picks up the windres binary from the WINDRES env var
   resources += windows.compile_resources('vipsdisp.rc', 
     args: ['-O', 'coff'], 
     depend_files: 'vipsdisp.ico')
